@@ -1,0 +1,10 @@
+module purge; module load pgi-llvm pgi/dev openmpi/3.1.3/pgi/20XX-dev netcdf/4.6.2/openmpi-3.1.3/pgi/20XX-dev cuda cuda/9.2.113/toolkit
+# ./makenemo -n ORCA1_SI3_GO8 clean_config
+
+# My changes
+./makenemo -n ORCA1_SI3_GO8 -r SPITZ12 -m linux_pgf90_acc -e /home/wgaudin/psycloned_nemo -j4 del_key 'key_iomput key_mpp_mpi'
+cd cfgs/ORCA1_SI3_GO8/EXP00/
+./nemo
+vi ocean.output
+cat run.stat
+
