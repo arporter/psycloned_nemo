@@ -134,11 +134,11 @@ MODULE domwri
     INTEGER :: ji
     LOGICAL, DIMENSION(SIZE(puniq, 1), SIZE(puniq, 2), 1) :: lldbl
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztstref
-    !$ACC KERNELS
+    !!$ACC KERNELS
     zshift = jpi * jpj * (narea - 1)
     ztstref(:, :) = RESHAPE((/(zshift + REAL(ji, wp), ji = 1, jpi * jpj)/), (/jpi, jpj/))
     puniq(:, :) = ztstref(:, :)
-    !$ACC END KERNELS
+    !!$ACC END KERNELS
     CALL lbc_lnk(puniq, cdgrd, 1.)
     !$ACC KERNELS
     lldbl(:, :, 1) = puniq(:, :) == ztstref(:, :)

@@ -141,11 +141,11 @@ MODULE crsdomwri
     INTEGER :: ji
     LOGICAL, DIMENSION(SIZE(puniq, 1), SIZE(puniq, 2), 1) :: lldbl
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs) :: ztstref
-    !$ACC KERNELS
+    !!$ACC KERNELS
     zshift = jpi_crs * jpj_crs * (narea - 1)
     ztstref(:, :) = RESHAPE((/(zshift + REAL(ji, wp), ji = 1, jpi_crs * jpj_crs)/), (/jpi_crs, jpj_crs/))
     puniq(:, :) = ztstref(:, :)
-    !$ACC END KERNELS
+    !!$ACC END KERNELS
     CALL crs_lbc_lnk(puniq, cdgrd, 1.)
     !$ACC KERNELS
     lldbl(:, :, 1) = puniq(:, :) == ztstref(:, :)

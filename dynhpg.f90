@@ -864,6 +864,7 @@ MODULE dynhpg
     END IF
   END SUBROUTINE cspline
   FUNCTION interp1(x, xl, xr, fl, fr) RESULT(f)
+  !$ACC ROUTINE SEQ
     REAL(KIND = wp), INTENT(IN) :: x, xl, xr, fl, fr
     REAL(KIND = wp) :: f
     REAL(KIND = wp) :: zdeltx
@@ -875,16 +876,19 @@ MODULE dynhpg
     END IF
   END FUNCTION interp1
   FUNCTION interp2(x, a, b, c, d) RESULT(f)
+  !$ACC ROUTINE SEQ
     REAL(KIND = wp), INTENT(IN) :: x, a, b, c, d
     REAL(KIND = wp) :: f
     f = a + x * (b + x * (c + d * x))
   END FUNCTION interp2
   FUNCTION interp3(x, a, b, c, d) RESULT(f)
+  !$ACC ROUTINE SEQ
     REAL(KIND = wp), INTENT(IN) :: x, a, b, c, d
     REAL(KIND = wp) :: f
     f = b + x * (2._wp * c + 3._wp * d * x)
   END FUNCTION interp3
   FUNCTION integ_spline(xl, xr, a, b, c, d) RESULT(f)
+  !$ACC ROUTINE SEQ
     REAL(KIND = wp), INTENT(IN) :: xl, xr, a, b, c, d
     REAL(KIND = wp) :: za1, za2, za3
     REAL(KIND = wp) :: f
