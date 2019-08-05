@@ -13,7 +13,6 @@ MODULE icedyn_rhg_evp
   USE lib_fortran
   USE lbclnk
   USE prtctl
-  USE timing
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: ice_dyn_rhg_evp
@@ -77,7 +76,6 @@ MODULE icedyn_rhg_evp
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zdiag_xatrp
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zdiag_yatrp
     IF (kt == nit000 .AND. lwp) WRITE(numout, FMT = *) '-- ice_dyn_rhg_evp: EVP sea-ice rheology'
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_1')
     !$ACC KERNELS
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
@@ -85,9 +83,7 @@ MODULE icedyn_rhg_evp
       END DO
     END DO
     !$ACC END KERNELS
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_1')
     CALL lbc_lnk(zfmask, 'F', 1._wp)
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_2')
     !$ACC KERNELS
     zwf(:, :) = zfmask(:, :)
     DO jj = 2, jpjm1
@@ -114,9 +110,7 @@ MODULE icedyn_rhg_evp
       END IF
     END DO
     !$ACC END KERNELS
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_2')
     CALL lbc_lnk(zfmask, 'F', 1._wp)
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_3')
     !$ACC KERNELS
     zrhoco = rau0 * rn_cio
     ecc2 = rn_ecc * rn_ecc
@@ -180,13 +174,10 @@ MODULE icedyn_rhg_evp
       END DO
     END DO
     !$ACC END KERNELS
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_3')
     CALL lbc_lnk_multi(zmf, 'T', 1., zdt_m, 'T', 1.)
 ! THIS BLOCK DOMINATES THE TIMING
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_4')
 write(0,*) "nn_nevp ",nn_nevp
     DO jter = 1, nn_nevp
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_4a')
       IF (ln_ctl) THEN
         !$ACC KERNELS
         DO jj = 1, jpjm1
@@ -202,10 +193,7 @@ write(0,*) "nn_nevp ",nn_nevp
         END DO
       END DO
       !$ACC END KERNELS
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_4a')
       CALL lbc_lnk(zds, 'F', 1.)
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_4b')  ! SLOW BLOCK
-! SLOW
       !$ACC PARALLEL FIRSTPRIVATE(zalph2, z1_alph2)
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj
@@ -228,9 +216,7 @@ write(0,*) "nn_nevp ",nn_nevp
         END DO
       END DO
       !$ACC END PARALLEL
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_4b')
       CALL lbc_lnk(zp_delt, 'T', 1.)
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_4c') ! SLOW BLOCK
       !$ACC PARALLEL FIRSTPRIVATE(zalph2, z1_alph2)
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
@@ -254,10 +240,9 @@ write(0,*) "nn_nevp ",nn_nevp
         END DO
       END DO
       !$ACC END PARALLEL
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_4c')
       IF (MOD(jter, 2) == 0) THEN
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_4d')
-        !$ACC KERNELS
+        !$ACC PARALLEL FIRSTPRIVATE(zrhoco)
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaV(ji, jj) * zrhoco * SQRT((v_ice(ji, jj) - v_oce(ji, jj)) * (v_ice(ji, jj) - v_oce(ji, jj)) + (u_iceV(ji, jj) - u_oceV(ji, jj)) * (u_iceV(ji, jj) - u_oceV(ji, jj)))
@@ -274,12 +259,11 @@ write(0,*) "nn_nevp ",nn_nevp
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_4d')
+        !$ACC END PARALLEL
         CALL lbc_lnk(v_ice, 'V', - 1.)
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_4e')
         IF (ln_bdy) CALL bdy_ice_dyn('V')
-        !$ACC KERNELS
+        !$ACC PARALLEL FIRSTPRIVATE(zrhoco)
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaU(ji, jj) * zrhoco * SQRT((u_ice(ji, jj) - u_oce(ji, jj)) * (u_ice(ji, jj) - u_oce(ji, jj)) + (v_iceU(ji, jj) - v_oceU(ji, jj)) * (v_iceU(ji, jj) - v_oceU(ji, jj)))
@@ -296,15 +280,12 @@ write(0,*) "nn_nevp ",nn_nevp
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_4e')
+        !$ACC END PARALLEL
         CALL lbc_lnk(u_ice, 'U', - 1.)
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_4f')
         IF (ln_bdy) CALL bdy_ice_dyn('U')
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_4f')
       ELSE
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_4g')
-        !$ACC KERNELS
+        !$ACC PARALLEL FIRSTPRIVATE(zrhoco)
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaU(ji, jj) * zrhoco * SQRT((u_ice(ji, jj) - u_oce(ji, jj)) * (u_ice(ji, jj) - u_oce(ji, jj)) + (v_iceU(ji, jj) - v_oceU(ji, jj)) * (v_iceU(ji, jj) - v_oceU(ji, jj)))
@@ -321,12 +302,11 @@ write(0,*) "nn_nevp ",nn_nevp
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_4g')
+        !$ACC END PARALLEL
         CALL lbc_lnk(u_ice, 'U', - 1.)
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_4h') ! SLOW BLOCK
         IF (ln_bdy) CALL bdy_ice_dyn('U')
-        !$ACC KERNELS
+        !$ACC PARALLEL FIRSTPRIVATE(zrhoco)
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaV(ji, jj) * zrhoco * SQRT((v_ice(ji, jj) - v_oce(ji, jj)) * (v_ice(ji, jj) - v_oce(ji, jj)) + (u_iceV(ji, jj) - u_oceV(ji, jj)) * (u_iceV(ji, jj) - u_oceV(ji, jj)))
@@ -343,7 +323,7 @@ write(0,*) "nn_nevp ",nn_nevp
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
+        !$ACC END PARALLEL
         CALL lbc_lnk(v_ice, 'V', - 1.)
         IF (ln_bdy) CALL bdy_ice_dyn('V')
       END IF
@@ -356,10 +336,7 @@ write(0,*) "nn_nevp ",nn_nevp
     !$ACC END KERNELS
         IF (lk_mpp) CALL mpp_max(zresm)
       END IF
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_4h')
     END DO ! Iteration loop, jter
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_4')
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_5')
     !$ACC KERNELS
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
@@ -379,10 +356,8 @@ write(0,*) "nn_nevp ",nn_nevp
       END DO
     END DO
     !$ACC END KERNELS
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_5')
     CALL lbc_lnk_multi(pshear_i, 'T', 1., pdivu_i, 'T', 1., pdelta_i, 'T', 1.)
     CALL lbc_lnk_multi(zs1, 'T', 1., zs2, 'T', 1., zs12, 'F', 1.)
-    !IF (ln_timing) CALL timing_start('icedyn_rhg_evp_6')
     !$ACC KERNELS
     pstress1_i(:, :) = zs1(:, :)
     pstress2_i(:, :) = zs2(:, :)
@@ -463,7 +438,6 @@ write(0,*) "nn_nevp ",nn_nevp
       IF (iom_use('yatrp')) CALL iom_put('yatrp', zdiag_yatrp(:, :))
       DEALLOCATE(zdiag_sig1, zdiag_sig2, zdiag_dssh_dx, zdiag_dssh_dy, zdiag_corstrx, zdiag_corstry, zdiag_intstrx, zdiag_intstry, zdiag_utau_oi, zdiag_vtau_oi, zdiag_xmtrp_ice, zdiag_ymtrp_ice, zdiag_xmtrp_snw, zdiag_ymtrp_snw, zdiag_xatrp, zdiag_yatrp)
     END IF
-    !IF (ln_timing) CALL timing_stop('icedyn_rhg_evp_6')
   END SUBROUTINE ice_dyn_rhg_evp
   SUBROUTINE rhg_evp_rst(cdrw, kt)
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
