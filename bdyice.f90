@@ -21,8 +21,11 @@ MODULE bdyice
   PUBLIC :: bdy_ice_dyn
   CONTAINS
   SUBROUTINE bdy_ice(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: jbdy
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_ice', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('bdy_ice_thd')
     CALL ice_var_glo2eqv
     DO jbdy = 1, nb_bdy
@@ -39,8 +42,10 @@ MODULE bdyice
     CALL ice_var_agg(1)
     IF (ln_icectl) CALL ice_prt(kt, iiceprt, jiceprt, 1, ' - ice thermo bdy - ')
     IF (ln_timing) CALL timing_stop('bdy_ice_thd')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_ice
   SUBROUTINE bdy_ice_frs(idx, dta, kt, jbdy)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(OBC_DATA), INTENT(IN) :: dta
     INTEGER, INTENT(IN) :: kt
@@ -50,6 +55,10 @@ MODULE bdyice
     INTEGER :: ji, jj, jk, jl, ib, jb
     REAL(KIND = wp) :: zwgt, zwgt1
     REAL(KIND = wp) :: ztmelts, zdh
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    CALL ProfileStart('bdy_ice_frs', 'r0', psy_profile0)
     jgrd = 1
     DO jl = 1, jpl
       DO i_bdy = 1, idx % nblenrim(jgrd)
@@ -68,8 +77,10 @@ MODULE bdyice
     CALL lbc_bdy_lnk(a_i(:, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(h_i(:, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(h_s(:, :, :), 'T', 1., jbdy)
+    CALL ProfileEnd(psy_profile0)
     DO jl = 1, jpl
       DO i_bdy = 1, idx % nblenrim(jgrd)
+        CALL ProfileStart('bdy_ice_frs', 'r1', psy_profile1)
         ji = idx % nbi(i_bdy, jgrd)
         jj = idx % nbj(i_bdy, jgrd)
         jpbound = 0
@@ -90,10 +101,13 @@ MODULE bdyice
         IF (nn_ice_dta(jbdy) == 0) jpbound = 0
         ib = ji
         jb = jj
+        CALL ProfileEnd(psy_profile1)
         IF (a_i(ib, jb, jl) > 0._wp) THEN
+          CALL ProfileStart('bdy_ice_frs', 'r2', psy_profile2)
           a_i(ji, jj, jl) = a_i(ib, jb, jl)
           h_i(ji, jj, jl) = h_i(ib, jb, jl)
           h_s(ji, jj, jl) = h_s(ib, jb, jl)
+          CALL ProfileEnd(psy_profile2)
           SELECT CASE (jpbound)
           CASE (0)
             !$ACC KERNELS
@@ -189,11 +203,14 @@ MODULE bdyice
     CALL lbc_bdy_lnk(e_i(:, :, :, :), 'T', 1., jbdy)
   END SUBROUTINE bdy_ice_frs
   SUBROUTINE bdy_ice_dyn(cd_type)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = 1), INTENT(IN) :: cd_type
     INTEGER :: i_bdy, jgrd
     INTEGER :: ji, jj
     INTEGER :: jbdy
     REAL(KIND = wp) :: zmsk1, zmsk2, zflag
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_ice_dyn', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('bdy_ice_dyn')
     DO jbdy = 1, nb_bdy
       SELECT CASE (cn_ice(jbdy))
@@ -238,5 +255,6 @@ MODULE bdyice
       END SELECT
     END DO
     IF (ln_timing) CALL timing_stop('bdy_ice_dyn')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_ice_dyn
 END MODULE bdyice

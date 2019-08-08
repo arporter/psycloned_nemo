@@ -26,6 +26,7 @@ MODULE bdydta
   INTEGER, DIMENSION(jp_bdy) :: jfld_htit, jfld_htst, jfld_ait
   CONTAINS
   SUBROUTINE bdy_dta(kt, jit, time_offset)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN), OPTIONAL :: jit
     INTEGER, INTENT(IN), OPTIONAL :: time_offset
@@ -34,6 +35,8 @@ MODULE bdydta
     INTEGER, DIMENSION(jpbgrd) :: ilen1
     INTEGER, POINTER, DIMENSION(:) :: nblen, nblenrim
     TYPE(OBC_DATA), POINTER :: dta
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_dta', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('bdy_dta')
     IF (kt == nit000 .AND. .NOT. PRESENT(jit)) THEN
       DO jbdy = 1, nb_bdy
@@ -297,6 +300,7 @@ MODULE bdydta
       END DO
     END IF
     IF (ln_timing) CALL timing_stop('bdy_dta')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_dta
   SUBROUTINE bdy_dta_init
     INTEGER :: jbdy, jfld, jstart, jend, ierror, ios

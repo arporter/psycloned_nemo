@@ -14,6 +14,7 @@ MODULE ldfc1d_c2d
   REAL(KIND = wp) :: r1_12 = 1._wp / 12._wp
   CONTAINS
   SUBROUTINE ldf_c1d(cd_type, pahs1, pahs2, pah1, pah2)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = 3), INTENT(IN   ) :: cd_type
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pahs1, pahs2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pah1, pah2
@@ -21,12 +22,17 @@ MODULE ldfc1d_c2d
     REAL(KIND = wp) :: zh, zc, zdep1
     REAL(KIND = wp) :: zw, zdep2
     REAL(KIND = wp) :: zratio
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    CALL ProfileStart('ldf_c1d', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) '   ldf_c1d : set a given profile to eddy mixing coefficients'
     zratio = 0.25_wp
     zh = 500._wp
     zw = 1._wp / 200._wp
     zc = (1._wp - zratio) / (1._wp + TANH(zh * zw))
+    CALL ProfileEnd(psy_profile0)
     SELECT CASE (cd_type)
     CASE ('DYN')
       !$ACC KERNELS
@@ -34,6 +40,7 @@ MODULE ldfc1d_c2d
         pah1(:, :, jk) = pahs1(:, :) * (zratio + zc * (1._wp + TANH(- (gdept_0(:, :, jk) - zh) * zw)))
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('ldf_c1d', 'r1', psy_profile1)
       DO jk = jpkm1, 1, - 1
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
@@ -43,7 +50,9 @@ MODULE ldfc1d_c2d
         END DO
       END DO
       CALL lbc_lnk(pah2, 'F', 1.)
+      CALL ProfileEnd(psy_profile1)
     CASE ('TRA')
+      CALL ProfileStart('ldf_c1d', 'r2', psy_profile2)
       DO jk = jpkm1, 1, - 1
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
@@ -55,19 +64,24 @@ MODULE ldfc1d_c2d
         END DO
       END DO
       CALL lbc_lnk_multi(pah1, 'U', 1., pah2, 'V', 1.)
+      CALL ProfileEnd(psy_profile2)
     CASE DEFAULT
       CALL ctl_stop('ldf_c1d: ', cd_type, ' Unknown, i.e. /= DYN or TRA')
     END SELECT
   END SUBROUTINE ldf_c1d
   SUBROUTINE ldf_c2d(cd_type, pUfac, knn, pah1, pah2)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = 3), INTENT(IN   ) :: cd_type
     REAL(KIND = wp), INTENT(IN   ) :: pUfac
     INTEGER, INTENT(IN   ) :: knn
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pah1, pah2
     INTEGER :: ji, jj, jk
     INTEGER :: inn
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ldf_c2d', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) '   ldf_c2d :   aht = Ufac * max(e1,e2)   with Ufac = ', pUfac, ' m/s'
+    CALL ProfileEnd(psy_profile0)
     SELECT CASE (cd_type)
     CASE ('DYN')
       !$ACC KERNELS

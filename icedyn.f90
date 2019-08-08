@@ -28,27 +28,37 @@ MODULE icedyn
   REAL(KIND = wp) :: rn_vice
   CONTAINS
   SUBROUTINE ice_dyn(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jl
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: zhmax
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    CALL ProfileStart('ice_dyn', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('icedyn')
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'ice_dyn: sea-ice dynamics'
       WRITE(numout, FMT = *) '~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (ln_landfast) THEN
       !$ACC KERNELS
       tau_icebfr(:, :) = 0._wp
       !$ACC END KERNELS
+      CALL ProfileStart('ice_dyn', 'r1', psy_profile1)
       DO jl = 1, jpl
         WHERE (h_i(:, :, jl) > ht_n(:, :) * rn_gamma) tau_icebfr(:, :) = tau_icebfr(:, :) + a_i(:, :, jl) * rn_icebfr
       END DO
       IF (iom_use('tau_icebfr')) CALL iom_put('tau_icebfr', tau_icebfr)
+      CALL ProfileEnd(psy_profile1)
     END IF
     !$ACC KERNELS
     zhmax(:, :, :) = h_i_b(:, :, :)
     !$ACC END KERNELS
+    CALL ProfileStart('ice_dyn', 'r2', psy_profile2)
     DO jl = 1, jpl
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -57,6 +67,7 @@ MODULE icedyn
       END DO
     END DO
     CALL lbc_lnk(zhmax(:, :, :), 'T', 1.)
+    CALL ProfileEnd(psy_profile2)
     SELECT CASE (nice_dyn)
     CASE (np_dynFULL)
       CALL ice_dyn_rhg(kt)
@@ -75,12 +86,16 @@ MODULE icedyn
       !$ACC END KERNELS
       CALL ice_dyn_adv(kt)
     END SELECT
+    CALL ProfileStart('ice_dyn', 'r3', psy_profile3)
     IF (ln_timing) CALL timing_stop('icedyn')
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE ice_dyn
   SUBROUTINE Hbig(phmax)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: phmax
     INTEGER :: ji, jj, jl
     REAL(KIND = wp) :: zh, zdv
+    TYPE(ProfileData), SAVE :: psy_profile0
     CALL ice_var_zapsmall
     !$ACC KERNELS
     DO jl = 1, jpl
@@ -97,10 +112,15 @@ MODULE icedyn
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('hbig', 'r0', psy_profile0)
     WHERE (a_ip(:, :, :) > a_i(:, :, :)) a_ip(:, :, :) = a_i(:, :, :)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE Hbig
   SUBROUTINE Hpiling
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: jl
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('hpiling', 'r0', psy_profile0)
     CALL ice_var_zapsmall
     at_i(:, :) = SUM(a_i(:, :, :), dim = 3)
     DO jl = 1, jpl
@@ -108,6 +128,7 @@ MODULE icedyn
         a_i(:, :, jl) = a_i(:, :, jl) * (1._wp + MIN(rn_amax_2d(:, :) - at_i(:, :), 0._wp) / at_i(:, :))
       END WHERE
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE Hpiling
   SUBROUTINE ice_dyn_init
     INTEGER :: ios, ioptio

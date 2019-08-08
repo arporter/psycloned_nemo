@@ -45,7 +45,10 @@ MODULE nemogcm
   CHARACTER(LEN = lc) :: cform_aaa = "( /, 'AAAAAAAA', / ) "
   CONTAINS
   SUBROUTINE nemo_gcm
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: istp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('nemo_gcm', 'r0', psy_profile0)
     CALL nemo_init
     IF (lk_mpp) CALL mpp_max(nstop)
     IF (lwp) WRITE(numout, cform_aaa)
@@ -76,6 +79,7 @@ MODULE nemogcm
     ELSE IF (lk_mpp) THEN
       CALL mppstop
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE nemo_gcm
   SUBROUTINE nemo_init
     INTEGER :: ji
@@ -300,11 +304,14 @@ MODULE nemogcm
     numout = 6
   END SUBROUTINE nemo_closefile
   SUBROUTINE nemo_alloc
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE diawri, ONLY: dia_wri_alloc
     USE dom_oce, ONLY: dom_oce_alloc
     USE trc_oce, ONLY: trc_oce_alloc
     USE bdy_oce, ONLY: bdy_oce_alloc
     INTEGER :: ierr
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('nemo_alloc', 'r0', psy_profile0)
     ierr = oce_alloc()
     ierr = ierr + dia_wri_alloc()
     ierr = ierr + dom_oce_alloc()
@@ -313,5 +320,6 @@ MODULE nemogcm
     ierr = ierr + bdy_oce_alloc()
     IF (lk_mpp) CALL mpp_sum(ierr)
     IF (ierr /= 0) CALL ctl_stop('STOP', 'nemo_alloc: unable to allocate standard ocean arrays')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE nemo_alloc
 END MODULE nemogcm

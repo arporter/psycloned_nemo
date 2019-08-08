@@ -268,12 +268,17 @@ MODULE ldftra
     END IF
   END SUBROUTINE ldf_tra_init
   SUBROUTINE ldf_tra(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zaht, zahf, zaht_min, zDaht, z1_f20
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('ldf_tra', 'r0', psy_profile0)
     IF (ln_ldfeiv .AND. nn_aei_ijk_t == 21) THEN
       CALL ldf_eiv(kt, aei0, aeiu, aeiv)
     END IF
+    CALL ProfileEnd(psy_profile0)
     SELECT CASE (nn_aht_ijk_t)
     CASE (21)
       IF (ln_ldfeiv .AND. nn_aei_ijk_t == 21) THEN
@@ -318,6 +323,7 @@ MODULE ldftra
         !$ACC END KERNELS
       END IF
     END SELECT
+    CALL ProfileStart('ldf_tra', 'r1', psy_profile1)
     CALL iom_put("ahtu_2d", ahtu(:, :, 1))
     CALL iom_put("ahtv_2d", ahtv(:, :, 1))
     CALL iom_put("ahtu_3d", ahtu(:, :, :))
@@ -328,6 +334,7 @@ MODULE ldftra
       CALL iom_put("aeiu_3d", aeiu(:, :, :))
       CALL iom_put("aeiv_3d", aeiv(:, :, :))
     END IF
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE ldf_tra
   SUBROUTINE ldf_eiv_init
     INTEGER :: jk
@@ -509,6 +516,7 @@ MODULE ldftra
     !$ACC END KERNELS
   END SUBROUTINE ldf_eiv
   SUBROUTINE ldf_eiv_trp(kt, kit000, pun, pvn, pwn, cdtype)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER, INTENT(IN   ) :: kit000
     CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
@@ -519,11 +527,15 @@ MODULE ldftra
     REAL(KIND = wp) :: zuwk, zuwk1, zuwi, zuwi1
     REAL(KIND = wp) :: zvwk, zvwk1, zvwj, zvwj1
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zpsi_uw, zpsi_vw
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('ldf_eiv_trp', 'r0', psy_profile0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'ldf_eiv_trp : eddy induced advection on ', cdtype, ' :'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~   add to velocity fields the eiv component'
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zpsi_uw(:, :, 1) = 0._wp
     zpsi_vw(:, :, 1) = 0._wp
@@ -553,14 +565,20 @@ MODULE ldftra
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ldf_eiv_trp', 'r1', psy_profile1)
     IF (ln_ldfeiv_dia .AND. cdtype == 'TRA') CALL ldf_eiv_dia(zpsi_uw, zpsi_vw)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE ldf_eiv_trp
   SUBROUTINE ldf_eiv_dia(psi_uw, psi_vw)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: psi_uw, psi_vw
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zztmp
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zw2d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zw3d
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
     CALL lbc_lnk_multi(psi_uw, 'U', - 1., psi_vw, 'V', - 1.)
     !$ACC KERNELS
     zw3d(:, :, jpk) = 0._wp
@@ -584,9 +602,11 @@ MODULE ldftra
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ldf_eiv_dia', 'r0', psy_profile0)
     CALL lbc_lnk(zw3d, 'T', 1.)
     CALL iom_put("woce_eiv", zw3d)
     zztmp = 0.5_wp * rau0 * rcp
+    CALL ProfileEnd(psy_profile0)
     IF (iom_use('ueiv_heattr') .OR. iom_use('ueiv_heattr3d')) THEN
       !$ACC KERNELS
       zw2d(:, :) = 0._wp
@@ -617,11 +637,13 @@ MODULE ldftra
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ldf_eiv_dia', 'r1', psy_profile1)
     CALL lbc_lnk(zw2d, 'V', - 1.)
     CALL iom_put("veiv_heattr", zztmp * zw2d)
     CALL iom_put("veiv_heattr", zztmp * zw3d)
     IF (ln_diaptr) CALL dia_ptr_hst(jp_tem, 'eiv', 0.5 * zw3d)
     zztmp = 0.5_wp * 0.5
+    CALL ProfileEnd(psy_profile1)
     IF (iom_use('ueiv_salttr') .OR. iom_use('ueiv_salttr3d')) THEN
       !$ACC KERNELS
       zw2d(:, :) = 0._wp
@@ -652,9 +674,11 @@ MODULE ldftra
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ldf_eiv_dia', 'r2', psy_profile2)
     CALL lbc_lnk(zw2d, 'V', - 1.)
     CALL iom_put("veiv_salttr", zztmp * zw2d)
     CALL iom_put("veiv_salttr", zztmp * zw3d)
     IF (ln_diaptr) CALL dia_ptr_hst(jp_sal, 'eiv', 0.5 * zw3d)
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE ldf_eiv_dia
 END MODULE ldftra

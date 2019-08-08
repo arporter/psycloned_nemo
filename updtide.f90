@@ -10,6 +10,7 @@ MODULE updtide
   PUBLIC :: upd_tide
   CONTAINS
   SUBROUTINE upd_tide(kt, kit, time_offset)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN), OPTIONAL :: kit
     INTEGER, INTENT(IN), OPTIONAL :: time_offset
@@ -17,6 +18,9 @@ MODULE updtide
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zt, zramp
     REAL(KIND = wp), DIMENSION(nb_harmo) :: zwt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('upd_tide', 'r0', psy_profile0)
     zt = (kt - kt_tide) * rdt
     joffset = 0
     IF (PRESENT(time_offset)) joffset = time_offset
@@ -26,6 +30,7 @@ MODULE updtide
       zt = zt + joffset * rdt
     END IF
     zwt(:) = omega_tide(:) * zt
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     pot_astro(:, :) = 0._wp
     DO jk = 1, nb_harmo
@@ -33,8 +38,10 @@ MODULE updtide
     END DO
     !$ACC END KERNELS
     IF (ln_tide_ramp) THEN
+      CALL ProfileStart('upd_tide', 'r1', psy_profile1)
       zt = (kt - nit000) * rdt
       IF (PRESENT(kit)) zt = zt + (kit + joffset - 1) * rdt / REAL(nn_baro, wp)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       zramp = MIN(MAX(zt / (rdttideramp * rday), 0._wp), 1._wp)
       pot_astro(:, :) = zramp * pot_astro(:, :)

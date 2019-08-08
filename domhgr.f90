@@ -12,9 +12,17 @@ MODULE domhgr
   PUBLIC :: dom_hgr
   CONTAINS
   SUBROUTINE dom_hgr
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji, jj
     INTEGER :: ie1e2u_v
     INTEGER :: iff
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    CALL ProfileStart('dom_hgr', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dom_hgr')
     IF (lwp) THEN
       WRITE(numout, FMT = *)
@@ -31,18 +39,23 @@ MODULE domhgr
       IF (lwp) WRITE(numout, FMT = *) '          User defined horizontal mesh (usr_def_hgr)'
       CALL usr_def_hgr(glamt, glamu, glamv, glamf, gphit, gphiu, gphiv, gphif, iff, ff_f, ff_t, e1t, e1u, e1v, e1f, e2t, e2u, e2v, e2f, ie1e2u_v, e1e2u, e1e2v)
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (iff == 0) THEN
+      CALL ProfileStart('dom_hgr', 'r1', psy_profile1)
       IF (lwp) WRITE(numout, FMT = *) '          Coriolis parameter calculated on the sphere from gphif & gphit'
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ff_f(:, :) = 2. * omega * SIN(rad * gphif(:, :))
       ff_t(:, :) = 2. * omega * SIN(rad * gphit(:, :))
       !$ACC END KERNELS
     ELSE
+      CALL ProfileStart('dom_hgr', 'r2', psy_profile2)
       IF (ln_read_cfg) THEN
         IF (lwp) WRITE(numout, FMT = *) '          Coriolis parameter have been read in ', TRIM(cn_domcfg), ' file'
       ELSE
         IF (lwp) WRITE(numout, FMT = *) '          Coriolis parameter have been set in usr_def_hgr routine'
       END IF
+      CALL ProfileEnd(psy_profile2)
     END IF
     !$ACC KERNELS
     r1_e1t(:, :) = 1._wp / e1t(:, :)
@@ -59,14 +72,18 @@ MODULE domhgr
     r1_e1e2f(:, :) = 1._wp / e1e2f(:, :)
     !$ACC END KERNELS
     IF (ie1e2u_v == 0) THEN
+      CALL ProfileStart('dom_hgr', 'r3', psy_profile3)
       IF (lwp) WRITE(numout, FMT = *) '          u- & v-surfaces calculated as e1 e2 product'
+      CALL ProfileEnd(psy_profile3)
       !$ACC KERNELS
       e1e2u(:, :) = e1u(:, :) * e2u(:, :)
       e1e2v(:, :) = e1v(:, :) * e2v(:, :)
       !$ACC END KERNELS
     ELSE
+      CALL ProfileStart('dom_hgr', 'r4', psy_profile4)
       IF (lwp) WRITE(numout, FMT = *) '          u- & v-surfaces have been read in "mesh_mask" file:'
       IF (lwp) WRITE(numout, FMT = *) '                     grid size reduction in strait(s) is used'
+      CALL ProfileEnd(psy_profile4)
     END IF
     !$ACC KERNELS
     r1_e1e2u(:, :) = 1._wp / e1e2u(:, :)
@@ -74,9 +91,12 @@ MODULE domhgr
     e2_e1u(:, :) = e2u(:, :) / e1u(:, :)
     e1_e2v(:, :) = e1v(:, :) / e2v(:, :)
     !$ACC END KERNELS
+    CALL ProfileStart('dom_hgr', 'r5', psy_profile5)
     IF (ln_timing) CALL timing_stop('dom_hgr')
+    CALL ProfileEnd(psy_profile5)
   END SUBROUTINE dom_hgr
   SUBROUTINE hgr_read(plamt, plamu, plamv, plamf, pphit, pphiu, pphiv, pphif, kff, pff_f, pff_t, pe1t, pe1u, pe1v, pe1f, pe2t, pe2u, pe2v, pe2f, ke1e2u_v, pe1e2u, pe1e2v)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: plamt, plamu, plamv, plamf
     REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: pphit, pphiu, pphiv, pphif
     INTEGER, INTENT(OUT) :: kff
@@ -86,6 +106,8 @@ MODULE domhgr
     INTEGER, INTENT(OUT) :: ke1e2u_v
     REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: pe1e2u, pe1e2v
     INTEGER :: inum
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('hgr_read', 'r0', psy_profile0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) '   hgr_read : read the horizontal coordinates in mesh_mask'
@@ -125,5 +147,6 @@ MODULE domhgr
       ke1e2u_v = 0
     END IF
     CALL iom_close(inum)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE hgr_read
 END MODULE domhgr

@@ -17,7 +17,10 @@ MODULE icedyn_rhg
   LOGICAL :: ln_rhg_EVP
   CONTAINS
   SUBROUTINE ice_dyn_rhg(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice_dyn_rhg', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('icedyn_rhg')
     IF (ln_icediachk) CALL ice_cons_hsm(0, 'icedyn_rhg', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (kt == nit000 .AND. lwp) THEN
@@ -35,6 +38,7 @@ MODULE icedyn_rhg
     IF (ln_icediachk) CALL ice_cons_hsm(1, 'icedyn_rhg', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (ln_ctl) CALL ice_prt3D('icedyn_rhg')
     IF (ln_timing) CALL timing_stop('icedyn_rhg')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_dyn_rhg
   SUBROUTINE ice_dyn_rhg_init
     INTEGER :: ios, ioptio

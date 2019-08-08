@@ -37,6 +37,7 @@ MODULE trdmxl
     IF (trd_mxl_alloc /= 0) CALL ctl_warn('trd_mxl_alloc: failed to allocate array ndextrd1')
   END FUNCTION trd_mxl_alloc
   SUBROUTINE trd_tra_mxl(ptrdx, ptrdy, ktrd, kt, p2dt, kmxln)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
     INTEGER, INTENT(IN   ) :: ktrd
@@ -44,6 +45,7 @@ MODULE trdmxl
     REAL(KIND = wp), INTENT(IN   ) :: p2dt
     REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: kmxln
     INTEGER :: ji, jj, jk
+    TYPE(ProfileData), SAVE :: psy_profile0
     IF (kt /= nkstp) THEN
       !$ACC KERNELS
       nkstp = kt
@@ -92,18 +94,27 @@ MODULE trdmxl
         !$ACC END KERNELS
       END IF
     CASE (jptra_atf)
+      CALL ProfileStart('trd_tra_mxl', 'r0', psy_profile0)
+      CALL ProfileEnd(psy_profile0)
     END SELECT
   END SUBROUTINE trd_tra_mxl
   SUBROUTINE trd_mean(kt, ptrd, ptrdm)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: ptrd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdm
     INTEGER, INTENT(IN   ) :: kt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('trd_mean', 'r0', psy_profile0)
     IF (kt == nn_it000) ptrdm(:, :, :) = 0._wp
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     ptrdm(:, :, :) = ptrdm(:, :, :) + ptrd(:, :, :)
     !$ACC END KERNELS
+    CALL ProfileStart('trd_mean', 'r1', psy_profile1)
     IF (MOD(kt - nn_it000 + 1, nn_trd) == 0) THEN
     END IF
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE trd_mean
   SUBROUTINE trd_mxl_zint(pttrdmxl, pstrdmxl, ktrd, ctype)
     INTEGER, INTENT( IN ) :: ktrd
@@ -130,6 +141,7 @@ MODULE trdmxl
     END IF
   END SUBROUTINE trd_mxl_zint
   SUBROUTINE trd_mxl(kt, p2dt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), INTENT(IN   ) :: p2dt
     INTEGER :: ji, jj, jk, jl, ik, it, itmod
@@ -138,6 +150,13 @@ MODULE trdmxl
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztmltot, zsmltot, ztmlres, zsmlres, ztmlatf, zsmlatf
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztmltot2, zsmltot2, ztmlres2, zsmlres2, ztmlatf2, zsmlatf2, ztmltrdm2, zsmltrdm2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ztmltrd2, zsmltrd2
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
     !$ACC KERNELS
     ztmltrd2(:, :, :) = 0.E0
     zsmltrd2(:, :, :) = 0.E0
@@ -170,13 +189,16 @@ MODULE trdmxl
       smltrd_atf_sumb(:, :) = 0.E0
       hmxlbn(:, :) = hmxl(:, :)
       !$ACC END KERNELS
+      CALL ProfileStart('trd_mxl', 'r0', psy_profile0)
       IF (ln_ctl) THEN
         WRITE(numout, FMT = *) '             we reach kt == nit000 + 1 = ', nit000 + 1
         CALL prt_ctl(tab2d_1 = tmlbb, clinfo1 = ' tmlbb   -   : ', mask1 = tmask)
         CALL prt_ctl(tab2d_1 = tmlbn, clinfo1 = ' tmlbn   -   : ', mask1 = tmask)
         CALL prt_ctl(tab2d_1 = tmlatfb, clinfo1 = ' tmlatfb -   : ', mask1 = tmask)
       END IF
+      CALL ProfileEnd(psy_profile0)
     END IF
+    CALL ProfileStart('trd_mxl', 'r1', psy_profile1)
     IF ((ln_rstart) .AND. (kt == nit000) .AND. (ln_ctl)) THEN
       IF (ln_trdmxl_instant) THEN
         WRITE(numout, FMT = *) '             restart from kt == nit000 = ', nit000
@@ -192,6 +214,7 @@ MODULE trdmxl
         CALL prt_ctl(tab3d_1 = tmltrd_csum_ub, clinfo1 = ' tmltrd_csum_ub  -  : ', mask1 = tmask, kdim = 1)
       END IF
     END IF
+    CALL ProfileEnd(psy_profile1)
     IF ((kt >= 2) .OR. (ln_rstart)) THEN
       !$ACC KERNELS
       nmoymltrd = nmoymltrd + 1
@@ -227,7 +250,9 @@ MODULE trdmxl
       ztmlres2(:, :) = 0.E0
       zsmlres2(:, :) = 0.E0
       !$ACC END KERNELS
+      CALL ProfileStart('trd_mxl', 'r2', psy_profile2)
       zfn = REAL(nmoymltrd, wp)
+      CALL ProfileEnd(psy_profile2)
       !$ACC KERNELS
       zfn2 = zfn * zfn
       ztmltot(:, :) = (tml(:, :) - tmlbn(:, :) + tmlb(:, :) - tmlbb(:, :)) / p2dt
@@ -280,6 +305,7 @@ MODULE trdmxl
       smltrd_atf_sumb(:, :) = smltrd_sum(:, :, jpmxl_atf)
       hmxlbn(:, :) = hmxl(:, :)
       !$ACC END KERNELS
+      CALL ProfileStart('trd_mxl', 'r3', psy_profile3)
       IF (ln_ctl) THEN
         IF (ln_trdmxl_instant) THEN
           CALL prt_ctl(tab2d_1 = tmlbb, clinfo1 = ' tmlbb   -   : ', mask1 = tmask)
@@ -293,6 +319,7 @@ MODULE trdmxl
           CALL prt_ctl(tab3d_1 = tmltrd_csum_ub, clinfo1 = ' tmltrd_csum_ub  -  : ', mask1 = tmask, kdim = 1)
         END IF
       END IF
+      CALL ProfileEnd(psy_profile3)
       !$ACC KERNELS
       ztmltot(:, :) = ztmltot(:, :) * rn_ucf / zfn
       zsmltot(:, :) = zsmltot(:, :) * rn_ucf / zfn
@@ -312,6 +339,7 @@ MODULE trdmxl
       zsmlres2(:, :) = zsmlres2(:, :) * rn_ucf / zfn2
       hmxl_sum(:, :) = hmxl_sum(:, :) / (2 * zfn)
       !$ACC END KERNELS
+      CALL ProfileStart('trd_mxl', 'r4', psy_profile4)
       IF (lldebug) THEN
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) 'trd_mxl : write trends in the Mixed Layer for debugging process:'
@@ -342,7 +370,9 @@ MODULE trdmxl
         WRITE(numout, FMT = *) '          TRA zsmlres (jpi/2,jpj/2) : ', zsmlres(jpi / 2, jpj / 2)
         WRITE(numout, FMT = *) '          TRA zsmlres2(jpi/2,jpj/2) : ', zsmlres2(jpi / 2, jpj / 2)
       END IF
+      CALL ProfileEnd(psy_profile4)
     END IF MODULO_NTRD
+    CALL ProfileStart('trd_mxl', 'r5', psy_profile5)
     IF (ln_trdmxl_instant) THEN
       CALL iom_put("mxl_depth", hmxl(:, :))
       CALL iom_put("tml", tml(:, :))
@@ -376,6 +406,7 @@ MODULE trdmxl
       END DO
       CALL iom_put(TRIM("sml" // ctrd(jpmxl_atf, 2)), zsmlatf2(:, :))
     END IF
+    CALL ProfileEnd(psy_profile5)
     IF (MOD(itmod, nn_trd) == 0) THEN
       !$ACC KERNELS
       nmoymltrd = 0
@@ -392,7 +423,9 @@ MODULE trdmxl
       hmxl_sum(:, :) = 0.E0
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('trd_mxl', 'r6', psy_profile6)
     IF (lrst_oce) CALL trd_mxl_rst_write(kt)
+    CALL ProfileEnd(psy_profile6)
   END SUBROUTINE trd_mxl
   SUBROUTINE trd_mxl_init
     INTEGER :: jl

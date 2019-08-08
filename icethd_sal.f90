@@ -17,11 +17,13 @@ MODULE icethd_sal
   REAL(KIND = wp) :: rn_time_fl
   CONTAINS
   SUBROUTINE ice_thd_sal(ld_sal)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     LOGICAL, INTENT(IN) :: ld_sal
     INTEGER :: ji, jk
     REAL(KIND = wp) :: iflush, igravdr
     REAL(KIND = wp) :: zs_sni, zs_i_gd, zs_i_fl, zs_i_si, zs_i_bg
     REAL(KIND = wp) :: z1_time_gd, z1_time_fl
+    TYPE(ProfileData), SAVE :: psy_profile0
     SELECT CASE (nn_icesal)
     CASE (2)
       !$ACC KERNELS
@@ -46,7 +48,9 @@ MODULE icethd_sal
       !$ACC END KERNELS
       CALL ice_var_salprof1d
     CASE (3)
+      CALL ProfileStart('ice_thd_sal', 'r0', psy_profile0)
       CALL ice_var_salprof1d
+      CALL ProfileEnd(psy_profile0)
     END SELECT
   END SUBROUTINE ice_thd_sal
   SUBROUTINE ice_thd_sal_init

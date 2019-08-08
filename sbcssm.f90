@@ -14,10 +14,18 @@ MODULE sbcssm
   LOGICAL, SAVE :: l_ssm_mean = .FALSE.
   CONTAINS
   SUBROUTINE sbc_ssm(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zcoef, zf_sbc
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpts) :: zts
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -32,7 +40,9 @@ MODULE sbcssm
       ssv_m(:, :) = vb(:, :, 1)
       !$ACC END KERNELS
       IF (l_usect) THEN
+        CALL ProfileStart('sbc_ssm', 'r0', psy_profile0)
         sst_m(:, :) = eos_pt_from_ct(zts(:, :, jp_tem), zts(:, :, jp_sal))
+        CALL ProfileEnd(psy_profile0)
       ELSE
         !$ACC KERNELS
         sst_m(:, :) = zts(:, :, jp_tem)
@@ -56,16 +66,20 @@ MODULE sbcssm
       !$ACC END KERNELS
     ELSE
       IF (kt == nit000 .AND. .NOT. l_ssm_mean) THEN
+        CALL ProfileStart('sbc_ssm', 'r1', psy_profile1)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) 'sbc_ssm : mean fields initialised to instantaneous values'
         IF (lwp) WRITE(numout, FMT = *) '~~~~~~~   '
         zcoef = REAL(nn_fsbc - 1, wp)
+        CALL ProfileEnd(psy_profile1)
         !$ACC KERNELS
         ssu_m(:, :) = zcoef * ub(:, :, 1)
         ssv_m(:, :) = zcoef * vb(:, :, 1)
         !$ACC END KERNELS
         IF (l_usect) THEN
+          CALL ProfileStart('sbc_ssm', 'r2', psy_profile2)
           sst_m(:, :) = zcoef * eos_pt_from_ct(zts(:, :, jp_tem), zts(:, :, jp_sal))
+          CALL ProfileEnd(psy_profile2)
         ELSE
           !$ACC KERNELS
           sst_m(:, :) = zcoef * zts(:, :, jp_tem)
@@ -103,7 +117,9 @@ MODULE sbcssm
       ssv_m(:, :) = ssv_m(:, :) + vb(:, :, 1)
       !$ACC END KERNELS
       IF (l_usect) THEN
+        CALL ProfileStart('sbc_ssm', 'r3', psy_profile3)
         sst_m(:, :) = sst_m(:, :) + eos_pt_from_ct(zts(:, :, jp_tem), zts(:, :, jp_sal))
+        CALL ProfileEnd(psy_profile3)
       ELSE
         !$ACC KERNELS
         sst_m(:, :) = sst_m(:, :) + zts(:, :, jp_tem)
@@ -126,7 +142,9 @@ MODULE sbcssm
       frq_m(:, :) = frq_m(:, :) + fraqsr_1lev(:, :)
       !$ACC END KERNELS
       IF (MOD(kt - 1, nn_fsbc) == 0) THEN
+        CALL ProfileStart('sbc_ssm', 'r4', psy_profile4)
         zcoef = 1. / REAL(nn_fsbc, wp)
+        CALL ProfileEnd(psy_profile4)
         !$ACC KERNELS
         sst_m(:, :) = sst_m(:, :) * zcoef
         sss_m(:, :) = sss_m(:, :) * zcoef
@@ -137,6 +155,7 @@ MODULE sbcssm
         frq_m(:, :) = frq_m(:, :) * zcoef
         !$ACC END KERNELS
       END IF
+      CALL ProfileStart('sbc_ssm', 'r5', psy_profile5)
       IF (lrst_oce) THEN
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) 'sbc_ssm : sea surface mean fields written in ocean restart file ', 'at it= ', kt, ' date= ', ndastp
@@ -153,7 +172,9 @@ MODULE sbcssm
         CALL iom_rstput(kt, nitrst, numrow, 'frq_m', frq_m, ldxios = lwxios)
         IF (lwxios) CALL iom_swap(cxios_context)
       END IF
+      CALL ProfileEnd(psy_profile5)
     END IF
+    CALL ProfileStart('sbc_ssm', 'r6', psy_profile6)
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
       CALL iom_put('ssu_m', ssu_m)
       CALL iom_put('ssv_m', ssv_m)
@@ -163,6 +184,7 @@ MODULE sbcssm
       CALL iom_put('e3t_m', e3t_m)
       CALL iom_put('frq_m', frq_m)
     END IF
+    CALL ProfileEnd(psy_profile6)
   END SUBROUTINE sbc_ssm
   SUBROUTINE sbc_ssm_init
     REAL(KIND = wp) :: zcoef, zf_sbc

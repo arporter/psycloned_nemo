@@ -8,6 +8,7 @@ MODULE dianam
   PUBLIC :: dia_nam
   CONTAINS
   SUBROUTINE dia_nam(cdfnam, kfreq, cdsuff, ldfsec)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = *), INTENT(  OUT) :: cdfnam
     CHARACTER(LEN = *), INTENT(IN   ) :: cdsuff
     INTEGER, INTENT(IN   ) :: kfreq
@@ -26,6 +27,8 @@ MODULE dianam
     INTEGER :: iyymo
     REAL(KIND = wp) :: zsec1, zsec2
     REAL(KIND = wp) :: zdrun, zjul
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dia_nam', 'r0', psy_profile0)
     IF (PRESENT(ldfsec)) THEN
       llfsec = ldfsec
     ELSE
@@ -95,5 +98,6 @@ MODULE dianam
     WRITE(cldate2, clfmt) iyear2, imonth2, iday2
     cdfnam = TRIM(cexper) // TRIM(clave) // "_" // TRIM(cldate1) // "_" // TRIM(cldate2) // "_" // TRIM(cdsuff)
     IF (.NOT. Agrif_Root()) cdfnam = TRIM(Agrif_CFixed()) // '_' // TRIM(cdfnam)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE dia_nam
 END MODULE dianam

@@ -8,6 +8,7 @@ MODULE usrdef_istate
   PUBLIC :: usr_def_istate
   CONTAINS
   SUBROUTINE usr_def_istate(pdept, ptmask, pts, pu, pv, pssh)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pdept
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: ptmask
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(  OUT) :: pts
@@ -15,14 +16,19 @@ MODULE usrdef_istate
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: pv
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: pssh
     INTEGER :: ji, jj, jk
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('usr_def_istate', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'usr_def_istate : analytical definition of initial state '
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~~   Ocean at rest, with an horizontally uniform T and S profiles'
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     pu(:, :, :) = 0._wp
     pv(:, :, :) = 0._wp
     pssh(:, :) = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('usr_def_istate', 'r1', psy_profile1)
     DO jk = 1, jpk
       DO jj = 1, jpj
         DO ji = 1, jpi
@@ -31,5 +37,6 @@ MODULE usrdef_istate
         END DO
       END DO
     END DO
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE usr_def_istate
 END MODULE usrdef_istate

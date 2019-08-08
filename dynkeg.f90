@@ -17,6 +17,7 @@ MODULE dynkeg
   REAL(KIND = wp) :: r1_48 = 1._wp / 48._wp
   CONTAINS
   SUBROUTINE dyn_keg(kt, kscheme)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
     INTEGER, INTENT( IN ) :: kscheme
     INTEGER :: ji, jj, jk, jb
@@ -25,14 +26,22 @@ MODULE dynkeg
     REAL(KIND = wp) :: zu, zv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zhke
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ztrdu, ztrdv
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    CALL ProfileStart('dyn_keg', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dyn_keg')
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn_keg : kinetic energy gradient trend, scheme number=', kscheme
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
+      CALL ProfileStart('dyn_keg', 'r1', psy_profile1)
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :)
       ztrdv(:, :, :) = va(:, :, :)
@@ -41,6 +50,7 @@ MODULE dynkeg
     !$ACC KERNELS
     zhke(:, :, jpk) = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('dyn_keg', 'r2', psy_profile2)
     IF (ln_bdy) THEN
       DO ib_bdy = 1, nb_bdy
         IF (cn_dyn3d(ib_bdy) /= 'none') THEN
@@ -65,6 +75,7 @@ MODULE dynkeg
         END IF
       END DO
     END IF
+    CALL ProfileEnd(psy_profile2)
     SELECT CASE (kscheme)
     CASE (nkeg_C2)
       !$ACC KERNELS
@@ -116,7 +127,9 @@ MODULE dynkeg
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_keg, kt)
       DEALLOCATE(ztrdu, ztrdv)
     END IF
+    CALL ProfileStart('dyn_keg', 'r3', psy_profile3)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' keg  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_keg')
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE dyn_keg
 END MODULE dynkeg

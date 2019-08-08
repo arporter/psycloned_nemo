@@ -14,6 +14,7 @@ MODULE icethd_da
   REAL(KIND = wp) :: rn_dmin
   CONTAINS
   SUBROUTINE ice_thd_da
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji
     REAL(KIND = wp) :: zastar, zdfloe, zperi, zwlat, zda
     REAL(KIND = wp), PARAMETER :: zdmax = 300._wp
@@ -21,6 +22,8 @@ MODULE icethd_da
     REAL(KIND = wp), PARAMETER :: zm1 = 3.E-6_wp
     REAL(KIND = wp), PARAMETER :: zm2 = 1.36_wp
     REAL(KIND = wp), DIMENSION(jpij) :: zda_tot
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice_thd_da', 'r0', psy_profile0)
     zastar = 1._wp / (1._wp - (rn_dmin / zdmax) ** (1._wp / rn_beta))
     DO ji = 1, npti
       zdfloe = rn_dmin * (zastar / (zastar - at_i_1d(ji))) ** rn_beta
@@ -39,6 +42,7 @@ MODULE icethd_da
         END IF
       END IF
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_thd_da
   SUBROUTINE ice_thd_da_init
     INTEGER :: ios

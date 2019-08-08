@@ -14,6 +14,7 @@ MODULE dynadv_ubs
   PUBLIC :: dyn_adv_ubs
   CONTAINS
   SUBROUTINE dyn_adv_ubs(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zui, zvj, zfuj, zfvi, zl_u, zl_v
@@ -21,11 +22,15 @@ MODULE dynadv_ubs
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zfv_t, zfv_f, zfv_vw, zfv, zfw
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2) :: zlu_uu, zlu_uv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2) :: zlv_vv, zlv_vu
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('dyn_adv_ubs', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn_adv_ubs : UBS flux form momentum advection'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zfu_t(:, :, :) = 0._wp
     zfv_t(:, :, :) = 0._wp
@@ -166,6 +171,8 @@ MODULE dynadv_ubs
       !$ACC END KERNELS
       CALL trd_dyn(zfu_t, zfv_t, jpdyn_zad, kt)
     END IF
+    CALL ProfileStart('dyn_adv_ubs', 'r1', psy_profile1)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' ubs2 adv - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE dyn_adv_ubs
 END MODULE dynadv_ubs

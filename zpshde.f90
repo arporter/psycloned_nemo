@@ -13,6 +13,7 @@ MODULE zpshde
   PUBLIC :: zps_hde_isf
   CONTAINS
   SUBROUTINE zps_hde(kt, kjpt, pta, pgtu, pgtv, prd, pgru, pgrv)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER, INTENT(IN   ) :: kjpt
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: pta
@@ -24,7 +25,11 @@ MODULE zpshde
     REAL(KIND = wp) :: ze3wu, ze3wv, zmaxu, zmaxv
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zri, zrj, zhi, zhj
     REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt) :: zti, ztj
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('zps_hde', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('zps_hde')
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     pgtu(:, :, :) = 0._wp
     zti(:, :, :) = 0._wp
@@ -113,9 +118,12 @@ MODULE zpshde
       !$ACC END KERNELS
       CALL lbc_lnk_multi(pgru, 'U', - 1., pgrv, 'V', - 1.)
     END IF
+    CALL ProfileStart('zps_hde', 'r1', psy_profile1)
     IF (ln_timing) CALL timing_stop('zps_hde')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE zps_hde
   SUBROUTINE zps_hde_isf(kt, kjpt, pta, pgtu, pgtv, pgtui, pgtvi, prd, pgru, pgrv, pgrui, pgrvi)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER, INTENT(IN   ) :: kjpt
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: pta
@@ -129,7 +137,11 @@ MODULE zpshde
     REAL(KIND = wp) :: ze3wu, ze3wv, zmaxu, zmaxv
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zri, zrj, zhi, zhj
     REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt) :: zti, ztj
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('zps_hde_isf', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('zps_hde_isf')
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     pgtu(:, :, :) = 0._wp
     pgtv(:, :, :) = 0._wp
@@ -300,6 +312,8 @@ MODULE zpshde
       !$ACC END KERNELS
       CALL lbc_lnk_multi(pgrui, 'U', - 1., pgrvi, 'V', - 1.)
     END IF
+    CALL ProfileStart('zps_hde_isf', 'r1', psy_profile1)
     IF (ln_timing) CALL timing_stop('zps_hde_isf')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE zps_hde_isf
 END MODULE zpshde

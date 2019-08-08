@@ -12,6 +12,7 @@ MODULE dynldf_lap_blp
   PUBLIC :: dyn_ldf_blp
   CONTAINS
   SUBROUTINE dyn_ldf_lap(kt, pub, pvb, pua, pva, kpass)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER, INTENT(IN   ) :: kpass
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pub, pvb
@@ -20,6 +21,8 @@ MODULE dynldf_lap_blp
     REAL(KIND = wp) :: zsign
     REAL(KIND = wp) :: zua, zva
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zcur, zdiv
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dyn_ldf_lap', 'r0', psy_profile0)
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dyn_ldf : iso-level harmonic (laplacian) operator, pass=', kpass
@@ -30,6 +33,7 @@ MODULE dynldf_lap_blp
     ELSE
       zsign = - 1._wp
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     DO jk = 1, jpkm1
       DO jj = 2, jpj
@@ -48,15 +52,19 @@ MODULE dynldf_lap_blp
     !$ACC END KERNELS
   END SUBROUTINE dyn_ldf_lap
   SUBROUTINE dyn_ldf_blp(kt, pub, pvb, pua, pva)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pub, pvb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zulap, zvlap
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dyn_ldf_blp', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn_ldf_blp : bilaplacian operator momentum '
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zulap(:, :, :) = 0._wp
     zvlap(:, :, :) = 0._wp

@@ -16,6 +16,7 @@ MODULE iscplhsb
   PUBLIC :: iscpl_cons
   CONTAINS
   SUBROUTINE iscpl_cons(ptmask_b, psmask_b, pe3t_b, pts_flx, pvol_flx, prdt_iscpl)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: ptmask_b
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pe3t_b
     REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: psmask_b
@@ -31,6 +32,8 @@ MODULE iscplhsb
     REAL(KIND = wp), DIMENSION(:), ALLOCATABLE :: zcorr_vol, zcorr_tem, zcorr_sal
     INTEGER, DIMENSION(:), ALLOCATABLE :: ixpts, iypts, izpts, inpts
     INTEGER :: jpts, npts
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     !$ACC KERNELS
     zde3t = 0._wp
     zdsal = 0._wp
@@ -44,6 +47,7 @@ MODULE iscplhsb
     tsn(:, :, :, jp_sal) = tsn(:, :, :, jp_sal) * tmask(:, :, :)
     zdssh(:, :) = sshn(:, :) * ssmask(:, :) - sshb(:, :) * psmask_b(:, :)
     !$ACC END KERNELS
+    CALL ProfileStart('iscpl_cons', 'r0', psy_profile0)
     IF (.NOT. ln_linssh) zdssh = 0.0_wp
     DO jk = 1, jpk - 1
       DO jj = 2, jpj - 1
@@ -157,6 +161,7 @@ MODULE iscplhsb
     CALL mpp_max(zcorr_vol, npts)
     CALL mpp_max(zcorr_sal, npts)
     CALL mpp_max(zcorr_tem, npts)
+    CALL ProfileEnd(psy_profile0)
     DO jpts = 1, npts
       CALL dom_ngb(zlon(jpts), zlat(jpts), ixpts(jpts), iypts(jpts), 'T', izpts(jpts))
       !$ACC KERNELS
@@ -175,8 +180,10 @@ MODULE iscplhsb
       END DO
       !$ACC END KERNELS
     END DO
+    CALL ProfileStart('iscpl_cons', 'r1', psy_profile1)
     DEALLOCATE(inpts)
     DEALLOCATE(ixpts, iypts, izpts, zcorr_vol, zcorr_sal, zcorr_tem, zlon, zlat)
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     pvol_flx(:, :, :) = pvol_flx(:, :, :) * tmask(:, :, :)
     pts_flx(:, :, :, jp_sal) = pts_flx(:, :, :, jp_sal) * tmask(:, :, :)

@@ -21,6 +21,7 @@ MODULE obs_read_prof
   PUBLIC :: obs_rea_prof
   CONTAINS
   SUBROUTINE obs_rea_prof(profdata, knumfiles, cdfilenames, kvars, kextr, kstp, ddobsini, ddobsend, ldvar1, ldvar2, ldignmis, ldsatt, ldmod, kdailyavtypes)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obs_prof), INTENT(OUT) :: profdata
     INTEGER, INTENT(IN) :: knumfiles
     CHARACTER(LEN = 128), INTENT(IN) :: cdfilenames(knumfiles)
@@ -77,6 +78,8 @@ MODULE obs_read_prof
     LOGICAL :: llvalprof
     LOGICAL :: lldavtimset
     TYPE(obfbdata), POINTER, DIMENSION(:) :: inpfiles
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_rea_prof', 'r0', psy_profile0)
     iprof = 0
     ivar1t0 = 0
     ivar2t0 = 0
@@ -480,5 +483,6 @@ MODULE obs_read_prof
       CALL dealloc_obfbdata(inpfiles(jj))
     END DO
     DEALLOCATE(inpfiles)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_rea_prof
 END MODULE obs_read_prof

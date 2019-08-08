@@ -116,8 +116,11 @@ MODULE ice1D
   REAL(KIND = wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:, :) :: h_ib_2d
   CONTAINS
   FUNCTION ice1D_alloc()
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ice1D_alloc
     INTEGER :: ierr(7), ii
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice1d_alloc', 'r0', psy_profile0)
     ierr(:) = 0
     ii = 1
     ALLOCATE(nptidx(jpij), qlead_1d(jpij), qtr_ice_bot_1d(jpij), qsr_ice_1d(jpij), qns_ice_1d(jpij), qml_ice_1d(jpij), qcn_ice_1d(jpij), qtr_ice_top_1d(jpij), cnd_ice_1d(jpij), t1_ice_1d(jpij), t_bo_1d(jpij), hfx_sum_1d(jpij), hfx_bom_1d(jpij), hfx_bog_1d(jpij), hfx_dif_1d(jpij), hfx_opw_1d(jpij), hfx_dyn_1d(jpij), rn_amax_1d(jpij), hfx_thd_1d(jpij), hfx_spr_1d(jpij), hfx_snw_1d(jpij), hfx_sub_1d(jpij), hfx_res_1d(jpij), hfx_err_rem_1d(jpij), hfx_err_dif_1d(jpij), qt_oce_ai_1d(jpij), STAT = ierr(ii))
@@ -135,5 +138,6 @@ MODULE ice1D
     ALLOCATE(a_i_2d(jpij, jpl), a_ib_2d(jpij, jpl), h_i_2d(jpij, jpl), h_ib_2d(jpij, jpl), v_i_2d(jpij, jpl), v_s_2d(jpij, jpl), oa_i_2d(jpij, jpl), sv_i_2d(jpij, jpl), a_ip_2d(jpij, jpl), v_ip_2d(jpij, jpl), t_su_2d(jpij, jpl), STAT = ierr(ii))
     ice1D_alloc = MAXVAL(ierr(:))
     IF (ice1D_alloc /= 0) CALL ctl_warn('ice1D_alloc: failed to allocate arrays.')
+    CALL ProfileEnd(psy_profile0)
   END FUNCTION ice1D_alloc
 END MODULE ice1D

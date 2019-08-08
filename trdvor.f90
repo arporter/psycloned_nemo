@@ -39,11 +39,13 @@ MODULE trdvor
     IF (trd_vor_alloc /= 0) CALL ctl_warn('trd_vor_alloc: failed to allocate arrays')
   END FUNCTION trd_vor_alloc
   SUBROUTINE trd_vor(putrd, pvtrd, ktrd, kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
     INTEGER, INTENT(IN   ) :: ktrd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER :: ji, jj
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztswu, ztswv
+    TYPE(ProfileData), SAVE :: psy_profile0
     SELECT CASE (ktrd)
     CASE (jpdyn_hpg)
       CALL trd_vor_zint(putrd, pvtrd, jpvor_prg)
@@ -73,18 +75,22 @@ MODULE trdvor
       CALL trd_vor_zint(putrd, pvtrd, jpvor_zdf)
       CALL trd_vor_zint(ztswu, ztswv, jpvor_swf)
     CASE (jpdyn_bfr)
+      CALL ProfileStart('trd_vor', 'r0', psy_profile0)
       CALL trd_vor_zint(putrd, pvtrd, jpvor_bfr)
+      CALL ProfileEnd(psy_profile0)
     CASE (jpdyn_atf)
       CALL trd_vor_iom(kt)
     END SELECT
   END SUBROUTINE trd_vor
   SUBROUTINE trd_vor_zint_2d(putrdvor, pvtrdvor, ktrd)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: ktrd
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: putrdvor
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: pvtrdvor
     INTEGER :: ji, jj
     INTEGER :: ikbu, ikbv
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zudpvor, zvdpvor
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     zudpvor(:, :) = 0._wp
     zvdpvor(:, :) = 0._wp
@@ -118,18 +124,22 @@ MODULE trdvor
     END DO
     vortrd(:, :, ktrd) = vortrd(:, :, ktrd) * fmask(:, :, 1)
     !$ACC END KERNELS
+    CALL ProfileStart('trd_vor_zint_2d', 'r0', psy_profile0)
     IF (ndebug /= 0) THEN
       IF (lwp) WRITE(numout, FMT = *) ' debuging trd_vor_zint: I done'
       CALL FLUSH(numout)
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE trd_vor_zint_2d
   SUBROUTINE trd_vor_zint_3d(putrdvor, pvtrdvor, ktrd)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: ktrd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: putrdvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pvtrdvor
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zubet, zvbet
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zudpvor, zvdpvor
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     zubet(:, :) = 0._wp
     zvbet(:, :) = 0._wp
@@ -165,10 +175,12 @@ MODULE trdvor
     END DO
     vortrd(:, :, ktrd) = vortrd(:, :, ktrd) * fmask(:, :, 1)
     !$ACC END KERNELS
+    CALL ProfileStart('trd_vor_zint_3d', 'r0', psy_profile0)
     IF (ndebug /= 0) THEN
       IF (lwp) WRITE(numout, FMT = *) ' debuging trd_vor_zint: I done'
       CALL FLUSH(numout)
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE trd_vor_zint_3d
   SUBROUTINE trd_vor_iom(kt)
     INTEGER, INTENT(IN   ) :: kt

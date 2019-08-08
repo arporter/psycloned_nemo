@@ -17,6 +17,7 @@ MODULE crsfld
   PUBLIC :: crs_fld
   CONTAINS
   SUBROUTINE crs_fld(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: z2dcrsu, z2dcrsv
@@ -24,7 +25,11 @@ MODULE crsfld
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ze3t, ze3u, ze3v, ze3w
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zt, zs, z3d
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk) :: zt_crs, zs_crs
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('crs_fld', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('crs_fld')
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     ze3t(:, :, :) = e3t_n(:, :, :)
     ze3u(:, :, :) = e3u_n(:, :, :)
@@ -152,6 +157,7 @@ MODULE crsfld
       END DO
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('crs_fld', 'r1', psy_profile1)
     CALL iom_put("woce", wn_crs)
     SELECT CASE (nn_crs_kz)
     CASE (0)
@@ -187,5 +193,6 @@ MODULE crsfld
     CALL iom_put("ice_cover", fr_i_crs)
     CALL iom_swap("nemo")
     IF (ln_timing) CALL timing_stop('crs_fld')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE crs_fld
 END MODULE crsfld

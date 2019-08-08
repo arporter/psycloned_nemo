@@ -27,12 +27,15 @@ MODULE lbcnfd
   INTEGER, PUBLIC, DIMENSION(jpmaxngh) :: isendto
   CONTAINS
   SUBROUTINE lbc_nfd_2d(ptab, cd_nat, psgn)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), INTENT(INOUT) :: ptab(:, :)
     CHARACTER(LEN = 1), INTENT(IN   ) :: cd_nat
     REAL(KIND = wp), INTENT(IN   ) :: psgn
     INTEGER :: ji, jj, jk, jl, jh, jf
     INTEGER :: ipi, ipj, ipk, ipl, ipf
     INTEGER :: ijt, iju, ipjm1
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('lbc_nfd_2d', 'r0', psy_profile0)
     ipk = 1
     ipl = 1
     ipf = 1
@@ -43,6 +46,7 @@ MODULE lbcnfd
       ipj = 4
     END SELECT
     ipjm1 = ipj - 1
+    CALL ProfileEnd(psy_profile0)
     DO jf = 1, ipf
       SELECT CASE (npolj)
       CASE (3, 4)
@@ -149,6 +153,7 @@ MODULE lbcnfd
     END DO
   END SUBROUTINE lbc_nfd_2d
   SUBROUTINE lbc_nfd_2d_ptr(ptab, cd_nat, psgn, kfld)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kfld
     TYPE(PTR_2D), INTENT(INOUT) :: ptab(:)
     CHARACTER(LEN = 1), INTENT(IN   ) :: cd_nat(:)
@@ -156,6 +161,8 @@ MODULE lbcnfd
     INTEGER :: ji, jj, jk, jl, jh, jf
     INTEGER :: ipi, ipj, ipk, ipl, ipf
     INTEGER :: ijt, iju, ipjm1
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('lbc_nfd_2d_ptr', 'r0', psy_profile0)
     ipk = 1
     ipl = 1
     ipf = kfld
@@ -250,8 +257,10 @@ MODULE lbcnfd
         END SELECT
       END SELECT
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE lbc_nfd_2d_ptr
   SUBROUTINE lbc_nfd_2d_ext(ptab, cd_nat, psgn, kextj)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), INTENT(INOUT) :: ptab(:, 1 - kextj :)
     CHARACTER(LEN = 1), INTENT(IN   ) :: cd_nat
     REAL(KIND = wp), INTENT(IN   ) :: psgn
@@ -259,6 +268,8 @@ MODULE lbcnfd
     INTEGER :: ji, jj, jk, jl, jh, jf
     INTEGER :: ipi, ipj, ipk, ipl, ipf
     INTEGER :: ijt, iju, ipjm1
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('lbc_nfd_2d_ext', 'r0', psy_profile0)
     ipk = 1
     ipl = 1
     ipf = 1
@@ -269,6 +280,7 @@ MODULE lbcnfd
       ipj = 4
     END SELECT
     ipjm1 = ipj - 1
+    CALL ProfileEnd(psy_profile0)
     DO jf = 1, ipf
       SELECT CASE (npolj)
       CASE (3, 4)
@@ -393,12 +405,15 @@ MODULE lbcnfd
     END DO
   END SUBROUTINE lbc_nfd_2d_ext
   SUBROUTINE lbc_nfd_3d(ptab, cd_nat, psgn)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), INTENT(INOUT) :: ptab(:, :, :)
     CHARACTER(LEN = 1), INTENT(IN   ) :: cd_nat
     REAL(KIND = wp), INTENT(IN   ) :: psgn
     INTEGER :: ji, jj, jk, jl, jh, jf
     INTEGER :: ipi, ipj, ipk, ipl, ipf
     INTEGER :: ijt, iju, ipjm1
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('lbc_nfd_3d', 'r0', psy_profile0)
     ipk = SIZE(ptab, 3)
     ipl = 1
     ipf = 1
@@ -409,6 +424,7 @@ MODULE lbcnfd
       ipj = 4
     END SELECT
     ipjm1 = ipj - 1
+    CALL ProfileEnd(psy_profile0)
     DO jf = 1, ipf
       SELECT CASE (npolj)
       CASE (3, 4)
@@ -515,6 +531,7 @@ MODULE lbcnfd
     END DO
   END SUBROUTINE lbc_nfd_3d
   SUBROUTINE lbc_nfd_3d_ptr(ptab, cd_nat, psgn, kfld)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kfld
     TYPE(PTR_3D), INTENT(INOUT) :: ptab(:)
     CHARACTER(LEN = 1), INTENT(IN   ) :: cd_nat(:)
@@ -522,6 +539,8 @@ MODULE lbcnfd
     INTEGER :: ji, jj, jk, jl, jh, jf
     INTEGER :: ipi, ipj, ipk, ipl, ipf
     INTEGER :: ijt, iju, ipjm1
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('lbc_nfd_3d_ptr', 'r0', psy_profile0)
     ipk = SIZE(ptab(1) % pt3d, 3)
     ipl = 1
     ipf = kfld
@@ -616,14 +635,18 @@ MODULE lbcnfd
         END SELECT
       END SELECT
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE lbc_nfd_3d_ptr
   SUBROUTINE lbc_nfd_4d(ptab, cd_nat, psgn)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), INTENT(INOUT) :: ptab(:, :, :, :)
     CHARACTER(LEN = 1), INTENT(IN   ) :: cd_nat
     REAL(KIND = wp), INTENT(IN   ) :: psgn
     INTEGER :: ji, jj, jk, jl, jh, jf
     INTEGER :: ipi, ipj, ipk, ipl, ipf
     INTEGER :: ijt, iju, ipjm1
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('lbc_nfd_4d', 'r0', psy_profile0)
     ipk = SIZE(ptab, 3)
     ipl = SIZE(ptab, 4)
     ipf = 1
@@ -634,6 +657,7 @@ MODULE lbcnfd
       ipj = 4
     END SELECT
     ipjm1 = ipj - 1
+    CALL ProfileEnd(psy_profile0)
     DO jf = 1, ipf
       SELECT CASE (npolj)
       CASE (3, 4)
@@ -740,6 +764,7 @@ MODULE lbcnfd
     END DO
   END SUBROUTINE lbc_nfd_4d
   SUBROUTINE lbc_nfd_4d_ptr(ptab, cd_nat, psgn, kfld)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kfld
     TYPE(PTR_4D), INTENT(INOUT) :: ptab(:)
     CHARACTER(LEN = 1), INTENT(IN   ) :: cd_nat(:)
@@ -747,6 +772,8 @@ MODULE lbcnfd
     INTEGER :: ji, jj, jk, jl, jh, jf
     INTEGER :: ipi, ipj, ipk, ipl, ipf
     INTEGER :: ijt, iju, ipjm1
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('lbc_nfd_4d_ptr', 'r0', psy_profile0)
     ipk = SIZE(ptab(1) % pt4d, 3)
     ipl = SIZE(ptab(1) % pt4d, 4)
     ipf = kfld
@@ -841,8 +868,10 @@ MODULE lbcnfd
         END SELECT
       END SELECT
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE lbc_nfd_4d_ptr
   SUBROUTINE lbc_nfd_nogather_4d(ptab, ptab2, cd_nat, psgn, kfld)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), INTENT(INOUT) :: ptab(:, :, :, :)
     REAL(KIND = wp), INTENT(INOUT) :: ptab2(:, :, :, :)
     CHARACTER(LEN = 1), INTENT(IN   ) :: cd_nat
@@ -851,6 +880,22 @@ MODULE lbcnfd
     INTEGER :: ji, jj, jk, jl, jh, jf
     INTEGER :: ipi, ipj, ipk, ipl, ipf
     INTEGER :: ijt, iju, ijpj, ijpjm1, ijta, ijua, jia, startloop, endloop
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    TYPE(ProfileData), SAVE :: psy_profile8
+    TYPE(ProfileData), SAVE :: psy_profile9
+    TYPE(ProfileData), SAVE :: psy_profile10
+    TYPE(ProfileData), SAVE :: psy_profile11
+    TYPE(ProfileData), SAVE :: psy_profile12
+    TYPE(ProfileData), SAVE :: psy_profile13
+    TYPE(ProfileData), SAVE :: psy_profile14
+    CALL ProfileStart('lbc_nfd_nogather_4d', 'r0', psy_profile0)
     ipk = SIZE(ptab, 3)
     ipl = SIZE(ptab, 4)
     ipf = 1
@@ -861,16 +906,19 @@ MODULE lbcnfd
       ijpj = 4
     END SELECT
     ijpjm1 = ijpj - 1
+    CALL ProfileEnd(psy_profile0)
     DO jf = 1, ipf
       SELECT CASE (npolj)
       CASE (3, 4)
         SELECT CASE (cd_nat)
         CASE ('T', 'W')
+          CALL ProfileStart('lbc_nfd_nogather_4d', 'r1', psy_profile1)
           IF (nimpp /= 1) THEN
             startloop = 1
           ELSE
             startloop = 2
           END IF
+          CALL ProfileEnd(psy_profile1)
           !$ACC KERNELS
           DO ji = startloop, nlci
             ijt = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 4
@@ -882,6 +930,7 @@ MODULE lbcnfd
             ptab(1, ijpj, :, :) = psgn * ptab(3, ijpj - 2, :, :)
             !$ACC END KERNELS
           END IF
+          CALL ProfileStart('lbc_nfd_nogather_4d', 'r2', psy_profile2)
           IF (nimpp >= jpiglo / 2 + 1) THEN
             startloop = 1
           ELSE IF (nimpp + nlci - 1 >= jpiglo / 2 + 1 .AND. nimpp < jpiglo / 2 + 1) THEN
@@ -889,11 +938,14 @@ MODULE lbcnfd
           ELSE
             startloop = nlci + 1
           END IF
+          CALL ProfileEnd(psy_profile2)
           IF (startloop <= nlci) THEN
             DO ji = startloop, nlci
+              CALL ProfileStart('lbc_nfd_nogather_4d', 'r3', psy_profile3)
               ijt = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 4
               jia = ji + nimpp - 1
               ijta = jpiglo - jia + 2
+              CALL ProfileEnd(psy_profile3)
               IF (ijta >= startloop + nimpp - 1 .AND. ijta < jia) THEN
                 !$ACC KERNELS
                 ptab(ji, ijpjm1, :, :) = psgn * ptab(ijta - nimpp + 1, ijpjm1, :, :)
@@ -906,11 +958,13 @@ MODULE lbcnfd
             END DO
           END IF
         CASE ('U')
+          CALL ProfileStart('lbc_nfd_nogather_4d', 'r4', psy_profile4)
           IF (nimpp + nlci - 1 /= jpiglo) THEN
             endloop = nlci
           ELSE
             endloop = nlci - 1
           END IF
+          CALL ProfileEnd(psy_profile4)
           !$ACC KERNELS
           DO ji = 1, endloop
             iju = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 3
@@ -927,6 +981,7 @@ MODULE lbcnfd
             ptab(nlci, ijpj, :, :) = psgn * ptab(nlci - 1, ijpj - 2, :, :)
             !$ACC END KERNELS
           END IF
+          CALL ProfileStart('lbc_nfd_nogather_4d', 'r5', psy_profile5)
           IF (nimpp + nlci - 1 /= jpiglo) THEN
             endloop = nlci
           ELSE
@@ -939,11 +994,14 @@ MODULE lbcnfd
           ELSE
             startloop = endloop + 1
           END IF
+          CALL ProfileEnd(psy_profile5)
           IF (startloop <= endloop) THEN
             DO ji = startloop, endloop
+              CALL ProfileStart('lbc_nfd_nogather_4d', 'r6', psy_profile6)
               iju = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 3
               jia = ji + nimpp - 1
               ijua = jpiglo - jia + 1
+              CALL ProfileEnd(psy_profile6)
               IF (ijua >= startloop + nimpp - 1 .AND. ijua < jia) THEN
                 !$ACC KERNELS
                 ptab(ji, ijpjm1, :, :) = psgn * ptab(ijua - nimpp + 1, ijpjm1, :, :)
@@ -956,11 +1014,13 @@ MODULE lbcnfd
             END DO
           END IF
         CASE ('V')
+          CALL ProfileStart('lbc_nfd_nogather_4d', 'r7', psy_profile7)
           IF (nimpp /= 1) THEN
             startloop = 1
           ELSE
             startloop = 2
           END IF
+          CALL ProfileEnd(psy_profile7)
           !$ACC KERNELS
           DO ji = startloop, nlci
             ijt = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 4
@@ -974,11 +1034,13 @@ MODULE lbcnfd
             !$ACC END KERNELS
           END IF
         CASE ('F')
+          CALL ProfileStart('lbc_nfd_nogather_4d', 'r8', psy_profile8)
           IF (nimpp + nlci - 1 /= jpiglo) THEN
             endloop = nlci
           ELSE
             endloop = nlci - 1
           END IF
+          CALL ProfileEnd(psy_profile8)
           !$ACC KERNELS
           DO ji = 1, endloop
             iju = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 3
@@ -1000,7 +1062,9 @@ MODULE lbcnfd
           END IF
         CASE ('I')
           IF (nimpp /= 1) THEN
+            CALL ProfileStart('lbc_nfd_nogather_4d', 'r9', psy_profile9)
             startloop = 1
+            CALL ProfileEnd(psy_profile9)
           ELSE
             !$ACC KERNELS
             startloop = 3
@@ -1024,11 +1088,13 @@ MODULE lbcnfd
           END DO
           !$ACC END KERNELS
         CASE ('U')
+          CALL ProfileStart('lbc_nfd_nogather_4d', 'r10', psy_profile10)
           IF (nimpp + nlci - 1 /= jpiglo) THEN
             endloop = nlci
           ELSE
             endloop = nlci - 1
           END IF
+          CALL ProfileEnd(psy_profile10)
           !$ACC KERNELS
           DO ji = 1, endloop
             iju = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 2
@@ -1047,6 +1113,7 @@ MODULE lbcnfd
             ptab(ji, ijpj, :, :) = psgn * ptab2(ijt, ijpj - 2, :, :)
           END DO
           !$ACC END KERNELS
+          CALL ProfileStart('lbc_nfd_nogather_4d', 'r11', psy_profile11)
           IF (nimpp >= jpiglo / 2 + 1) THEN
             startloop = 1
           ELSE IF (nimpp + nlci - 1 >= jpiglo / 2 + 1 .AND. nimpp < jpiglo / 2 + 1) THEN
@@ -1054,6 +1121,7 @@ MODULE lbcnfd
           ELSE
             startloop = nlci + 1
           END IF
+          CALL ProfileEnd(psy_profile11)
           IF (startloop <= nlci) THEN
             !$ACC KERNELS
             DO ji = startloop, nlci
@@ -1063,11 +1131,13 @@ MODULE lbcnfd
             !$ACC END KERNELS
           END IF
         CASE ('F')
+          CALL ProfileStart('lbc_nfd_nogather_4d', 'r12', psy_profile12)
           IF (nimpp + nlci - 1 /= jpiglo) THEN
             endloop = nlci
           ELSE
             endloop = nlci - 1
           END IF
+          CALL ProfileEnd(psy_profile12)
           !$ACC KERNELS
           DO ji = 1, endloop
             iju = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 2
@@ -1079,6 +1149,7 @@ MODULE lbcnfd
             ptab(nlci, ijpj, :, :) = psgn * ptab2(1, ijpj - 2, :, :)
             !$ACC END KERNELS
           END IF
+          CALL ProfileStart('lbc_nfd_nogather_4d', 'r13', psy_profile13)
           IF (nimpp + nlci - 1 /= jpiglo) THEN
             endloop = nlci
           ELSE
@@ -1091,6 +1162,7 @@ MODULE lbcnfd
           ELSE
             startloop = endloop + 1
           END IF
+          CALL ProfileEnd(psy_profile13)
           IF (startloop <= endloop) THEN
             !$ACC KERNELS
             DO ji = startloop, endloop
@@ -1100,6 +1172,7 @@ MODULE lbcnfd
             !$ACC END KERNELS
           END IF
         CASE ('I')
+          CALL ProfileStart('lbc_nfd_nogather_4d', 'r14', psy_profile14)
           IF (nimpp /= 1) THEN
             startloop = 1
           ELSE
@@ -1110,6 +1183,7 @@ MODULE lbcnfd
           ELSE
             endloop = nlci - 1
           END IF
+          CALL ProfileEnd(psy_profile14)
           !$ACC KERNELS
           DO ji = startloop, endloop
             ijt = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 4

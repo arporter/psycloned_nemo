@@ -15,9 +15,12 @@ MODULE bdytra
   PUBLIC :: bdy_tra_dmp
   CONTAINS
   SUBROUTINE bdy_tra(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ib_bdy, jn, igrd
     TYPE(ztrabdy), DIMENSION(jpts) :: zdta
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_tra', 'r0', psy_profile0)
     igrd = 1
     DO ib_bdy = 1, nb_bdy
       zdta(1) % tra => dta_bdy(ib_bdy) % tem
@@ -44,18 +47,26 @@ MODULE bdytra
         CALL lbc_bdy_lnk(tsa(:, :, :, jn), 'T', 1., ib_bdy)
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_tra
   SUBROUTINE bdy_rnf(idx, pta, jpa)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pta
     INTEGER, INTENT(IN) :: jpa
     REAL(KIND = wp) :: zwgt
     INTEGER :: ib, ik, igrd
     INTEGER :: ii, ij, ip, jp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('bdy_rnf', 'r0', psy_profile0)
     igrd = 1
+    CALL ProfileEnd(psy_profile0)
     DO ib = 1, idx % nblenrim(igrd)
+      CALL ProfileStart('bdy_rnf', 'r1', psy_profile1)
       ii = idx % nbi(ib, igrd)
       ij = idx % nbj(ib, igrd)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       DO ik = 1, jpkm1
         ip = bdytmask(ii + 1, ij) - bdytmask(ii - 1, ij)
@@ -67,12 +78,15 @@ MODULE bdytra
     END DO
   END SUBROUTINE bdy_rnf
   SUBROUTINE bdy_tra_dmp(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp) :: zwgt
     REAL(KIND = wp) :: zta, zsa, ztime
     INTEGER :: ib, ik, igrd
     INTEGER :: ii, ij
     INTEGER :: ib_bdy
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_tra_dmp', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('bdy_tra_dmp')
     DO ib_bdy = 1, nb_bdy
       IF (ln_tra_dmp(ib_bdy)) THEN
@@ -91,5 +105,6 @@ MODULE bdytra
       END IF
     END DO
     IF (ln_timing) CALL timing_stop('bdy_tra_dmp')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_tra_dmp
 END MODULE bdytra

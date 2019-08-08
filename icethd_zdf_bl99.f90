@@ -12,6 +12,7 @@ MODULE icethd_zdf_BL99
   PUBLIC :: ice_thd_zdf_BL99
   CONTAINS
   SUBROUTINE ice_thd_zdf_BL99(k_jules)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: k_jules
     INTEGER :: ji, jk
     INTEGER :: jm
@@ -64,9 +65,16 @@ MODULE icethd_zdf_BL99
     REAL(KIND = wp) :: zepsilon
     REAL(KIND = wp) :: zhe
     REAL(KIND = wp) :: zcnd_i
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    CALL ProfileStart('ice_thd_zdf_bl99', 'r0', psy_profile0)
     DO ji = 1, npti
       zq_ini(ji) = (SUM(e_i_1d(ji, 1 : nlay_i)) * h_i_1d(ji) * r1_nlay_i + SUM(e_s_1d(ji, 1 : nlay_s)) * h_s_1d(ji) * r1_nlay_s)
     END DO
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     DO ji = 1, npti
       isnow(ji) = 1._wp - MAX(0._wp, SIGN(1._wp, - h_s_1d(ji)))
@@ -74,6 +82,7 @@ MODULE icethd_zdf_BL99
       zh_s(ji) = h_s_1d(ji) * r1_nlay_s
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ice_thd_zdf_bl99', 'r1', psy_profile1)
     WHERE (zh_i(1 : npti) >= epsi10)
       z1_h_i(1 : npti) = 1._wp / zh_i(1 : npti)
     ELSEWHERE
@@ -92,6 +101,7 @@ MODULE icethd_zdf_BL99
       zdqns_ice_b(1 : npti) = dqns_ice_1d(1 : npti)
       zqns_ice_b(1 : npti) = qns_ice_1d(1 : npti)
     END IF
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     ztsold(1 : npti, :) = t_s_1d(1 : npti, :)
     ztiold(1 : npti, :) = t_i_1d(1 : npti, :)
@@ -110,6 +120,7 @@ MODULE icethd_zdf_BL99
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ice_thd_zdf_bl99', 'r2', psy_profile2)
     qtr_ice_bot_1d(1 : npti) = zradtr_i(1 : npti, nlay_i)
     iconv = 0
     zdti_max = 1000._wp
@@ -434,6 +445,7 @@ MODULE icethd_zdf_BL99
       WRITE(numout, FMT = *) ' zdti_max : ', zdti_max
       WRITE(numout, FMT = *) ' iconv    : ', iconv
     END IF
+    CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     DO ji = 1, npti
       qcn_ice_top_1d(ji) = - isnow(ji) * zkappa_s(ji, 0) * zg1s * (t_s_1d(ji, 1) - t_su_1d(ji)) - (1._wp - isnow(ji)) * zkappa_i(ji, 0) * zg1 * (t_i_1d(ji, 1) - t_su_1d(ji))
@@ -453,6 +465,7 @@ MODULE icethd_zdf_BL99
       END DO
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('ice_thd_zdf_bl99', 'r3', psy_profile3)
     IF (k_jules == np_jules_OFF .OR. k_jules == np_jules_ACTIVE) THEN
       CALL ice_var_enthalpy
       DO ji = 1, npti
@@ -470,6 +483,7 @@ MODULE icethd_zdf_BL99
         hfx_dif_1d(ji) = hfx_dif_1d(ji) - zdq * r1_rdtice * a_i_1d(ji)
       END DO
     END IF
+    CALL ProfileEnd(psy_profile3)
     !$ACC KERNELS
     DO ji = 1, npti
       IF (h_s_1d(ji) > 0.1_wp) THEN
@@ -489,7 +503,9 @@ MODULE icethd_zdf_BL99
       t_s_1d(1 : npti, :) = ztsold(1 : npti, :)
       t_i_1d(1 : npti, :) = ztiold(1 : npti, :)
       !$ACC END KERNELS
+      CALL ProfileStart('ice_thd_zdf_bl99', 'r4', psy_profile4)
       qcn_ice_1d(1 : npti) = qcn_ice_top_1d(1 : npti)
+      CALL ProfileEnd(psy_profile4)
     END IF
     !$ACC KERNELS
     DO ji = 1, npti

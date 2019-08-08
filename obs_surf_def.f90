@@ -28,6 +28,7 @@ MODULE obs_surf_def
   END TYPE obs_surf
   CONTAINS
   SUBROUTINE obs_surf_alloc(surf, ksurf, kvar, kextra, kstp, kpi, kpj)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obs_surf), INTENT(INOUT) :: surf
     INTEGER, INTENT(IN) :: ksurf
     INTEGER, INTENT(IN) :: kvar
@@ -37,6 +38,8 @@ MODULE obs_surf_def
     INTEGER, INTENT(IN) :: kpj
     INTEGER :: ji
     INTEGER :: jvar
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_surf_alloc', 'r0', psy_profile0)
     surf % nsurf = ksurf
     surf % nsurfmpp = 0
     surf % nextra = kextra
@@ -62,17 +65,23 @@ MODULE obs_surf_def
     surf % nsstpmpp(:) = 0
     surf % nsurfup = 0
     surf % lgrid = .FALSE.
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_surf_alloc
   SUBROUTINE obs_surf_dealloc(surf)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obs_surf), INTENT(INOUT) :: surf
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_surf_dealloc', 'r0', psy_profile0)
     DEALLOCATE(surf % mi, surf % mj, surf % mt, surf % nsidx, surf % nsfil, surf % nyea, surf % nmon, surf % nday, surf % nhou, surf % nmin, surf % mstp, surf % nqc, surf % ntyp, surf % cwmo, surf % rlam, surf % rphi, surf % nsind)
     DEALLOCATE(surf % robs, surf % rmod)
     DEALLOCATE(surf % rext)
     DEALLOCATE(surf % vdmean)
     DEALLOCATE(surf % nsstp, surf % nsstpmpp)
     DEALLOCATE(surf % cvars)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_surf_dealloc
   SUBROUTINE obs_surf_compress(surf, newsurf, lallocate, kumout, lvalid)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obs_surf), INTENT(IN) :: surf
     TYPE(obs_surf), INTENT(INOUT) :: newsurf
     LOGICAL :: lallocate
@@ -82,6 +91,8 @@ MODULE obs_surf_def
     INTEGER :: ji
     INTEGER :: jk
     LOGICAL, DIMENSION(:), ALLOCATABLE :: llvalid
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     IF (PRESENT(lvalid)) THEN
       !$ACC KERNELS
       insurf = 0
@@ -92,8 +103,11 @@ MODULE obs_surf_def
       END DO
       !$ACC END KERNELS
     ELSE
+      CALL ProfileStart('obs_surf_compress', 'r0', psy_profile0)
       insurf = surf % nsurf
+      CALL ProfileEnd(psy_profile0)
     END IF
+    CALL ProfileStart('obs_surf_compress', 'r1', psy_profile1)
     IF (lallocate) THEN
       CALL obs_surf_alloc(newsurf, insurf, surf % nvar, surf % nextra, surf % nstp, surf % npi, surf % npj)
     END IF
@@ -139,8 +153,10 @@ MODULE obs_surf_def
     newsurf % cvars(:) = surf % cvars(:)
     newsurf % mt(insurf) = surf % mt(ji)
     DEALLOCATE(llvalid)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE obs_surf_compress
   SUBROUTINE obs_surf_decompress(surf, oldsurf, ldeallocate, kumout)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obs_surf), INTENT(INOUT) :: surf
     TYPE(obs_surf), INTENT(INOUT) :: oldsurf
     LOGICAL :: ldeallocate
@@ -148,6 +164,8 @@ MODULE obs_surf_def
     INTEGER :: ji
     INTEGER :: jj
     INTEGER :: jk
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_surf_decompress', 'r0', psy_profile0)
     DO ji = 1, surf % nsurf
       jj = surf % nsind(ji)
       oldsurf % mi(jj) = surf % mi(ji)
@@ -181,5 +199,6 @@ MODULE obs_surf_def
       END DO
     END DO
     IF (ldeallocate) CALL obs_surf_dealloc(surf)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_surf_decompress
 END MODULE obs_surf_def

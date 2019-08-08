@@ -30,18 +30,24 @@ MODULE iceupdate
     IF (ice_update_alloc /= 0) CALL ctl_warn('ice_update_alloc: failed to allocate arrays')
   END FUNCTION ice_update_alloc
   SUBROUTINE ice_update_flx(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jl, jk
     REAL(KIND = wp) :: zqmass
     REAL(KIND = wp) :: zqsr
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z2d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: zalb_cs, zalb_os
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    CALL ProfileStart('ice_update_flx', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('ice_update')
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'ice_update_flx: update fluxes (mass, salt and heat) at the ice-ocean interface'
       WRITE(numout, FMT = *) '~~~~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (.NOT. ln_icethd) THEN
       !$ACC KERNELS
       qt_atm_oi(:, :) = (1._wp - at_i_b(:, :)) * (qns_oce(:, :) + qsr_oce(:, :)) + qemp_oce(:, :)
@@ -51,6 +57,7 @@ MODULE iceupdate
       qevap_ice(:, :, :) = 0._wp
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('ice_update_flx', 'r1', psy_profile1)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zqsr = qsr_tot(ji, jj) - SUM(a_i_b(ji, jj, :) * (qsr_ice(ji, jj, :) - qtr_ice_bot(ji, jj, :)))
@@ -70,6 +77,7 @@ MODULE iceupdate
         snwice_fmass(ji, jj) = (snwice_mass(ji, jj) - snwice_mass_b(ji, jj)) * r1_rdtice
       END DO
     END DO
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     fr_i(:, :) = at_i(:, :)
     tn_ice(:, :, :) = t_su(:, :, :)
@@ -78,6 +86,7 @@ MODULE iceupdate
     !$ACC KERNELS
     alb_ice(:, :, :) = (1._wp - cldf_ice) * zalb_cs(:, :, :) + cldf_ice * zalb_os(:, :, :)
     !$ACC END KERNELS
+    CALL ProfileStart('ice_update_flx', 'r2', psy_profile2)
     IF (lrst_ice) THEN
       CALL update_rst('WRITE', kt)
     END IF
@@ -152,13 +161,18 @@ MODULE iceupdate
     IF (ln_icectl) CALL ice_prt(kt, iiceprt, jiceprt, 3, 'Final state ice_update')
     IF (ln_ctl) CALL ice_prt3D('iceupdate')
     IF (ln_timing) CALL timing_stop('ice_update')
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE ice_update_flx
   SUBROUTINE ice_update_tau(kt, pu_oce, pv_oce)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pu_oce, pv_oce
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zat_u, zutau_ice, zu_t, zmodt
     REAL(KIND = wp) :: zat_v, zvtau_ice, zv_t, zrhoco
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('ice_update_tau', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('ice_update_tau')
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
@@ -166,6 +180,7 @@ MODULE iceupdate
       WRITE(numout, FMT = *) '~~~~~~~~~~~~~~'
     END IF
     zrhoco = rau0 * rn_cio
+    CALL ProfileEnd(psy_profile0)
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
       !$ACC KERNELS
       DO jj = 2, jpjm1
@@ -196,8 +211,10 @@ MODULE iceupdate
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ice_update_tau', 'r1', psy_profile1)
     CALL lbc_lnk_multi(utau, 'U', - 1., vtau, 'V', - 1.)
     IF (ln_timing) CALL timing_stop('ice_update_tau')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE ice_update_tau
   SUBROUTINE ice_update_init
     INTEGER :: ji, jj, jk

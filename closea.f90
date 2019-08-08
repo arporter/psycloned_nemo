@@ -29,20 +29,42 @@ MODULE closea
   REAL(KIND = wp), PUBLIC, ALLOCATABLE, DIMENSION(:) :: surfe
   CONTAINS
   SUBROUTINE dom_clo
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: inum
     INTEGER :: ierr
     INTEGER :: id
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zdata_in
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    TYPE(ProfileData), SAVE :: psy_profile8
+    TYPE(ProfileData), SAVE :: psy_profile9
+    TYPE(ProfileData), SAVE :: psy_profile10
+    TYPE(ProfileData), SAVE :: psy_profile11
+    TYPE(ProfileData), SAVE :: psy_profile12
+    TYPE(ProfileData), SAVE :: psy_profile13
+    TYPE(ProfileData), SAVE :: psy_profile14
+    CALL ProfileStart('dom_clo', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'dom_clo : read in masks to define closed seas '
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~'
+    CALL ProfileEnd(psy_profile0)
     IF (ln_read_cfg) THEN
+      CALL ProfileStart('dom_clo', 'r1', psy_profile1)
       CALL iom_open(cn_domcfg, inum)
       id = iom_varid(inum, 'closea_mask', ldstop = .FALSE.)
+      CALL ProfileEnd(psy_profile1)
       IF (id > 0) THEN
+        CALL ProfileStart('dom_clo', 'r2', psy_profile2)
         l_sbc_clo = .TRUE.
         ALLOCATE(closea_mask(jpi, jpj), STAT = ierr)
         IF (ierr /= 0) CALL ctl_stop('STOP', 'dom_clo: failed to allocate closea_mask array')
+        CALL ProfileEnd(psy_profile2)
         !$ACC KERNELS
         zdata_in(:, :) = 0.0
         !$ACC END KERNELS
@@ -50,6 +72,7 @@ MODULE closea
         !$ACC KERNELS
         closea_mask(:, :) = NINT(zdata_in(:, :)) * tmask(:, :, 1)
         !$ACC END KERNELS
+        CALL ProfileStart('dom_clo', 'r3', psy_profile3)
         jncs = MAXVAL(closea_mask(:, :))
         IF (lk_mpp) CALL mpp_max(jncs)
         IF (jncs > 0) THEN
@@ -57,25 +80,35 @@ MODULE closea
         ELSE
           CALL ctl_stop('Problem with closea_mask field in domain_cfg file. Has no values > 0 so no closed seas defined.')
         END IF
+        CALL ProfileEnd(psy_profile3)
       ELSE
+        CALL ProfileStart('dom_clo', 'r4', psy_profile4)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   closea_mask field not found in domain_cfg file.'
         IF (lwp) WRITE(numout, FMT = *) '           No closed seas defined.'
         IF (lwp) WRITE(numout, FMT = *)
         l_sbc_clo = .FALSE.
         jncs = 0
+        CALL ProfileEnd(psy_profile4)
       END IF
+      CALL ProfileStart('dom_clo', 'r5', psy_profile5)
       l_clo_rnf = .FALSE.
+      CALL ProfileEnd(psy_profile5)
       IF (l_sbc_clo) THEN
+        CALL ProfileStart('dom_clo', 'r6', psy_profile6)
         id = iom_varid(inum, 'closea_mask_rnf', ldstop = .FALSE.)
+        CALL ProfileEnd(psy_profile6)
         IF (id > 0) THEN
+          CALL ProfileStart('dom_clo', 'r7', psy_profile7)
           l_clo_rnf = .TRUE.
           ALLOCATE(closea_mask_rnf(jpi, jpj), STAT = ierr)
           IF (ierr /= 0) CALL ctl_stop('STOP', 'dom_clo: failed to allocate closea_mask_rnf array')
           CALL iom_get(inum, jpdom_data, 'closea_mask_rnf', zdata_in)
+          CALL ProfileEnd(psy_profile7)
           !$ACC KERNELS
           closea_mask_rnf(:, :) = NINT(zdata_in(:, :)) * tmask(:, :, 1)
           !$ACC END KERNELS
+          CALL ProfileStart('dom_clo', 'r8', psy_profile8)
           jncsr = MAXVAL(closea_mask_rnf(:, :))
           IF (lk_mpp) CALL mpp_max(jncsr)
           IF (jncsr > 0) THEN
@@ -83,19 +116,27 @@ MODULE closea
           ELSE
             CALL ctl_stop('Problem with closea_mask_rnf field in domain_cfg file. Has no values > 0 so no closed seas rnf mappings defined.')
           END IF
+          CALL ProfileEnd(psy_profile8)
         ELSE
+          CALL ProfileStart('dom_clo', 'r9', psy_profile9)
           IF (lwp) WRITE(numout, FMT = *) 'closea_mask_rnf field not found in domain_cfg file. No closed seas rnf mappings defined.'
           jncsr = 0
+          CALL ProfileEnd(psy_profile9)
         END IF
+        CALL ProfileStart('dom_clo', 'r10', psy_profile10)
         id = iom_varid(inum, 'closea_mask_empmr', ldstop = .FALSE.)
+        CALL ProfileEnd(psy_profile10)
         IF (id > 0) THEN
+          CALL ProfileStart('dom_clo', 'r11', psy_profile11)
           l_clo_rnf = .TRUE.
           ALLOCATE(closea_mask_empmr(jpi, jpj), STAT = ierr)
           IF (ierr /= 0) CALL ctl_stop('STOP', 'dom_clo: failed to allocate closea_mask_empmr array')
           CALL iom_get(inum, jpdom_data, 'closea_mask_empmr', zdata_in)
+          CALL ProfileEnd(psy_profile11)
           !$ACC KERNELS
           closea_mask_empmr(:, :) = NINT(zdata_in(:, :)) * tmask(:, :, 1)
           !$ACC END KERNELS
+          CALL ProfileStart('dom_clo', 'r12', psy_profile12)
           jncse = MAXVAL(closea_mask_empmr(:, :))
           IF (lk_mpp) CALL mpp_max(jncse)
           IF (jncse > 0) THEN
@@ -103,19 +144,25 @@ MODULE closea
           ELSE
             CALL ctl_stop('Problem with closea_mask_empmr field in domain_cfg file. Has no values > 0 so no closed seas empmr mappings defined.')
           END IF
+          CALL ProfileEnd(psy_profile12)
         ELSE
+          CALL ProfileStart('dom_clo', 'r13', psy_profile13)
           IF (lwp) WRITE(numout, FMT = *) 'closea_mask_empmr field not found in domain_cfg file. No closed seas empmr mappings defined.'
           jncse = 0
+          CALL ProfileEnd(psy_profile13)
         END IF
       END IF
       CALL iom_close(inum)
     ELSE
+      CALL ProfileStart('dom_clo', 'r14', psy_profile14)
       IF (lwp) WRITE(numout, FMT = *) 'No domain_cfg file so no closed seas defined.'
       l_sbc_clo = .FALSE.
       l_clo_rnf = .FALSE.
+      CALL ProfileEnd(psy_profile14)
     END IF
   END SUBROUTINE dom_clo
   SUBROUTINE sbc_clo(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER :: ierr
     INTEGER :: jc, jcr, jce
@@ -125,8 +172,25 @@ MODULE closea
     REAL(KIND = wp), DIMENSION(jncsr + 1) :: zfwfr
     REAL(KIND = wp), DIMENSION(jncse + 1) :: zfwfe
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztmp2d
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    TYPE(ProfileData), SAVE :: psy_profile8
+    TYPE(ProfileData), SAVE :: psy_profile9
+    TYPE(ProfileData), SAVE :: psy_profile10
+    TYPE(ProfileData), SAVE :: psy_profile11
+    TYPE(ProfileData), SAVE :: psy_profile12
+    TYPE(ProfileData), SAVE :: psy_profile13
+    CALL ProfileStart('sbc_clo', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('sbc_clo')
+    CALL ProfileEnd(psy_profile0)
     IF (kt == nit000) THEN
+      CALL ProfileStart('sbc_clo', 'r1', psy_profile1)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'sbc_clo : closed seas '
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~'
@@ -140,21 +204,28 @@ MODULE closea
       IF (ierr /= 0) CALL ctl_stop('STOP', 'sbc_clo: failed to allocate surfe array')
       surfe(:) = 0.E0_wp
       surf(jncs + 1) = glob_sum(e1e2t(:, :))
+      CALL ProfileEnd(psy_profile1)
       DO jc = 1, jncs
         !$ACC KERNELS
         ztmp2d(:, :) = 0.E0_wp
         !$ACC END KERNELS
+        CALL ProfileStart('sbc_clo', 'r2', psy_profile2)
         WHERE (closea_mask(:, :) == jc) ztmp2d(:, :) = e1e2t(:, :) * tmask_i(:, :)
         surf(jc) = glob_sum(ztmp2d(:, :))
+        CALL ProfileEnd(psy_profile2)
       END DO
+      CALL ProfileStart('sbc_clo', 'r3', psy_profile3)
       surf(jncs + 1) = surf(jncs + 1) - SUM(surf(1 : jncs))
+      CALL ProfileEnd(psy_profile3)
       IF (jncsr > 0) THEN
         DO jcr = 1, jncsr
           !$ACC KERNELS
           ztmp2d(:, :) = 0.E0_wp
           !$ACC END KERNELS
+          CALL ProfileStart('sbc_clo', 'r4', psy_profile4)
           WHERE (closea_mask_rnf(:, :) == jcr .AND. closea_mask(:, :) == 0) ztmp2d(:, :) = e1e2t(:, :) * tmask_i(:, :)
           surfr(jcr) = glob_sum(ztmp2d(:, :))
+          CALL ProfileEnd(psy_profile4)
         END DO
       END IF
       IF (jncse > 0) THEN
@@ -162,10 +233,13 @@ MODULE closea
           !$ACC KERNELS
           ztmp2d(:, :) = 0.E0_wp
           !$ACC END KERNELS
+          CALL ProfileStart('sbc_clo', 'r5', psy_profile5)
           WHERE (closea_mask_empmr(:, :) == jce .AND. closea_mask(:, :) == 0) ztmp2d(:, :) = e1e2t(:, :) * tmask_i(:, :)
           surfe(jce) = glob_sum(ztmp2d(:, :))
+          CALL ProfileEnd(psy_profile5)
         END DO
       END IF
+      CALL ProfileStart('sbc_clo', 'r6', psy_profile6)
       IF (lwp) WRITE(numout, FMT = *) '     Closed sea surface areas (km2)'
       DO jc = 1, jncs
         IF (lwp) WRITE(numout, FMT = '(1I3,5X,ES12.2)') jc, surf(jc) * 1.0E-6
@@ -183,23 +257,31 @@ MODULE closea
           IF (lwp) WRITE(numout, FMT = '(1I3,5X,ES12.2)') jce, surfe(jce) * 1.0E-6
         END DO
       END IF
+      CALL ProfileEnd(psy_profile6)
     END IF
+    CALL ProfileStart('sbc_clo', 'r7', psy_profile7)
     zfwf_total = 0._wp
     zfwf(:) = 0.E0_wp
+    CALL ProfileEnd(psy_profile7)
     DO jc = 1, jncs
       !$ACC KERNELS
       ztmp2d(:, :) = 0.E0_wp
       !$ACC END KERNELS
+      CALL ProfileStart('sbc_clo', 'r8', psy_profile8)
       WHERE (closea_mask(:, :) == jc) ztmp2d(:, :) = e1e2t(:, :) * (emp(:, :) - rnf(:, :)) * tmask_i(:, :)
       zfwf(jc) = glob_sum(ztmp2d(:, :))
+      CALL ProfileEnd(psy_profile8)
     END DO
+    CALL ProfileStart('sbc_clo', 'r9', psy_profile9)
     zfwf_total = SUM(zfwf)
     zfwfr(:) = 0.E0_wp
+    CALL ProfileEnd(psy_profile9)
     IF (jncsr > 0) THEN
       DO jcr = 1, jncsr
         !$ACC KERNELS
         ztmp2d(:, :) = 0.E0_wp
         !$ACC END KERNELS
+        CALL ProfileStart('sbc_clo', 'r10', psy_profile10)
         WHERE (closea_mask_rnf(:, :) == jcr .AND. closea_mask(:, :) > 0) ztmp2d(:, :) = e1e2t(:, :) * (emp(:, :) - rnf(:, :)) * tmask_i(:, :)
         zfwfr(jcr) = glob_sum(ztmp2d(:, :))
         IF (ABS(zfwfr(jcr) / surf(jncs + 1)) > rsmall) THEN
@@ -213,14 +295,18 @@ MODULE closea
             END WHERE
           END IF
         END IF
+        CALL ProfileEnd(psy_profile10)
       END DO
     END IF
+    CALL ProfileStart('sbc_clo', 'r11', psy_profile11)
     zfwfe(:) = 0.E0_wp
+    CALL ProfileEnd(psy_profile11)
     IF (jncse > 0) THEN
       DO jce = 1, jncse
         !$ACC KERNELS
         ztmp2d(:, :) = 0.E0_wp
         !$ACC END KERNELS
+        CALL ProfileStart('sbc_clo', 'r12', psy_profile12)
         WHERE (closea_mask_empmr(:, :) == jce .AND. closea_mask(:, :) > 0) ztmp2d(:, :) = e1e2t(:, :) * (emp(:, :) - rnf(:, :)) * tmask_i(:, :)
         zfwfe(jce) = glob_sum(ztmp2d(:, :))
         IF (ABS(zfwfe(jce) / surf(jncs + 1)) > rsmall) THEN
@@ -232,8 +318,10 @@ MODULE closea
             qns(:, :) = qns(:, :) - zcoef1 * sst_m(:, :)
           END WHERE
         END IF
+        CALL ProfileEnd(psy_profile12)
       END DO
     END IF
+    CALL ProfileStart('sbc_clo', 'r13', psy_profile13)
     IF (ABS(zfwf_total / surf(jncs + 1)) > rsmall) THEN
       zcoef = zfwf_total / surf(jncs + 1)
       zcoef1 = rcp * zcoef
@@ -252,13 +340,17 @@ MODULE closea
         END WHERE
       END IF
     END DO
+    CALL ProfileEnd(psy_profile13)
     !$ACC KERNELS
     emp(:, :) = emp(:, :) * tmask(:, :, 1)
     !$ACC END KERNELS
     CALL lbc_lnk(emp, 'T', 1._wp)
   END SUBROUTINE sbc_clo
   SUBROUTINE clo_rnf(p_rnfmsk)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: p_rnfmsk
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('clo_rnf', 'r0', psy_profile0)
     IF (jncsr > 0) THEN
       WHERE (closea_mask_rnf(:, :) > 0 .AND. closea_mask(:, :) == 0)
         p_rnfmsk(:, :) = MAX(p_rnfmsk(:, :), 1.0_wp)
@@ -269,38 +361,61 @@ MODULE closea
         p_rnfmsk(:, :) = MAX(p_rnfmsk(:, :), 1.0_wp)
       END WHERE
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE clo_rnf
   SUBROUTINE clo_bat(k_top, k_bot)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, DIMENSION(:, :), INTENT(INOUT) :: k_top, k_bot
     INTEGER :: inum, id
     INTEGER, DIMENSION(jpi, jpj) :: closea_mask
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zdata_in
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    CALL ProfileStart('clo_bat', 'r0', psy_profile0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'clo_bat : suppression of closed seas'
       WRITE(numout, FMT = *) '~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (ln_read_cfg) THEN
+      CALL ProfileStart('clo_bat', 'r1', psy_profile1)
       CALL iom_open(cn_domcfg, inum)
       id = iom_varid(inum, 'closea_mask', ldstop = .FALSE.)
+      CALL ProfileEnd(psy_profile1)
       IF (id > 0) THEN
+        CALL ProfileStart('clo_bat', 'r2', psy_profile2)
         IF (lwp) WRITE(numout, FMT = *) 'Suppressing closed seas in bathymetry based on closea_mask field,'
         CALL iom_get(inum, jpdom_data, 'closea_mask', zdata_in)
+        CALL ProfileEnd(psy_profile2)
         !$ACC KERNELS
         closea_mask(:, :) = NINT(zdata_in(:, :))
         !$ACC END KERNELS
+        CALL ProfileStart('clo_bat', 'r3', psy_profile3)
         WHERE (closea_mask(:, :) > 0)
           k_top(:, :) = 0
           k_bot(:, :) = 0
         END WHERE
+        CALL ProfileEnd(psy_profile3)
       ELSE
+        CALL ProfileStart('clo_bat', 'r4', psy_profile4)
         IF (lwp) WRITE(numout, FMT = *) 'No closea_mask field found in domain_cfg file. No suppression of closed seas.'
+        CALL ProfileEnd(psy_profile4)
       END IF
       CALL iom_close(inum)
     ELSE
+      CALL ProfileStart('clo_bat', 'r5', psy_profile5)
       IF (lwp) WRITE(numout, FMT = *) 'No domain_cfg file => no suppression of closed seas.'
+      CALL ProfileEnd(psy_profile5)
     END IF
+    CALL ProfileStart('clo_bat', 'r6', psy_profile6)
     l_sbc_clo = .FALSE.
     l_clo_rnf = .FALSE.
+    CALL ProfileEnd(psy_profile6)
   END SUBROUTINE clo_bat
 END MODULE closea
