@@ -133,8 +133,8 @@ MODULE icedia
         frc_sal = 0._wp
         vol_loc_ini(:, :) = rhoi * vt_i(:, :) + rhos * vt_s(:, :)
         tem_loc_ini(:, :) = et_i(:, :) + et_s(:, :)
-        sal_loc_ini(:, :) = rhoi * SUM(sv_i(:, :, :), dim = 3)
         !$ACC END KERNELS
+        sal_loc_ini(:, :) = rhoi * SUM(sv_i(:, :, :), dim = 3)
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
       iter = kt + nn_fsbc - 1

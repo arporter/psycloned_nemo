@@ -78,6 +78,7 @@ MODULE icedyn_rdgrft
     nptidx(:) = 0
     ipti = 0
     iptidx(:) = 0
+    !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (at_i(ji, jj) > 0._wp) THEN
@@ -86,6 +87,7 @@ MODULE icedyn_rdgrft
         END IF
       END DO
     END DO
+    !$ACC END KERNELS
     IF (npti > 0) THEN
       CALL tab_2d_1d(npti, nptidx(1 : npti), zdivu(1 : npti), divu_i(:, :))
       CALL tab_2d_1d(npti, nptidx(1 : npti), zdelt(1 : npti), delta_i(:, :))
@@ -99,9 +101,9 @@ MODULE icedyn_rdgrft
         opning(ji) = closing_net(ji) + zdivu_adv(ji)
       END DO
       CALL rdgrft_prep(a_i_2d, v_i_2d, ato_i_1d, closing_net)
-      !$ACC KERNELS
       DO ji = 1, npti
         IF (SUM(apartf(ji, 1 : jpl)) > 0._wp .AND. closing_gross(ji) > 0._wp) THEN
+          !$ACC KERNELS
           ipti = ipti + 1
           iptidx(ipti) = nptidx(ji)
           a_i_2d(ipti, :) = a_i_2d(ji, :)
@@ -110,9 +112,9 @@ MODULE icedyn_rdgrft
           closing_net(ipti) = closing_net(ji)
           zdivu_adv(ipti) = zdivu_adv(ji)
           opning(ipti) = opning(ji)
+          !$ACC END KERNELS
         END IF
       END DO
-      !$ACC END KERNELS
     END IF
     nptidx(:) = iptidx(:)
     npti = ipti
@@ -168,8 +170,10 @@ MODULE icedyn_rdgrft
     ELSEWHERE
       z1_asum(1 : npti) = 0._wp
     END WHERE
+    !$ACC KERNELS
     zGsum(1 : npti, - 1) = 0._wp
     zGsum(1 : npti, 0) = pato_i(1 : npti) * z1_asum(1 : npti)
+    !$ACC END KERNELS
     DO jl = 1, jpl
       zGsum(1 : npti, jl) = (pato_i(1 : npti) + SUM(pa_i(1 : npti, 1 : jl), dim = 2)) * z1_asum(1 : npti)
     END DO
@@ -239,6 +243,7 @@ MODULE icedyn_rdgrft
     END IF
     zfac = 1._wp / hi_hrft
     zaksum(1 : npti) = apartf(1 : npti, 0)
+    !$ACC KERNELS
     DO jl = 1, jpl
       DO ji = 1, npti
         IF (apartf(ji, jl) > 0._wp) THEN
@@ -256,6 +261,7 @@ MODULE icedyn_rdgrft
         END IF
       END DO
     END DO
+    !$ACC END KERNELS
     WHERE (zaksum(1 : npti) > 0._wp)
       closing_gross(1 : npti) = pclosing_net(1 : npti) / zaksum(1 : npti)
     ELSEWHERE
@@ -304,7 +310,7 @@ MODULE icedyn_rdgrft
     !$ACC END KERNELS
     DO jl1 = 1, jpl
       CALL tab_2d_1d(npti, nptidx(1 : npti), s_i_1d(1 : npti), s_i(:, :, jl1))
-    !$ACC KERNELS
+      !$ACC KERNELS
       DO ji = 1, npti
         IF (apartf(ji, jl1) > 0._wp .AND. closing_gross(ji) > 0._wp) THEN
           z1_ai(ji) = 1._wp / a_i_2d(ji, jl1)
@@ -378,8 +384,10 @@ MODULE icedyn_rdgrft
           END IF
         END DO
       END DO
+      !$ACC END KERNELS
       itest_rdg(1 : npti) = 0
       itest_rft(1 : npti) = 0
+      !$ACC KERNELS
       DO jl2 = 1, jpl
         DO ji = 1, npti
           IF (apartf(ji, jl1) > 0._wp .AND. closing_gross(ji) > 0._wp) THEN
@@ -426,7 +434,7 @@ MODULE icedyn_rdgrft
           END DO
         END DO
       END DO
-    !$ACC END KERNELS
+      !$ACC END KERNELS
     END DO
     WHERE (a_i_2d(1 : npti, :) < 0._wp) a_i_2d(1 : npti, :) = 0._wp
     WHERE (v_i_2d(1 : npti, :) < 0._wp) v_i_2d(1 : npti, :) = 0._wp
@@ -439,10 +447,8 @@ MODULE icedyn_rdgrft
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zworka
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zstrp1, zstrp2
     IF (ln_str_H79) THEN
-      !CC KERNELS
       strength(:, :) = rn_pstar * SUM(v_i(:, :, :), dim = 3) * EXP(- rn_crhg * (1._wp - SUM(a_i(:, :, :), dim = 3)))
       ismooth = 1
-      !CC END KERNELS
     ELSE
       !$ACC KERNELS
       strength(:, :) = 0._wp
@@ -451,7 +457,6 @@ MODULE icedyn_rdgrft
     END IF
     SELECT CASE (ismooth)
     CASE (1)
-      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           IF (SUM(a_i(ji, jj, :)) > 0._wp) THEN
@@ -461,6 +466,7 @@ MODULE icedyn_rdgrft
           END IF
         END DO
       END DO
+      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           strength(ji, jj) = zworka(ji, jj)
@@ -475,7 +481,6 @@ MODULE icedyn_rdgrft
         zstrp2(:, :) = 0._wp
         !$ACC END KERNELS
       END IF
-      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           IF (SUM(a_i(ji, jj, :)) > 0._wp) THEN
@@ -489,7 +494,6 @@ MODULE icedyn_rdgrft
           END IF
         END DO
       END DO
-      !$ACC END KERNELS
       CALL lbc_lnk(strength, 'T', 1.)
     END SELECT
   END SUBROUTINE ice_strength

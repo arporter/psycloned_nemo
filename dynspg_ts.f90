@@ -131,21 +131,26 @@ MODULE dynspg_ts
       CASE (np_EEN)
         SELECT CASE (nn_een_e3f)
         CASE (0)
+          !$ACC KERNELS
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zwz(ji, jj) = (ht_n(ji, jj + 1) + ht_n(ji + 1, jj + 1) + ht_n(ji, jj) + ht_n(ji + 1, jj)) * 0.25_wp
               IF (zwz(ji, jj) /= 0._wp) zwz(ji, jj) = ff_f(ji, jj) / zwz(ji, jj)
             END DO
           END DO
+          !$ACC END KERNELS
         CASE (1)
+          !$ACC KERNELS
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zwz(ji, jj) = (ht_n(ji, jj + 1) + ht_n(ji + 1, jj + 1) + ht_n(ji, jj) + ht_n(ji + 1, jj)) / (MAX(1._wp, ssmask(ji, jj + 1) + ssmask(ji + 1, jj + 1) + ssmask(ji, jj) + ssmask(ji + 1, jj)))
               IF (zwz(ji, jj) /= 0._wp) zwz(ji, jj) = ff_f(ji, jj) / zwz(ji, jj)
             END DO
           END DO
+          !$ACC END KERNELS
         END SELECT
         CALL lbc_lnk(zwz, 'F', 1._wp)
+        !$ACC KERNELS
         ftne(1, :) = 0._wp
         ftnw(1, :) = 0._wp
         ftse(1, :) = 0._wp
@@ -158,7 +163,9 @@ MODULE dynspg_ts
             ftsw(ji, jj) = zwz(ji, jj - 1) + zwz(ji - 1, jj - 1) + zwz(ji - 1, jj)
           END DO
         END DO
+        !$ACC END KERNELS
       CASE (np_EET)
+        !$ACC KERNELS
         ftne(1, :) = 0._wp
         ftnw(1, :) = 0._wp
         ftse(1, :) = 0._wp
@@ -172,17 +179,23 @@ MODULE dynspg_ts
             ftsw(ji, jj) = (ff_f(ji, jj - 1) + ff_f(ji - 1, jj - 1) + ff_f(ji - 1, jj)) * z1_ht
           END DO
         END DO
+        !$ACC END KERNELS
       CASE (np_ENE, np_ENS, np_MIX)
+        !$ACC KERNELS
         zwz(:, :) = 0._wp
         zhf(:, :) = 0._wp
+        !$ACC END KERNELS
         IF (.NOT. ln_sco) THEN
         ELSE
+          !$ACC KERNELS
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zhf(ji, jj) = (ht_0(ji, jj) + ht_0(ji + 1, jj) + ht_0(ji, jj + 1) + ht_0(ji + 1, jj + 1)) / MAX(ssmask(ji, jj) + ssmask(ji + 1, jj) + ssmask(ji, jj + 1) + ssmask(ji + 1, jj + 1), 1._wp)
             END DO
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jj = 1, jpjm1
           zhf(:, jj) = zhf(:, jj) * (1._wp - umask(:, jj, 1) * umask(:, jj + 1, 1))
         END DO
@@ -191,13 +204,16 @@ MODULE dynspg_ts
             zhf(:, jj) = zhf(:, jj) + e3f_n(:, jj, jk) * umask(:, jj, jk) * umask(:, jj + 1, jk)
           END DO
         END DO
+        !$ACC END KERNELS
         CALL lbc_lnk(zhf, 'F', 1._wp)
+        !$ACC KERNELS
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (zhf(ji, jj) /= 0._wp) zwz(ji, jj) = 1._wp / zhf(ji, jj)
           END DO
         END DO
         zwz(:, :) = ff_f(:, :) * zwz(:, :)
+        !$ACC END KERNELS
       END SELECT
     END IF
     IF (.NOT. ln_bt_fw .AND. (neuler == 0 .AND. kt == nit000 + 1)) THEN
@@ -226,13 +242,16 @@ MODULE dynspg_ts
     !$ACC END KERNELS
     SELECT CASE (nvor_scheme)
     CASE (np_ENT)
+      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zu_trd(ji, jj) = + r1_4 * r1_e1e2u(ji, jj) * r1_hu_n(ji, jj) * (e1e2t(ji + 1, jj) * ht_n(ji + 1, jj) * ff_t(ji + 1, jj) * (vn_b(ji + 1, jj) + vn_b(ji + 1, jj - 1)) + e1e2t(ji, jj) * ht_n(ji, jj) * ff_t(ji, jj) * (vn_b(ji, jj) + vn_b(ji, jj - 1)))
           zv_trd(ji, jj) = - r1_4 * r1_e1e2v(ji, jj) * r1_hv_n(ji, jj) * (e1e2t(ji, jj + 1) * ht_n(ji, jj + 1) * ff_t(ji, jj + 1) * (un_b(ji, jj + 1) + un_b(ji - 1, jj + 1)) + e1e2t(ji, jj) * ht_n(ji, jj) * ff_t(ji, jj) * (un_b(ji, jj) + un_b(ji - 1, jj)))
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (np_ENE, np_MIX)
+      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zy1 = (zwy(ji, jj - 1) + zwy(ji + 1, jj - 1)) * r1_e1u(ji, jj)
@@ -243,7 +262,9 @@ MODULE dynspg_ts
           zv_trd(ji, jj) = - r1_4 * (zwz(ji - 1, jj) * zx1 + zwz(ji, jj) * zx2)
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (np_ENS)
+      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zy1 = r1_8 * (zwy(ji, jj - 1) + zwy(ji + 1, jj - 1) + zwy(ji, jj) + zwy(ji + 1, jj)) * r1_e1u(ji, jj)
@@ -252,13 +273,16 @@ MODULE dynspg_ts
           zv_trd(ji, jj) = zx1 * (zwz(ji - 1, jj) + zwz(ji, jj))
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (np_EET, np_EEN)
+      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zu_trd(ji, jj) = + r1_12 * r1_e1u(ji, jj) * (ftne(ji, jj) * zwy(ji, jj) + ftnw(ji + 1, jj) * zwy(ji + 1, jj) + ftse(ji, jj) * zwy(ji, jj - 1) + ftsw(ji + 1, jj) * zwy(ji + 1, jj - 1))
           zv_trd(ji, jj) = - r1_12 * r1_e2v(ji, jj) * (ftsw(ji, jj + 1) * zwx(ji - 1, jj + 1) + ftse(ji, jj + 1) * zwx(ji, jj + 1) + ftnw(ji, jj) * zwx(ji - 1, jj) + ftne(ji, jj) * zwx(ji, jj))
         END DO
       END DO
+      !$ACC END KERNELS
     END SELECT
     IF (.NOT. ln_linssh) THEN
       IF (ln_wd_il) THEN
@@ -691,6 +715,7 @@ MODULE dynspg_ts
       END IF
       SELECT CASE (nvor_scheme)
       CASE (np_ENT)
+        !$ACC KERNELS
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             z1_hu = ssumask(ji, jj) / (hu_0(ji, jj) + zhup2_e(ji, jj) + 1._wp - ssumask(ji, jj))
@@ -699,7 +724,9 @@ MODULE dynspg_ts
             zv_trd(ji, jj) = - r1_4 * r1_e1e2v(ji, jj) * z1_hv * (e1e2t(ji, jj + 1) * zhtp2_e(ji, jj + 1) * ff_t(ji, jj + 1) * (ua_e(ji, jj + 1) + ua_e(ji - 1, jj + 1)) + e1e2t(ji, jj) * zhtp2_e(ji, jj) * ff_t(ji, jj) * (ua_e(ji, jj) + ua_e(ji - 1, jj)))
           END DO
         END DO
+        !$ACC END KERNELS
       CASE (np_ENE, np_MIX)
+        !$ACC KERNELS
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zy1 = (zwy(ji, jj - 1) + zwy(ji + 1, jj - 1)) * r1_e1u(ji, jj)
@@ -710,7 +737,9 @@ MODULE dynspg_ts
             zv_trd(ji, jj) = - r1_4 * (zwz(ji - 1, jj) * zx1 + zwz(ji, jj) * zx2)
           END DO
         END DO
+        !$ACC END KERNELS
       CASE (np_ENS)
+        !$ACC KERNELS
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zy1 = r1_8 * (zwy(ji, jj - 1) + zwy(ji + 1, jj - 1) + zwy(ji, jj) + zwy(ji + 1, jj)) * r1_e1u(ji, jj)
@@ -719,13 +748,16 @@ MODULE dynspg_ts
             zv_trd(ji, jj) = zx1 * (zwz(ji - 1, jj) + zwz(ji, jj))
           END DO
         END DO
+        !$ACC END KERNELS
       CASE (np_EET, np_EEN)
+        !$ACC KERNELS
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zu_trd(ji, jj) = + r1_12 * r1_e1u(ji, jj) * (ftne(ji, jj) * zwy(ji, jj) + ftnw(ji + 1, jj) * zwy(ji + 1, jj) + ftse(ji, jj) * zwy(ji, jj - 1) + ftsw(ji + 1, jj) * zwy(ji + 1, jj - 1))
             zv_trd(ji, jj) = - r1_12 * r1_e2v(ji, jj) * (ftsw(ji, jj + 1) * zwx(ji - 1, jj + 1) + ftse(ji, jj + 1) * zwx(ji, jj + 1) + ftnw(ji, jj) * zwx(ji - 1, jj) + ftne(ji, jj) * zwx(ji, jj))
           END DO
         END DO
+        !$ACC END KERNELS
       END SELECT
       IF (ln_tide .AND. ln_tide_pot) THEN
         !$ACC KERNELS

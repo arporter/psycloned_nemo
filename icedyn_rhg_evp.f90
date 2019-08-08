@@ -111,7 +111,6 @@ MODULE icedyn_rhg_evp
     END DO
     !$ACC END KERNELS
     CALL lbc_lnk(zfmask, 'F', 1._wp)
-    !$ACC KERNELS
     zrhoco = rau0 * rn_cio
     ecc2 = rn_ecc * rn_ecc
     z1_ecc2 = 1._wp / ecc2
@@ -123,6 +122,7 @@ MODULE icedyn_rhg_evp
       z1_alph1 = 1._wp / (zalph1 + 1._wp)
       z1_alph2 = 1._wp / (zalph2 + 1._wp)
     END IF
+    !$ACC KERNELS
     zs1(:, :) = pstress1_i(:, :)
     zs2(:, :) = pstress2_i(:, :)
     zs12(:, :) = pstress12_i(:, :)
@@ -135,19 +135,19 @@ MODULE icedyn_rhg_evp
         z1_e2t0(ji, jj) = 1._wp / (e2t(ji, jj + 1) + e2t(ji, jj))
       END DO
     END DO
-    !CC END KERNELS
+    !$ACC END KERNELS
     IF (ln_ice_embd) THEN
-      !CC KERNELS
+      !$ACC KERNELS
       zintn = REAL(nn_fsbc - 1) / REAL(nn_fsbc) * 0.5_wp
       zintb = REAL(nn_fsbc + 1) / REAL(nn_fsbc) * 0.5_wp
       zpice(:, :) = ssh_m(:, :) + (zintn * snwice_mass(:, :) + zintb * snwice_mass_b(:, :)) * r1_rau0
-      !CC END KERNELS
+      !$ACC END KERNELS
     ELSE
-      !CC KERNELS
+      !$ACC KERNELS
       zpice(:, :) = ssh_m(:, :)
-      !CC END KERNELS
+      !$ACC END KERNELS
     END IF
-    !CC KERNELS
+    !$ACC KERNELS
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zaU(ji, jj) = 0.5_wp * (at_i(ji, jj) * e1e2t(ji, jj) + at_i(ji + 1, jj) * e1e2t(ji + 1, jj)) * r1_e1e2u(ji, jj) * umask(ji, jj, 1)
@@ -177,12 +177,12 @@ MODULE icedyn_rhg_evp
     CALL lbc_lnk_multi(zmf, 'T', 1., zdt_m, 'T', 1.)
     DO jter = 1, nn_nevp
       IF (ln_ctl) THEN
-        !CC KERNELS
+        !$ACC KERNELS
         DO jj = 1, jpjm1
           zu_ice(:, jj) = u_ice(:, jj)
           zv_ice(:, jj) = v_ice(:, jj)
         END DO
-        !CC END KERNELS
+        !$ACC END KERNELS
       END IF
       !$ACC KERNELS
       DO jj = 1, jpjm1
@@ -193,7 +193,6 @@ MODULE icedyn_rhg_evp
       !$ACC END KERNELS
       CALL lbc_lnk(zds, 'F', 1.)
       !$ACC KERNELS
-      !$ACC LOOP INDEPENDENT COLLAPSE(2) private(zalph2, z1_alph2)
       DO jj = 2, jpj
         DO ji = 2, jpi
           zds2 = (zds(ji, jj) * zds(ji, jj) * e1e2f(ji, jj) + zds(ji - 1, jj) * zds(ji - 1, jj) * e1e2f(ji - 1, jj) + zds(ji, jj - 1) * zds(ji, jj - 1) * e1e2f(ji, jj - 1) + zds(ji - 1, jj - 1) * zds(ji - 1, jj - 1) * e1e2f(ji - 1, jj - 1)) * 0.25_wp * r1_e1e2t(ji, jj)
@@ -216,7 +215,6 @@ MODULE icedyn_rhg_evp
       !$ACC END KERNELS
       CALL lbc_lnk(zp_delt, 'T', 1.)
       !$ACC KERNELS
-      !$ACC LOOP INDEPENDENT COLLAPSE(2) private(zalph2, z1_alph2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           IF (ln_aEVP) THEN
@@ -321,9 +319,11 @@ MODULE icedyn_rhg_evp
         IF (ln_bdy) CALL bdy_ice_dyn('V')
       END IF
       IF (ln_ctl) THEN
+        !$ACC KERNELS
         DO jj = 2, jpjm1
           zresr(:, jj) = MAX(ABS(u_ice(:, jj) - zu_ice(:, jj)), ABS(v_ice(:, jj) - zv_ice(:, jj)))
         END DO
+        !$ACC END KERNELS
         zresm = MAXVAL(zresr(1 : jpi, 2 : jpjm1))
         IF (lk_mpp) CALL mpp_max(zresm)
       END IF
@@ -447,20 +447,20 @@ MODULE icedyn_rhg_evp
         ELSE
           IF (lwp) WRITE(numout, FMT = *)
           IF (lwp) WRITE(numout, FMT = *) '   ==>>>   previous run without rheology, set stresses to 0'
-          !CC KERNELS
+          !$ACC KERNELS
           stress1_i(:, :) = 0._wp
           stress2_i(:, :) = 0._wp
           stress12_i(:, :) = 0._wp
-          !CC END KERNELS
+          !$ACC END KERNELS
         END IF
       ELSE
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   start from rest: set stresses to 0'
-        !CC KERNELS
+        !$ACC KERNELS
         stress1_i(:, :) = 0._wp
         stress2_i(:, :) = 0._wp
         stress12_i(:, :) = 0._wp
-        !CC END KERNELS
+        !$ACC END KERNELS
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
       IF (lwp) WRITE(numout, FMT = *) '---- rhg-rst ----'

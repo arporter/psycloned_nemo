@@ -133,17 +133,21 @@ MODULE crsdom
     CALL crs_lbc_lnk(p_glam_crs, cd_type, 1.0)
     SELECT CASE (cd_type)
     CASE ('T', 'V')
+      !$ACC KERNELS
       DO ji = 2, nlei_crs
         ijis = mis_crs(ji) + mxbinctr
         p_gphi_crs(ji, 1) = p_gphi(ijis, 1)
         p_glam_crs(ji, 1) = p_glam(ijis, 1)
       END DO
+      !$ACC END KERNELS
     CASE ('U', 'F')
+      !$ACC KERNELS
       DO ji = 2, nlei_crs
         ijis = mis_crs(ji)
         p_gphi_crs(ji, 1) = p_gphi(ijis, 1)
         p_glam_crs(ji, 1) = p_glam(ijis, 1)
       END DO
+      !$ACC END KERNELS
     END SELECT
   END SUBROUTINE crs_dom_coordinates
   SUBROUTINE crs_dom_hgr(p_e1, p_e2, cd_type, p_e1_crs, p_e2_crs)
@@ -290,20 +294,25 @@ MODULE crsdom
       SELECT CASE (cd_type)
       CASE ('T', 'W')
         IF (cd_type == 'T') THEN
+          !$ACC KERNELS
           DO jk = 1, jpk
             zsurf(:, :, jk) = p_e12(:, :) * p_e3(:, :, jk) * p_mask(:, :, jk)
             zsurfmsk(:, :, jk) = zsurf(:, :, jk)
           END DO
+          !$ACC END KERNELS
         ELSE
+          !$ACC KERNELS
           zsurf(:, :, 1) = p_e12(:, :) * p_e3(:, :, 1)
           zsurfmsk(:, :, 1) = zsurf(:, :, 1) * p_mask(:, :, 1)
           DO jk = 2, jpk
             zsurf(:, :, jk) = p_e12(:, :) * p_e3(:, :, jk)
             zsurfmsk(:, :, jk) = zsurf(:, :, jk) * p_mask(:, :, jk - 1)
           END DO
+          !$ACC END KERNELS
         END IF
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO jk = 1, jpk
               DO ji = nistr, niend, nn_factx
@@ -314,8 +323,10 @@ MODULE crsdom
                 IF (zsfcrs /= 0.0) p_fld_crs(ii, 2, jk) = zflcrs / zsfcrs
               END DO
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
+          !$ACC KERNELS
           je_2 = mjs_crs(2)
           DO jk = 1, jpk
             DO ji = nistr, niend, nn_factx
@@ -326,7 +337,9 @@ MODULE crsdom
               IF (zsfcrs /= 0.0) p_fld_crs(ii, 2, jk) = zflcrs / zsfcrs
             END DO
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jk = 1, jpk
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
@@ -339,6 +352,7 @@ MODULE crsdom
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       CASE DEFAULT
         STOP
       END SELECT
@@ -381,6 +395,7 @@ MODULE crsdom
       CASE ('T', 'W')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO jk = 1, jpk
               DO ji = nistr, niend, nn_factx
@@ -389,8 +404,10 @@ MODULE crsdom
                 p_fld_crs(ii, 2, jk) = zflcrs
               END DO
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
+          !$ACC KERNELS
           je_2 = mjs_crs(2)
           DO jk = 1, jpk
             DO ji = nistr, niend, nn_factx
@@ -399,7 +416,9 @@ MODULE crsdom
               p_fld_crs(ii, 2, jk) = zflcrs
             END DO
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jk = 1, jpk
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
@@ -410,6 +429,7 @@ MODULE crsdom
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('V')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
@@ -418,6 +438,7 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
+        !$ACC KERNELS
         DO jk = 1, jpk
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -436,9 +457,11 @@ MODULE crsdom
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('U')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO jk = 1, jpk
               DO ji = nistr, niend, nn_factx
@@ -448,8 +471,10 @@ MODULE crsdom
                 p_fld_crs(ii, 2, jk) = zflcrs
               END DO
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
+          !$ACC KERNELS
           je_2 = mjs_crs(2)
           DO jk = 1, jpk
             DO ji = nistr, niend, nn_factx
@@ -459,7 +484,9 @@ MODULE crsdom
               p_fld_crs(ii, 2, jk) = zflcrs
             END DO
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jk = 1, jpk
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
@@ -471,6 +498,7 @@ MODULE crsdom
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       END SELECT
       IF (PRESENT(p_surf_crs)) THEN
         WHERE (p_surf_crs /= 0.0) p_fld_crs(:, :, :) = p_fld_crs(:, :, :) / p_surf_crs(:, :, :)
@@ -497,6 +525,7 @@ MODULE crsdom
       CASE ('T', 'W')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO jk = 1, jpk
               DO ji = nistr, niend, nn_factx
@@ -505,8 +534,10 @@ MODULE crsdom
                 p_fld_crs(ii, 2, jk) = zflcrs
               END DO
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
+          !$ACC KERNELS
           je_2 = mjs_crs(2)
           DO jk = 1, jpk
             DO ji = nistr, niend, nn_factx
@@ -515,7 +546,9 @@ MODULE crsdom
               p_fld_crs(ii, 2, jk) = zflcrs
             END DO
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jk = 1, jpk
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
@@ -526,6 +559,7 @@ MODULE crsdom
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('V')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
@@ -534,6 +568,7 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
+        !$ACC KERNELS
         DO jk = 1, jpk
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -552,9 +587,11 @@ MODULE crsdom
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('U')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO jk = 1, jpk
               DO ji = nistr, niend, nn_factx
@@ -564,8 +601,10 @@ MODULE crsdom
                 p_fld_crs(ii, 2, jk) = zflcrs
               END DO
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
+          !$ACC KERNELS
           je_2 = mjs_crs(2)
           DO jk = 1, jpk
             DO ji = nistr, niend, nn_factx
@@ -575,7 +614,9 @@ MODULE crsdom
               p_fld_crs(ii, 2, jk) = zflcrs
             END DO
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jk = 1, jpk
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
@@ -587,6 +628,7 @@ MODULE crsdom
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       END SELECT
       DEALLOCATE(zmask)
     CASE ('MIN')
@@ -610,6 +652,7 @@ MODULE crsdom
       CASE ('T', 'W')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO jk = 1, jpk
               DO ji = nistr, niend, nn_factx
@@ -618,8 +661,10 @@ MODULE crsdom
                 p_fld_crs(ii, 2, jk) = zflcrs
               END DO
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
+          !$ACC KERNELS
           je_2 = mjs_crs(2)
           DO jk = 1, jpk
             DO ji = nistr, niend, nn_factx
@@ -628,7 +673,9 @@ MODULE crsdom
               p_fld_crs(ii, 2, jk) = zflcrs
             END DO
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jk = 1, jpk
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
@@ -639,6 +686,7 @@ MODULE crsdom
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('V')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
@@ -647,6 +695,7 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
+        !$ACC KERNELS
         DO jk = 1, jpk
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -665,9 +714,11 @@ MODULE crsdom
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('U')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO jk = 1, jpk
               DO ji = nistr, niend, nn_factx
@@ -677,8 +728,10 @@ MODULE crsdom
                 p_fld_crs(ii, 2, jk) = zflcrs
               END DO
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
+          !$ACC KERNELS
           je_2 = mjs_crs(2)
           DO jk = 1, jpk
             DO ji = nistr, niend, nn_factx
@@ -688,7 +741,9 @@ MODULE crsdom
               p_fld_crs(ii, 2, jk) = zflcrs
             END DO
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jk = 1, jpk
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
@@ -700,6 +755,7 @@ MODULE crsdom
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       END SELECT
       DEALLOCATE(zmask)
     END SELECT
@@ -782,21 +838,26 @@ MODULE crsdom
       CASE ('T', 'W')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
               zflcrs = p_fld(ji, je_2) * zsurfmsk(ji, je_2) + p_fld(ji + 1, je_2) * zsurfmsk(ji + 1, je_2) + p_fld(ji + 2, je_2) * zsurfmsk(ji + 2, je_2)
               p_fld_crs(ii, 2) = zflcrs
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
+          !$ACC KERNELS
           je_2 = mjs_crs(2)
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
             zflcrs = p_fld(ji, je_2) * zsurfmsk(ji, je_2) + p_fld(ji + 1, je_2) * zsurfmsk(ji + 1, je_2) + p_fld(ji + 2, je_2) * zsurfmsk(ji + 2, je_2) + p_fld(ji, je_2 + 1) * zsurfmsk(ji, je_2 + 1) + p_fld(ji + 1, je_2 + 1) * zsurfmsk(ji + 1, je_2 + 1) + p_fld(ji + 2, je_2 + 1) * zsurfmsk(ji + 2, je_2 + 1) + p_fld(ji, je_2 + 2) * zsurfmsk(ji, je_2 + 2) + p_fld(ji + 1, je_2 + 2) * zsurfmsk(ji + 1, je_2 + 2) + p_fld(ji + 2, je_2 + 2) * zsurfmsk(ji + 2, je_2 + 2)
             p_fld_crs(ii, 2) = zflcrs
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -805,6 +866,7 @@ MODULE crsdom
             p_fld_crs(ii, ij) = zflcrs
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('V')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
@@ -813,6 +875,7 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
+        !$ACC KERNELS
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
           zflcrs = p_fld(ji, ijje) * zsurfmsk(ji, ijje) + p_fld(ji + 1, ijje) * zsurfmsk(ji + 1, ijje) + p_fld(ji + 2, ijje) * zsurfmsk(ji + 2, ijje)
@@ -827,9 +890,11 @@ MODULE crsdom
             p_fld_crs(ii, ij) = zflcrs
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('U')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -837,8 +902,10 @@ MODULE crsdom
               zflcrs = p_fld(ijie, je_2) * zsurfmsk(ijie, je_2)
               p_fld_crs(ii, 2) = zflcrs
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
+          !$ACC KERNELS
           je_2 = mjs_crs(2)
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -846,7 +913,9 @@ MODULE crsdom
             zflcrs = p_fld(ijie, je_2) * zsurfmsk(ijie, je_2) + p_fld(ijie, je_2 + 1) * zsurfmsk(ijie, je_2 + 1) + p_fld(ijie, je_2 + 2) * zsurfmsk(ijie, je_2 + 2)
             p_fld_crs(ii, 2) = zflcrs
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -856,6 +925,7 @@ MODULE crsdom
             p_fld_crs(ii, ij) = zflcrs
           END DO
         END DO
+        !$ACC END KERNELS
       END SELECT
       IF (PRESENT(p_surf_crs)) THEN
         WHERE (p_surf_crs /= 0.0) p_fld_crs(:, :) = p_fld_crs(:, :) / p_surf_crs(:, :)
@@ -866,18 +936,21 @@ MODULE crsdom
       CASE ('T', 'W')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
               zflcrs = MAX(p_fld(ji, je_2) * p_mask(ji, je_2, 1) - (1. - p_mask(ji, je_2, 1)) * r_inf, p_fld(ji + 1, je_2) * p_mask(ji + 1, je_2, 1) - (1. - p_mask(ji + 1, je_2, 1)) * r_inf, p_fld(ji + 2, je_2) * p_mask(ji + 2, je_2, 1) - (1. - p_mask(ji + 2, je_2, 1)) * r_inf)
               p_fld_crs(ii, 2) = zflcrs
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
           je_2 = mjs_crs(2)
           zflcrs = MAX(p_fld(ji, je_2) * p_mask(ji, je_2, 1) - (1. - p_mask(ji, je_2, 1)) * r_inf, p_fld(ji + 1, je_2) * p_mask(ji + 1, je_2, 1) - (1. - p_mask(ji + 1, je_2, 1)) * r_inf, p_fld(ji + 2, je_2) * p_mask(ji + 2, je_2, 1) - (1. - p_mask(ji + 2, je_2, 1)) * r_inf, p_fld(ji, je_2 + 1) * p_mask(ji, je_2 + 1, 1) - (1. - p_mask(ji, je_2 + 1, 1)) * r_inf, p_fld(ji + 1, je_2 + 1) * p_mask(ji + 1, je_2 + 1, 1) - (1. - p_mask(ji + 1, je_2 + 1, 1)) * r_inf, p_fld(ji + 2, je_2 + 1) * p_mask(ji + 2, je_2 + 1, 1) - (1. - p_mask(ji + 2, je_2 + 1, 1)) * r_inf, p_fld(ji, je_2 + 2) * p_mask(ji, je_2 + 2, 1) - (1. - p_mask(ji, je_2 + 2, 1)) * r_inf, p_fld(ji + 1, je_2 + 2) * p_mask(ji + 1, je_2 + 2, 1) - (1. - p_mask(ji + 1, je_2 + 2, 1)) * r_inf, p_fld(ji + 2, je_2 + 2) * p_mask(ji + 2, je_2 + 2, 1) - (1. - p_mask(ji + 2, je_2 + 2, 1)) * r_inf)
           p_fld_crs(ii, 2) = zflcrs
         END IF
+        !$ACC KERNELS
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -886,6 +959,7 @@ MODULE crsdom
             p_fld_crs(ii, ij) = zflcrs
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('V')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
@@ -894,6 +968,7 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
+        !$ACC KERNELS
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
           zflcrs = MAX(p_fld(ji, ijje) * p_mask(ji, ijje, 1) - (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 1, ijje) * p_mask(ji + 1, ijje, 1) - (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 2, ijje) * p_mask(ji + 2, ijje, 1) - (1. - p_mask(ji, ijje, 1)) * r_inf)
@@ -908,9 +983,11 @@ MODULE crsdom
             p_fld_crs(ii, ij) = zflcrs
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('U')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -918,8 +995,10 @@ MODULE crsdom
               zflcrs = p_fld(ijie, je_2) * p_mask(ijie, je_2, 1) - (1. - p_mask(ijie, je_2, 1)) * r_inf
               p_fld_crs(ii, 2) = zflcrs
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
+          !$ACC KERNELS
           je_2 = mjs_crs(2)
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -927,7 +1006,9 @@ MODULE crsdom
             zflcrs = MAX(p_fld(ijie, je_2) * p_mask(ijie, je_2, 1) - (1. - p_mask(ijie, je_2, 1)) * r_inf, p_fld(ijie, je_2 + 1) * p_mask(ijie, je_2 + 1, 1) - (1. - p_mask(ijie, je_2, 1)) * r_inf, p_fld(ijie, je_2 + 2) * p_mask(ijie, je_2 + 2, 1) - (1. - p_mask(ijie, je_2, 1)) * r_inf)
             p_fld_crs(ii, 2) = zflcrs
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -937,24 +1018,28 @@ MODULE crsdom
             p_fld_crs(ii, ij) = zflcrs
           END DO
         END DO
+        !$ACC END KERNELS
       END SELECT
     CASE ('MIN')
       SELECT CASE (cd_type)
       CASE ('T', 'W')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
               zflcrs = MIN(p_fld(ji, je_2) * p_mask(ji, je_2, 1) + (1. - p_mask(ji, je_2, 1)) * r_inf, p_fld(ji + 1, je_2) * p_mask(ji + 1, je_2, 1) + (1. - p_mask(ji + 1, je_2, 1)) * r_inf, p_fld(ji + 2, je_2) * p_mask(ji + 2, je_2, 1) + (1. - p_mask(ji + 2, je_2, 1)) * r_inf)
               p_fld_crs(ii, 2) = zflcrs
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
           je_2 = mjs_crs(2)
           zflcrs = MIN(p_fld(ji, je_2) * p_mask(ji, je_2, 1) + (1. - p_mask(ji, je_2, 1)) * r_inf, p_fld(ji + 1, je_2) * p_mask(ji + 1, je_2, 1) + (1. - p_mask(ji + 1, je_2, 1)) * r_inf, p_fld(ji + 2, je_2) * p_mask(ji + 2, je_2, 1) + (1. - p_mask(ji + 2, je_2, 1)) * r_inf, p_fld(ji, je_2 + 1) * p_mask(ji, je_2 + 1, 1) + (1. - p_mask(ji, je_2 + 1, 1)) * r_inf, p_fld(ji + 1, je_2 + 1) * p_mask(ji + 1, je_2 + 1, 1) + (1. - p_mask(ji + 1, je_2 + 1, 1)) * r_inf, p_fld(ji + 2, je_2 + 1) * p_mask(ji + 2, je_2 + 1, 1) + (1. - p_mask(ji + 2, je_2 + 1, 1)) * r_inf, p_fld(ji, je_2 + 2) * p_mask(ji, je_2 + 2, 1) + (1. - p_mask(ji, je_2 + 2, 1)) * r_inf, p_fld(ji + 1, je_2 + 2) * p_mask(ji + 1, je_2 + 2, 1) + (1. - p_mask(ji + 1, je_2 + 2, 1)) * r_inf, p_fld(ji + 2, je_2 + 2) * p_mask(ji + 2, je_2 + 2, 1) + (1. - p_mask(ji + 2, je_2 + 2, 1)) * r_inf)
           p_fld_crs(ii, 2) = zflcrs
         END IF
+        !$ACC KERNELS
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -963,6 +1048,7 @@ MODULE crsdom
             p_fld_crs(ii, ij) = zflcrs
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('V')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
@@ -971,6 +1057,7 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
+        !$ACC KERNELS
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
           zflcrs = MIN(p_fld(ji, ijje) * p_mask(ji, ijje, 1) + (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 1, ijje) * p_mask(ji + 1, ijje, 1) + (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 2, ijje) * p_mask(ji + 2, ijje, 1) + (1. - p_mask(ji, ijje, 1)) * r_inf)
@@ -985,9 +1072,11 @@ MODULE crsdom
             p_fld_crs(ii, ij) = zflcrs
           END DO
         END DO
+        !$ACC END KERNELS
       CASE ('U')
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
+            !$ACC KERNELS
             je_2 = mje_crs(2)
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -995,8 +1084,10 @@ MODULE crsdom
               zflcrs = p_fld(ijie, je_2) * p_mask(ijie, je_2, 1) + (1. - p_mask(ijie, je_2, 1)) * r_inf
               p_fld_crs(ii, 2) = zflcrs
             END DO
+            !$ACC END KERNELS
           END IF
         ELSE
+          !$ACC KERNELS
           je_2 = mjs_crs(2)
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1004,7 +1095,9 @@ MODULE crsdom
             zflcrs = MIN(p_fld(ijie, je_2) * p_mask(ijie, je_2, 1) + (1. - p_mask(ijie, je_2, 1)) * r_inf, p_fld(ijie, je_2 + 1) * p_mask(ijie, je_2 + 1, 1) + (1. - p_mask(ijie, je_2, 1)) * r_inf, p_fld(ijie, je_2 + 2) * p_mask(ijie, je_2 + 2, 1) + (1. - p_mask(ijie, je_2, 1)) * r_inf)
             p_fld_crs(ii, 2) = zflcrs
           END DO
+          !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1014,6 +1107,7 @@ MODULE crsdom
             p_fld_crs(ii, ij) = zflcrs
           END DO
         END DO
+        !$ACC END KERNELS
       END SELECT
     END SELECT
     CALL crs_lbc_lnk(p_fld_crs, cd_type, psgn)
@@ -1391,33 +1485,39 @@ MODULE crsdom
     CASE (0)
       SELECT CASE (jperio)
       CASE (0, 1, 3, 4)
+        !$ACC KERNELS
         DO ji = 2, jpiglo_crsm1
           ijie = (ji * nn_factx) - nn_factx
           ijis = ijie - nn_factx + 1
           mis2_crs(ji) = ijis
           mie2_crs(ji) = ijie
         END DO
+        !$ACC END KERNELS
         IF (jpiglo - 1 - mie2_crs(jpiglo_crsm1) <= nn_factx) mie2_crs(jpiglo_crsm1) = jpiglo - 2
         IF (nn_facty == 2) THEN
           ijjglot = jpjglo - 1
         ELSE
           ijjglot = jpjglo
         END IF
+        !$ACC KERNELS
         DO jj = 2, jpjglo_crs
           ijje = ijjgloT - nn_facty * (jj - 3)
           ijjs = ijje - nn_facty + 1
           mjs2_crs(jpjglo_crs - jj + 2) = ijjs
           mje2_crs(jpjglo_crs - jj + 2) = ijje
         END DO
+        !$ACC END KERNELS
       CASE (2)
         WRITE(numout, FMT = *) 'crs_init, jperio=2 not supported'
       CASE (5, 6)
+        !$ACC KERNELS
         DO ji = 2, jpiglo_crsm1
           ijie = (ji * nn_factx) - nn_factx
           ijis = ijie - nn_factx + 1
           mis2_crs(ji) = ijis
           mie2_crs(ji) = ijie
         END DO
+        !$ACC END KERNELS
         IF (jpiglo - 1 - mie2_crs(jpiglo_crsm1) <= nn_factx) mie_crs(jpiglo_crsm1) = jpiglo - 2
         jj = 2
         ijje = jpj - nn_facty * (jj - 2)
@@ -1426,6 +1526,7 @@ MODULE crsdom
         ELSE
           ijjs = ijje - nn_facty + 1
         END IF
+        !$ACC KERNELS
         mjs2_crs(jpj_crs - jj + 1) = ijjs
         mje2_crs(jpj_crs - jj + 1) = ijje
         DO jj = 3, jpjglo_crsm1
@@ -1435,6 +1536,7 @@ MODULE crsdom
           mjs2_crs(jpj_crs - jj + 1) = ijjs
           mje2_crs(jpj_crs - jj + 1) = ijje
         END DO
+        !$ACC END KERNELS
       CASE DEFAULT
         WRITE(numout, FMT = *) 'crs_init. Only jperio = 0, 1, 3, 4, 5, 6 supported'
       END SELECT

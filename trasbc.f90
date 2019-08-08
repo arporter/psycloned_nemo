@@ -68,7 +68,6 @@ MODULE trasbc
       sbc_tsc_b(:, :, :) = sbc_tsc(:, :, :)
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jj = 2, jpj
       DO ji = 2, jpim1
         IF (ll_wd) THEN
@@ -85,7 +84,6 @@ MODULE trasbc
         sbc_tsc(ji, jj, jp_sal) = r1_rau0 * sfx(ji, jj)
       END DO
     END DO
-    !$ACC END KERNELS
     IF (ln_linssh) THEN
       !$ACC KERNELS
       DO jj = 2, jpj
@@ -129,20 +127,20 @@ MODULE trasbc
       !$ACC END KERNELS
     END IF
     IF (ln_rnf) THEN
-      !$ACC KERNELS
       zfact = 0.5_wp
       DO jj = 2, jpj
         DO ji = 2, jpim1
           IF (rnf(ji, jj) /= 0._wp) THEN
+            !$ACC KERNELS
             zdep = zfact / h_rnf(ji, jj)
             DO jk = 1, nk_rnf(ji, jj)
               tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + (rnf_tsc_b(ji, jj, jp_tem) + rnf_tsc(ji, jj, jp_tem)) * zdep
               IF (ln_rnf_sal) tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + (rnf_tsc_b(ji, jj, jp_sal) + rnf_tsc(ji, jj, jp_sal)) * zdep
             END DO
+            !$ACC END KERNELS
           END IF
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
     IF (iom_use('rnf_x_sst')) CALL iom_put("rnf_x_sst", rnf * tsn(:, :, 1, jp_tem))
     IF (iom_use('rnf_x_sss')) CALL iom_put("rnf_x_sss", rnf * tsn(:, :, 1, jp_sal))

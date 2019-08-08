@@ -81,9 +81,11 @@ MODULE traqsr
     END IF
     SELECT CASE (nqsr)
     CASE (np_BIO)
+      !$ACC KERNELS
       DO jk = 1, nksr
         qsr_hc(:, :, jk) = r1_rau0_rcp * (etot3(:, :, jk) - etot3(:, :, jk + 1))
       END DO
+      !$ACC END KERNELS
     CASE (np_RGB, np_RGBc)
       ALLOCATE(zekb(jpi, jpj), zekg(jpi, jpj), zekr(jpi, jpj), ze0(jpi, jpj, jpk), ze1(jpi, jpj, jpk), ze2(jpi, jpj, jpk), ze3(jpi, jpj, jpk), zea(jpi, jpj, jpk), zchl3d(jpi, jpj, jpk))
       IF (nqsr == np_RGBc) THEN
@@ -109,10 +111,13 @@ MODULE traqsr
           END DO
         END DO
       ELSE
+        !$ACC KERNELS
         DO jk = 1, nksr + 1
           zchl3d(:, :, jk) = 0.05
         END DO
+        !$ACC END KERNELS
       END IF
+      !$ACC KERNELS
       zcoef = (1. - rn_abs) / 3._wp
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -123,6 +128,7 @@ MODULE traqsr
           zea(ji, jj, 1) = qsr(ji, jj)
         END DO
       END DO
+      !$ACC END KERNELS
       DO jk = 2, nksr + 1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -133,6 +139,7 @@ MODULE traqsr
             zekr(ji, jj) = rkrgb(3, irgb)
           END DO
         END DO
+        !$ACC KERNELS
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zc0 = ze0(ji, jj, jk - 1) * EXP(- e3t_n(ji, jj, jk - 1) * xsi0r)
@@ -146,7 +153,9 @@ MODULE traqsr
             zea(ji, jj, jk) = (zc0 + zc1 + zc2 + zc3) * wmask(ji, jj, jk)
           END DO
         END DO
+        !$ACC END KERNELS
       END DO
+      !$ACC KERNELS
       DO jk = 1, nksr
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -154,8 +163,10 @@ MODULE traqsr
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
       DEALLOCATE(zekb, zekg, zekr, ze0, ze1, ze2, ze3, zea, zchl3d)
     CASE (np_2BD)
+      !$ACC KERNELS
       zz0 = rn_abs * r1_rau0_rcp
       zz1 = (1. - rn_abs) * r1_rau0_rcp
       DO jk = 1, nksr
@@ -167,6 +178,7 @@ MODULE traqsr
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END SELECT
     !$ACC KERNELS
     DO jk = 1, nksr

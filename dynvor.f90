@@ -726,21 +726,25 @@ MODULE dynvor
       SELECT CASE (nvor_scheme)
       CASE (np_ENT)
         ALLOCATE(di_e2u_2(jpi, jpj), dj_e1v_2(jpi, jpj))
+        !$ACC KERNELS
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             di_e2u_2(ji, jj) = (e2u(ji, jj) - e2u(ji - 1, jj)) * 0.5_wp
             dj_e1v_2(ji, jj) = (e1v(ji, jj) - e1v(ji, jj - 1)) * 0.5_wp
           END DO
         END DO
+        !$ACC END KERNELS
         CALL lbc_lnk_multi(di_e2u_2, 'T', - 1., dj_e1v_2, 'T', - 1.)
       CASE DEFAULT
         ALLOCATE(di_e2v_2e1e2f(jpi, jpj), dj_e1u_2e1e2f(jpi, jpj))
+        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             di_e2v_2e1e2f(ji, jj) = (e2v(ji + 1, jj) - e2v(ji, jj)) * 0.5 * r1_e1e2f(ji, jj)
             dj_e1u_2e1e2f(ji, jj) = (e1u(ji, jj + 1) - e1u(ji, jj)) * 0.5 * r1_e1e2f(ji, jj)
           END DO
         END DO
+        !$ACC END KERNELS
         CALL lbc_lnk_multi(di_e2v_2e1e2f, 'F', - 1., dj_e1u_2e1e2f, 'F', - 1.)
       END SELECT
     END SELECT

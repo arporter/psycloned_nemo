@@ -542,6 +542,7 @@ MODULE zdfgls
     !$ACC END KERNELS
     SELECT CASE (nn_stab_func)
     CASE (0, 1)
+      !$ACC KERNELS
       DO jk = 2, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -556,7 +557,9 @@ MODULE zdfgls
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (2, 3)
+      !$ACC KERNELS
       DO jk = 2, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -577,6 +580,7 @@ MODULE zdfgls
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END SELECT
     !$ACC KERNELS
     zstm(:, :, 1) = zstm(:, :, 2)

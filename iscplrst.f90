@@ -190,13 +190,21 @@ MODULE iscplrst
       END DO
     END DO
     ztrp(:, :, :) = ub(:, :, :) * pe3u_b(:, :, :)
+    !$ACC END KERNELS
     zbub(:, :) = SUM(ztrp, DIM = 3)
+    !$ACC KERNELS
     ztrp(:, :, :) = vb(:, :, :) * pe3v_b(:, :, :)
+    !$ACC END KERNELS
     zbvb(:, :) = SUM(ztrp, DIM = 3)
+    !$ACC KERNELS
     ztrp(:, :, :) = un(:, :, :) * e3u_n(:, :, :)
+    !$ACC END KERNELS
     zbun(:, :) = SUM(ztrp, DIM = 3)
+    !$ACC KERNELS
     ztrp(:, :, :) = vn(:, :, :) * e3v_n(:, :, :)
+    !$ACC END KERNELS
     zbvn(:, :) = SUM(ztrp, DIM = 3)
+    !$ACC KERNELS
     zhu1 = 0.0_wp
     zhv1 = 0.0_wp
     DO jk = 1, jpk

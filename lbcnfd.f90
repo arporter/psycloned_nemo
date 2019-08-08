@@ -48,6 +48,7 @@ MODULE lbcnfd
       CASE (3, 4)
         SELECT CASE (cd_nat)
         CASE ('T', 'W')
+          !$ACC KERNELS
           DO ji = 2, jpiglo
             ijt = jpiglo - ji + 2
             ptab(ji, ipj) = psgn * ptab(ijt, ipj - 2)
@@ -57,7 +58,9 @@ MODULE lbcnfd
             ijt = jpiglo - ji + 2
             ptab(ji, ipjm1) = psgn * ptab(ijt, ipjm1)
           END DO
+          !$ACC END KERNELS
         CASE ('U')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji + 1
             ptab(ji, ipj) = psgn * ptab(iju, ipj - 2)
@@ -68,14 +71,18 @@ MODULE lbcnfd
             iju = jpiglo - ji + 1
             ptab(ji, ipjm1) = psgn * ptab(iju, ipjm1)
           END DO
+          !$ACC END KERNELS
         CASE ('V')
+          !$ACC KERNELS
           DO ji = 2, jpiglo
             ijt = jpiglo - ji + 2
             ptab(ji, ipj - 1) = psgn * ptab(ijt, ipj - 2)
             ptab(ji, ipj) = psgn * ptab(ijt, ipj - 3)
           END DO
           ptab(1, ipj) = psgn * ptab(3, ipj - 3)
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji + 1
             ptab(ji, ipj - 1) = psgn * ptab(iju, ipj - 2)
@@ -83,21 +90,27 @@ MODULE lbcnfd
           END DO
           ptab(1, ipj) = psgn * ptab(2, ipj - 3)
           ptab(jpiglo, ipj) = psgn * ptab(jpiglo - 1, ipj - 3)
+          !$ACC END KERNELS
         END SELECT
       CASE (5, 6)
         SELECT CASE (cd_nat)
         CASE ('T', 'W')
+          !$ACC KERNELS
           DO ji = 1, jpiglo
             ijt = jpiglo - ji + 1
             ptab(ji, ipj) = psgn * ptab(ijt, ipj - 1)
           END DO
+          !$ACC END KERNELS
         CASE ('U')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji
             ptab(ji, ipj) = psgn * ptab(iju, ipj - 1)
           END DO
           ptab(jpiglo, ipj) = psgn * ptab(1, ipj - 1)
+          !$ACC END KERNELS
         CASE ('V')
+          !$ACC KERNELS
           DO ji = 1, jpiglo
             ijt = jpiglo - ji + 1
             ptab(ji, ipj) = psgn * ptab(ijt, ipj - 2)
@@ -106,7 +119,9 @@ MODULE lbcnfd
             ijt = jpiglo - ji + 1
             ptab(ji, ipjm1) = psgn * ptab(ijt, ipjm1)
           END DO
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji
             ptab(ji, ipj) = psgn * ptab(iju, ipj - 2)
@@ -116,14 +131,19 @@ MODULE lbcnfd
             iju = jpiglo - ji
             ptab(ji, ipjm1) = psgn * ptab(iju, ipjm1)
           END DO
+          !$ACC END KERNELS
         END SELECT
       CASE DEFAULT
         SELECT CASE (cd_nat)
         CASE ('T', 'U', 'V', 'W')
+          !$ACC KERNELS
           ptab(:, 1) = 0._wp
           ptab(:, ipj) = 0._wp
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           ptab(:, ipj) = 0._wp
+          !$ACC END KERNELS
         END SELECT
       END SELECT
     END DO
@@ -254,6 +274,7 @@ MODULE lbcnfd
       CASE (3, 4)
         SELECT CASE (cd_nat)
         CASE ('T', 'W')
+          !$ACC KERNELS
           DO jh = 0, kextj
             DO ji = 2, jpiglo
               ijt = jpiglo - ji + 2
@@ -265,7 +286,9 @@ MODULE lbcnfd
             ijt = jpiglo - ji + 2
             ptab(ji, ipjm1) = psgn * ptab(ijt, ipjm1)
           END DO
+          !$ACC END KERNELS
         CASE ('U')
+          !$ACC KERNELS
           DO jh = 0, kextj
             DO ji = 2, jpiglo - 1
               iju = jpiglo - ji + 1
@@ -278,7 +301,9 @@ MODULE lbcnfd
             iju = jpiglo - ji + 1
             ptab(ji, ipjm1) = psgn * ptab(iju, ipjm1)
           END DO
+          !$ACC END KERNELS
         CASE ('V')
+          !$ACC KERNELS
           DO jh = 0, kextj
             DO ji = 2, jpiglo
               ijt = jpiglo - ji + 2
@@ -287,7 +312,9 @@ MODULE lbcnfd
             END DO
             ptab(1, ipj + jh) = psgn * ptab(3, ipj - 3 - jh)
           END DO
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           DO jh = 0, kextj
             DO ji = 1, jpiglo - 1
               iju = jpiglo - ji + 1
@@ -299,17 +326,21 @@ MODULE lbcnfd
             ptab(1, ipj + jh) = psgn * ptab(2, ipj - 3 - jh)
             ptab(jpiglo, ipj + jh) = psgn * ptab(jpiglo - 1, ipj - 3 - jh)
           END DO
+          !$ACC END KERNELS
         END SELECT
       CASE (5, 6)
         SELECT CASE (cd_nat)
         CASE ('T', 'W')
+          !$ACC KERNELS
           DO jh = 0, kextj
             DO ji = 1, jpiglo
               ijt = jpiglo - ji + 1
               ptab(ji, ipj + jh) = psgn * ptab(ijt, ipj - 1 - jh)
             END DO
           END DO
+          !$ACC END KERNELS
         CASE ('U')
+          !$ACC KERNELS
           DO jh = 0, kextj
             DO ji = 1, jpiglo - 1
               iju = jpiglo - ji
@@ -317,7 +348,9 @@ MODULE lbcnfd
             END DO
             ptab(jpiglo, ipj + jh) = psgn * ptab(1, ipj - 1 - jh)
           END DO
+          !$ACC END KERNELS
         CASE ('V')
+          !$ACC KERNELS
           DO jh = 0, kextj
             DO ji = 1, jpiglo
               ijt = jpiglo - ji + 1
@@ -328,7 +361,9 @@ MODULE lbcnfd
             ijt = jpiglo - ji + 1
             ptab(ji, ipjm1) = psgn * ptab(ijt, ipjm1)
           END DO
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           DO jh = 0, kextj
             DO ji = 1, jpiglo - 1
               iju = jpiglo - ji
@@ -340,14 +375,19 @@ MODULE lbcnfd
             iju = jpiglo - ji
             ptab(ji, ipjm1) = psgn * ptab(iju, ipjm1)
           END DO
+          !$ACC END KERNELS
         END SELECT
       CASE DEFAULT
         SELECT CASE (cd_nat)
         CASE ('T', 'U', 'V', 'W')
+          !$ACC KERNELS
           ptab(:, 1 : 1 - kextj) = 0._wp
           ptab(:, ipj : ipj + kextj) = 0._wp
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           ptab(:, ipj : ipj + kextj) = 0._wp
+          !$ACC END KERNELS
         END SELECT
       END SELECT
     END DO
@@ -374,6 +414,7 @@ MODULE lbcnfd
       CASE (3, 4)
         SELECT CASE (cd_nat)
         CASE ('T', 'W')
+          !$ACC KERNELS
           DO ji = 2, jpiglo
             ijt = jpiglo - ji + 2
             ptab(ji, ipj, :) = psgn * ptab(ijt, ipj - 2, :)
@@ -383,7 +424,9 @@ MODULE lbcnfd
             ijt = jpiglo - ji + 2
             ptab(ji, ipjm1, :) = psgn * ptab(ijt, ipjm1, :)
           END DO
+          !$ACC END KERNELS
         CASE ('U')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji + 1
             ptab(ji, ipj, :) = psgn * ptab(iju, ipj - 2, :)
@@ -394,14 +437,18 @@ MODULE lbcnfd
             iju = jpiglo - ji + 1
             ptab(ji, ipjm1, :) = psgn * ptab(iju, ipjm1, :)
           END DO
+          !$ACC END KERNELS
         CASE ('V')
+          !$ACC KERNELS
           DO ji = 2, jpiglo
             ijt = jpiglo - ji + 2
             ptab(ji, ipj - 1, :) = psgn * ptab(ijt, ipj - 2, :)
             ptab(ji, ipj, :) = psgn * ptab(ijt, ipj - 3, :)
           END DO
           ptab(1, ipj, :) = psgn * ptab(3, ipj - 3, :)
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji + 1
             ptab(ji, ipj - 1, :) = psgn * ptab(iju, ipj - 2, :)
@@ -409,21 +456,27 @@ MODULE lbcnfd
           END DO
           ptab(1, ipj, :) = psgn * ptab(2, ipj - 3, :)
           ptab(jpiglo, ipj, :) = psgn * ptab(jpiglo - 1, ipj - 3, :)
+          !$ACC END KERNELS
         END SELECT
       CASE (5, 6)
         SELECT CASE (cd_nat)
         CASE ('T', 'W')
+          !$ACC KERNELS
           DO ji = 1, jpiglo
             ijt = jpiglo - ji + 1
             ptab(ji, ipj, :) = psgn * ptab(ijt, ipj - 1, :)
           END DO
+          !$ACC END KERNELS
         CASE ('U')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji
             ptab(ji, ipj, :) = psgn * ptab(iju, ipj - 1, :)
           END DO
           ptab(jpiglo, ipj, :) = psgn * ptab(1, ipj - 1, :)
+          !$ACC END KERNELS
         CASE ('V')
+          !$ACC KERNELS
           DO ji = 1, jpiglo
             ijt = jpiglo - ji + 1
             ptab(ji, ipj, :) = psgn * ptab(ijt, ipj - 2, :)
@@ -432,7 +485,9 @@ MODULE lbcnfd
             ijt = jpiglo - ji + 1
             ptab(ji, ipjm1, :) = psgn * ptab(ijt, ipjm1, :)
           END DO
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji
             ptab(ji, ipj, :) = psgn * ptab(iju, ipj - 2, :)
@@ -442,14 +497,19 @@ MODULE lbcnfd
             iju = jpiglo - ji
             ptab(ji, ipjm1, :) = psgn * ptab(iju, ipjm1, :)
           END DO
+          !$ACC END KERNELS
         END SELECT
       CASE DEFAULT
         SELECT CASE (cd_nat)
         CASE ('T', 'U', 'V', 'W')
+          !$ACC KERNELS
           ptab(:, 1, :) = 0._wp
           ptab(:, ipj, :) = 0._wp
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           ptab(:, ipj, :) = 0._wp
+          !$ACC END KERNELS
         END SELECT
       END SELECT
     END DO
@@ -579,6 +639,7 @@ MODULE lbcnfd
       CASE (3, 4)
         SELECT CASE (cd_nat)
         CASE ('T', 'W')
+          !$ACC KERNELS
           DO ji = 2, jpiglo
             ijt = jpiglo - ji + 2
             ptab(ji, ipj, :, :) = psgn * ptab(ijt, ipj - 2, :, :)
@@ -588,7 +649,9 @@ MODULE lbcnfd
             ijt = jpiglo - ji + 2
             ptab(ji, ipjm1, :, :) = psgn * ptab(ijt, ipjm1, :, :)
           END DO
+          !$ACC END KERNELS
         CASE ('U')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji + 1
             ptab(ji, ipj, :, :) = psgn * ptab(iju, ipj - 2, :, :)
@@ -599,14 +662,18 @@ MODULE lbcnfd
             iju = jpiglo - ji + 1
             ptab(ji, ipjm1, :, :) = psgn * ptab(iju, ipjm1, :, :)
           END DO
+          !$ACC END KERNELS
         CASE ('V')
+          !$ACC KERNELS
           DO ji = 2, jpiglo
             ijt = jpiglo - ji + 2
             ptab(ji, ipj - 1, :, :) = psgn * ptab(ijt, ipj - 2, :, :)
             ptab(ji, ipj, :, :) = psgn * ptab(ijt, ipj - 3, :, :)
           END DO
           ptab(1, ipj, :, :) = psgn * ptab(3, ipj - 3, :, :)
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji + 1
             ptab(ji, ipj - 1, :, :) = psgn * ptab(iju, ipj - 2, :, :)
@@ -614,21 +681,27 @@ MODULE lbcnfd
           END DO
           ptab(1, ipj, :, :) = psgn * ptab(2, ipj - 3, :, :)
           ptab(jpiglo, ipj, :, :) = psgn * ptab(jpiglo - 1, ipj - 3, :, :)
+          !$ACC END KERNELS
         END SELECT
       CASE (5, 6)
         SELECT CASE (cd_nat)
         CASE ('T', 'W')
+          !$ACC KERNELS
           DO ji = 1, jpiglo
             ijt = jpiglo - ji + 1
             ptab(ji, ipj, :, :) = psgn * ptab(ijt, ipj - 1, :, :)
           END DO
+          !$ACC END KERNELS
         CASE ('U')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji
             ptab(ji, ipj, :, :) = psgn * ptab(iju, ipj - 1, :, :)
           END DO
           ptab(jpiglo, ipj, :, :) = psgn * ptab(1, ipj - 1, :, :)
+          !$ACC END KERNELS
         CASE ('V')
+          !$ACC KERNELS
           DO ji = 1, jpiglo
             ijt = jpiglo - ji + 1
             ptab(ji, ipj, :, :) = psgn * ptab(ijt, ipj - 2, :, :)
@@ -637,7 +710,9 @@ MODULE lbcnfd
             ijt = jpiglo - ji + 1
             ptab(ji, ipjm1, :, :) = psgn * ptab(ijt, ipjm1, :, :)
           END DO
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           DO ji = 1, jpiglo - 1
             iju = jpiglo - ji
             ptab(ji, ipj, :, :) = psgn * ptab(iju, ipj - 2, :, :)
@@ -647,14 +722,19 @@ MODULE lbcnfd
             iju = jpiglo - ji
             ptab(ji, ipjm1, :, :) = psgn * ptab(iju, ipjm1, :, :)
           END DO
+          !$ACC END KERNELS
         END SELECT
       CASE DEFAULT
         SELECT CASE (cd_nat)
         CASE ('T', 'U', 'V', 'W')
+          !$ACC KERNELS
           ptab(:, 1, :, :) = 0._wp
           ptab(:, ipj, :, :) = 0._wp
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           ptab(:, ipj, :, :) = 0._wp
+          !$ACC END KERNELS
         END SELECT
       END SELECT
     END DO
@@ -791,12 +871,16 @@ MODULE lbcnfd
           ELSE
             startloop = 2
           END IF
+          !$ACC KERNELS
           DO ji = startloop, nlci
             ijt = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 4
             ptab(ji, ijpj, :, :) = psgn * ptab2(ijt, ijpj - 2, :, :)
           END DO
+          !$ACC END KERNELS
           IF (nimpp == 1) THEN
+            !$ACC KERNELS
             ptab(1, ijpj, :, :) = psgn * ptab(3, ijpj - 2, :, :)
+            !$ACC END KERNELS
           END IF
           IF (nimpp >= jpiglo / 2 + 1) THEN
             startloop = 1
@@ -811,9 +895,13 @@ MODULE lbcnfd
               jia = ji + nimpp - 1
               ijta = jpiglo - jia + 2
               IF (ijta >= startloop + nimpp - 1 .AND. ijta < jia) THEN
+                !$ACC KERNELS
                 ptab(ji, ijpjm1, :, :) = psgn * ptab(ijta - nimpp + 1, ijpjm1, :, :)
+                !$ACC END KERNELS
               ELSE
+                !$ACC KERNELS
                 ptab(ji, ijpjm1, :, :) = psgn * ptab2(ijt, ijpjm1, :, :)
+                !$ACC END KERNELS
               END IF
             END DO
           END IF
@@ -823,15 +911,21 @@ MODULE lbcnfd
           ELSE
             endloop = nlci - 1
           END IF
+          !$ACC KERNELS
           DO ji = 1, endloop
             iju = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 3
             ptab(ji, ijpj, :, :) = psgn * ptab2(iju, ijpj - 2, :, :)
           END DO
+          !$ACC END KERNELS
           IF (nimpp .EQ. 1) THEN
+            !$ACC KERNELS
             ptab(1, ijpj, :, :) = psgn * ptab(2, ijpj - 2, :, :)
+            !$ACC END KERNELS
           END IF
           IF ((nimpp + nlci - 1) .EQ. jpiglo) THEN
+            !$ACC KERNELS
             ptab(nlci, ijpj, :, :) = psgn * ptab(nlci - 1, ijpj - 2, :, :)
+            !$ACC END KERNELS
           END IF
           IF (nimpp + nlci - 1 /= jpiglo) THEN
             endloop = nlci
@@ -851,9 +945,13 @@ MODULE lbcnfd
               jia = ji + nimpp - 1
               ijua = jpiglo - jia + 1
               IF (ijua >= startloop + nimpp - 1 .AND. ijua < jia) THEN
+                !$ACC KERNELS
                 ptab(ji, ijpjm1, :, :) = psgn * ptab(ijua - nimpp + 1, ijpjm1, :, :)
+                !$ACC END KERNELS
               ELSE
+                !$ACC KERNELS
                 ptab(ji, ijpjm1, :, :) = psgn * ptab2(iju, ijpjm1, :, :)
+                !$ACC END KERNELS
               END IF
             END DO
           END IF
@@ -863,13 +961,17 @@ MODULE lbcnfd
           ELSE
             startloop = 2
           END IF
+          !$ACC KERNELS
           DO ji = startloop, nlci
             ijt = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 4
             ptab(ji, ijpj - 1, :, :) = psgn * ptab2(ijt, ijpj - 2, :, :)
             ptab(ji, ijpj, :, :) = psgn * ptab2(ijt, ijpj - 3, :, :)
           END DO
+          !$ACC END KERNELS
           IF (nimpp .EQ. 1) THEN
+            !$ACC KERNELS
             ptab(1, ijpj, :, :) = psgn * ptab(3, ijpj - 3, :, :)
+            !$ACC END KERNELS
           END IF
         CASE ('F')
           IF (nimpp + nlci - 1 /= jpiglo) THEN
@@ -877,56 +979,74 @@ MODULE lbcnfd
           ELSE
             endloop = nlci - 1
           END IF
+          !$ACC KERNELS
           DO ji = 1, endloop
             iju = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 3
             ptab(ji, ijpj - 1, :, :) = psgn * ptab2(iju, ijpj - 2, :, :)
             ptab(ji, ijpj, :, :) = psgn * ptab2(iju, ijpj - 3, :, :)
           END DO
+          !$ACC END KERNELS
           IF (nimpp .EQ. 1) THEN
+            !$ACC KERNELS
             ptab(1, ijpj, :, :) = psgn * ptab(2, ijpj - 3, :, :)
             ptab(1, ijpj - 1, :, :) = psgn * ptab(2, ijpj - 2, :, :)
+            !$ACC END KERNELS
           END IF
           IF ((nimpp + nlci - 1) .EQ. jpiglo) THEN
+            !$ACC KERNELS
             ptab(nlci, ijpj, :, :) = psgn * ptab(nlci - 1, ijpj - 3, :, :)
             ptab(nlci, ijpj - 1, :, :) = psgn * ptab(nlci - 1, ijpj - 2, :, :)
+            !$ACC END KERNELS
           END IF
         CASE ('I')
           IF (nimpp /= 1) THEN
             startloop = 1
           ELSE
+            !$ACC KERNELS
             startloop = 3
             ptab(2, ijpj, :, :) = psgn * ptab2(3, ijpjm1, :, :)
+            !$ACC END KERNELS
           END IF
+          !$ACC KERNELS
           DO ji = startloop, nlci
             iju = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 5
             ptab(ji, ijpj, :, :) = psgn * ptab2(iju, ijpjm1, :, :)
           END DO
+          !$ACC END KERNELS
         END SELECT
       CASE (5, 6)
         SELECT CASE (cd_nat)
         CASE ('T', 'W')
+          !$ACC KERNELS
           DO ji = 1, nlci
             ijt = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 3
             ptab(ji, ijpj, :, :) = psgn * ptab2(ijt, ijpj - 1, :, :)
           END DO
+          !$ACC END KERNELS
         CASE ('U')
           IF (nimpp + nlci - 1 /= jpiglo) THEN
             endloop = nlci
           ELSE
             endloop = nlci - 1
           END IF
+          !$ACC KERNELS
           DO ji = 1, endloop
             iju = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 2
             ptab(ji, ijpj, :, :) = psgn * ptab2(iju, ijpj - 1, :, :)
           END DO
+          !$ACC END KERNELS
           IF ((nimpp + nlci - 1) .EQ. jpiglo) THEN
+            !$ACC KERNELS
             ptab(nlci, ijpj, :, :) = psgn * ptab2(1, ijpj - 1, :, :)
+            !$ACC END KERNELS
           END IF
         CASE ('V')
+          !$ACC KERNELS
           DO ji = 1, nlci
             ijt = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 3
             ptab(ji, ijpj, :, :) = psgn * ptab2(ijt, ijpj - 2, :, :)
           END DO
+          !$ACC END KERNELS
           IF (nimpp >= jpiglo / 2 + 1) THEN
             startloop = 1
           ELSE IF (nimpp + nlci - 1 >= jpiglo / 2 + 1 .AND. nimpp < jpiglo / 2 + 1) THEN
@@ -935,10 +1055,12 @@ MODULE lbcnfd
             startloop = nlci + 1
           END IF
           IF (startloop <= nlci) THEN
+            !$ACC KERNELS
             DO ji = startloop, nlci
               ijt = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 3
               ptab(ji, ijpjm1, :, :) = psgn * ptab2(ijt, ijpjm1, :, :)
             END DO
+            !$ACC END KERNELS
           END IF
         CASE ('F')
           IF (nimpp + nlci - 1 /= jpiglo) THEN
@@ -946,12 +1068,16 @@ MODULE lbcnfd
           ELSE
             endloop = nlci - 1
           END IF
+          !$ACC KERNELS
           DO ji = 1, endloop
             iju = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 2
             ptab(ji, ijpj, :, :) = psgn * ptab2(iju, ijpj - 2, :, :)
           END DO
+          !$ACC END KERNELS
           IF ((nimpp + nlci - 1) .EQ. jpiglo) THEN
+            !$ACC KERNELS
             ptab(nlci, ijpj, :, :) = psgn * ptab2(1, ijpj - 2, :, :)
+            !$ACC END KERNELS
           END IF
           IF (nimpp + nlci - 1 /= jpiglo) THEN
             endloop = nlci
@@ -966,10 +1092,12 @@ MODULE lbcnfd
             startloop = endloop + 1
           END IF
           IF (startloop <= endloop) THEN
+            !$ACC KERNELS
             DO ji = startloop, endloop
               iju = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 2
               ptab(ji, ijpjm1, :, :) = psgn * ptab2(iju, ijpjm1, :, :)
             END DO
+            !$ACC END KERNELS
           END IF
         CASE ('I')
           IF (nimpp /= 1) THEN
@@ -982,21 +1110,29 @@ MODULE lbcnfd
           ELSE
             endloop = nlci - 1
           END IF
+          !$ACC KERNELS
           DO ji = startloop, endloop
             ijt = jpiglo - ji - nimpp - nfiimpp(isendto(1), jpnj) + 4
             ptab(ji, ijpj, :, :) = 0.5 * (ptab(ji, ijpjm1, :, :) + psgn * ptab2(ijt, ijpjm1, :, :))
           END DO
+          !$ACC END KERNELS
         END SELECT
       CASE DEFAULT
         SELECT CASE (cd_nat)
         CASE ('T', 'U', 'V', 'W')
+          !$ACC KERNELS
           ptab(:, 1, :, :) = 0._wp
           ptab(:, ijpj, :, :) = 0._wp
+          !$ACC END KERNELS
         CASE ('F')
+          !$ACC KERNELS
           ptab(:, ijpj, :, :) = 0._wp
+          !$ACC END KERNELS
         CASE ('I')
+          !$ACC KERNELS
           ptab(:, 1, :, :) = 0._wp
           ptab(:, ijpj, :, :) = 0._wp
+          !$ACC END KERNELS
         END SELECT
       END SELECT
     END DO

@@ -799,9 +799,7 @@ MODULE sbccpl
       xcplmask(:, :, :) = 1.
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     xcplmask(:, :, 0) = 1. - SUM(xcplmask(:, :, 1 : nn_cplmodel), dim = 3)
-    !$ACC END KERNELS
     ncpl_qsr_freq = cpl_freq('O_QsrOce') + cpl_freq('O_QsrMix') + cpl_freq('I_QsrOce') + cpl_freq('I_QsrMix')
     IF (ln_dm2dc .AND. ln_cpl .AND. ncpl_qsr_freq /= 86400) CALL ctl_stop('sbc_cpl_init: diurnal cycle reconstruction (ln_dm2dc) needs daily couping for solar radiation')
     IF (ln_dm2dc .AND. ln_cpl) ncpl_qsr_freq = 86400 / ncpl_qsr_freq
@@ -1270,8 +1268,8 @@ MODULE sbccpl
     ELSEWHERE
       zcptsnw(:, :) = zcptn(:, :)
     END WHERE
-    !$ACC KERNELS
     zcptrain(:, :) = rcp * (SUM((tn_ice(:, :, :) - rt0) * a_i(:, :, :), dim = 3) + sst_m(:, :) * ziceld(:, :))
+    !$ACC KERNELS
     zqprec_ice(:, :) = rhos * (zcptsnw(:, :) - rLfus)
     DO jl = 1, jpl
       zqevap_ice(:, :, jl) = 0._wp
@@ -1360,8 +1358,8 @@ MODULE sbccpl
       !$ACC END KERNELS
     END IF
     IF (ln_mixcpl) THEN
-      !$ACC KERNELS
       qsr_tot(:, :) = qsr(:, :) * ziceld(:, :) + SUM(qsr_ice(:, :, :) * a_i(:, :, :), dim = 3)
+      !$ACC KERNELS
       qsr_tot(:, :) = qsr_tot(:, :) * xcplmask(:, :, 0) + zqsr_tot(:, :) * zmsk(:, :)
       DO jl = 1, jpl
         qsr_ice(:, :, jl) = qsr_ice(:, :, jl) * xcplmask(:, :, 0) + zqsr_ice(:, :, jl) * zmsk(:, :)

@@ -49,13 +49,19 @@ MODULE trdtra
       CASE (jptra_zad)
         CALL trd_tra_adv(ptrd, pun, ptra, 'Z', trdt)
       CASE (jptra_bbc, jptra_qsr)
+        !$ACC KERNELS
         trdt(:, :, :) = ptrd(:, :, :) * tmask(:, :, :)
         ztrds(:, :, :) = 0._wp
+        !$ACC END KERNELS
         CALL trd_tra_mng(trdt, ztrds, ktrd, kt)
       CASE (jptra_evd)
+        !$ACC KERNELS
         avt_evd(:, :, :) = ptrd(:, :, :) * tmask(:, :, :)
+        !$ACC END KERNELS
       CASE DEFAULT
+        !$ACC KERNELS
         trdt(:, :, :) = ptrd(:, :, :) * tmask(:, :, :)
+        !$ACC END KERNELS
       END SELECT
     END IF
     IF (ctype == 'TRA' .AND. ktra == jp_sal) THEN

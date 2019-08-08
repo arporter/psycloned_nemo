@@ -121,6 +121,7 @@ MODULE eosbn2
     IF (ln_timing) CALL timing_start('eos-insitu')
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -137,7 +138,9 @@ MODULE eosbn2
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (np_seos)
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -150,6 +153,7 @@ MODULE eosbn2
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END SELECT
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = prd, clinfo1 = ' eos-insitu  : ', kdim = jpk)
     IF (ln_timing) CALL timing_stop('eos-insitu')
@@ -171,6 +175,7 @@ MODULE eosbn2
         ALLOCATE(zn0_sto(1 : 2 * nn_sto_eos))
         ALLOCATE(zn_sto(1 : 2 * nn_sto_eos))
         ALLOCATE(zsign(1 : 2 * nn_sto_eos))
+        !$ACC KERNELS
         DO jsmp = 1, 2 * nn_sto_eos, 2
           zsign(jsmp) = 1._wp
           zsign(jsmp + 1) = - 1._wp
@@ -202,8 +207,10 @@ MODULE eosbn2
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
         DEALLOCATE(zn0_sto, zn_sto, zsign)
       ELSE
+        !$ACC KERNELS
         DO jk = 1, jpkm1
           DO jj = 1, jpj
             DO ji = 1, jpi
@@ -221,8 +228,10 @@ MODULE eosbn2
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       END IF
     CASE (np_seos)
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -237,6 +246,7 @@ MODULE eosbn2
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END SELECT
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = prd, clinfo1 = ' eos-pot: ', tab3d_2 = prhop, clinfo2 = ' pot : ', kdim = jpk)
     IF (ln_timing) CALL timing_stop('eos-pot')
@@ -254,6 +264,7 @@ MODULE eosbn2
     !$ACC END KERNELS
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
+      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zh = pdep(ji, jj) * r1_Z0
@@ -267,8 +278,10 @@ MODULE eosbn2
           prd(ji, jj) = zn * r1_rau0 - 1._wp
         END DO
       END DO
+      !$ACC END KERNELS
       CALL lbc_lnk(prd, 'T', 1.)
     CASE (np_seos)
+      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zt = pts(ji, jj, jp_tem) - 10._wp
@@ -278,6 +291,7 @@ MODULE eosbn2
           prd(ji, jj) = zn * r1_rau0
         END DO
       END DO
+      !$ACC END KERNELS
       CALL lbc_lnk(prd, 'T', 1.)
     END SELECT
     IF (ln_ctl) CALL prt_ctl(tab2d_1 = prd, clinfo1 = ' eos2d: ')
@@ -292,6 +306,7 @@ MODULE eosbn2
     IF (ln_timing) CALL timing_start('rab_3d')
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -314,7 +329,9 @@ MODULE eosbn2
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (np_seos)
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -329,6 +346,7 @@ MODULE eosbn2
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     CASE DEFAULT
       IF (lwp) WRITE(numout, cform_err)
       IF (lwp) WRITE(numout, FMT = *) '          bad flag value for neos = ', neos
@@ -350,6 +368,7 @@ MODULE eosbn2
     !$ACC END KERNELS
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
+      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zh = pdep(ji, jj) * r1_Z0
@@ -369,8 +388,10 @@ MODULE eosbn2
           pab(ji, jj, jp_sal) = zn / zs * r1_rau0
         END DO
       END DO
+      !$ACC END KERNELS
       CALL lbc_lnk_multi(pab(:, :, jp_tem), 'T', 1., pab(:, :, jp_sal), 'T', 1.)
     CASE (np_seos)
+      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zt = pts(ji, jj, jp_tem) - 10._wp
@@ -382,6 +403,7 @@ MODULE eosbn2
           pab(ji, jj, jp_sal) = zn * r1_rau0
         END DO
       END DO
+      !$ACC END KERNELS
       CALL lbc_lnk_multi(pab(:, :, jp_tem), 'T', 1., pab(:, :, jp_sal), 'T', 1.)
     CASE DEFAULT
       IF (lwp) WRITE(numout, cform_err)
@@ -487,6 +509,7 @@ MODULE eosbn2
     REAL(KIND = wp) :: zt, zs, z1_S0
     SELECT CASE (neos)
     CASE (np_teos10, np_seos)
+      !$ACC KERNELS
       z1_S0 = 1._wp / 35.16504_wp
       DO jj = 1, jpj
         DO ji = 1, jpi
@@ -495,9 +518,12 @@ MODULE eosbn2
         END DO
       END DO
       ptf(:, :) = ptf(:, :) * psal(:, :)
+      !$ACC END KERNELS
       IF (PRESENT(pdep)) ptf(:, :) = ptf(:, :) - 7.53E-4 * pdep(:, :)
     CASE (np_eos80)
+      !$ACC KERNELS
       ptf(:, :) = (- 0.0575_wp + 1.710523E-3_wp * SQRT(psal(:, :)) - 2.154996E-4_wp * psal(:, :)) * psal(:, :)
+      !$ACC END KERNELS
       IF (PRESENT(pdep)) ptf(:, :) = ptf(:, :) - 7.53E-4 * pdep(:, :)
     CASE DEFAULT
       IF (lwp) WRITE(numout, cform_err)
@@ -535,6 +561,7 @@ MODULE eosbn2
     IF (ln_timing) CALL timing_start('eos_pen')
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -560,7 +587,9 @@ MODULE eosbn2
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (np_seos)
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -575,6 +604,7 @@ MODULE eosbn2
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     CASE DEFAULT
       IF (lwp) WRITE(numout, cform_err)
       IF (lwp) WRITE(numout, FMT = *) '          bad flag value for neos = ', neos
