@@ -1595,9 +1595,9 @@ MODULE crsdom
           mis2_crs(ji) = ijis
           mie2_crs(ji) = ijie
         END DO
+        IF (jpiglo - 1 - mie2_crs(jpiglo_crsm1) <= nn_factx) mie2_crs(jpiglo_crsm1) = jpiglo - 2
         !$ACC END KERNELS
         CALL ProfileStart('crs_dom_def', 'r7', psy_profile7)
-        IF (jpiglo - 1 - mie2_crs(jpiglo_crsm1) <= nn_factx) mie2_crs(jpiglo_crsm1) = jpiglo - 2
         IF (nn_facty == 2) THEN
           ijjglot = jpjglo - 1
         ELSE
@@ -1624,11 +1624,11 @@ MODULE crsdom
           mis2_crs(ji) = ijis
           mie2_crs(ji) = ijie
         END DO
-        !$ACC END KERNELS
-        CALL ProfileStart('crs_dom_def', 'r9', psy_profile9)
         IF (jpiglo - 1 - mie2_crs(jpiglo_crsm1) <= nn_factx) mie_crs(jpiglo_crsm1) = jpiglo - 2
         jj = 2
         ijje = jpj - nn_facty * (jj - 2)
+        !$ACC END KERNELS
+        CALL ProfileStart('crs_dom_def', 'r9', psy_profile9)
         IF (nn_facty == 3) THEN
           ijjs = ijje - 1
         ELSE

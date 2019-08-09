@@ -150,7 +150,6 @@ MODULE zdfosm
     TYPE(ProfileData), SAVE :: psy_profile15
     TYPE(ProfileData), SAVE :: psy_profile16
     TYPE(ProfileData), SAVE :: psy_profile17
-    TYPE(ProfileData), SAVE :: psy_profile18
     CALL ProfileStart('zdf_osm', 'r0', psy_profile0)
     ALLOCATE(lconv(jpi, jpj), STAT = i_lconv_alloc)
     IF (i_lconv_alloc /= 0) CALL ctl_warn('zdf_osm: failed to allocate lconv')
@@ -417,13 +416,11 @@ MODULE zdfosm
             END DO
             hbl(ji, jj) = MAX(zhbl_s, gdepw_n(ji, jj, 3))
             ibld(ji, jj) = MAX(jm, 3)
-            !$ACC END KERNELS
-            CALL ProfileStart('zdf_osm', 'r4', psy_profile4)
             IF (hbl(ji, jj) > hbli(ji, jj)) hbli(ji, jj) = hbl(ji, jj)
-            CALL ProfileEnd(psy_profile4)
+            !$ACC END KERNELS
           END IF
         ELSE
-          CALL ProfileStart('zdf_osm', 'r5', psy_profile5)
+          CALL ProfileStart('zdf_osm', 'r4', psy_profile4)
           hbl(ji, jj) = zhbl_t(ji, jj)
           IF (lconv(ji, jj)) THEN
             hbli(ji, jj) = hbl(ji, jj)
@@ -431,11 +428,11 @@ MODULE zdfosm
             hbl(ji, jj) = MAX(hbl(ji, jj), gdepw_n(ji, jj, 3))
             IF (hbl(ji, jj) > hbli(ji, jj)) hbli(ji, jj) = hbl(ji, jj)
           END IF
-          CALL ProfileEnd(psy_profile5)
+          CALL ProfileEnd(psy_profile4)
         END IF
-        CALL ProfileStart('zdf_osm', 'r6', psy_profile6)
+        CALL ProfileStart('zdf_osm', 'r5', psy_profile5)
         zhbl(ji, jj) = gdepw_n(ji, jj, ibld(ji, jj))
-        CALL ProfileEnd(psy_profile6)
+        CALL ProfileEnd(psy_profile5)
       END DO
     END DO
     !$ACC KERNELS
@@ -469,7 +466,7 @@ MODULE zdfosm
         zdb_bl(ji, jj) = grav * zthermal * zdt_bl(ji, jj) - grav * zbeta * zds_bl(ji, jj)
         zhbl(ji, jj) = gdepw_n(ji, jj, ibld(ji, jj))
         !$ACC END KERNELS
-        CALL ProfileStart('zdf_osm', 'r7', psy_profile7)
+        CALL ProfileStart('zdf_osm', 'r6', psy_profile6)
         IF (lconv(ji, jj)) THEN
           IF (zdb_bl(ji, jj) > 0._wp) THEN
             IF ((zwstrc(ji, jj) / zvstr(ji, jj)) ** 3 <= 0.5) THEN
@@ -509,15 +506,15 @@ MODULE zdfosm
             zdh(ji, jj) = 0._wp
           END IF
         END IF
-        CALL ProfileEnd(psy_profile7)
+        CALL ProfileEnd(psy_profile6)
       END DO
     END DO
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
-        CALL ProfileStart('zdf_osm', 'r8', psy_profile8)
+        CALL ProfileStart('zdf_osm', 'r7', psy_profile7)
         zthermal = rab_n(ji, jj, 1, jp_tem)
         zbeta = rab_n(ji, jj, 1, jp_sal)
-        CALL ProfileEnd(psy_profile8)
+        CALL ProfileEnd(psy_profile7)
         IF (lconv(ji, jj)) THEN
           !$ACC KERNELS
           zt = 0._wp
@@ -718,9 +715,9 @@ MODULE zdfosm
             END DO
             !$ACC END KERNELS
           END IF
-          CALL ProfileStart('zdf_osm', 'r9', psy_profile9)
+          CALL ProfileStart('zdf_osm', 'r8', psy_profile8)
           zdiffut(ji, jj, ibld(ji, jj)) = zdhdt(ji, jj) * e3t_n(ji, jj, ibld(ji, jj))
-          CALL ProfileEnd(psy_profile9)
+          CALL ProfileEnd(psy_profile8)
         ELSE
           !$ACC KERNELS
           DO jk = 2, ibld(ji, jj)
@@ -732,7 +729,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
-    CALL ProfileStart('zdf_osm', 'r10', psy_profile10)
+    CALL ProfileStart('zdf_osm', 'r9', psy_profile9)
     WHERE (lconv)
       zsc_wth_1 = zwstrl ** 3 * zwth0 / (zvstr ** 3 + 0.5 * zwstrc ** 3 + epsln)
       zsc_ws_1 = zwstrl ** 3 * zws0 / (zvstr ** 3 + 0.5 * zwstrc ** 3 + epsln)
@@ -740,7 +737,7 @@ MODULE zdfosm
       zsc_wth_1 = 2.0 * zwthav
       zsc_ws_1 = 2.0 * zwsav
     END WHERE
-    CALL ProfileEnd(psy_profile10)
+    CALL ProfileEnd(psy_profile9)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -762,7 +759,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
-    CALL ProfileStart('zdf_osm', 'r11', psy_profile11)
+    CALL ProfileStart('zdf_osm', 'r10', psy_profile10)
     WHERE (lconv)
       zsc_uw_1 = (zwstrl ** 3 + 0.5 * zwstrc ** 3) ** pthird * zustke / (1.0 - 1.0 * 6.5 * zla ** (8.0 / 3.0))
       zsc_uw_2 = (zwstrl ** 3 + 0.5 * zwstrc ** 3) ** pthird * zustke / (zla ** (8.0 / 3.0) + epsln)
@@ -771,7 +768,7 @@ MODULE zdfosm
       zsc_uw_1 = zustar ** 2
       zsc_vw_1 = ff_t * zhbl * zustke ** 3 * zla ** (8.0 / 3.0) / (zvstr ** 2 + epsln)
     END WHERE
-    CALL ProfileEnd(psy_profile11)
+    CALL ProfileEnd(psy_profile10)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -793,7 +790,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
-    CALL ProfileStart('zdf_osm', 'r12', psy_profile12)
+    CALL ProfileStart('zdf_osm', 'r11', psy_profile11)
     WHERE (lconv)
       zsc_wth_1 = zwbav * zwth0 * (1.0 + EXP(0.2 * zhol)) / (zvstr ** 3 + 0.5 * zwstrc ** 3 + epsln)
       zsc_ws_1 = zwbav * zws0 * (1.0 + EXP(0.2 * zhol)) / (zvstr ** 3 + 0.5 * zwstrc ** 3 + epsln)
@@ -801,7 +798,7 @@ MODULE zdfosm
       zsc_wth_1 = 0._wp
       zsc_ws_1 = 0._wp
     END WHERE
-    CALL ProfileEnd(psy_profile12)
+    CALL ProfileEnd(psy_profile11)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -825,7 +822,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
-    CALL ProfileStart('zdf_osm', 'r13', psy_profile13)
+    CALL ProfileStart('zdf_osm', 'r12', psy_profile12)
     WHERE (lconv)
       zsc_uw_1 = - zwb0 * zustar ** 2 * zhml / (zvstr ** 3 + 0.5 * zwstrc ** 3 + epsln)
       zsc_uw_2 = zwb0 * zustke * zhml / (zvstr ** 3 + 0.5 * zwstrc ** 3 + epsln) ** (2.0 / 3.0)
@@ -834,7 +831,7 @@ MODULE zdfosm
       zsc_uw_1 = 0._wp
       zsc_vw_1 = 0._wp
     END WHERE
-    CALL ProfileEnd(psy_profile13)
+    CALL ProfileEnd(psy_profile12)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -855,7 +852,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
-    CALL ProfileStart('zdf_osm', 'r14', psy_profile14)
+    CALL ProfileStart('zdf_osm', 'r13', psy_profile13)
     WHERE (lconv)
       zsc_wth_1 = zwth0
       zsc_ws_1 = zws0
@@ -863,7 +860,7 @@ MODULE zdfosm
       zsc_wth_1 = 2.0 * zwthav
       zsc_ws_1 = zws0
     END WHERE
-    CALL ProfileEnd(psy_profile14)
+    CALL ProfileEnd(psy_profile13)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -886,7 +883,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
-    CALL ProfileStart('zdf_osm', 'r15', psy_profile15)
+    CALL ProfileStart('zdf_osm', 'r14', psy_profile14)
     WHERE (lconv)
       zsc_uw_1 = zustar ** 2
       zsc_vw_1 = ff_t * zustke * zhml
@@ -896,7 +893,7 @@ MODULE zdfosm
       zsc_vw_1 = ff_t * zustke * zhbl
       zsc_vw_2 = - 0.11 * SIN(3.14159 * (2.0 + 0.4)) * EXP(- (1.5 + 2.0) ** 2) * zsc_vw_1
     END WHERE
-    CALL ProfileEnd(psy_profile15)
+    CALL ProfileEnd(psy_profile14)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -991,12 +988,12 @@ MODULE zdfosm
           END DO
           !$ACC END KERNELS
         END IF
-        CALL ProfileStart('zdf_osm', 'r16', psy_profile16)
+        CALL ProfileStart('zdf_osm', 'r15', psy_profile15)
         ghamt(ji, jj, ibld(ji, jj)) = 0._wp
         ghams(ji, jj, ibld(ji, jj)) = 0._wp
         ghamu(ji, jj, ibld(ji, jj)) = 0._wp
         ghamv(ji, jj, ibld(ji, jj)) = 0._wp
-        CALL ProfileEnd(psy_profile16)
+        CALL ProfileEnd(psy_profile15)
       END DO
     END DO
     !$ACC KERNELS
@@ -1010,11 +1007,11 @@ MODULE zdfosm
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('zdf_osm', 'r17', psy_profile17)
+    CALL ProfileStart('zdf_osm', 'r16', psy_profile16)
     IF (ln_dia_osm) THEN
       IF (iom_use("zdtdz_pyc")) CALL iom_put("zdtdz_pyc", wmask * zdtdz_pyc)
     END IF
-    CALL ProfileEnd(psy_profile17)
+    CALL ProfileEnd(psy_profile16)
     IF (ln_kpprimix) THEN
       !$ACC KERNELS
       DO jk = 2, jpkm1
@@ -1081,7 +1078,7 @@ MODULE zdfosm
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('zdf_osm', 'r18', psy_profile18)
+    CALL ProfileStart('zdf_osm', 'r17', psy_profile17)
     CALL lbc_lnk_multi(ghamt, 'W', 1., ghams, 'W', 1., ghamu, 'U', 1., ghamv, 'V', 1.)
     IF (ln_dia_osm) THEN
       SELECT CASE (nn_osm_wave)
@@ -1118,7 +1115,7 @@ MODULE zdfosm
       IF (iom_use("zt_ml")) CALL iom_put("zt_ml", tmask(:, :, 1) * zt_ml)
     END IF
     CALL lbc_lnk(p_avt(:, :, :), 'W', 1.)
-    CALL ProfileEnd(psy_profile18)
+    CALL ProfileEnd(psy_profile17)
   END SUBROUTINE zdf_osm
   SUBROUTINE zdf_osm_init
     INTEGER :: ios

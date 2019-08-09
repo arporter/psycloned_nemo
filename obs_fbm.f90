@@ -72,7 +72,6 @@ MODULE obs_fbm
     CALL ProfileEnd(psy_profile0)
   END SUBROUTINE init_obfbdata
   SUBROUTINE alloc_obfbdata(fbdata, kvar, kobs, klev, kadd, kext, lgrid, kqcf)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obfbdata) :: fbdata
     INTEGER, INTENT(IN) :: kvar
     INTEGER, INTENT(IN) :: kobs
@@ -83,8 +82,6 @@ MODULE obs_fbm
     INTEGER, OPTIONAL :: kqcf
     INTEGER :: ji
     INTEGER :: jv
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('alloc_obfbdata', 'r0', psy_profile0)
     IF (fbdata % lalloc) THEN
       CALL dealloc_obfbdata(fbdata)
     END IF
@@ -170,13 +167,9 @@ MODULE obs_fbm
         fbdata % pext(:, :, :) = fbrmdi
       END IF
     END IF
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE alloc_obfbdata
   SUBROUTINE dealloc_obfbdata(fbdata)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obfbdata) :: fbdata
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('dealloc_obfbdata', 'r0', psy_profile0)
     DEALLOCATE(fbdata % cname, fbdata % coblong, fbdata % cobunit)
     IF (fbdata % lgrid) THEN
       DEALLOCATE(fbdata % cgrid)
@@ -206,7 +199,6 @@ MODULE obs_fbm
     fbdata % nlev = 0
     fbdata % nadd = 0
     fbdata % next = 0
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE dealloc_obfbdata
   SUBROUTINE copy_obfbdata(fbdata1, fbdata2, kadd, kext, lgrid, kqcf)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

@@ -80,10 +80,7 @@ MODULE sbc_oce
   REAL(KIND = wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:, :) :: frq_m
   CONTAINS
   INTEGER FUNCTION sbc_oce_alloc()
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ierr(5)
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('sbc_oce_alloc', 'r0', psy_profile0)
     ierr(:) = 0
     ALLOCATE(utau(jpi, jpj), utau_b(jpi, jpj), taum(jpi, jpj), vtau(jpi, jpj), vtau_b(jpi, jpj), wndm(jpi, jpj), STAT = ierr(1))
     ALLOCATE(qns_tot(jpi, jpj), qns(jpi, jpj), qns_b(jpi, jpj), qsr_tot(jpi, jpj), qsr(jpi, jpj), emp(jpi, jpj), emp_b(jpi, jpj), sfx(jpi, jpj), sfx_b(jpi, jpj), emp_tot(jpi, jpj), fmmflx(jpi, jpj), STAT = ierr(2))
@@ -93,7 +90,6 @@ MODULE sbc_oce
     sbc_oce_alloc = MAXVAL(ierr)
     IF (lk_mpp) CALL mpp_sum(sbc_oce_alloc)
     IF (sbc_oce_alloc > 0) CALL ctl_warn('sbc_oce_alloc: allocation of arrays failed')
-    CALL ProfileEnd(psy_profile0)
   END FUNCTION sbc_oce_alloc
   SUBROUTINE sbc_tau2wnd
     USE dom_oce

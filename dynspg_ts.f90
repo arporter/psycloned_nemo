@@ -42,10 +42,7 @@ MODULE dynspg_ts
   REAL(KIND = wp) :: r1_2 = 0.5_wp
   CONTAINS
   INTEGER FUNCTION dyn_spg_ts_alloc()
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ierr(3)
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('dyn_spg_ts_alloc', 'r0', psy_profile0)
     ierr(:) = 0
     ALLOCATE(wgtbtp1(3 * nn_baro), wgtbtp2(3 * nn_baro), zwz(jpi, jpj), STAT = ierr(1))
     IF (ln_dynvor_een .OR. ln_dynvor_eeT) ALLOCATE(ftnw(jpi, jpj), ftne(jpi, jpj), ftsw(jpi, jpj), ftse(jpi, jpj), STAT = ierr(2))
@@ -53,7 +50,6 @@ MODULE dynspg_ts
     dyn_spg_ts_alloc = MAXVAL(ierr(:))
     IF (lk_mpp) CALL mpp_sum(dyn_spg_ts_alloc)
     IF (dyn_spg_ts_alloc /= 0) CALL ctl_warn('dyn_spg_ts_alloc: failed to allocate arrays')
-    CALL ProfileEnd(psy_profile0)
   END FUNCTION dyn_spg_ts_alloc
   SUBROUTINE dyn_spg_ts(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

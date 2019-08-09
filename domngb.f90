@@ -55,9 +55,9 @@ MODULE domngb
     !$ACC KERNELS
     zlon = MOD(plon + 720., 360.)
     zglam(:, :) = MOD(zglam(:, :) + 720., 360.)
+    IF (zlon > 270.) zlon = zlon - 360.
     !$ACC END KERNELS
     CALL ProfileStart('dom_ngb', 'r1', psy_profile1)
-    IF (zlon > 270.) zlon = zlon - 360.
     IF (zlon < 90.) WHERE (zglam(:, :) > 180.) zglam(:, :) = zglam(:, :) - 360.
     CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS

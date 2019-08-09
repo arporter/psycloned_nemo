@@ -260,9 +260,7 @@ MODULE prtctl
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    CALL ProfileStart('sub_dom', 'r0', psy_profile0)
+    !$ACC KERNELS
     ijpi = (jpiglo - 2 * nn_hls + (isplt - 1)) / isplt + 2 * nn_hls
     ijpj = (jpjglo - 2 * nn_hls + (jsplt - 1)) / jsplt + 2 * nn_hls
     nrecil = 2 * nn_hls
@@ -270,8 +268,6 @@ MODULE prtctl
     irestil = MOD(jpiglo - nrecil, isplt)
     irestjl = MOD(jpjglo - nrecjl, jsplt)
     IF (irestil == 0) irestil = isplt
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     DO jj = 1, jsplt
       DO ji = 1, irestil
         ilcitl(ji, jj) = ijpi
@@ -280,11 +276,7 @@ MODULE prtctl
         ilcitl(ji, jj) = ijpi - 1
       END DO
     END DO
-    !$ACC END KERNELS
-    CALL ProfileStart('sub_dom', 'r1', psy_profile1)
     IF (irestjl == 0) irestjl = jsplt
-    CALL ProfileEnd(psy_profile1)
-    !$ACC KERNELS
     DO ji = 1, isplt
       DO jj = 1, irestjl
         ilcjtl(ji, jj) = ijpj
@@ -298,20 +290,20 @@ MODULE prtctl
       zidom = zidom + ilcitl(ji, 1) - nrecil
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('sub_dom', 'r2', psy_profile2)
+    CALL ProfileStart('sub_dom', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) ' sum ilcitl(i,1) = ', zidom, ' jpiglo = ', jpiglo
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zjdom = nrecjl
     DO jj = 1, jsplt
       zjdom = zjdom + ilcjtl(1, jj) - nrecjl
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('sub_dom', 'r3', psy_profile3)
+    CALL ProfileStart('sub_dom', 'r1', psy_profile1)
     IF (lwp) WRITE(numout, FMT = *) ' sum ilcitl(1,j) = ', zjdom, ' jpjglo = ', jpjglo
     IF (lwp) WRITE(numout, FMT = *)
-    CALL ProfileEnd(psy_profile3)
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     iimpptl(:, :) = 1
     ijmpptl(:, :) = 1
@@ -368,7 +360,7 @@ MODULE prtctl
       nlejtl(jn) = nlejl
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('sub_dom', 'r4', psy_profile4)
+    CALL ProfileStart('sub_dom', 'r2', psy_profile2)
     IF (lwp) THEN
       CALL ctl_opn(inum, 'layout_prtctl.dat', 'REPLACE', 'FORMATTED', 'SEQUENTIAL', - 1, numout, .FALSE., narea)
       WRITE(inum, FMT = '(a)') 'nproc nlcil nlcjl nldil nldjl nleil nlejl nimpptl njmpptl ibonitl ibonjtl'
@@ -377,6 +369,6 @@ MODULE prtctl
       END DO
       CLOSE(UNIT = inum)
     END IF
-    CALL ProfileEnd(psy_profile4)
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE sub_dom
 END MODULE prtctl

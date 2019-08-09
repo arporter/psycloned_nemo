@@ -23,14 +23,10 @@ MODULE diaar5
   LOGICAL :: l_ar5
   CONTAINS
   FUNCTION dia_ar5_alloc()
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: dia_ar5_alloc
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('dia_ar5_alloc', 'r0', psy_profile0)
     ALLOCATE(area(jpi, jpj), thick0(jpi, jpj), sn0(jpi, jpj, jpk), STAT = dia_ar5_alloc)
     IF (lk_mpp) CALL mpp_sum(dia_ar5_alloc)
     IF (dia_ar5_alloc /= 0) CALL ctl_warn('dia_ar5_alloc: failed to allocate arrays')
-    CALL ProfileEnd(psy_profile0)
   END FUNCTION dia_ar5_alloc
   SUBROUTINE dia_ar5(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

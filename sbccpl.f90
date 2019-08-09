@@ -149,10 +149,7 @@ MODULE sbccpl
   INTEGER, ALLOCATABLE, SAVE, DIMENSION(:) :: nrcvinfo
   CONTAINS
   INTEGER FUNCTION sbc_cpl_alloc()
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ierr(4)
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('sbc_cpl_alloc', 'r0', psy_profile0)
     ierr(:) = 0
     ALLOCATE(alb_oce_mix(jpi, jpj), nrcvinfo(jprcv), STAT = ierr(1))
     ALLOCATE(xcplmask(jpi, jpj, 0 : nn_cplmodel), STAT = ierr(3))
@@ -160,7 +157,6 @@ MODULE sbccpl
     sbc_cpl_alloc = MAXVAL(ierr)
     IF (lk_mpp) CALL mpp_sum(sbc_cpl_alloc)
     IF (sbc_cpl_alloc > 0) CALL ctl_warn('sbc_cpl_alloc: allocation of arrays failed')
-    CALL ProfileEnd(psy_profile0)
   END FUNCTION sbc_cpl_alloc
   SUBROUTINE sbc_cpl_init(k_ice)
     INTEGER, INTENT(IN) :: k_ice

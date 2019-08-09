@@ -123,10 +123,7 @@ MODULE dom_oce
     Agrif_CFixed = '0'
   END FUNCTION Agrif_CFixed
   INTEGER FUNCTION dom_oce_alloc()
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, DIMENSION(12) :: ierr
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('dom_oce_alloc', 'r0', psy_profile0)
     ierr(:) = 0
     ALLOCATE(mig(jpi), mjg(jpj), STAT = ierr(1))
     ALLOCATE(mi0(jpiglo), mi1(jpiglo), mj0(jpjglo), mj1(jpjglo), tpol(jpiglo), fpol(jpiglo), STAT = ierr(2))
@@ -140,6 +137,5 @@ MODULE dom_oce
     ALLOCATE(tmask(jpi, jpj, jpk), umask(jpi, jpj, jpk), vmask(jpi, jpj, jpk), fmask(jpi, jpj, jpk), STAT = ierr(11))
     ALLOCATE(wmask(jpi, jpj, jpk), wumask(jpi, jpj, jpk), wvmask(jpi, jpj, jpk), STAT = ierr(12))
     dom_oce_alloc = MAXVAL(ierr)
-    CALL ProfileEnd(psy_profile0)
   END FUNCTION dom_oce_alloc
 END MODULE dom_oce

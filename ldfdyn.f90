@@ -257,7 +257,6 @@ MODULE ldfdyn
     REAL(KIND = wp) :: zcmsmag, zstabf_lo, zstabf_up, zdelta, zdb
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
     CALL ProfileStart('ldf_dyn', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('ldf_dyn')
     CALL ProfileEnd(psy_profile0)
@@ -299,13 +298,11 @@ MODULE ldfdyn
       CALL lbc_lnk_multi(ahmt, 'T', 1., ahmf, 'F', 1.)
     CASE (32)
       IF (ln_dynldf_lap .OR. ln_dynldf_blp) THEN
-        CALL ProfileStart('ldf_dyn', 'r1', psy_profile1)
+        !$ACC KERNELS
         zcmsmag = (rn_csmc / rpi) ** 2
         zstabf_lo = rn_minfac * rn_minfac / (2._wp * 4._wp * zcmsmag)
         zstabf_up = rn_maxfac / (4._wp * zcmsmag * 2._wp * rdt)
         IF (ln_dynldf_blp) zstabf_lo = (16._wp / 9._wp) * zstabf_lo
-        CALL ProfileEnd(psy_profile1)
-        !$ACC KERNELS
         DO jk = 1, jpkm1
           DO jj = 2, jpj
             DO ji = 2, jpi
@@ -351,12 +348,12 @@ MODULE ldfdyn
       END IF
       CALL lbc_lnk_multi(ahmt, 'T', 1., ahmf, 'F', 1.)
     END SELECT
-    CALL ProfileStart('ldf_dyn', 'r2', psy_profile2)
+    CALL ProfileStart('ldf_dyn', 'r1', psy_profile1)
     CALL iom_put("ahmt_2d", ahmt(:, :, 1))
     CALL iom_put("ahmf_2d", ahmf(:, :, 1))
     CALL iom_put("ahmt_3d", ahmt(:, :, :))
     CALL iom_put("ahmf_3d", ahmf(:, :, :))
     IF (ln_timing) CALL timing_stop('ldf_dyn')
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE ldf_dyn
 END MODULE ldfdyn

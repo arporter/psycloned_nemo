@@ -315,8 +315,6 @@ MODULE obs_prep
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
     CALL ProfileStart('obs_coo_tim', 'r0', psy_profile0)
     idaystp = NINT(rday / rdt)
     CALL ProfileEnd(psy_profile0)
@@ -333,28 +331,24 @@ MODULE obs_prep
       iyeaend = kobsyea(jobs)
       CALL ProfileEnd(psy_profile1)
       DO jyea = iyeastr, iyeaend
-        CALL ProfileStart('obs_coo_tim', 'r2', psy_profile2)
         CALL calc_month_len(jyea, imonth_len)
+        !$ACC KERNELS
         imonstr = 1
         IF (jyea == kyea0) imonstr = kmon0
         imonend = 12
         IF (jyea == kobsyea(jobs)) imonend = kobsmon(jobs)
-        CALL ProfileEnd(psy_profile2)
         DO jmon = imonstr, imonend
-          CALL ProfileStart('obs_coo_tim', 'r3', psy_profile3)
           idaystr = 1
           IF ((jmon == kmon0) .AND. (jyea == kyea0)) idaystr = kday0
           idayend = imonth_len(jmon)
           IF ((jmon == kobsmon(jobs)) .AND. (jyea == kobsyea(jobs))) idayend = kobsday(jobs) - 1
-          CALL ProfileEnd(psy_profile3)
-          !$ACC KERNELS
           DO jday = idaystr, idayend
             kobsstp(jobs) = kobsstp(jobs) + idaystp
           END DO
-          !$ACC END KERNELS
         END DO
+        !$ACC END KERNELS
       END DO
-      CALL ProfileStart('obs_coo_tim', 'r4', psy_profile4)
+      CALL ProfileStart('obs_coo_tim', 'r2', psy_profile2)
       zminstp = rmmss / rdt
       zhoustp = rhhmm * zminstp
       zobsstp = REAL(kobsmin(jobs) - kmin0, KIND = wp) * zminstp + REAL(kobshou(jobs) - khou0, KIND = wp) * zhoustp
@@ -364,7 +358,7 @@ MODULE obs_prep
         kotdobs = kotdobs + 1
         CYCLE
       END IF
-      CALL ProfileEnd(psy_profile4)
+      CALL ProfileEnd(psy_profile2)
     END DO
   END SUBROUTINE obs_coo_tim
   SUBROUTINE calc_month_len(iyear, imonth_len)

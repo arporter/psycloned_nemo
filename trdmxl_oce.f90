@@ -33,11 +33,8 @@ MODULE trdmxl_oce
   REAL(KIND = wp), PUBLIC, ALLOCATABLE, DIMENSION(:, :, :) :: tmltrd, smltrd, tmltrd_sum, tmltrd_csum_ln, tmltrd_csum_ub, smltrd_sum, smltrd_csum_ln, smltrd_csum_ub
   CONTAINS
   INTEGER FUNCTION trdmxl_oce_alloc()
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE lib_mpp
     INTEGER :: ierr(5)
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('trdmxl_oce_alloc', 'r0', psy_profile0)
     jpktrd = jpk
     ierr(:) = 0
     ALLOCATE(nmxl(jpi, jpj), nbol(jpi, jpj), wkx(jpi, jpj, jpk), hmxl(jpi, jpj), tml(jpi, jpj), sml(jpi, jpj), tmlb(jpi, jpj), smlb(jpi, jpj), tmlbb(jpi, jpj), smlbb(jpi, jpj), STAT = ierr(1))
@@ -48,6 +45,5 @@ MODULE trdmxl_oce
     trdmxl_oce_alloc = MAXVAL(ierr)
     IF (lk_mpp) CALL mpp_sum(trdmxl_oce_alloc)
     IF (trdmxl_oce_alloc /= 0) CALL ctl_warn('trdmxl_oce_alloc: failed to allocate arrays')
-    CALL ProfileEnd(psy_profile0)
   END FUNCTION trdmxl_oce_alloc
 END MODULE trdmxl_oce
