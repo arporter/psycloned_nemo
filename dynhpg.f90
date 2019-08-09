@@ -165,20 +165,18 @@ MODULE dynhpg
         CALL eos(zts_top(:, :, :), gdept_n(:, :, jk), zrhd(:, :, jk))
       END DO
       CALL eos(zts_top, risfdep, zrhdtop_isf)
+      !$ACC KERNELS
       ziceload = 0._wp
       DO jj = 1, jpj
         DO ji = 1, jpi
-          !$ACC KERNELS
           ikt = mikt(ji, jj)
           ziceload(ji, jj) = ziceload(ji, jj) + (znad + zrhd(ji, jj, 1)) * e3w_n(ji, jj, 1) * (1._wp - tmask(ji, jj, 1))
           DO jk = 2, ikt - 1
             ziceload(ji, jj) = ziceload(ji, jj) + (2._wp * znad + zrhd(ji, jj, jk - 1) + zrhd(ji, jj, jk)) * e3w_n(ji, jj, jk) * (1._wp - tmask(ji, jj, jk))
           END DO
-          !$ACC END KERNELS
           IF (ikt >= 2) ziceload(ji, jj) = ziceload(ji, jj) + (2._wp * znad + zrhdtop_isf(ji, jj) + zrhd(ji, jj, ikt - 1)) * (risfdep(ji, jj) - gdept_1d(ikt - 1))
         END DO
       END DO
-      !$ACC KERNELS
       riceload(:, :) = ziceload(:, :)
       !$ACC END KERNELS
       DEALLOCATE(zts_top, zrhd, zrhdtop_isf, ziceload)

@@ -293,11 +293,11 @@ MODULE ldfdyn
       CALL lbc_lnk_multi(ahmt, 'T', 1., ahmf, 'F', 1.)
     CASE (32)
       IF (ln_dynldf_lap .OR. ln_dynldf_blp) THEN
+        !$ACC KERNELS
         zcmsmag = (rn_csmc / rpi) ** 2
         zstabf_lo = rn_minfac * rn_minfac / (2._wp * 4._wp * zcmsmag)
         zstabf_up = rn_maxfac / (4._wp * zcmsmag * 2._wp * rdt)
         IF (ln_dynldf_blp) zstabf_lo = (16._wp / 9._wp) * zstabf_lo
-        !$ACC KERNELS
         DO jk = 1, jpkm1
           DO jj = 2, jpj
             DO ji = 2, jpi

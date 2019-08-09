@@ -43,8 +43,8 @@ MODULE iscplhsb
     tsb(:, :, :, jp_sal) = tsb(:, :, :, jp_sal) * ptmask_b(:, :, :)
     tsn(:, :, :, jp_sal) = tsn(:, :, :, jp_sal) * tmask(:, :, :)
     zdssh(:, :) = sshn(:, :) * ssmask(:, :) - sshb(:, :) * psmask_b(:, :)
-    !$ACC END KERNELS
     IF (.NOT. ln_linssh) zdssh = 0.0_wp
+    !$ACC END KERNELS
     DO jk = 1, jpk - 1
       DO jj = 2, jpj - 1
         DO ji = 2, jpim1

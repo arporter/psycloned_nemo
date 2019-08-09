@@ -53,8 +53,8 @@ MODULE lbclnk
           ptab(jpi, :) = ptab(2, :)
           !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
           IF (.NOT. cd_nat == 'F') ptab(1, :) = zland
+          !$ACC KERNELS
           ptab(jpi, :) = zland
           !$ACC END KERNELS
         END IF
@@ -64,13 +64,11 @@ MODULE lbclnk
           ptab(:, jpj) = ptab(:, 2)
           !$ACC END KERNELS
         ELSE IF (ll_nfd) THEN
-          !$ACC KERNELS
           IF (.NOT. cd_nat == 'F') ptab(:, 1) = zland
-          !$ACC END KERNELS
           CALL lbc_nfd(ptab, cd_nat, psgn)
         ELSE
-          !$ACC KERNELS
           IF (.NOT. cd_nat == 'F') ptab(:, 1) = zland
+          !$ACC KERNELS
           ptab(:, jpj) = zland
           !$ACC END KERNELS
         END IF
@@ -148,8 +146,8 @@ MODULE lbclnk
           ptab(jpi, :, :) = ptab(2, :, :)
           !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
           IF (.NOT. cd_nat == 'F') ptab(1, :, :) = zland
+          !$ACC KERNELS
           ptab(jpi, :, :) = zland
           !$ACC END KERNELS
         END IF
@@ -159,13 +157,11 @@ MODULE lbclnk
           ptab(:, jpj, :) = ptab(:, 2, :)
           !$ACC END KERNELS
         ELSE IF (ll_nfd) THEN
-          !$ACC KERNELS
           IF (.NOT. cd_nat == 'F') ptab(:, 1, :) = zland
-          !$ACC END KERNELS
           CALL lbc_nfd(ptab, cd_nat, psgn)
         ELSE
-          !$ACC KERNELS
           IF (.NOT. cd_nat == 'F') ptab(:, 1, :) = zland
+          !$ACC KERNELS
           ptab(:, jpj, :) = zland
           !$ACC END KERNELS
         END IF

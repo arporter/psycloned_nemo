@@ -49,8 +49,8 @@ MODULE domngb
     !$ACC KERNELS
     zlon = MOD(plon + 720., 360.)
     zglam(:, :) = MOD(zglam(:, :) + 720., 360.)
-    !$ACC END KERNELS
     IF (zlon > 270.) zlon = zlon - 360.
+    !$ACC END KERNELS
     IF (zlon < 90.) WHERE (zglam(:, :) > 180.) zglam(:, :) = zglam(:, :) - 360.
     !$ACC KERNELS
     zglam(:, :) = zglam(:, :) - zlon

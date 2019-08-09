@@ -245,6 +245,7 @@ MODULE prtctl
     INTEGER, DIMENSION(jpi, jpj) :: iimpptl, ijmpptl, ilcitl, ilcjtl
     REAL(KIND = wp) :: zidom, zjdom
     INTEGER :: inum
+    !$ACC KERNELS
     ijpi = (jpiglo - 2 * nn_hls + (isplt - 1)) / isplt + 2 * nn_hls
     ijpj = (jpjglo - 2 * nn_hls + (jsplt - 1)) / jsplt + 2 * nn_hls
     nrecil = 2 * nn_hls
@@ -252,7 +253,6 @@ MODULE prtctl
     irestil = MOD(jpiglo - nrecil, isplt)
     irestjl = MOD(jpjglo - nrecjl, jsplt)
     IF (irestil == 0) irestil = isplt
-    !$ACC KERNELS
     DO jj = 1, jsplt
       DO ji = 1, irestil
         ilcitl(ji, jj) = ijpi
@@ -261,9 +261,7 @@ MODULE prtctl
         ilcitl(ji, jj) = ijpi - 1
       END DO
     END DO
-    !$ACC END KERNELS
     IF (irestjl == 0) irestjl = jsplt
-    !$ACC KERNELS
     DO ji = 1, isplt
       DO jj = 1, irestjl
         ilcjtl(ji, jj) = ijpj

@@ -316,6 +316,7 @@ MODULE obs_prep
       iyeaend = kobsyea(jobs)
       DO jyea = iyeastr, iyeaend
         CALL calc_month_len(jyea, imonth_len)
+        !$ACC KERNELS
         imonstr = 1
         IF (jyea == kyea0) imonstr = kmon0
         imonend = 12
@@ -325,12 +326,11 @@ MODULE obs_prep
           IF ((jmon == kmon0) .AND. (jyea == kyea0)) idaystr = kday0
           idayend = imonth_len(jmon)
           IF ((jmon == kobsmon(jobs)) .AND. (jyea == kobsyea(jobs))) idayend = kobsday(jobs) - 1
-          !$ACC KERNELS
           DO jday = idaystr, idayend
             kobsstp(jobs) = kobsstp(jobs) + idaystp
           END DO
-          !$ACC END KERNELS
         END DO
+        !$ACC END KERNELS
       END DO
       zminstp = rmmss / rdt
       zhoustp = rhhmm * zminstp

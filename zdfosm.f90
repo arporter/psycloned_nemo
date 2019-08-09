@@ -389,8 +389,8 @@ MODULE zdfosm
             END DO
             hbl(ji, jj) = MAX(zhbl_s, gdepw_n(ji, jj, 3))
             ibld(ji, jj) = MAX(jm, 3)
-            !$ACC END KERNELS
             IF (hbl(ji, jj) > hbli(ji, jj)) hbli(ji, jj) = hbl(ji, jj)
+            !$ACC END KERNELS
           END IF
         ELSE
           hbl(ji, jj) = zhbl_t(ji, jj)

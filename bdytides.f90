@@ -215,9 +215,9 @@ MODULE bdytides
     ELSE
       z_arg = ((kt - kt_tide) + time_add) * rdt
     END IF
+    !$ACC KERNELS
     zramp = 1._wp
     IF (ln_tide_ramp) zramp = MIN(MAX((z_arg + (kt_tide - nit000) * rdt) / (rdttideramp * rday), 0._wp), 1._wp)
-    !$ACC KERNELS
     DO itide = 1, nb_harmo
       z_sarg = z_arg * omega_tide(itide)
       z_cost(itide) = COS(z_sarg)
