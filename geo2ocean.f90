@@ -231,6 +231,7 @@ MODULE geo2ocean
     REAL(KIND = wp), PARAMETER :: rad = rpi / 180.E0
     INTEGER :: ig
     INTEGER :: ierr
+    LOGICAL :: doit
     IF (.NOT. ALLOCATED(gsinlon)) THEN
       ALLOCATE(gsinlon(jpi, jpj, 4), gcoslon(jpi, jpj, 4), gsinlat(jpi, jpj, 4), gcoslat(jpi, jpj, 4), STAT = ierr)
       IF (lk_mpp) CALL mpp_sum(ierr)
@@ -239,48 +240,52 @@ MODULE geo2ocean
     SELECT CASE (cgrid)
     CASE ('T')
       ig = 1
-      IF (.NOT. linit(ig)) THEN
-        !$ACC KERNELS
+      doit=linit(ig)
+      !$ACC KERNELS
+      IF (.NOT. doit) THEN
         gsinlon(:, :, ig) = SIN(rad * glamt(:, :))
         gcoslon(:, :, ig) = COS(rad * glamt(:, :))
         gsinlat(:, :, ig) = SIN(rad * gphit(:, :))
         gcoslat(:, :, ig) = COS(rad * gphit(:, :))
         linit(ig) = .TRUE.
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
     CASE ('U')
       ig = 2
-      IF (.NOT. linit(ig)) THEN
-        !$ACC KERNELS
+      doit=linit(ig)
+      !$ACC KERNELS
+      IF (.NOT. doit) THEN
         gsinlon(:, :, ig) = SIN(rad * glamu(:, :))
         gcoslon(:, :, ig) = COS(rad * glamu(:, :))
         gsinlat(:, :, ig) = SIN(rad * gphiu(:, :))
         gcoslat(:, :, ig) = COS(rad * gphiu(:, :))
         linit(ig) = .TRUE.
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
     CASE ('V')
       ig = 3
-      IF (.NOT. linit(ig)) THEN
-        !$ACC KERNELS
+      doit=linit(ig)
+      !$ACC KERNELS
+      IF (.NOT. doit) THEN
         gsinlon(:, :, ig) = SIN(rad * glamv(:, :))
         gcoslon(:, :, ig) = COS(rad * glamv(:, :))
         gsinlat(:, :, ig) = SIN(rad * gphiv(:, :))
         gcoslat(:, :, ig) = COS(rad * gphiv(:, :))
         linit(ig) = .TRUE.
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
     CASE ('F')
       ig = 4
-      IF (.NOT. linit(ig)) THEN
-        !$ACC KERNELS
+      doit=linit(ig)
+      !$ACC KERNELS
+      IF (.NOT. doit) THEN
         gsinlon(:, :, ig) = SIN(rad * glamf(:, :))
         gcoslon(:, :, ig) = COS(rad * glamf(:, :))
         gsinlat(:, :, ig) = SIN(rad * gphif(:, :))
         gcoslat(:, :, ig) = COS(rad * gphif(:, :))
         linit(ig) = .TRUE.
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
     CASE DEFAULT
       WRITE(ctmp1, FMT = *) 'geo2oce : bad grid argument : ', cgrid
       CALL ctl_stop(ctmp1)
@@ -296,6 +301,7 @@ MODULE geo2ocean
     REAL(KIND = wp), PARAMETER :: rad = rpi / 180.E0
     INTEGER :: ig
     INTEGER :: ierr
+    LOGICAL :: doit
     IF (.NOT. ALLOCATED(gsinlon)) THEN
       ALLOCATE(gsinlon(jpi, jpj, 4), gcoslon(jpi, jpj, 4), gsinlat(jpi, jpj, 4), gcoslat(jpi, jpj, 4), STAT = ierr)
       IF (lk_mpp) CALL mpp_sum(ierr)
@@ -304,48 +310,52 @@ MODULE geo2ocean
     SELECT CASE (cgrid)
     CASE ('T')
       ig = 1
-      IF (.NOT. linit(ig)) THEN
-        !$ACC KERNELS
+      doit=linit(ig)
+      !$ACC KERNELS
+      IF (.NOT. doit) THEN
         gsinlon(:, :, ig) = SIN(rad * glamt(:, :))
         gcoslon(:, :, ig) = COS(rad * glamt(:, :))
         gsinlat(:, :, ig) = SIN(rad * gphit(:, :))
         gcoslat(:, :, ig) = COS(rad * gphit(:, :))
         linit(ig) = .TRUE.
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
     CASE ('U')
       ig = 2
-      IF (.NOT. linit(ig)) THEN
-        !$ACC KERNELS
+      doit=linit(ig)
+      !$ACC KERNELS
+      IF (.NOT. doit) THEN
         gsinlon(:, :, ig) = SIN(rad * glamu(:, :))
         gcoslon(:, :, ig) = COS(rad * glamu(:, :))
         gsinlat(:, :, ig) = SIN(rad * gphiu(:, :))
         gcoslat(:, :, ig) = COS(rad * gphiu(:, :))
         linit(ig) = .TRUE.
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
     CASE ('V')
       ig = 3
-      IF (.NOT. linit(ig)) THEN
-        !$ACC KERNELS
+      doit=linit(ig)
+      !$ACC KERNELS
+      IF (.NOT. doit) THEN
         gsinlon(:, :, ig) = SIN(rad * glamv(:, :))
         gcoslon(:, :, ig) = COS(rad * glamv(:, :))
         gsinlat(:, :, ig) = SIN(rad * gphiv(:, :))
         gcoslat(:, :, ig) = COS(rad * gphiv(:, :))
         linit(ig) = .TRUE.
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
     CASE ('F')
       ig = 4
-      IF (.NOT. linit(ig)) THEN
-        !$ACC KERNELS
+      doit=linit(ig)
+      !$ACC KERNELS
+      IF (.NOT. doit) THEN
         gsinlon(:, :, ig) = SIN(rad * glamf(:, :))
         gcoslon(:, :, ig) = COS(rad * glamf(:, :))
         gsinlat(:, :, ig) = SIN(rad * gphif(:, :))
         gcoslat(:, :, ig) = COS(rad * gphif(:, :))
         linit(ig) = .TRUE.
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
     CASE DEFAULT
       WRITE(ctmp1, FMT = *) 'geo2oce : bad grid argument : ', cgrid
       CALL ctl_stop(ctmp1)
