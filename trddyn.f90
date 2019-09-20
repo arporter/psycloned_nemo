@@ -18,17 +18,21 @@ MODULE trddyn
   PUBLIC :: trd_dyn
   CONTAINS
   SUBROUTINE trd_dyn(putrd, pvtrd, ktrd, kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
     INTEGER, INTENT(IN   ) :: ktrd
     INTEGER, INTENT(IN   ) :: kt
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     putrd(:, :, :) = putrd(:, :, :) * umask(:, :, :)
     pvtrd(:, :, :) = pvtrd(:, :, :) * vmask(:, :, :)
     !$ACC END KERNELS
+    CALL ProfileStart('trd_dyn', 'r0', psy_profile0)
     IF (ln_dyn_trd) CALL trd_dyn_iom(putrd, pvtrd, ktrd, kt)
     IF (ln_glo_trd) CALL trd_glo(putrd, pvtrd, ktrd, 'DYN', kt)
     IF (ln_KE_trd) CALL trd_ken(putrd, pvtrd, ktrd, kt)
     IF (ln_vor_trd) CALL trd_vor(putrd, pvtrd, ktrd, kt)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE trd_dyn
   SUBROUTINE trd_dyn_iom(putrd, pvtrd, ktrd, kt)
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd

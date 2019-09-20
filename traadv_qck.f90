@@ -17,6 +17,7 @@ MODULE traadv_qck
   LOGICAL :: l_ptr
   CONTAINS
   SUBROUTINE tra_adv_qck(kt, kit000, cdtype, p2dt, pun, pvn, pwn, ptb, ptn, pta, kjpt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER, INTENT(IN   ) :: kit000
     CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
@@ -25,6 +26,8 @@ MODULE traadv_qck
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun, pvn, pwn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb, ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('tra_adv_qck', 'r0', psy_profile0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'tra_adv_qck : 3rd order quickest advection scheme on ', cdtype
@@ -38,6 +41,7 @@ MODULE traadv_qck
     CALL tra_adv_qck_i(kt, cdtype, p2dt, pun, ptb, ptn, pta, kjpt)
     CALL tra_adv_qck_j(kt, cdtype, p2dt, pvn, ptb, ptn, pta, kjpt)
     CALL tra_adv_cen2_k(kt, cdtype, pwn, ptn, pta, kjpt)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE tra_adv_qck
   SUBROUTINE tra_adv_qck_i(kt, cdtype, p2dt, pun, ptb, ptn, pta, kjpt)
     INTEGER, INTENT(IN   ) :: kt
@@ -127,6 +131,7 @@ MODULE traadv_qck
     END DO
   END SUBROUTINE tra_adv_qck_i
   SUBROUTINE tra_adv_qck_j(kt, cdtype, p2dt, pvn, ptb, ptn, pta, kjpt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
     INTEGER, INTENT(IN   ) :: kjpt
@@ -137,6 +142,7 @@ MODULE traadv_qck
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp) :: ztra, zbtr, zdir, zdx, zmsk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwy, zfu, zfc, zfd
+    TYPE(ProfileData), SAVE :: psy_profile0
     DO jn = 1, kjpt
       !$ACC KERNELS
       zfu(:, :, :) = 0.0
@@ -210,8 +216,10 @@ MODULE traadv_qck
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_adv_qck_j', 'r0', psy_profile0)
       IF (l_trd) CALL trd_tra(kt, cdtype, jn, jptra_yad, zwy, pvn, ptn(:, :, :, jn))
       IF (l_ptr) CALL dia_ptr_hst(jn, 'adv', zwy(:, :, :))
+      CALL ProfileEnd(psy_profile0)
     END DO
   END SUBROUTINE tra_adv_qck_j
   SUBROUTINE tra_adv_cen2_k(kt, cdtype, pwn, ptn, pta, kjpt)

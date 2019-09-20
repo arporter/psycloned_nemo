@@ -178,6 +178,7 @@ MODULE bdytides
     END DO
   END SUBROUTINE bdytide_init
   SUBROUTINE bdytide_update(kt, idx, dta, td, jit, time_offset)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     TYPE(OBC_INDEX), INTENT(IN   ) :: idx
     TYPE(OBC_DATA), INTENT(INOUT) :: dta
@@ -189,6 +190,9 @@ MODULE bdytides
     INTEGER, DIMENSION(3) :: ilen0
     REAL(KIND = wp) :: z_arg, z_sarg, zflag, zramp
     REAL(KIND = wp), DIMENSION(jpmax_harmo) :: z_sist, z_cost
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('bdytide_update', 'r0', psy_profile0)
     ilen0(1) = SIZE(td % ssh(:, 1, 1))
     ilen0(2) = SIZE(td % u(:, 1, 1))
     ilen0(3) = SIZE(td % v(:, 1, 1))
@@ -215,6 +219,7 @@ MODULE bdytides
     ELSE
       z_arg = ((kt - kt_tide) + time_add) * rdt
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zramp = 1._wp
     IF (ln_tide_ramp) zramp = MIN(MAX((z_arg + (kt_tide - nit000) * rdt) / (rdttideramp * rday), 0._wp), 1._wp)
@@ -224,6 +229,7 @@ MODULE bdytides
       z_sist(itide) = SIN(z_sarg)
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('bdytide_update', 'r1', psy_profile1)
     DO itide = 1, nb_harmo
       igrd = 1
       DO ib = 1, ilen0(igrd)
@@ -238,8 +244,10 @@ MODULE bdytides
         dta % v2d(ib) = dta % v2d(ib) + zramp * (td % v(ib, itide, 1) * z_cost(itide) + td % v(ib, itide, 2) * z_sist(itide))
       END DO
     END DO
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE bdytide_update
   SUBROUTINE bdy_dta_tides(kt, kit, time_offset)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER, OPTIONAL, INTENT(IN) :: kit
     INTEGER, OPTIONAL, INTENT(IN) :: time_offset
@@ -249,6 +257,8 @@ MODULE bdytides
     INTEGER, DIMENSION(jpbgrd) :: ilen0
     INTEGER, DIMENSION(1 : jpbgrd) :: nblen, nblenrim
     REAL(KIND = wp) :: z_arg, z_sarg, zramp, zoff, z_cost, z_sist
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_dta_tides', 'r0', psy_profile0)
     lk_first_btstp = .TRUE.
     IF (PRESENT(kit) .AND. (kit /= 1)) THEN
       lk_first_btstp = .FALSE.
@@ -314,6 +324,7 @@ MODULE bdytides
         END DO
       END IF
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_dta_tides
   SUBROUTINE tide_init_elevation(idx, td)
     TYPE(OBC_INDEX), INTENT(IN   ) :: idx

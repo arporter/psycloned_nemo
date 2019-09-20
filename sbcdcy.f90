@@ -18,6 +18,7 @@ MODULE sbcdcy
     IF (sbc_dcy_alloc /= 0) CALL ctl_warn('sbc_dcy_alloc: failed to allocate arrays')
   END FUNCTION sbc_dcy_alloc
   FUNCTION sbc_dcy(pqsrin, l_mask) RESULT(zqsrout)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     LOGICAL, OPTIONAL, INTENT(IN) :: l_mask
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqsrin
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zqsrout
@@ -30,12 +31,20 @@ MODULE sbcdcy
     REAL(KIND = wp) :: ztmpm, ztmpm1, ztmpm2
     REAL(KIND = wp) :: fintegral, pt1, pt2, paaa, pbbb, pccc
     fintegral (pt1, pt2, paaa, pbbb, pccc) = paaa * pt2 + zinvtwopi * pbbb * SIN(pccc + ztwopi * pt2) - paaa * pt1 - zinvtwopi * pbbb * SIN(pccc + ztwopi * pt1)
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    CALL ProfileStart('sbc_dcy', 'r0', psy_profile0)
     ztwopi = 2._wp * rpi
     zinvtwopi = 1._wp / ztwopi
     zconvrad = ztwopi / 360._wp
     zlo = (REAL(nsec_day, wp) - 0.5_wp * rdt) / rday
     zup = zlo + (REAL(nn_fsbc, wp) * rdt) / rday
+    CALL ProfileEnd(psy_profile0)
     IF (nday_qsr == - 1) THEN
+      CALL ProfileStart('sbc_dcy', 'r1', psy_profile1)
       IF (lwp) THEN
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) 'sbc_dcy : introduce diurnal cycle from daily mean qsr'
@@ -43,6 +52,7 @@ MODULE sbcdcy
         WRITE(numout, FMT = *)
       END IF
       IF (sbc_dcy_alloc() /= 0) CALL ctl_stop('STOP', 'sbc_dcy_alloc : unable to allocate arrays')
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       rcc(:, :) = zconvrad * glamt(:, :) - rpi
       rtmd(:, :) = 0.5_wp - glamt(:, :) / 360._wp
@@ -50,9 +60,11 @@ MODULE sbcdcy
       !$ACC END KERNELS
     END IF
     IF (nday_qsr /= nday) THEN
+      CALL ProfileStart('sbc_dcy', 'r2', psy_profile2)
       nday_qsr = nday
       zdsws = REAL(11 + nday_year, wp)
       zdecrad = (- 23.5_wp * zconvrad) * COS(zdsws * ztwopi / REAL(nyear_len(1), wp))
+      CALL ProfileEnd(psy_profile2)
       !$ACC KERNELS
       zsin = SIN(zdecrad)
       zcos = COS(zdecrad)
@@ -110,7 +122,9 @@ MODULE sbcdcy
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('sbc_dcy', 'r3', psy_profile3)
       ztmp = rday / (rdt * REAL(nn_fsbc, wp))
+      CALL ProfileEnd(psy_profile3)
       !$ACC KERNELS
       rscal(:, :) = rscal(:, :) * ztmp
       !$ACC END KERNELS
@@ -157,8 +171,10 @@ MODULE sbcdcy
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('sbc_dcy', 'r4', psy_profile4)
     IF (PRESENT(l_mask)) THEN
       IF (l_mask) zqsrout(:, :) = FLOAT(imask_night(:, :))
     END IF
+    CALL ProfileEnd(psy_profile4)
   END FUNCTION sbc_dcy
 END MODULE sbcdcy

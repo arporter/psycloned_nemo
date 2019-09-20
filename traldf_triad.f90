@@ -22,6 +22,7 @@ MODULE traldf_triad
   LOGICAL :: l_hst
   CONTAINS
   SUBROUTINE tra_ldf_triad(kt, kit000, cdtype, pahu, pahv, pgu, pgv, pgui, pgvi, ptb, ptbb, pta, kjpt, kpass)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER, INTENT(IN   ) :: kit000
     CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
@@ -44,6 +45,10 @@ MODULE traldf_triad
     REAL(KIND = wp) :: zah, zah_slp, zaei_slp
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z2d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdit, zdjt, zftu, zftv, ztfw, zpsi_uw, zpsi_vw
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    CALL ProfileStart('tra_ldf_triad', 'r0', psy_profile0)
     IF (.NOT. ALLOCATED(zdkt3d)) THEN
       ALLOCATE(zdkt3d(jpi, jpj, 0 : 1), STAT = ierr)
       IF (lk_mpp) CALL mpp_sum(ierr)
@@ -69,6 +74,7 @@ MODULE traldf_triad
     ELSE
       zsign = - 1._wp
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (kpass == 1) THEN
       !$ACC KERNELS
       akz(:, :, :) = 0._wp
@@ -198,7 +204,9 @@ MODULE traldf_triad
           zdkt3d(:, :, 0) = (ptb(:, :, jk - 1, jn) - ptb(:, :, jk, jn)) * tmask(:, :, jk)
           !$ACC END KERNELS
         END IF
+        CALL ProfileStart('tra_ldf_triad', 'r1', psy_profile1)
         zaei_slp = 0._wp
+        CALL ProfileEnd(psy_profile1)
         IF (ln_botmix_triad) THEN
           !$ACC KERNELS
           DO ip = 0, 1
@@ -337,10 +345,12 @@ MODULE traldf_triad
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_ldf_triad', 'r2', psy_profile2)
       IF ((kpass == 1 .AND. ln_traldf_lap) .OR. (kpass == 2 .AND. ln_traldf_blp)) THEN
         IF (l_ptr) CALL dia_ptr_hst(jn, 'ldf', zftv(:, :, :))
         IF (l_hst) CALL dia_ar5_hst(jn, 'ldf', zftu(:, :, :), zftv(:, :, :))
       END IF
+      CALL ProfileEnd(psy_profile2)
     END DO
   END SUBROUTINE tra_ldf_triad
 END MODULE traldf_triad

@@ -38,6 +38,7 @@ MODULE diurnal_bulk
     END IF
   END SUBROUTINE diurnal_sst_bulk_init
   SUBROUTINE diurnal_sst_takaya_step(kt, psolflux, pqflux, ptauflux, prho, p_rdt, pla, pthick, pcoolthick, pmu, p_fvel_bkginc, p_hflux_bkginc)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: psolflux
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqflux
@@ -56,6 +57,7 @@ MODULE diurnal_bulk
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zthick, zcoolthick, zmu, zla
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z_abflux
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z_fla
+    TYPE(ProfileData), SAVE :: psy_profile0
     IF (.NOT. PRESENT(pthick)) THEN
       !$ACC KERNELS
       zthick(:, :) = 3._wp
@@ -92,6 +94,7 @@ MODULE diurnal_bulk
       zla(:, :) = pla(:, :)
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('diurnal_sst_takaya_step', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       DO jj = 1, jpj
         DO ji = 1, jpi
@@ -120,8 +123,10 @@ MODULE diurnal_bulk
       z_fla(:, :) = 0._wp
     END WHERE
     x_dsst(:, :) = t_imp(x_dsst(:, :), p_rdt, z_abflux(:, :), z_fvel(:, :), z_fla(:, :), zmu(:, :), zthick(:, :), prho(:, :))
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE diurnal_sst_takaya_step
   FUNCTION t_imp(p_dsst, p_rdt, p_abflux, p_fvel, p_fla, pmu, pthick, prho)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     IMPLICIT NONE
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: t_imp
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: p_dsst
@@ -139,6 +144,8 @@ MODULE diurnal_bulk
     REAL(KIND = wp) :: z_fvel
     CHARACTER(LEN = 200) :: warn_string
     INTEGER :: ji, jj
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('t_imp', 'r0', psy_profile0)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (tmask(ji, jj, 1) /= 1._wp) THEN
@@ -169,5 +176,6 @@ MODULE diurnal_bulk
         t_imp(ji, jj) = (p_dsst(ji, jj) + p_rdt * z_term1) / (1._wp - p_rdt * z_term2)
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
   END FUNCTION t_imp
 END MODULE diurnal_bulk

@@ -38,17 +38,22 @@ MODULE zdfmxl
     END IF
   END FUNCTION zdf_mxl_alloc
   SUBROUTINE zdf_mxl(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: iikn, iiki, ikt
     REAL(KIND = wp) :: zN2_c
     INTEGER, DIMENSION(jpi, jpj) :: imld
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('zdf_mxl', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'zdf_mxl : mixed layer depth'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~ '
       IF (zdf_mxl_alloc() /= 0) CALL ctl_stop('STOP', 'zdf_mxl : unable to allocate arrays')
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     nmln(:, :) = nlb10
     hmlp(:, :) = 0._wp
@@ -80,6 +85,7 @@ MODULE zdfmxl
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('zdf_mxl', 'r1', psy_profile1)
     IF (.NOT. l_offline) THEN
       IF (iom_use("mldr10_1")) THEN
         IF (ln_isfcav) THEN
@@ -98,8 +104,10 @@ MODULE zdfmxl
     END IF
     CALL zdf_mxl_zint(kt)
     IF (ln_ctl) CALL prt_ctl(tab2d_1 = REAL(nmln, wp), clinfo1 = ' nmln : ', tab2d_2 = hmlp, clinfo2 = ' hmlp : ')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE zdf_mxl
   SUBROUTINE zdf_mxl_zint_mld(sf)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(MXL_ZINT), INTENT(IN) :: sf
     INTEGER :: nn_mld_type
     REAL(KIND = wp) :: rn_zref
@@ -120,10 +128,17 @@ MODULE zdfmxl
     REAL, DIMENSION(jpi, jpj) :: zdelta_T
     REAL, DIMENSION(jpi, jpj) :: zRHO1, zRHO2
     INTEGER :: ji, jj, jk
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    CALL ProfileStart('zdf_mxl_zint_mld', 'r0', psy_profile0)
     nn_mld_type = sf % mld_type
     rn_zref = sf % zref
     rn_dT_crit = sf % dT_crit
     rn_iso_frac = sf % iso_frac
+    CALL ProfileEnd(psy_profile0)
     IF (nn_mld_type == 0) THEN
       !$ACC KERNELS
       zdelta_T(:, :) = rn_dT_crit
@@ -158,6 +173,7 @@ MODULE zdfmxl
       zmoddT(:, :, jk) = ABS(zT(:, :, jk + 1) - zT(:, :, jk))
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('zdf_mxl_zint_mld', 'r1', psy_profile1)
     DO jk = jpkm1, 2, - 1
       WHERE (gdept_n(:, :, jk) > rn_zref)
         ik_ref(:, :) = jk - 1
@@ -168,6 +184,7 @@ MODULE zdfmxl
       zT_ref = zT(:, :, 1)
       ik_ref = 1
     END WHERE
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     ikmt(:, :) = mbkt(:, :) - 1
     ll_found(:, :) = .FALSE.
@@ -176,6 +193,7 @@ MODULE zdfmxl
       !$ACC KERNELS
       ik_iso(:, :) = ik_ref(:, :)
       !$ACC END KERNELS
+      CALL ProfileStart('zdf_mxl_zint_mld', 'r2', psy_profile2)
       DO jj = 1, nlcj
         DO ji = 1, nlci
           DO jk = ik_ref(ji, jj), ikmt(ji, jj) - 1
@@ -187,6 +205,7 @@ MODULE zdfmxl
           END DO
         END DO
       END DO
+      CALL ProfileEnd(psy_profile2)
       !$ACC KERNELS
       hmld_zint(:, :) = rn_zref
       DO jj = 1, jpj
@@ -199,9 +218,11 @@ MODULE zdfmxl
       END DO
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('zdf_mxl_zint_mld', 'r3', psy_profile3)
     WHERE (tmask(:, :, 1) /= 1.0)
       ll_found = .TRUE.
     END WHERE
+    CALL ProfileEnd(psy_profile3)
     !$ACC KERNELS
     DO jk = 1, jpk
       ll_belowml(:, :, jk) = ABS(zT(:, :, jk) - zT_ref(:, :)) >= zdelta_T(:, :)
@@ -212,6 +233,7 @@ MODULE zdfmxl
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('zdf_mxl_zint_mld', 'r4', psy_profile4)
     DO jj = 1, jpj
       DO ji = 1, jpi
         DO jk = ik_ref(ji, jj) + 1, ikmt(ji, jj)
@@ -226,22 +248,30 @@ MODULE zdfmxl
         END DO
       END DO
     END DO
+    CALL ProfileEnd(psy_profile4)
     !$ACC KERNELS
     hmld_zint(:, :) = hmld_zint(:, :) * tmask(:, :, 1)
     !$ACC END KERNELS
   END SUBROUTINE zdf_mxl_zint_mld
   SUBROUTINE zdf_mxl_zint_htc(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: ikmax
     REAL(KIND = wp) :: zc, zcoef
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: ilevel
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zthick_0, zthick
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    CALL ProfileStart('zdf_mxl_zint_htc', 'r0', psy_profile0)
     IF (.NOT. ALLOCATED(ilevel)) THEN
       ALLOCATE(ilevel(jpi, jpj), zthick_0(jpi, jpj), zthick(jpi, jpj), STAT = ji)
       IF (lk_mpp) CALL mpp_sum(ji)
       IF (ji /= 0) CALL ctl_stop('STOP', 'zdf_mxl_zint_htc : unable to allocate arrays')
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     ilevel(:, :) = 0
     zthick_0(:, :) = 0._wp
@@ -255,8 +285,10 @@ MODULE zdfmxl
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('zdf_mxl_zint_htc', 'r1', psy_profile1)
       WRITE(numout, FMT = *) 'zthick_0(jk =', jk, ') =', zthick_0(2, 2)
       WRITE(numout, FMT = *) 'gdepw_n(jk+1 =', jk + 1, ') =', gdepw_n(2, 2, jk + 1)
+      CALL ProfileEnd(psy_profile1)
     END DO
     IF (ln_linssh) THEN
       !$ACC KERNELS
@@ -269,7 +301,9 @@ MODULE zdfmxl
       htc_mld(:, :) = 0._wp
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('zdf_mxl_zint_htc', 'r2', psy_profile2)
     ikmax = MIN(MAXVAL(ilevel(:, :)), jpkm1)
+    CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     DO jk = 1, ikmax
       DO jj = 1, jpj
@@ -287,13 +321,16 @@ MODULE zdfmxl
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('zdf_mxl_zint_htc', 'r3', psy_profile3)
     WRITE(numout, FMT = *) 'htc_mld(after) =', htc_mld(2, 2)
+    CALL ProfileEnd(psy_profile3)
     !$ACC KERNELS
     zcoef = rau0 * rcp
     htc_mld(:, :) = zcoef * htc_mld(:, :)
     !$ACC END KERNELS
   END SUBROUTINE zdf_mxl_zint_htc
   SUBROUTINE zdf_mxl_zint(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ios
     INTEGER :: jn
@@ -302,6 +339,8 @@ MODULE zdfmxl
     TYPE(MXL_ZINT) :: sn_mld1, sn_mld2, sn_mld3, sn_mld4, sn_mld5
     TYPE(MXL_ZINT), SAVE, DIMENSION(5) :: mld_diags
     NAMELIST /namzdf_mldzint/ nn_mld_diag, sn_mld1, sn_mld2, sn_mld3, sn_mld4, sn_mld5
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('zdf_mxl_zint', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       REWIND(UNIT = numnam_ref)
       READ(numnam_ref, namzdf_mldzint, IOSTAT = ios, ERR = 901)
@@ -344,5 +383,6 @@ MODULE zdfmxl
         END IF
       END DO
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE zdf_mxl_zint
 END MODULE zdfmxl

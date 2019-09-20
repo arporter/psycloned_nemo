@@ -25,6 +25,7 @@ MODULE obs_write
   END TYPE obswriinfo
   CONTAINS
   SUBROUTINE obs_wri_prof(profdata, padd, pext)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obs_prof), INTENT(INOUT) :: profdata
     TYPE(obswriinfo), OPTIONAL :: padd
     TYPE(obswriinfo), OPTIONAL :: pext
@@ -41,6 +42,8 @@ MODULE obs_write
     INTEGER :: iadd
     INTEGER :: iext
     REAL(KIND = wp) :: zpres
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_wri_prof', 'r0', psy_profile0)
     IF (PRESENT(padd)) THEN
       iadd = padd % inum
     ELSE
@@ -195,8 +198,10 @@ MODULE obs_write
     CALL write_obfbdata(clfname, fbdata)
     CALL obs_wri_stats(fbdata)
     CALL dealloc_obfbdata(fbdata)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_wri_prof
   SUBROUTINE obs_wri_surf(surfdata, padd, pext)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     IMPLICIT NONE
     TYPE(obs_surf), INTENT(INOUT) :: surfdata
     TYPE(obswriinfo), OPTIONAL :: padd
@@ -210,6 +215,8 @@ MODULE obs_write
     INTEGER :: je
     INTEGER :: iadd
     INTEGER :: iext
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_wri_surf', 'r0', psy_profile0)
     IF (PRESENT(padd)) THEN
       iadd = padd % inum
     ELSE
@@ -372,8 +379,10 @@ MODULE obs_write
     CALL write_obfbdata(clfname, fbdata)
     CALL obs_wri_stats(fbdata)
     CALL dealloc_obfbdata(fbdata)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_wri_surf
   SUBROUTINE obs_wri_stats(fbdata)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obfbdata) :: fbdata
     INTEGER :: jvar
     INTEGER :: jo
@@ -383,6 +392,8 @@ MODULE obs_write
     REAL(KIND = wp) :: zsumx
     REAL(KIND = wp) :: zsumx2
     REAL(KIND = wp) :: zomb
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_wri_stats', 'r0', psy_profile0)
     IF (lwp) THEN
       WRITE(numout, FMT = *) ''
       WRITE(numout, FMT = *) 'obs_wri_stats :'
@@ -412,5 +423,6 @@ MODULE obs_write
         WRITE(numout, FMT = *) ''
       END IF
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_wri_stats
 END MODULE obs_write

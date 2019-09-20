@@ -20,6 +20,7 @@ MODULE traadv_ubs
   LOGICAL :: l_hst
   CONTAINS
   SUBROUTINE tra_adv_ubs(kt, kit000, cdtype, p2dt, pun, pvn, pwn, ptb, ptn, pta, kjpt, kn_ubs_v)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER, INTENT(IN   ) :: kit000
     CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
@@ -34,6 +35,12 @@ MODULE traadv_ubs
     REAL(KIND = wp) :: zfp_ui, zfm_ui, zcenut, ztak, zfp_wk, zfm_wk
     REAL(KIND = wp) :: zfp_vj, zfm_vj, zcenvt, zeeu, zeev, z_hdivn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ztu, ztv, zltu, zltv, zti, ztw
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    CALL ProfileStart('tra_adv_ubs', 'r0', psy_profile0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'tra_adv_ubs :  horizontal UBS advection scheme on ', cdtype
@@ -45,6 +52,7 @@ MODULE traadv_ubs
     IF ((cdtype == 'TRA' .AND. l_trdtra) .OR. (cdtype == 'TRC' .AND. l_trdtrc)) l_trd = .TRUE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
     IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     ztw(:, :, 1) = 0._wp
     zltu(:, :, jpk) = 0._wp
@@ -99,15 +107,19 @@ MODULE traadv_ubs
       END DO
       zltu(:, :, :) = pta(:, :, :, jn) - zltu(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('tra_adv_ubs', 'r1', psy_profile1)
       IF (l_trd) THEN
         CALL trd_tra(kt, cdtype, jn, jptra_xad, ztu, pun, ptn(:, :, :, jn))
         CALL trd_tra(kt, cdtype, jn, jptra_yad, ztv, pvn, ptn(:, :, :, jn))
       END IF
       IF (l_ptr) CALL dia_ptr_hst(jn, 'adv', ztv(:, :, :))
       IF (l_hst) CALL dia_ar5_hst(jn, 'adv', ztu(:, :, :), ztv(:, :, :))
+      CALL ProfileEnd(psy_profile1)
       SELECT CASE (kn_ubs_v)
       CASE (2)
+        CALL ProfileStart('tra_adv_ubs', 'r2', psy_profile2)
         IF (l_trd) zltv(:, :, :) = pta(:, :, :, jn)
+        CALL ProfileEnd(psy_profile2)
         !$ACC KERNELS
         DO jk = 2, jpkm1
           DO jj = 1, jpj
@@ -155,8 +167,10 @@ MODULE traadv_ubs
           END DO
         END DO
         !$ACC END KERNELS
+        CALL ProfileStart('tra_adv_ubs', 'r3', psy_profile3)
         IF (ln_linssh) ztw(:, :, 1) = 0._wp
         CALL nonosc_z(ptb(:, :, :, jn), ztw, zti, p2dt)
+        CALL ProfileEnd(psy_profile3)
       CASE (4)
         CALL interp_4th_cpt(ptn(:, :, :, jn), ztw)
         !$ACC KERNELS
@@ -168,7 +182,9 @@ MODULE traadv_ubs
           END DO
         END DO
         !$ACC END KERNELS
+        CALL ProfileStart('tra_adv_ubs', 'r4', psy_profile4)
         IF (ln_linssh) ztw(:, :, 1) = pwn(:, :, 1) * ptn(:, :, 1, jn)
+        CALL ProfileEnd(psy_profile4)
       END SELECT
       !$ACC KERNELS
       DO jk = 1, jpkm1

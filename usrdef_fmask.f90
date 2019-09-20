@@ -9,19 +9,26 @@ MODULE usrdef_fmask
   PUBLIC :: usr_def_fmask
   CONTAINS
   SUBROUTINE usr_def_fmask(cd_cfg, kcfg, pfmsk)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = *), INTENT(IN   ) :: cd_cfg
     INTEGER, INTENT(IN   ) :: kcfg
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: pfmsk
     INTEGER :: iif, iil, ii0, ii1, ii
     INTEGER :: ijf, ijl, ij0, ij1
     INTEGER :: isrow
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
     IF (TRIM(cd_cfg) == "orca") THEN
       SELECT CASE (kcfg)
       CASE (2)
+        CALL ProfileStart('usr_def_fmask', 'r0', psy_profile0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) 'usr_def_fmask : ORCA_R2: increase lateral friction near the following straits:'
         IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~'
         IF (lwp) WRITE(numout, FMT = *) '      Gibraltar '
+        CALL ProfileEnd(psy_profile0)
         !$ACC KERNELS
         ij0 = 101
         ij1 = 101
@@ -48,6 +55,7 @@ MODULE usrdef_fmask
         pfmsk(mi0(ii0) : mi1(ii1), mj0(ij0) : mj1(ij1), 1 : jpk) = 1._wp
         !$ACC END KERNELS
       CASE (1)
+        CALL ProfileStart('usr_def_fmask', 'r1', psy_profile1)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) 'usr_def_fmask : ORCA_R1: increase lateral friction near the following straits:'
         IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~'
@@ -55,6 +63,7 @@ MODULE usrdef_fmask
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   orca_r1: increase friction near the following straits : '
         IF (lwp) WRITE(numout, FMT = *) '      Gibraltar '
+        CALL ProfileEnd(psy_profile1)
         !$ACC KERNELS
         ii0 = 282
         ii1 = 283
@@ -119,14 +128,18 @@ MODULE usrdef_fmask
         pfmsk(mi0(ii0) : mi1(ii1), mj0(ij0) : mj1(ij1), 1 : jpk) = 3._wp
         !$ACC END KERNELS
       CASE DEFAULT
+        CALL ProfileStart('usr_def_fmask', 'r2', psy_profile2)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) 'usr_def_fmask : ORCA_R', kcfg, ' : NO alteration of fmask in specific straits '
         IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~'
+        CALL ProfileEnd(psy_profile2)
       END SELECT
     ELSE
+      CALL ProfileStart('usr_def_fmask', 'r3', psy_profile3)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'usr_def_fmask : NO alteration of fmask in specific straits '
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~'
+      CALL ProfileEnd(psy_profile3)
     END IF
     CALL lbc_lnk(pfmsk, 'F', 1._wp)
   END SUBROUTINE usr_def_fmask

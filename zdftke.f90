@@ -253,6 +253,7 @@ MODULE zdftke
     END IF
   END SUBROUTINE tke_tke
   SUBROUTINE tke_avn(pdepw, p_e3t, p_e3w, p_avm, p_avt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE zdf_oce, ONLY: en, avtb, avmb, avtb_2d
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdepw
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_e3t, p_e3w
@@ -262,6 +263,7 @@ MODULE zdftke
     REAL(KIND = wp) :: zdku, zdkv, zsqen
     REAL(KIND = wp) :: zemxl, zemlm, zemlp
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zmxlm, zmxld
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     zmxlm(:, :, :) = rmxl_min
     zmxld(:, :, :) = rmxl_min
@@ -388,10 +390,12 @@ MODULE zdftke
       END DO
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('tke_avn', 'r0', psy_profile0)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab3d_1 = en, clinfo1 = ' tke  - e: ', tab3d_2 = p_avt, clinfo2 = ' t: ', kdim = jpk)
       CALL prt_ctl(tab3d_1 = p_avm, clinfo1 = ' tke  - m: ', kdim = jpk)
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE tke_avn
   SUBROUTINE zdf_tke_init
     USE zdf_oce, ONLY: ln_zdfiwm

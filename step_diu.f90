@@ -14,10 +14,13 @@ MODULE step_diu
   PUBLIC :: stp_diurnal
   CONTAINS
   SUBROUTINE stp_diurnal(kstp)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kstp
     INTEGER :: jk
     INTEGER :: indic
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z_fvel_bkginc, z_hflux_bkginc
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('stp_diurnal', 'r0', psy_profile0)
     IF (ln_diurnal_only) THEN
       indic = 0
       IF (kstp /= nit000) CALL day(kstp)
@@ -39,5 +42,6 @@ MODULE step_diu
       IF (lrst_oce) CALL rst_write(kstp)
       IF (ln_timing .AND. kstp == nit000) CALL timing_reset
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE stp_diurnal
 END MODULE step_diu

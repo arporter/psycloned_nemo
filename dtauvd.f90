@@ -70,32 +70,50 @@ MODULE dtauvd
     END IF
   END SUBROUTINE dta_uvd_init
   SUBROUTINE dta_uvd(kt, puvd)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2), INTENT(  OUT) :: puvd
     INTEGER :: ji, jj, jk, jl, jkk
     INTEGER :: ik, il0, il1, ii0, ii1, ij0, ij1
     REAL(KIND = wp) :: zl, zi
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:) :: zup, zvp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    CALL ProfileStart('dta_uvd', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dta_uvd')
     CALL fld_read(kt, 1, sf_uvd)
     puvd(:, :, :, 1) = sf_uvd(1) % fnow(:, :, :)
     puvd(:, :, :, 2) = sf_uvd(2) % fnow(:, :, :)
+    CALL ProfileEnd(psy_profile0)
     IF (ln_sco) THEN
+      CALL ProfileStart('dta_uvd', 'r1', psy_profile1)
       ALLOCATE(zup(jpk), zvp(jpk))
       IF (kt == nit000 .AND. lwp) THEN
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) 'dta_uvd: interpolate U & V current data onto the s- or mixed s-z-coordinate mesh'
       END IF
+      CALL ProfileEnd(psy_profile1)
       DO jj = 1, jpj
         DO ji = 1, jpi
           DO jk = 1, jpk
+            CALL ProfileStart('dta_uvd', 'r2', psy_profile2)
             zl = gdept_n(ji, jj, jk)
+            CALL ProfileEnd(psy_profile2)
             IF (zl < gdept_1d(1)) THEN
+              CALL ProfileStart('dta_uvd', 'r3', psy_profile3)
               zup(jk) = puvd(ji, jj, 1, 1)
               zvp(jk) = puvd(ji, jj, 1, 2)
+              CALL ProfileEnd(psy_profile3)
             ELSE IF (zl > gdept_1d(jpk)) THEN
+              CALL ProfileStart('dta_uvd', 'r4', psy_profile4)
               zup(jk) = puvd(ji, jj, jpkm1, 1)
               zvp(jk) = puvd(ji, jj, jpkm1, 2)
+              CALL ProfileEnd(psy_profile4)
             ELSE
               !$ACC KERNELS
               DO jkk = 1, jpkm1
@@ -118,7 +136,9 @@ MODULE dtauvd
           !$ACC END KERNELS
         END DO
       END DO
+      CALL ProfileStart('dta_uvd', 'r5', psy_profile5)
       DEALLOCATE(zup, zvp)
+      CALL ProfileEnd(psy_profile5)
     ELSE
       !$ACC KERNELS
       puvd(:, :, :, 1) = puvd(:, :, :, 1) * umask(:, :, :)
@@ -139,6 +159,7 @@ MODULE dtauvd
         !$ACC END KERNELS
       END IF
     END IF
+    CALL ProfileStart('dta_uvd', 'r6', psy_profile6)
     IF (.NOT. ln_uvd_dyndmp) THEN
       IF (lwp) WRITE(numout, FMT = *) 'dta_uvd: deallocate U & V current arrays as they are only used to initialize the run'
       DEALLOCATE(sf_uvd(1) % fnow)
@@ -148,5 +169,6 @@ MODULE dtauvd
       DEALLOCATE(sf_uvd)
     END IF
     IF (ln_timing) CALL timing_stop('dta_uvd')
+    CALL ProfileEnd(psy_profile6)
   END SUBROUTINE dta_uvd
 END MODULE dtauvd

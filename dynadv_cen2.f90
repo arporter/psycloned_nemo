@@ -11,15 +11,19 @@ MODULE dynadv_cen2
   PUBLIC :: dyn_adv_cen2
   CONTAINS
   SUBROUTINE dyn_adv_cen2(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zfu_t, zfu_f, zfu_uw, zfu
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zfv_t, zfv_f, zfv_vw, zfv, zfw
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dyn_adv_cen2', 'r0', psy_profile0)
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dyn_adv_cen2 : 2nd order flux form momentum advection'
       WRITE(numout, FMT = *) '~~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
       !$ACC KERNELS
       zfu_uw(:, :, :) = ua(:, :, :)

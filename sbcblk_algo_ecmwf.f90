@@ -7,7 +7,6 @@ MODULE sbcblk_algo_ecmwf
   USE in_out_manager
   USE prtctl
   USE sbcwave, ONLY: cdn_wave
-  USE sbc_ice
   USE lib_fortran
   USE sbc_oce
   IMPLICIT NONE
@@ -24,6 +23,7 @@ MODULE sbcblk_algo_ecmwf
   REAL(KIND = wp), PARAMETER :: alpha_Q = 0.62
   CONTAINS
   SUBROUTINE TURB_ECMWF(zt, zu, sst, t_zt, ssq, q_zt, U_zu, Cd, Ch, Ce, t_zu, q_zu, U_blk, Cdn, Chn, Cen)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), INTENT(IN   ) :: zt
     REAL(KIND = wp), INTENT(IN   ) :: zu
     REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: sst
@@ -44,6 +44,8 @@ MODULE sbcblk_algo_ecmwf
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: u_star, t_star, q_star, dt_zu, dq_zu, znu_a, Linv, z0, z0t, z0q
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: func_m, func_h
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztmp0, ztmp1, ztmp2
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('turb_ecmwf', 'r0', psy_profile0)
     l_zt_equal_zu = .FALSE.
     IF (ABS(zu - zt) < 0.01) l_zt_equal_zu = .TRUE.
     t_zu = MAX(t_zt, 0.0)
@@ -136,6 +138,7 @@ MODULE sbcblk_algo_ecmwf
     Cdn = vkarmn * vkarmn / (LOG(ztmp1 / z0) * LOG(ztmp1 / z0))
     Chn = vkarmn * vkarmn / (LOG(ztmp1 / z0t) * LOG(ztmp1 / z0t))
     Cen = vkarmn * vkarmn / (LOG(ztmp1 / z0q) * LOG(ztmp1 / z0q))
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE TURB_ECMWF
   FUNCTION psi_m_ecmwf(pzeta)
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: psi_m_ecmwf
@@ -176,6 +179,7 @@ MODULE sbcblk_algo_ecmwf
     !$ACC END KERNELS
   END FUNCTION psi_h_ecmwf
   FUNCTION Ri_bulk(pz, ptz, pdt, pqz, pdq, pub)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: Ri_bulk
     REAL(KIND = wp), INTENT(IN) :: pz
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: ptz
@@ -183,7 +187,10 @@ MODULE sbcblk_algo_ecmwf
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqz
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pdq
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pub
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ri_bulk', 'r0', psy_profile0)
     Ri_bulk = grav * pz / (pub * pub) * (pdt / (ptz - 0.5_wp * (pdt + grav * pz / (Cp_dry + Cp_vap * pqz))) + rctv0 * pdq)
+    CALL ProfileEnd(psy_profile0)
   END FUNCTION Ri_bulk
   FUNCTION visc_air(ptak)
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: visc_air

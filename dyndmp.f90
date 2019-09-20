@@ -75,12 +75,17 @@ MODULE dyndmp
     END IF
   END SUBROUTINE dyn_dmp_init
   SUBROUTINE dyn_dmp(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zua, zva
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2) :: zuv_dta
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('dyn_dmp', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dyn_dmp')
     CALL dta_uvd(kt, zuv_dta)
+    CALL ProfileEnd(psy_profile0)
     SELECT CASE (nn_zdmp)
     CASE (0)
       !$ACC KERNELS
@@ -138,7 +143,9 @@ MODULE dyndmp
       END DO
       !$ACC END KERNELS
     END SELECT
+    CALL ProfileStart('dyn_dmp', 'r1', psy_profile1)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua(:, :, :), clinfo1 = ' dmp  - Ua: ', mask1 = umask, tab3d_2 = va(:, :, :), clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_dmp')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE dyn_dmp
 END MODULE dyndmp

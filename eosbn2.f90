@@ -112,12 +112,14 @@ MODULE eosbn2
   REAL(KIND = wp) :: BPE002
   CONTAINS
   SUBROUTINE eos_insitu(pts, prd, pdep)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pts
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: prd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pdep
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zt, zh, zs, ztm
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
+    TYPE(ProfileData), SAVE :: psy_profile0
     IF (ln_timing) CALL timing_start('eos-insitu')
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
@@ -155,10 +157,13 @@ MODULE eosbn2
       END DO
       !$ACC END KERNELS
     END SELECT
+    CALL ProfileStart('eos_insitu', 'r0', psy_profile0)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = prd, clinfo1 = ' eos-insitu  : ', kdim = jpk)
     IF (ln_timing) CALL timing_stop('eos-insitu')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE eos_insitu
   SUBROUTINE eos_insitu_pot(pts, prd, prhop, pdep)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pts
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: prd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: prhop
@@ -168,13 +173,18 @@ MODULE eosbn2
     REAL(KIND = wp) :: zt, zh, zstemp, zs, ztm
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
     REAL(KIND = wp), DIMENSION(:), ALLOCATABLE :: zn0_sto, zn_sto, zsign
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
     IF (ln_timing) CALL timing_start('eos-pot')
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
       IF (ln_sto_eos) THEN
+        CALL ProfileStart('eos_insitu_pot', 'r0', psy_profile0)
         ALLOCATE(zn0_sto(1 : 2 * nn_sto_eos))
         ALLOCATE(zn_sto(1 : 2 * nn_sto_eos))
         ALLOCATE(zsign(1 : 2 * nn_sto_eos))
+        CALL ProfileEnd(psy_profile0)
         !$ACC KERNELS
         DO jsmp = 1, 2 * nn_sto_eos, 2
           zsign(jsmp) = 1._wp
@@ -208,7 +218,9 @@ MODULE eosbn2
           END DO
         END DO
         !$ACC END KERNELS
+        CALL ProfileStart('eos_insitu_pot', 'r1', psy_profile1)
         DEALLOCATE(zn0_sto, zn_sto, zsign)
+        CALL ProfileEnd(psy_profile1)
       ELSE
         !$ACC KERNELS
         DO jk = 1, jpkm1
@@ -248,16 +260,20 @@ MODULE eosbn2
       END DO
       !$ACC END KERNELS
     END SELECT
+    CALL ProfileStart('eos_insitu_pot', 'r2', psy_profile2)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = prd, clinfo1 = ' eos-pot: ', tab3d_2 = prhop, clinfo2 = ' pot : ', kdim = jpk)
     IF (ln_timing) CALL timing_stop('eos-pot')
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE eos_insitu_pot
   SUBROUTINE eos_insitu_2d(pts, pdep, prd)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpts), INTENT(IN   ) :: pts
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pdep
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: prd
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zt, zh, zs
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
+    TYPE(ProfileData), SAVE :: psy_profile0
     IF (ln_timing) CALL timing_start('eos2d')
     !$ACC KERNELS
     prd(:, :) = 0._wp
@@ -294,15 +310,20 @@ MODULE eosbn2
       !$ACC END KERNELS
       CALL lbc_lnk(prd, 'T', 1.)
     END SELECT
+    CALL ProfileStart('eos_insitu_2d', 'r0', psy_profile0)
     IF (ln_ctl) CALL prt_ctl(tab2d_1 = prd, clinfo1 = ' eos2d: ')
     IF (ln_timing) CALL timing_stop('eos2d')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE eos_insitu_2d
   SUBROUTINE rab_3d(pts, pab)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pts
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(  OUT) :: pab
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zt, zh, zs, ztm
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     IF (ln_timing) CALL timing_start('rab_3d')
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
@@ -348,20 +369,27 @@ MODULE eosbn2
       END DO
       !$ACC END KERNELS
     CASE DEFAULT
+      CALL ProfileStart('rab_3d', 'r0', psy_profile0)
       IF (lwp) WRITE(numout, cform_err)
       IF (lwp) WRITE(numout, FMT = *) '          bad flag value for neos = ', neos
       nstop = nstop + 1
+      CALL ProfileEnd(psy_profile0)
     END SELECT
+    CALL ProfileStart('rab_3d', 'r1', psy_profile1)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = pab(:, :, :, jp_tem), clinfo1 = ' rab_3d_t: ', tab3d_2 = pab(:, :, :, jp_sal), clinfo2 = ' rab_3d_s : ', kdim = jpk)
     IF (ln_timing) CALL timing_stop('rab_3d')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE rab_3d
   SUBROUTINE rab_2d(pts, pdep, pab)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpts), INTENT(IN   ) :: pts
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pdep
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpts), INTENT(  OUT) :: pab
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zt, zh, zs
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     IF (ln_timing) CALL timing_start('rab_2d')
     !$ACC KERNELS
     pab(:, :, :) = 0._wp
@@ -406,19 +434,26 @@ MODULE eosbn2
       !$ACC END KERNELS
       CALL lbc_lnk_multi(pab(:, :, jp_tem), 'T', 1., pab(:, :, jp_sal), 'T', 1.)
     CASE DEFAULT
+      CALL ProfileStart('rab_2d', 'r0', psy_profile0)
       IF (lwp) WRITE(numout, cform_err)
       IF (lwp) WRITE(numout, FMT = *) '          bad flag value for neos = ', neos
       nstop = nstop + 1
+      CALL ProfileEnd(psy_profile0)
     END SELECT
+    CALL ProfileStart('rab_2d', 'r1', psy_profile1)
     IF (ln_ctl) CALL prt_ctl(tab2d_1 = pab(:, :, jp_tem), clinfo1 = ' rab_2d_t: ', tab2d_2 = pab(:, :, jp_sal), clinfo2 = ' rab_2d_s : ')
     IF (ln_timing) CALL timing_stop('rab_2d')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE rab_2d
   SUBROUTINE rab_0d(pts, pdep, pab)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpts), INTENT(IN   ) :: pts
     REAL(KIND = wp), INTENT(IN   ) :: pdep
     REAL(KIND = wp), DIMENSION(jpts), INTENT(  OUT) :: pab
     REAL(KIND = wp) :: zt, zh, zs
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('rab_0d', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('rab_0d')
     pab(:) = 0._wp
     SELECT CASE (neos)
@@ -452,13 +487,16 @@ MODULE eosbn2
       nstop = nstop + 1
     END SELECT
     IF (ln_timing) CALL timing_stop('rab_0d')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE rab_0d
   SUBROUTINE bn2(pts, pab, pn2)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pts
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pab
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: pn2
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zaw, zbw, zrw
+    TYPE(ProfileData), SAVE :: psy_profile0
     IF (ln_timing) CALL timing_start('bn2')
     !$ACC KERNELS
     DO jk = 2, jpkm1
@@ -472,8 +510,10 @@ MODULE eosbn2
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('bn2', 'r0', psy_profile0)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = pn2, clinfo1 = ' bn2  : ', kdim = jpk)
     IF (ln_timing) CALL timing_stop('bn2')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bn2
   FUNCTION eos_pt_from_ct(ctmp, psal) RESULT(ptmp)
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: ctmp
@@ -502,11 +542,15 @@ MODULE eosbn2
     IF (ln_timing) CALL timing_stop('eos_pt_from_ct')
   END FUNCTION eos_pt_from_ct
   SUBROUTINE eos_fzp_2d(psal, ptf, pdep)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: psal
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ), OPTIONAL :: pdep
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT  ) :: ptf
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zt, zs, z1_S0
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
     SELECT CASE (neos)
     CASE (np_teos10, np_seos)
       !$ACC KERNELS
@@ -519,29 +563,39 @@ MODULE eosbn2
       END DO
       ptf(:, :) = ptf(:, :) * psal(:, :)
       !$ACC END KERNELS
+      CALL ProfileStart('eos_fzp_2d', 'r0', psy_profile0)
       IF (PRESENT(pdep)) ptf(:, :) = ptf(:, :) - 7.53E-4 * pdep(:, :)
+      CALL ProfileEnd(psy_profile0)
     CASE (np_eos80)
       !$ACC KERNELS
       ptf(:, :) = (- 0.0575_wp + 1.710523E-3_wp * SQRT(psal(:, :)) - 2.154996E-4_wp * psal(:, :)) * psal(:, :)
       !$ACC END KERNELS
+      CALL ProfileStart('eos_fzp_2d', 'r1', psy_profile1)
       IF (PRESENT(pdep)) ptf(:, :) = ptf(:, :) - 7.53E-4 * pdep(:, :)
+      CALL ProfileEnd(psy_profile1)
     CASE DEFAULT
+      CALL ProfileStart('eos_fzp_2d', 'r2', psy_profile2)
       IF (lwp) WRITE(numout, cform_err)
       IF (lwp) WRITE(numout, FMT = *) '          bad flag value for neos = ', neos
       nstop = nstop + 1
+      CALL ProfileEnd(psy_profile2)
     END SELECT
   END SUBROUTINE eos_fzp_2d
   SUBROUTINE eos_fzp_0d(psal, ptf, pdep)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), INTENT(IN ) :: psal
     REAL(KIND = wp), INTENT(IN ), OPTIONAL :: pdep
     REAL(KIND = wp), INTENT(OUT) :: ptf
     REAL(KIND = wp) :: zs
+    TYPE(ProfileData), SAVE :: psy_profile0
     SELECT CASE (neos)
     CASE (np_teos10, np_seos)
+      CALL ProfileStart('eos_fzp_0d', 'r0', psy_profile0)
       zs = SQRT(ABS(psal) / 35.16504_wp)
       ptf = ((((1.46873E-03_wp * zs - 9.64972E-03_wp) * zs + 2.28348E-02_wp) * zs - 3.12775E-02_wp) * zs + 2.07679E-02_wp) * zs - 5.87701E-02_wp
       ptf = ptf * psal
       IF (PRESENT(pdep)) ptf = ptf - 7.53E-4 * pdep
+      CALL ProfileEnd(psy_profile0)
     CASE (np_eos80)
       ptf = (- 0.0575_wp + 1.710523E-3_wp * SQRT(psal) - 2.154996E-4_wp * psal) * psal
       IF (PRESENT(pdep)) ptf = ptf - 7.53E-4 * pdep
@@ -552,12 +606,14 @@ MODULE eosbn2
     END SELECT
   END SUBROUTINE eos_fzp_0d
   SUBROUTINE eos_pen(pts, pab_pe, ppen)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pts
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(  OUT) :: pab_pe
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: ppen
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zt, zh, zs, ztm
     REAL(KIND = wp) :: zn, zn0, zn1, zn2
+    TYPE(ProfileData), SAVE :: psy_profile0
     IF (ln_timing) CALL timing_start('eos_pen')
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
@@ -606,9 +662,11 @@ MODULE eosbn2
       END DO
       !$ACC END KERNELS
     CASE DEFAULT
+      CALL ProfileStart('eos_pen', 'r0', psy_profile0)
       IF (lwp) WRITE(numout, cform_err)
       IF (lwp) WRITE(numout, FMT = *) '          bad flag value for neos = ', neos
       nstop = nstop + 1
+      CALL ProfileEnd(psy_profile0)
     END SELECT
     IF (ln_timing) CALL timing_stop('eos_pen')
   END SUBROUTINE eos_pen

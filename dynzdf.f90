@@ -20,6 +20,7 @@ MODULE dynzdf
   REAL(KIND = wp) :: r_vvl
   CONTAINS
   SUBROUTINE dyn_zdf(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: iku, ikv
@@ -27,6 +28,11 @@ MODULE dynzdf
     REAL(KIND = wp) :: zzws, ze3va
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwi, zwd, zws
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: ztrdu, ztrdv
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    CALL ProfileStart('dyn_zdf', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dyn_zdf')
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -44,8 +50,11 @@ MODULE dynzdf
       r2dt = 2. * rdt
     END IF
     IF (.NOT. ln_drgimp) CALL zdf_drg_exp(kt, ub, vb, ua, va)
+    CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
+      CALL ProfileStart('dyn_zdf', 'r1', psy_profile1)
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :)
       ztrdv(:, :, :) = va(:, :, :)
@@ -98,7 +107,9 @@ MODULE dynzdf
         !$ACC END KERNELS
       END IF
     END IF
+    CALL ProfileStart('dyn_zdf', 'r2', psy_profile2)
     zdt = r2dt * 0.5
+    CALL ProfileEnd(psy_profile2)
     SELECT CASE (nldf_dyn)
     CASE (np_lap_i)
       !$ACC KERNELS
@@ -300,7 +311,9 @@ MODULE dynzdf
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_zdf, kt)
       DEALLOCATE(ztrdu, ztrdv)
     END IF
+    CALL ProfileStart('dyn_zdf', 'r3', psy_profile3)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' zdf  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_zdf')
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE dyn_zdf
 END MODULE dynzdf

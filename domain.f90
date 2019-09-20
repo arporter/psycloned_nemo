@@ -157,7 +157,9 @@ MODULE domain
     END IF
   END SUBROUTINE dom_init
   SUBROUTINE dom_glo
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji, jj
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     DO ji = 1, jpi
       mig(ji) = ji + nimpp - 1
@@ -174,6 +176,7 @@ MODULE domain
       mj1(jj) = MAX(0, MIN(jj - njmpp + 1, jpj))
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('dom_glo', 'r0', psy_profile0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dom_glo : domain: global <<==>> local '
@@ -204,12 +207,16 @@ MODULE domain
       END IF
     END IF
 25  FORMAT(100(10X, 19I4, /))
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE dom_glo
   SUBROUTINE dom_nam
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE ioipsl
     INTEGER :: ios
     NAMELIST /namrun/ cn_ocerst_indir, cn_ocerst_outdir, nn_stocklist, ln_rst_list, nn_no, cn_exp, cn_ocerst_in, cn_ocerst_out, ln_rstart, nn_rstctl, nn_it000, nn_itend, nn_date0, nn_time0, nn_leapy, nn_istate, nn_stock, nn_write, ln_mskland, ln_clobber, nn_chunksz, nn_euler, ln_cfmeta, ln_iscpl, ln_xios_read, nn_wxios, ln_rstdate
     NAMELIST /namdom/ ln_linssh, rn_isfhmin, rn_rdt, rn_atfp, ln_crs, ln_meshmask
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dom_nam', 'r0', psy_profile0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dom_nam : domain initialization through namelist read'
@@ -323,11 +330,15 @@ MODULE domain
       nxioso = nn_wxios
     END IF
     snc4set % luse = .FALSE.
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE dom_nam
   SUBROUTINE dom_ctl
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: iimi1, ijmi1, iimi2, ijmi2, iima1, ijma1, iima2, ijma2
     INTEGER, DIMENSION(2) :: iloc
     REAL(KIND = wp) :: ze1min, ze1max, ze2min, ze2max
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dom_ctl', 'r0', psy_profile0)
     IF (lk_mpp) THEN
       CALL mpp_minloc(e1t(:, :), tmask_i(:, :), ze1min, iimi1, ijmi1)
       CALL mpp_minloc(e2t(:, :), tmask_i(:, :), ze2min, iimi2, ijmi2)
@@ -360,8 +371,10 @@ MODULE domain
       WRITE(numout, "(14x,'e2t maxi: ',1f10.2,' at i = ',i5,' j= ',i5)") ze2max, iima2, ijma2
       WRITE(numout, "(14x,'e2t mini: ',1f10.2,' at i = ',i5,' j= ',i5)") ze2min, iimi2, ijmi2
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE dom_ctl
   SUBROUTINE domain_cfg(ldtxt, cd_cfg, kk_cfg, kpi, kpj, kpk, kperio)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = *), DIMENSION(:), INTENT(OUT) :: ldtxt
     CHARACTER(LEN = *), INTENT(OUT) :: cd_cfg
     INTEGER, INTENT(OUT) :: kk_cfg
@@ -370,6 +383,8 @@ MODULE domain
     INTEGER :: inum, ii
     REAL(KIND = wp) :: zorca_res
     REAL(KIND = wp) :: ziglo, zjglo, zkglo, zperio
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('domain_cfg', 'r0', psy_profile0)
     ii = 1
     WRITE(ldtxt(ii), FMT = *) '           '
     ii = ii + 1
@@ -417,13 +432,17 @@ MODULE domain
     ii = ii + 1
     WRITE(ldtxt(ii), FMT = *) '      type of global domain lateral boundary   jperio = ', kperio
     ii = ii + 1
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE domain_cfg
   SUBROUTINE cfg_write
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji, jj, jk
     INTEGER :: izco, izps, isco, icav
     INTEGER :: inum
     CHARACTER(LEN = 21) :: clnam
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z2d
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('cfg_write', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'cfg_write : create the domain configuration file (', TRIM(cn_domcfg_out), '.nc)'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~'
@@ -502,5 +521,6 @@ MODULE domain
       CALL iom_putatt(inum, 'cn_cfg', TRIM(cn_cfg))
     END IF
     CALL iom_close(inum)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE cfg_write
 END MODULE domain

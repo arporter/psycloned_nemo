@@ -80,6 +80,7 @@ MODULE zdfdrg
     IF (ln_ctl) CALL prt_ctl(tab2d_1 = pCdU, clinfo1 = ' Cd*U ')
   END SUBROUTINE zdf_drg
   SUBROUTINE zdf_drg_exp(kt, pub, pvb, pua, pva)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pub, pvb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
@@ -88,9 +89,15 @@ MODULE zdfdrg
     REAL(KIND = wp) :: zm1_2dt
     REAL(KIND = wp) :: zCdu, zCdv
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: ztrdu, ztrdv
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('zdf_drg_exp', 'r0', psy_profile0)
     zm1_2dt = - 1._wp / (2._wp * rdt)
+    CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
+      CALL ProfileStart('zdf_drg_exp', 'r1', psy_profile1)
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdu(:, :, :) = pua(:, :, :)
       ztrdv(:, :, :) = pva(:, :, :)

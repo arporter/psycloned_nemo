@@ -37,16 +37,22 @@ MODULE trabbl
     IF (tra_bbl_alloc > 0) CALL ctl_warn('tra_bbl_alloc: allocation of arrays failed.')
   END FUNCTION tra_bbl_alloc
   SUBROUTINE tra_bbl(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ztrdt, ztrds
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     IF (ln_timing) CALL timing_start('tra_bbl')
     IF (l_trdtra) THEN
+      CALL ProfileStart('tra_bbl', 'r0', psy_profile0)
       ALLOCATE(ztrdt(jpi, jpj, jpk), ztrds(jpi, jpj, jpk))
+      CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem)
       ztrds(:, :, :) = tsa(:, :, :, jp_sal)
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('tra_bbl', 'r1', psy_profile1)
     IF (l_bbl) CALL bbl(kt, nit000, 'TRA')
     IF (nn_bbl_ldf == 1) THEN
       CALL tra_bbl_dif(tsb, tsa, jpts)
@@ -62,6 +68,7 @@ MODULE trabbl
       CALL iom_put("uoce_bbl", utr_bbl)
       CALL iom_put("voce_bbl", vtr_bbl)
     END IF
+    CALL ProfileEnd(psy_profile1)
     IF (l_trdtra) THEN
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem) - ztrdt(:, :, :)
@@ -155,6 +162,7 @@ MODULE trabbl
     END DO
   END SUBROUTINE tra_bbl_adv
   SUBROUTINE bbl(kt, kit000, cdtype)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER, INTENT(IN   ) :: kit000
     CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
@@ -166,11 +174,14 @@ MODULE trabbl
     REAL(KIND = wp) :: zsign, zsigna, zgbbl
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpts) :: zts, zab
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zub, zvb, zdep
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bbl', 'r0', psy_profile0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'trabbl:bbl : Compute bbl velocities and diffusive coefficients in ', cdtype
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi

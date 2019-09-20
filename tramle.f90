@@ -27,6 +27,7 @@ MODULE tramle
   REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :) :: r1_ft
   CONTAINS
   SUBROUTINE tra_mle_trp(kt, kit000, pu, pv, pw, cdtype)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER, INTENT(IN   ) :: kit000
     CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
@@ -40,6 +41,7 @@ MODULE tramle
     INTEGER, DIMENSION(jpi, jpj) :: inml_mle
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_NH, zLf_MH
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zpsi_uw, zpsi_vw
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     inml_mle(:, :) = mbkt(:, :) + 1
     !$ACC END KERNELS
@@ -54,7 +56,9 @@ MODULE tramle
       END DO
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('tra_mle_trp', 'r0', psy_profile0)
     ikmax = MIN(MAXVAL(inml_mle(:, :)), jpkm1)
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zmld(:, :) = 0._wp
     zbm(:, :) = 0._wp

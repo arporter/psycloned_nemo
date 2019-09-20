@@ -17,12 +17,15 @@ MODULE iscplrst
   PUBLIC :: iscpl_stp
   CONTAINS
   SUBROUTINE iscpl_stp
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: inum0
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zsmask_b
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ztmask_b, zumask_b, zvmask_b
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ze3t_b, ze3u_b, ze3v_b
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdepw_b
     CHARACTER(LEN = 20) :: cfile
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('iscpl_stp', 'r0', psy_profile0)
     CALL iom_get(numror, jpdom_autoglo, 'tmask', ztmask_b, ldxios = lrxios)
     CALL iom_get(numror, jpdom_autoglo, 'umask', zumask_b, ldxios = lrxios)
     CALL iom_get(numror, jpdom_autoglo, 'vmask', zvmask_b, ldxios = lrxios)
@@ -47,6 +50,7 @@ MODULE iscplrst
       CALL iom_rstput(0, 0, inum0, 'sal_cor', htsc_iscpl(:, :, :, jp_sal))
       CALL iom_close(inum0)
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     neuler = 0
     tsb(:, :, :, :) = tsn(:, :, :, :)

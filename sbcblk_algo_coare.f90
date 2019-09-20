@@ -4,7 +4,6 @@ MODULE sbcblk_algo_coare
   USE phycst
   USE sbc_oce
   USE sbcwave, ONLY: cdn_wave
-  USE sbc_ice
   USE in_out_manager
   USE iom
   USE lib_mpp
@@ -18,6 +17,7 @@ MODULE sbcblk_algo_coare
   REAL(KIND = wp), PARAMETER :: rctv0 = 0.608_wp
   CONTAINS
   SUBROUTINE turb_coare(zt, zu, sst, t_zt, ssq, q_zt, U_zu, Cd, Ch, Ce, t_zu, q_zu, U_blk, Cdn, Chn, Cen)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), INTENT(IN   ) :: zt
     REAL(KIND = wp), INTENT(IN   ) :: zu
     REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: sst
@@ -39,6 +39,8 @@ MODULE sbcblk_algo_coare
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zeta_u
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztmp0, ztmp1, ztmp2
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zeta_t
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('turb_coare', 'r0', psy_profile0)
     l_zt_equal_zu = .FALSE.
     IF (ABS(zu - zt) < 0.01) l_zt_equal_zu = .TRUE.
     IF (.NOT. l_zt_equal_zu) ALLOCATE(zeta_t(jpi, jpj))
@@ -120,6 +122,7 @@ MODULE sbcblk_algo_coare
     Chn = vkarmn * vkarmn / (LOG(ztmp1 / z0t) * LOG(ztmp1 / z0t))
     Cen = Chn
     IF (.NOT. l_zt_equal_zu) DEALLOCATE(zeta_t)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE turb_coare
   FUNCTION alfa_charn(pwnd)
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: alfa_charn

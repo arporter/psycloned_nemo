@@ -10,7 +10,6 @@ MODULE sbcmod
   USE sbcflx
   USE sbcblk
   USE sbcice_if
-  USE icestp
   USE sbcice_cice
   USE sbcisf
   USE sbccpl
@@ -145,6 +144,7 @@ MODULE sbcmod
     CASE DEFAULT
     END SELECT
     IF (sbc_oce_alloc() /= 0) CALL ctl_stop('sbc_init : unable to allocate sbc_oce arrays')
+    IF (sbc_ice_alloc() /= 0) CALL ctl_stop('sbc_init : unable to allocate sbc_ice arrays')
     IF (.NOT. ln_isf) THEN
       IF (sbc_isf_alloc() /= 0) CALL ctl_stop('STOP', 'sbc_init : unable to allocate sbc_isf arrays')
       !$ACC KERNELS
@@ -230,11 +230,6 @@ MODULE sbcmod
     IF (ln_isf) CALL sbc_isf_init
     CALL sbc_rnf_init
     IF (ln_apr_dyn) CALL sbc_apr_init
-    IF (lk_agrif .AND. nn_ice == 0) THEN
-      IF (sbc_ice_alloc() /= 0) CALL ctl_stop('STOP', 'sbc_ice_alloc : unable to allocate arrays')
-    ELSE IF (nn_ice == 2) THEN
-      CALL ice_init
-    END IF
     IF (nn_ice == 3) CALL cice_sbc_init(nsbc)
     IF (ln_wave) CALL sbc_wave_init
     IF (lwxios) THEN
@@ -246,8 +241,12 @@ MODULE sbcmod
     END IF
   END SUBROUTINE sbc_init
   SUBROUTINE sbc(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     LOGICAL :: ll_sas, ll_opa
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
     IF (ln_timing) CALL timing_start('sbc')
     IF (kt /= nit000) THEN
       !$ACC KERNELS
@@ -270,6 +269,7 @@ MODULE sbcmod
         !$ACC END KERNELS
       END IF
     END IF
+    CALL ProfileStart('sbc', 'r0', psy_profile0)
     ll_sas = nn_components == jp_iam_sas
     ll_opa = nn_components == jp_iam_opa
     IF (.NOT. ll_sas) CALL sbc_ssm(kt)
@@ -292,8 +292,6 @@ MODULE sbcmod
     SELECT CASE (nn_ice)
     CASE (1)
       CALL sbc_ice_if(kt)
-    CASE (2)
-      CALL ice_stp(kt, nsbc)
     CASE (3)
       CALL sbc_ice_cice(kt, nsbc)
     END SELECT
@@ -306,13 +304,16 @@ MODULE sbcmod
     IF (ln_ssr) CALL sbc_ssr(kt)
     IF (nn_fwb /= 0) CALL sbc_fwb(kt, nn_fwb, nn_fsbc)
     IF (l_sbc_clo .AND. (.NOT. ln_diurnal_only)) CALL sbc_clo(kt)
+    CALL ProfileEnd(psy_profile0)
     IF (kt == nit000) THEN
       IF (ln_rstart .AND. iom_varid(numror, 'utau_b', ldstop = .FALSE.) > 0) THEN
+        CALL ProfileStart('sbc', 'r1', psy_profile1)
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 surface forcing fields red in the restart file'
         CALL iom_get(numror, jpdom_autoglo, 'utau_b', utau_b, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'vtau_b', vtau_b, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'qns_b', qns_b, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'emp_b', emp_b, ldxios = lrxios)
+        CALL ProfileEnd(psy_profile1)
         IF (iom_varid(numror, 'sfx_b', ldstop = .FALSE.) > 0) THEN
           CALL iom_get(numror, jpdom_autoglo, 'sfx_b', sfx_b, ldxios = lrxios)
         ELSE
@@ -331,6 +332,7 @@ MODULE sbcmod
         !$ACC END KERNELS
       END IF
     END IF
+    CALL ProfileStart('sbc', 'r2', psy_profile2)
     IF (lrst_oce) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'sbc : ocean surface forcing fields written in ocean restart file ', 'at it= ', kt, ' date= ', ndastp
@@ -370,6 +372,7 @@ MODULE sbcmod
     END IF
     IF (kt == nitend) CALL sbc_final
     IF (ln_timing) CALL timing_stop('sbc')
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE sbc
   SUBROUTINE sbc_final
     IF (nn_ice == 3) CALL cice_sbc_final

@@ -57,7 +57,10 @@ MODULE obs_fbm
   PRIVATE :: putvaratt_obfbdata
   CONTAINS
   SUBROUTINE init_obfbdata(fbdata)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obfbdata) :: fbdata
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('init_obfbdata', 'r0', psy_profile0)
     fbdata % nvar = 0
     fbdata % nobs = 0
     fbdata % nlev = 0
@@ -66,6 +69,7 @@ MODULE obs_fbm
     fbdata % nqcf = idefnqcf
     fbdata % lalloc = .FALSE.
     fbdata % lgrid = .FALSE.
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE init_obfbdata
   SUBROUTINE alloc_obfbdata(fbdata, kvar, kobs, klev, kadd, kext, lgrid, kqcf)
     TYPE(obfbdata) :: fbdata
@@ -197,6 +201,7 @@ MODULE obs_fbm
     fbdata % next = 0
   END SUBROUTINE dealloc_obfbdata
   SUBROUTINE copy_obfbdata(fbdata1, fbdata2, kadd, kext, lgrid, kqcf)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obfbdata) :: fbdata1
     TYPE(obfbdata) :: fbdata2
     INTEGER, INTENT(IN), OPTIONAL :: kadd
@@ -212,6 +217,8 @@ MODULE obs_fbm
     INTEGER :: ji
     INTEGER :: jk
     INTEGER :: jq
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('copy_obfbdata', 'r0', psy_profile0)
     IF (.NOT. fbdata1 % lalloc) THEN
       CALL fatal_error('copy_obfbdata: input data not allocated', 511)
     END IF
@@ -356,8 +363,10 @@ MODULE obs_fbm
         END DO
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE copy_obfbdata
   SUBROUTINE subsamp_obfbdata(fbdata1, fbdata2, llvalid)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obfbdata) :: fbdata1
     TYPE(obfbdata) :: fbdata2
     LOGICAL, DIMENSION(fbdata1 % nobs) :: llvalid
@@ -368,6 +377,8 @@ MODULE obs_fbm
     INTEGER :: jk
     INTEGER :: jq
     INTEGER :: ij
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('subsamp_obfbdata', 'r0', psy_profile0)
     IF (.NOT. fbdata1 % lalloc) THEN
       CALL fatal_error('copy_obfbdata: input data not allocated', 726)
     END IF
@@ -477,8 +488,10 @@ MODULE obs_fbm
         END IF
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE subsamp_obfbdata
   SUBROUTINE merge_obfbdata(nsets, fbdatain, fbdataout, iset, inum, iind)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: nsets
     TYPE(obfbdata), DIMENSION(nsets) :: fbdatain
     TYPE(obfbdata) :: fbdataout
@@ -492,6 +505,8 @@ MODULE obs_fbm
     INTEGER :: ji
     INTEGER :: jk
     INTEGER :: jq
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('merge_obfbdata', 'r0', psy_profile0)
     DO js = 1, nsets
       IF (.NOT. fbdatain(js) % lalloc) THEN
         CALL fatal_error('merge_obfbdata: input data not allocated', 906)
@@ -584,8 +599,10 @@ MODULE obs_fbm
         END DO
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE merge_obfbdata
   SUBROUTINE write_obfbdata(cdfilename, fbdata)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = *) :: cdfilename
     TYPE(obfbdata) :: fbdata
     CHARACTER(LEN = 14), PARAMETER :: cpname = 'write_obfbdata'
@@ -634,6 +651,8 @@ MODULE obs_fbm
     CHARACTER(LEN = 16), PARAMETER :: cdqcconv = 'q where q =[0,9]'
     CHARACTER(LEN = 24), PARAMETER :: cdqcfconv = 'NEMOVAR flag conventions'
     CHARACTER(LEN = ilenlong) :: cdltmp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('write_obfbdata', 'r0', psy_profile0)
     CALL chkerr(nf90_create(TRIM(cdfilename), nf90_clobber, idfile), cpname, 1107)
     CALL chkerr(nf90_set_fill(idfile, nf90_nofill, ioldfill), cpname, 1109)
     CALL chkerr(nf90_put_att(idfile, nf90_global, 'title', 'NEMO observation operator output'), cpname, 1112)
@@ -829,8 +848,10 @@ MODULE obs_fbm
       END IF
     END IF
     CALL chkerr(nf90_close(idfile), cpname, 1523)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE write_obfbdata
   SUBROUTINE putvaratt_obfbdata(idfile, idvar, cdlongname, cdunits, conventions, cfillvalue, ifillvalue, rfillvalue)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: idfile
     INTEGER :: idvar
     CHARACTER(LEN = *) :: cdlongname
@@ -840,6 +861,8 @@ MODULE obs_fbm
     REAL(KIND = fbsp), OPTIONAL :: rfillvalue
     CHARACTER(LEN = *), OPTIONAL :: conventions
     CHARACTER(LEN = 18), PARAMETER :: cpname = 'putvaratt_obfbdata'
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('putvaratt_obfbdata', 'r0', psy_profile0)
     CALL chkerr(nf90_put_att(idfile, idvar, 'long_name', TRIM(cdlongname)), cpname, 1556)
     IF (PRESENT(cdunits)) THEN
       CALL chkerr(nf90_put_att(idfile, idvar, 'units', TRIM(cdunits)), cpname, 1562)
@@ -856,8 +879,10 @@ MODULE obs_fbm
     IF (PRESENT(rfillvalue)) THEN
       CALL chkerr(nf90_put_att(idfile, idvar, '_Fillvalue', rfillvalue), cpname, 1594)
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE putvaratt_obfbdata
   SUBROUTINE read_obfbdata(cdfilename, fbdata, ldgrid)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = *) :: cdfilename
     TYPE(obfbdata) :: fbdata
     LOGICAL, OPTIONAL :: ldgrid
@@ -899,6 +924,8 @@ MODULE obs_fbm
     INTEGER :: next
     LOGICAL :: lgrid
     CHARACTER(LEN = NF90_MAX_NAME) :: cdtmp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('read_obfbdata', 'r0', psy_profile0)
     IF (fbdata % lalloc) THEN
       CALL dealloc_obfbdata(fbdata)
     END IF
@@ -1045,6 +1072,7 @@ MODULE obs_fbm
       END IF
     END IF
     CALL chkerr(nf90_close(idfile), cpname, 1965)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE read_obfbdata
   SUBROUTINE getvaratt_obfbdata(idfile, idvar, cdlongname, cdunits)
     INTEGER :: idfile

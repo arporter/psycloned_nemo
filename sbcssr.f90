@@ -27,6 +27,7 @@ MODULE sbcssr
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_sss
   CONTAINS
   SUBROUTINE sbc_ssr(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zerp
@@ -36,6 +37,8 @@ MODULE sbcssr
     INTEGER :: ierror
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N) :: sn_sst, sn_sss
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('sbc_ssr', 'r0', psy_profile0)
     IF (nn_sstr + nn_sssr /= 0) THEN
       IF (nn_sstr == 1) CALL fld_read(kt, nn_fsbc, sf_sst)
       IF (nn_sssr >= 1) CALL fld_read(kt, nn_fsbc, sf_sss)
@@ -76,6 +79,7 @@ MODULE sbcssr
         END IF
       END IF
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE sbc_ssr
   SUBROUTINE sbc_ssr_init
     INTEGER :: ji, jj

@@ -6,10 +6,15 @@ MODULE step
   PUBLIC :: stp
   CONTAINS
   SUBROUTINE stp(kstp)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kstp
     INTEGER :: ji, jj, jk
     INTEGER :: indic
     INTEGER :: kcall
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    CALL ProfileStart('stp', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('stp')
     indic = 0
     IF (kstp == nit000) THEN
@@ -48,10 +53,12 @@ MODULE step
     CALL eos(tsn, rhd, rhop, gdept_n(:, :, :))
     IF (ln_zps .AND. .NOT. ln_isfcav) CALL zps_hde(kstp, jpts, tsn, gtsu, gtsv, rhd, gru, grv)
     IF (ln_zps .AND. ln_isfcav) CALL zps_hde_isf(kstp, jpts, tsn, gtsu, gtsv, gtui, gtvi, rhd, gru, grv, grui, grvi)
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     ua(:, :, :) = 0._wp
     va(:, :, :) = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('stp', 'r1', psy_profile1)
     IF (lk_asminc .AND. ln_asmiau .AND. ln_dyninc) CALL dyn_asm_inc(kstp)
     IF (ln_bdy) CALL bdy_dyn3d_dmp(kstp)
     CALL dyn_adv(kstp)
@@ -75,9 +82,11 @@ MODULE step
     IF (lk_diaharm) CALL dia_harm(kstp)
     CALL dia_wri(kstp)
     IF (ln_crs) CALL crs_fld(kstp)
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     tsa(:, :, :, :) = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('stp', 'r2', psy_profile2)
     IF (lk_asminc .AND. ln_asmiau .AND. ln_trainc) CALL tra_asm_inc(kstp)
     CALL tra_sbc(kstp)
     IF (ln_traqsr) CALL tra_qsr(kstp)
@@ -108,5 +117,6 @@ MODULE step
     END IF
     IF (lk_oasis) CALL sbc_cpl_snd(kstp)
     IF (ln_timing) CALL timing_stop('stp')
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE stp
 END MODULE step

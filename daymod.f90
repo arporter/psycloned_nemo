@@ -72,7 +72,10 @@ MODULE daymod
     END IF
   END SUBROUTINE day_init
   SUBROUTINE day_mth
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: jm
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('day_mth', 'r0', psy_profile0)
     IF (nleapy < 2) THEN
       nmonth_len(:) = (/31, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 31/)
       nyear_len(:) = 365
@@ -92,6 +95,7 @@ MODULE daymod
       nmonth_len(:) = nleapy
       nyear_len(:) = 12 * nleapy
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     nmonth_half(0) = - nsecd05 * nmonth_len(0)
     DO jm = 1, 13
@@ -104,9 +108,12 @@ MODULE daymod
     !$ACC END KERNELS
   END SUBROUTINE
   SUBROUTINE day(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = 25) :: charout
     REAL(KIND = wp) :: zprec
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('day', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('day')
     zprec = 0.1 / rday
     nsec_year = nsec_year + ndt
@@ -147,6 +154,7 @@ MODULE daymod
     IF (.NOT. l_offline) CALL rst_opn(kt)
     IF (lrst_oce) CALL day_rst(kt, 'WRITE')
     IF (ln_timing) CALL timing_stop('day')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE day
   SUBROUTINE day_rst(kt, cdrw)
     INTEGER, INTENT(IN) :: kt

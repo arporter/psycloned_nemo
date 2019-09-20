@@ -83,6 +83,7 @@ MODULE zdfgls
     IF (zdf_gls_alloc /= 0) CALL ctl_warn('zdf_gls_alloc: failed to allocate arrays')
   END FUNCTION zdf_gls_alloc
   SUBROUTINE zdf_gls(kt, p_sh2, p_avm, p_avt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE zdf_oce, ONLY: en, avtb, avmb
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
@@ -107,6 +108,7 @@ MODULE zdfgls
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: psi
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zd_lw, zd_up, zdiag
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zstt, zstm
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     ustar2_surf(:, :) = 0._wp
     psi(:, :, :) = 0._wp
@@ -602,10 +604,12 @@ MODULE zdfgls
     END DO
     p_avt(:, :, 1) = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('zdf_gls', 'r0', psy_profile0)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab3d_1 = en, clinfo1 = ' gls  - e: ', tab3d_2 = p_avt, clinfo2 = ' t: ', kdim = jpk)
       CALL prt_ctl(tab3d_1 = p_avm, clinfo1 = ' gls  - m: ', kdim = jpk)
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE zdf_gls
   SUBROUTINE zdf_gls_init
     INTEGER :: jk

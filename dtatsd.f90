@@ -69,12 +69,20 @@ MODULE dtatsd
     END IF
   END SUBROUTINE dta_tsd_init
   SUBROUTINE dta_tsd(kt, ptsd)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(  OUT) :: ptsd
     INTEGER :: ji, jj, jk, jl, jkk
     INTEGER :: ik, il0, il1, ii0, ii1, ij0, ij1
     REAL(KIND = wp) :: zl, zi
     REAL(KIND = wp), DIMENSION(jpk) :: ztp, zsp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    CALL ProfileStart('dta_tsd', 'r0', psy_profile0)
     CALL fld_read(kt, 1, sf_tsd)
     IF (cn_cfg == "orca" .OR. cn_cfg == "ORCA") THEN
       IF (nn_cfg == 2 .AND. ln_tsd_dmp) THEN
@@ -104,21 +112,30 @@ MODULE dtatsd
     END IF
     ptsd(:, :, :, jp_tem) = sf_tsd(jp_tem) % fnow(:, :, :)
     ptsd(:, :, :, jp_sal) = sf_tsd(jp_sal) % fnow(:, :, :)
+    CALL ProfileEnd(psy_profile0)
     IF (ln_sco) THEN
+      CALL ProfileStart('dta_tsd', 'r1', psy_profile1)
       IF (kt == nit000 .AND. lwp) THEN
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) 'dta_tsd: interpolates T & S data onto the s- or mixed s-z-coordinate mesh'
       END IF
+      CALL ProfileEnd(psy_profile1)
       DO jj = 1, jpj
         DO ji = 1, jpi
           DO jk = 1, jpk
+            CALL ProfileStart('dta_tsd', 'r2', psy_profile2)
             zl = gdept_0(ji, jj, jk)
+            CALL ProfileEnd(psy_profile2)
             IF (zl < gdept_1d(1)) THEN
+              CALL ProfileStart('dta_tsd', 'r3', psy_profile3)
               ztp(jk) = ptsd(ji, jj, 1, jp_tem)
               zsp(jk) = ptsd(ji, jj, 1, jp_sal)
+              CALL ProfileEnd(psy_profile3)
             ELSE IF (zl > gdept_1d(jpk)) THEN
+              CALL ProfileStart('dta_tsd', 'r4', psy_profile4)
               ztp(jk) = ptsd(ji, jj, jpkm1, jp_tem)
               zsp(jk) = ptsd(ji, jj, jpkm1, jp_sal)
+              CALL ProfileEnd(psy_profile4)
             ELSE
               !$ACC KERNELS
               DO jkk = 1, jpkm1
@@ -167,6 +184,7 @@ MODULE dtatsd
         !$ACC END KERNELS
       END IF
     END IF
+    CALL ProfileStart('dta_tsd', 'r5', psy_profile5)
     IF (.NOT. ln_tsd_dmp) THEN
       IF (lwp) WRITE(numout, FMT = *) 'dta_tsd: deallocte T & S arrays as they are only use to initialize the run'
       DEALLOCATE(sf_tsd(jp_tem) % fnow)
@@ -175,5 +193,6 @@ MODULE dtatsd
       IF (sf_tsd(jp_sal) % ln_tint) DEALLOCATE(sf_tsd(jp_sal) % fdta)
       DEALLOCATE(sf_tsd)
     END IF
+    CALL ProfileEnd(psy_profile5)
   END SUBROUTINE dta_tsd
 END MODULE dtatsd

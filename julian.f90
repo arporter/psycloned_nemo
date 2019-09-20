@@ -6,6 +6,7 @@ MODULE julian
   PUBLIC :: jul2greg, greg2jul
   CONTAINS
   RECURSIVE SUBROUTINE jul2greg(ksec, kminut, khour, kday, kmonth, kyear, prelday, krefdate)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN), OPTIONAL :: krefdate
     INTEGER, INTENT(OUT) :: ksec, kminut, khour, kday, kmonth, kyear
     REAL(KIND = dp), INTENT(IN) :: prelday
@@ -13,6 +14,8 @@ MODULE julian
     INTEGER :: ijulian, ij1, ija, ijb, ijc, ijd, ije, isec, imin, ihou, iday, imon, iyea, iref
     REAL(KIND = wp) :: zday, zref
     CHARACTER(LEN = 200) :: cerr
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('jul2greg', 'r0', psy_profile0)
     IF (PRESENT(krefdate)) THEN
       SELECT CASE (krefdate)
       CASE (0)
@@ -52,14 +55,18 @@ MODULE julian
     kyear = ijc - 4715
     IF (kmonth > 2) kyear = kyear - 1
     IF (kyear <= 0) kyear = kyear - 1
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE jul2greg
   SUBROUTINE greg2jul(ksec, kmin, khour, kday, kmonth, kyear, pjulian, krefdate)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: ksec, kmin, khour, kday, kmonth, kyear
     REAL(KIND = dp), INTENT(OUT) :: pjulian
     INTEGER, INTENT(IN), OPTIONAL :: krefdate
     INTEGER, PARAMETER :: jpgreg = 15 + 31 * (10 + 12 * 1582), jporef = 2433283, jparef = 2415021, jpgref = 2299161
     INTEGER :: ija, ijy, ijm, ijultmp, ijyear, iref
     CHARACTER(LEN = 200) :: cerr
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('greg2jul', 'r0', psy_profile0)
     IF (PRESENT(krefdate)) THEN
       SELECT CASE (krefdate)
       CASE (0)
@@ -90,5 +97,6 @@ MODULE julian
       ijultmp = ijultmp + 2 - ija + INT(0.25 * ija)
     END IF
     pjulian = (ijultmp - iref) + ((60 * khour + kmin) * 60 + ksec) / 86400.
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE greg2jul
 END MODULE julian

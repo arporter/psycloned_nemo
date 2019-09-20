@@ -15,6 +15,7 @@ MODULE obs_prep
   PUBLIC :: calc_month_len
   CONTAINS
   SUBROUTINE obs_pre_surf(surfdata, surfdataqc, ld_nea, ld_bound_reject, kqc_cutoff)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE par_oce
     USE dom_oce, ONLY: glamt, gphit, tmask, nproc
     TYPE(obs_surf), INTENT(INOUT) :: surfdata
@@ -45,6 +46,8 @@ MODULE obs_prep
     INTEGER :: jobs
     INTEGER :: jstp
     INTEGER :: inrc
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_pre_surf', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *) 'obs_pre_surf : Preparing the surface observations...'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~'
     iyea0 = ndate0 / 10000
@@ -106,8 +109,10 @@ MODULE obs_prep
       END DO
     END IF
 1999 FORMAT(10X, I9, 5X, I17)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_pre_surf
   SUBROUTINE obs_pre_prof(profdata, prodatqc, ld_var1, ld_var2, kpi, kpj, kpk, zmask1, pglam1, pgphi1, zmask2, pglam2, pgphi2, ld_nea, ld_bound_reject, kdailyavtypes, kqc_cutoff)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE par_oce
     USE dom_oce, ONLY: gdept_1d, nproc
     TYPE(obs_prof), INTENT(INOUT) :: profdata
@@ -158,6 +163,8 @@ MODULE obs_prep
     INTEGER :: jobs
     INTEGER :: jstp
     INTEGER :: inrc
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_pre_prof', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *) 'obs_pre_prof: Preparing the profile data...'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
     iyea0 = ndate0 / 10000
@@ -272,8 +279,10 @@ MODULE obs_prep
     END IF
 998 FORMAT(10X, '---------', 5X, '--------', 5X, '-----------', 5X, '----------------')
 999 FORMAT(10X, I9, 5X, I8, 5X, I11, 5X, I8)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_pre_prof
   SUBROUTINE obs_coo_tim(kcycle, kyea0, kmon0, kday0, khou0, kmin0, kobsno, kobsyea, kobsmon, kobsday, kobshou, kobsmin, kobsqc, kobsstp, kotdobs)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE dom_oce, ONLY: rdt
     USE phycst, ONLY: rday, rmmss, rhhmm
     INTEGER, INTENT(IN) :: kcycle
@@ -303,8 +312,14 @@ MODULE obs_prep
     REAL(KIND = wp) :: zhoustp
     REAL(KIND = wp) :: zobsstp
     INTEGER, DIMENSION(12) :: imonth_len
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    CALL ProfileStart('obs_coo_tim', 'r0', psy_profile0)
     idaystp = NINT(rday / rdt)
+    CALL ProfileEnd(psy_profile0)
     DO jobs = 1, kobsno
+      CALL ProfileStart('obs_coo_tim', 'r1', psy_profile1)
       kobsstp(jobs) = nit000 - 1
       IF ((kobsyea(jobs) < kyea0) .OR. ((kobsyea(jobs) == kyea0) .AND. (kobsmon(jobs) < kmon0)) .OR. ((kobsyea(jobs) == kyea0) .AND. (kobsmon(jobs) == kmon0) .AND. (kobsday(jobs) < kday0)) .OR. ((kobsyea(jobs) == kyea0) .AND. (kobsmon(jobs) == kmon0) .AND. (kobsday(jobs) == kday0) .AND. (kobshou(jobs) < khou0)) .OR. ((kobsyea(jobs) == kyea0) .AND. (kobsmon(jobs) == kmon0) .AND. (kobsday(jobs) == kday0) .AND. (kobshou(jobs) == khou0) .AND. (kobsmin(jobs) <= kmin0))) THEN
         kobsstp(jobs) = - 1
@@ -314,6 +329,7 @@ MODULE obs_prep
       END IF
       iyeastr = kyea0
       iyeaend = kobsyea(jobs)
+      CALL ProfileEnd(psy_profile1)
       DO jyea = iyeastr, iyeaend
         CALL calc_month_len(jyea, imonth_len)
         !$ACC KERNELS
@@ -332,6 +348,7 @@ MODULE obs_prep
         END DO
         !$ACC END KERNELS
       END DO
+      CALL ProfileStart('obs_coo_tim', 'r2', psy_profile2)
       zminstp = rmmss / rdt
       zhoustp = rhhmm * zminstp
       zobsstp = REAL(kobsmin(jobs) - kmin0, KIND = wp) * zminstp + REAL(kobshou(jobs) - khou0, KIND = wp) * zhoustp
@@ -341,11 +358,15 @@ MODULE obs_prep
         kotdobs = kotdobs + 1
         CYCLE
       END IF
+      CALL ProfileEnd(psy_profile2)
     END DO
   END SUBROUTINE obs_coo_tim
   SUBROUTINE calc_month_len(iyear, imonth_len)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, DIMENSION(12) :: imonth_len
     INTEGER :: iyear
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('calc_month_len', 'r0', psy_profile0)
     IF (nleapy < 2) THEN
       imonth_len(:) = (/31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31/)
       IF (nleapy == 1) THEN
@@ -356,8 +377,10 @@ MODULE obs_prep
     ELSE
       imonth_len(:) = nleapy
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE
   SUBROUTINE obs_coo_tim_prof(kcycle, kyea0, kmon0, kday0, khou0, kmin0, kobsno, kobsyea, kobsmon, kobsday, kobshou, kobsmin, ktyp, kobsqc, kobsstp, kotdobs, kdailyavtypes, kqc_cutoff)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kcycle
     INTEGER, INTENT(IN) :: kyea0
     INTEGER, INTENT(IN) :: kmon0
@@ -373,6 +396,8 @@ MODULE obs_prep
     INTEGER, OPTIONAL, INTENT(IN) :: kqc_cutoff
     INTEGER :: jobs
     INTEGER :: iqc_cutoff = 255
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_coo_tim_prof', 'r0', psy_profile0)
     CALL obs_coo_tim(kcycle, kyea0, kmon0, kday0, khou0, kmin0, kobsno, kobsyea, kobsmon, kobsday, kobshou, kobsmin, kobsqc, kobsstp, kotdobs)
     IF (PRESENT(kdailyavtypes)) THEN
       DO jobs = 1, kobsno
@@ -385,21 +410,27 @@ MODULE obs_prep
         END IF
       END DO
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_coo_tim_prof
   SUBROUTINE obs_coo_grd(kobsno, kobsi, kobsj, kobsqc, kgrdobs)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kobsno
     INTEGER, DIMENSION(kobsno), INTENT(IN ) :: kobsi, kobsj
     INTEGER, INTENT(INOUT) :: kgrdobs
     INTEGER, DIMENSION(kobsno), INTENT(INOUT) :: kobsqc
     INTEGER :: jobs
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_coo_grd', 'r0', psy_profile0)
     DO jobs = 1, kobsno
       IF ((kobsi(jobs) <= 0) .AND. (kobsj(jobs) <= 0)) THEN
         kobsqc(jobs) = IBSET(kobsqc(jobs), 12)
         kgrdobs = kgrdobs + 1
       END IF
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_coo_grd
   SUBROUTINE obs_coo_spc_2d(kobsno, kpi, kpj, kobsi, kobsj, pobslam, pobsphi, plam, pphi, pmask, kobsqc, kosdobs, klanobs, knlaobs, ld_nea, kbdyobs, ld_bound_reject, kqc_cutoff)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kobsno
     INTEGER, INTENT(IN   ) :: kpi, kpj
     INTEGER, INTENT(IN   ), DIMENSION(kobsno) :: kobsi, kobsj
@@ -422,6 +453,9 @@ MODULE obs_prep
     LOGICAL :: lgridobs
     INTEGER :: iig, ijg
     INTEGER :: jobs, ji, jj
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
     !$ACC KERNELS
     DO jobs = 1, kobsno
       IF (kobsqc(jobs) >= kqc_cutoff) THEN
@@ -450,18 +484,21 @@ MODULE obs_prep
         !$ACC KERNELS
         zbdymask(:, :) = 1.0_wp
         !$ACC END KERNELS
+        CALL ProfileStart('obs_coo_spc_2d', 'r0', psy_profile0)
         DO ji = 1, nb_bdy
           DO jj = 1, idx_bdy(ji) % nblen(1)
             zbdymask(idx_bdy(ji) % nbi(jj, 1), idx_bdy(ji) % nbj(jj, 1)) = 0.0_wp
           END DO
         END DO
         CALL obs_int_comm_2d(2, 2, kobsno, kpi, kpj, igrdi, igrdj, zbdymask, zbmsk)
+        CALL ProfileEnd(psy_profile0)
       END IF
     END IF
     CALL obs_int_comm_2d(2, 2, kobsno, kpi, kpj, igrdi, igrdj, pmask, zgmsk)
     CALL obs_int_comm_2d(2, 2, kobsno, kpi, kpj, igrdi, igrdj, plam, zglam)
     CALL obs_int_comm_2d(2, 2, kobsno, kpi, kpj, igrdi, igrdj, pphi, zgphi)
     DO jobs = 1, kobsno
+      CALL ProfileStart('obs_coo_spc_2d', 'r1', psy_profile1)
       IF (kobsqc(jobs) >= kqc_cutoff) CYCLE
       IF ((pobslam(jobs) < - 180.) .OR. (pobslam(jobs) > 180.) .OR. (pobsphi(jobs) < - 90.) .OR. (pobsphi(jobs) > 90.)) THEN
         kobsqc(jobs) = IBSET(kobsqc(jobs), 11)
@@ -473,6 +510,7 @@ MODULE obs_prep
         klanobs = klanobs + 1
         CYCLE
       END IF
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       lgridobs = .FALSE.
       iig = - 1
@@ -487,6 +525,7 @@ MODULE obs_prep
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('obs_coo_spc_2d', 'r2', psy_profile2)
       IF (lgridobs) THEN
         IF (zgmsk(iig, ijg, jobs) == 0.0_wp) THEN
           kobsqc(jobs) = IBSET(kobsqc(jobs), 10)
@@ -517,9 +556,11 @@ MODULE obs_prep
           END IF
         END IF
       END IF
+      CALL ProfileEnd(psy_profile2)
     END DO
   END SUBROUTINE obs_coo_spc_2d
   SUBROUTINE obs_coo_spc_3d(kprofno, kobsno, kpstart, kpend, kpi, kpj, kpk, kobsi, kobsj, kobsk, pobslam, pobsphi, pobsdep, plam, pphi, pdep, pmask, kpobsqc, kobsqc, kosdobs, klanobs, knlaobs, ld_nea, kbdyobs, ld_bound_reject, kqc_cutoff)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE dom_oce, ONLY: gdepw_1d, gdepw_0, gdepw_n, gdept_n, ln_zco, ln_zps
     INTEGER, INTENT(IN) :: kprofno
     INTEGER, INTENT(IN) :: kobsno
@@ -553,6 +594,8 @@ MODULE obs_prep
     LOGICAL :: ll_next_to_land
     INTEGER :: iig, ijg
     INTEGER :: jobs, jobsp, jk, ji, jj
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     !$ACC KERNELS
     DO jobs = 1, kprofno
       IF (kpobsqc(jobs) >= kqc_cutoff) THEN
@@ -581,11 +624,13 @@ MODULE obs_prep
         !$ACC KERNELS
         zbdymask(:, :) = 1.0_wp
         !$ACC END KERNELS
+        CALL ProfileStart('obs_coo_spc_3d', 'r0', psy_profile0)
         DO ji = 1, nb_bdy
           DO jj = 1, idx_bdy(ji) % nblen(1)
             zbdymask(idx_bdy(ji) % nbi(jj, 1), idx_bdy(ji) % nbj(jj, 1)) = 0.0_wp
           END DO
         END DO
+        CALL ProfileEnd(psy_profile0)
       END IF
       CALL obs_int_comm_2d(2, 2, kprofno, kpi, kpj, igrdi, igrdj, zbdymask, zbmsk)
     END IF
@@ -609,6 +654,7 @@ MODULE obs_prep
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('obs_coo_spc_3d', 'r1', psy_profile1)
       IF (ANY(zgmsk(1 : 2, 1 : 2, 1, jobs) == 0.0_wp)) THEN
         ll_next_to_land = .TRUE.
       ELSE
@@ -662,14 +708,18 @@ MODULE obs_prep
           END IF
         END IF
       END DO
+      CALL ProfileEnd(psy_profile1)
     END DO
   END SUBROUTINE obs_coo_spc_3d
   SUBROUTINE obs_pro_rej(profdata, kqc_cutoff)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obs_prof), INTENT(INOUT) :: profdata
     INTEGER, INTENT(IN   ) :: kqc_cutoff
     INTEGER :: jprof
     INTEGER :: jvar
     INTEGER :: jobs
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_pro_rej', 'r0', psy_profile0)
     DO jprof = 1, profdata % nprof
       IF (profdata % nqc(jprof) > kqc_cutoff) THEN
         DO jvar = 1, profdata % nvar
@@ -679,8 +729,10 @@ MODULE obs_prep
         END DO
       END IF
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_pro_rej
   SUBROUTINE obs_uv_rej(profdata, knumu, knumv, kqc_cutoff)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obs_prof), INTENT(INOUT) :: profdata
     INTEGER, INTENT(INOUT) :: knumu
     INTEGER, INTENT(INOUT) :: knumv
@@ -688,6 +740,8 @@ MODULE obs_prep
     INTEGER :: jprof
     INTEGER :: jvar
     INTEGER :: jobs
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_uv_rej', 'r0', psy_profile0)
     DO jprof = 1, profdata % nprof
       IF ((profdata % npvsta(jprof, 1) /= profdata % npvsta(jprof, 2)) .OR. (profdata % npvend(jprof, 1) /= profdata % npvend(jprof, 2))) THEN
         CALL ctl_stop('U,V profiles inconsistent in obs_uv_rej')
@@ -704,5 +758,6 @@ MODULE obs_prep
         END IF
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_uv_rej
 END MODULE obs_prep

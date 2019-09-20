@@ -15,6 +15,7 @@ MODULE tranpc
   PUBLIC :: tra_npc
   CONTAINS
   SUBROUTINE tra_npc(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: inpcc
@@ -31,15 +32,22 @@ MODULE tranpc
     LOGICAL, PARAMETER :: l_LB_debug = .FALSE.
     INTEGER :: ilc1, jlc1, klc1, nncpu
     LOGICAL :: lp_monitor_point = .FALSE.
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
     IF (ln_timing) CALL timing_start('tra_npc')
     IF (MOD(kt, nn_npc) == 0) THEN
       IF (l_trdtra) THEN
+        CALL ProfileStart('tra_npc', 'r0', psy_profile0)
         ALLOCATE(ztrdt(jpi, jpj, jpk), ztrds(jpi, jpj, jpk))
+        CALL ProfileEnd(psy_profile0)
         !$ACC KERNELS
         ztrdt(:, :, :) = tsa(:, :, :, jp_tem)
         ztrds(:, :, :) = tsa(:, :, :, jp_sal)
         !$ACC END KERNELS
       END IF
+      CALL ProfileStart('tra_npc', 'r1', psy_profile1)
       IF (l_LB_debug) THEN
         ilc1 = 45
         jlc1 = 3
@@ -49,6 +57,7 @@ MODULE tranpc
       CALL eos_rab(tsa, zab)
       CALL bn2(tsa, zab, zn2)
       inpcc = 0
+      CALL ProfileEnd(psy_profile1)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           IF (tmask(ji, jj, 2) == 1) THEN
@@ -58,6 +67,7 @@ MODULE tranpc
             zvab(:, jp_tem) = zab(ji, jj, :, jp_tem)
             zvab(:, jp_sal) = zab(ji, jj, :, jp_sal)
             !$ACC END KERNELS
+            CALL ProfileStart('tra_npc', 'r2', psy_profile2)
             zvn2(:) = zn2(ji, jj, :)
             IF (l_LB_debug) THEN
               lp_monitor_point = .FALSE.
@@ -165,6 +175,7 @@ MODULE tranpc
               END IF
               IF (ikp >= ikbot) l_column_treated = .TRUE.
             END DO
+            CALL ProfileEnd(psy_profile2)
             !$ACC KERNELS
             tsa(ji, jj, :, jp_tem) = zvts(:, jp_tem)
             tsa(ji, jj, :, jp_sal) = zvts(:, jp_sal)
@@ -183,11 +194,13 @@ MODULE tranpc
         CALL trd_tra(kt, 'TRA', jp_sal, jptra_npc, ztrds)
         DEALLOCATE(ztrdt, ztrds)
       END IF
+      CALL ProfileStart('tra_npc', 'r3', psy_profile3)
       CALL lbc_lnk_multi(tsa(:, :, :, jp_tem), 'T', 1., tsa(:, :, :, jp_sal), 'T', 1.)
       IF (lwp .AND. l_LB_debug) THEN
         WRITE(numout, FMT = *) 'Exiting tra_npc , kt = ', kt, ', => numb. of statically instable water-columns: ', inpcc
         WRITE(numout, FMT = *)
       END IF
+      CALL ProfileEnd(psy_profile3)
     END IF
     IF (ln_timing) CALL timing_stop('tra_npc')
   END SUBROUTINE tra_npc

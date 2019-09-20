@@ -31,6 +31,7 @@ MODULE zdfiwm
     IF (zdf_iwm_alloc /= 0) CALL ctl_warn('zdf_iwm_alloc: failed to allocate arrays')
   END FUNCTION zdf_iwm_alloc
   SUBROUTINE zdf_iwm(kt, p_avm, p_avt, p_avs)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avt, p_avs
@@ -48,6 +49,10 @@ MODULE zdfiwm
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zav_wave
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: z3d
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: z2d
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
     !$ACC KERNELS
     zemx_iwm(:, :, 1) = 0._wp
     zemx_iwm(:, :, jpk) = 0._wp
@@ -171,6 +176,7 @@ MODULE zdfiwm
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('zdf_iwm', 'r0', psy_profile0)
       IF (lk_mpp) CALL mpp_sum(zztmp)
       zztmp = rau0 * zztmp
       IF (lwp) THEN
@@ -180,8 +186,10 @@ MODULE zdfiwm
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) '      Total power consumption by av_wave =  ', zztmp * 1.E-12_wp, 'TW'
       END IF
+      CALL ProfileEnd(psy_profile0)
     END IF
     IF (ln_tsdiff) THEN
+      CALL ProfileStart('zdf_iwm', 'r1', psy_profile1)
       DO jk = 2, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -190,6 +198,7 @@ MODULE zdfiwm
         END DO
       END DO
       CALL iom_put("av_ratio", zav_ratio)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       DO jk = 2, jpkm1
         p_avs(:, :, jk) = p_avs(:, :, jk) + zav_wave(:, :, jk) * zav_ratio(:, :, jk)
@@ -208,7 +217,9 @@ MODULE zdfiwm
     END IF
     CALL iom_put("av_wave", zav_wave)
     IF (iom_use("bflx_iwm") .OR. iom_use("pcmap_iwm")) THEN
+      CALL ProfileStart('zdf_iwm', 'r2', psy_profile2)
       ALLOCATE(z2d(jpi, jpj), z3d(jpi, jpj, jpk))
+      CALL ProfileEnd(psy_profile2)
       !$ACC KERNELS
       z3d(:, :, :) = MAX(0._wp, rn2(:, :, :)) * zav_wave(:, :, :)
       z2d(:, :) = 0._wp
@@ -221,8 +232,10 @@ MODULE zdfiwm
       CALL iom_put("pcmap_iwm", z2d)
       DEALLOCATE(z2d, z3d)
     END IF
+    CALL ProfileStart('zdf_iwm', 'r3', psy_profile3)
     CALL iom_put("emix_iwm", zemx_iwm)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = zav_wave, clinfo1 = ' iwm - av_wave: ', tab3d_2 = avt, clinfo2 = ' avt: ', kdim = jpk)
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE zdf_iwm
   SUBROUTINE zdf_iwm_init
     INTEGER :: ji, jj, jk

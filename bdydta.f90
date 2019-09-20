@@ -6,8 +6,6 @@ MODULE bdydta
   USE sbctide
   USE bdy_oce
   USE bdytides
-  USE ice
-  USE icevar
   USE fldread
   USE iom
   USE in_out_manager
@@ -21,11 +19,9 @@ MODULE bdydta
   LOGICAL, DIMENSION(jp_bdy) :: ln_full_vel_array
   TYPE(FLD), PUBLIC, ALLOCATABLE, DIMENSION(:), TARGET :: bf
   TYPE(MAP_POINTER), ALLOCATABLE, DIMENSION(:) :: nbmap_ptr
-  INTEGER :: nice_cat
-  INTEGER :: jfld_hti, jfld_hts, jfld_ai
-  INTEGER, DIMENSION(jp_bdy) :: jfld_htit, jfld_htst, jfld_ait
   CONTAINS
   SUBROUTINE bdy_dta(kt, jit, time_offset)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN), OPTIONAL :: jit
     INTEGER, INTENT(IN), OPTIONAL :: time_offset
@@ -34,6 +30,8 @@ MODULE bdydta
     INTEGER, DIMENSION(jpbgrd) :: ilen1
     INTEGER, POINTER, DIMENSION(:) :: nblen, nblenrim
     TYPE(OBC_DATA), POINTER :: dta
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_dta', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('bdy_dta')
     IF (kt == nit000 .AND. .NOT. PRESENT(jit)) THEN
       DO jbdy = 1, nb_bdy
@@ -109,39 +107,6 @@ MODULE bdydta
                 ii = idx_bdy(jbdy) % nbi(ib, igrd)
                 ij = idx_bdy(jbdy) % nbj(ib, igrd)
                 dta_bdy(jbdy) % sal(ib, ik) = tsn(ii, ij, ik, jp_sal) * tmask(ii, ij, ik)
-              END DO
-            END DO
-          END IF
-        END IF
-        IF (nn_ice_dta(jbdy) == 0) THEN
-          ilen1(:) = nblen(:)
-          IF (dta % ll_a_i) THEN
-            igrd = 1
-            DO jl = 1, jpl
-              DO ib = 1, ilen1(igrd)
-                ii = idx_bdy(jbdy) % nbi(ib, igrd)
-                ij = idx_bdy(jbdy) % nbj(ib, igrd)
-                dta_bdy(jbdy) % a_i(ib, jl) = a_i(ii, ij, jl) * tmask(ii, ij, 1)
-              END DO
-            END DO
-          END IF
-          IF (dta % ll_h_i) THEN
-            igrd = 1
-            DO jl = 1, jpl
-              DO ib = 1, ilen1(igrd)
-                ii = idx_bdy(jbdy) % nbi(ib, igrd)
-                ij = idx_bdy(jbdy) % nbj(ib, igrd)
-                dta_bdy(jbdy) % h_i(ib, jl) = h_i(ii, ij, jl) * tmask(ii, ij, 1)
-              END DO
-            END DO
-          END IF
-          IF (dta % ll_h_s) THEN
-            igrd = 1
-            DO jl = 1, jpl
-              DO ib = 1, ilen1(igrd)
-                ii = idx_bdy(jbdy) % nbi(ib, igrd)
-                ij = idx_bdy(jbdy) % nbj(ib, igrd)
-                dta_bdy(jbdy) % h_s(ib, jl) = h_s(ii, ij, jl) * tmask(ii, ij, 1)
               END DO
             END DO
           END IF
@@ -250,16 +215,6 @@ MODULE bdydta
               END DO
             END IF
           END IF
-          IF (cn_ice(jbdy) /= 'none' .AND. nn_ice_dta(jbdy) == 1) THEN
-            jfld_hti = jfld_htit(jbdy)
-            jfld_hts = jfld_htst(jbdy)
-            jfld_ai = jfld_ait(jbdy)
-            IF (jpl /= 1 .AND. nice_cat == 1) THEN
-              CALL ice_var_itd(bf(jfld_hti) % fnow(:, 1, 1), bf(jfld_hts) % fnow(:, 1, 1), bf(jfld_ai) % fnow(:, 1, 1), dta_bdy(jbdy) % h_i, dta_bdy(jbdy) % h_s, dta_bdy(jbdy) % a_i)
-            ELSE IF (jpl /= 1 .AND. nice_cat /= 1 .AND. nice_cat /= jpl) THEN
-              CALL ice_var_itd2(bf(jfld_hti) % fnow(:, 1, :), bf(jfld_hts) % fnow(:, 1, :), bf(jfld_ai) % fnow(:, 1, :), dta_bdy(jbdy) % h_i, dta_bdy(jbdy) % h_s, dta_bdy(jbdy) % a_i)
-            END IF
-          END IF
         END IF
         jstart = jstart + dta % nread(1)
       END IF
@@ -297,6 +252,7 @@ MODULE bdydta
       END DO
     END IF
     IF (ln_timing) CALL timing_stop('bdy_dta')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_dta
   SUBROUTINE bdy_dta_init
     INTEGER :: jbdy, jfld, jstart, jend, ierror, ios
@@ -310,15 +266,10 @@ MODULE bdydta
     INTEGER, ALLOCATABLE, DIMENSION(:) :: igrid
     INTEGER, POINTER, DIMENSION(:) :: nblen, nblenrim
     TYPE(OBC_DATA), POINTER :: dta
-    INTEGER :: kndims
-    INTEGER, DIMENSION(4) :: kdimsz
-    INTEGER :: inum, id1
     TYPE(FLD_N), ALLOCATABLE, DIMENSION(:) :: blf_i
     TYPE(FLD_N) :: bn_tem, bn_sal, bn_u3d, bn_v3d
     TYPE(FLD_N) :: bn_ssh, bn_u2d, bn_v2d
-    TYPE(FLD_N) :: bn_a_i, bn_h_i, bn_h_s
     NAMELIST /nambdy_dta/ cn_dir, bn_tem, bn_sal, bn_u3d, bn_v3d, bn_ssh, bn_u2d, bn_v2d
-    NAMELIST /nambdy_dta/ bn_a_i, bn_h_i, bn_h_s
     NAMELIST /nambdy_dta/ ln_full_vel, nb_jpk_bdy
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'bdy_dta_ini : initialization of data at the open boundaries'
@@ -326,7 +277,7 @@ MODULE bdydta
     IF (lwp) WRITE(numout, FMT = *) ''
     !$ACC KERNELS
     DO jbdy = 1, nb_bdy
-      nn_dta(jbdy) = MAX(nn_dyn2d_dta(jbdy), nn_dyn3d_dta(jbdy), nn_tra_dta(jbdy), nn_ice_dta(jbdy))
+      nn_dta(jbdy) = MAX(nn_dyn2d_dta(jbdy), nn_dyn3d_dta(jbdy), nn_tra_dta(jbdy))
       IF (nn_dta(jbdy) > 1) nn_dta(jbdy) = 1
     END DO
     !$ACC END KERNELS
@@ -341,9 +292,6 @@ MODULE bdydta
       END IF
       IF (cn_tra(jbdy) /= 'none' .AND. nn_tra_dta(jbdy) == 1) THEN
         nb_bdy_fld(jbdy) = nb_bdy_fld(jbdy) + 2
-      END IF
-      IF (cn_ice(jbdy) /= 'none' .AND. nn_ice_dta(jbdy) == 1) THEN
-        nb_bdy_fld(jbdy) = nb_bdy_fld(jbdy) + 3
       END IF
       IF (lwp) WRITE(numout, FMT = *) 'Maximum number of files to open =', nb_bdy_fld(jbdy)
     END DO
@@ -456,48 +404,6 @@ MODULE bdydta
             ilen3(jfld) = jpk
           END IF
         END IF
-        IF (nn_ice_dta(jbdy) == 1) THEN
-          clname = TRIM(cn_dir) // TRIM(bn_a_i % clname)
-          IF (.NOT. bn_a_i % ln_clim) THEN
-            WRITE(clname, FMT = '(a,"_y",i4.4)') TRIM(clname), nyear
-            IF (bn_a_i % cltype /= 'yearly') WRITE(clname, FMT = '(a,"m" ,i2.2)') TRIM(clname), nmonth
-          ELSE
-            IF (bn_a_i % cltype /= 'yearly') WRITE(clname, FMT = '(a,"_m",i2.2)') TRIM(clname), nmonth
-          END IF
-          IF (bn_a_i % cltype == 'daily' .OR. bn_a_i % cltype(1 : 4) == 'week') WRITE(clname, FMT = '(a,"d" ,i2.2)') TRIM(clname), nday
-          CALL iom_open(clname, inum)
-          id1 = iom_varid(inum, bn_a_i % clvar, kdimsz = kdimsz, kndims = kndims, ldstop = .FALSE.)
-          CALL iom_close(inum)
-          IF (kndims == 4) THEN
-            nice_cat = kdimsz(4)
-          ELSE
-            nice_cat = 1
-          END IF
-          IF (dta % ll_a_i) THEN
-            jfld = jfld + 1
-            blf_i(jfld) = bn_a_i
-            ibdy(jfld) = jbdy
-            igrid(jfld) = 1
-            ilen1(jfld) = nblen(igrid(jfld))
-            ilen3(jfld) = nice_cat
-          END IF
-          IF (dta % ll_h_i) THEN
-            jfld = jfld + 1
-            blf_i(jfld) = bn_h_i
-            ibdy(jfld) = jbdy
-            igrid(jfld) = 1
-            ilen1(jfld) = nblen(igrid(jfld))
-            ilen3(jfld) = nice_cat
-          END IF
-          IF (dta % ll_h_s) THEN
-            jfld = jfld + 1
-            blf_i(jfld) = bn_h_s
-            ibdy(jfld) = jbdy
-            igrid(jfld) = 1
-            ilen1(jfld) = nblen(igrid(jfld))
-            ilen3(jfld) = nice_cat
-          END IF
-        END IF
         IF (jbdy == 1) THEN
           nb_bdy_fld_sum = 0
           nb_bdy_fld(jbdy) = jfld
@@ -602,33 +508,6 @@ MODULE bdydta
           IF (lwp) WRITE(numout, FMT = *) '++++++ dta%sal pointing to fnow'
           jfld = jfld + 1
           dta_bdy(jbdy) % sal => bf(jfld) % fnow(:, 1, :)
-        END IF
-      END IF
-      IF (cn_ice(jbdy) /= 'none') THEN
-        IF (nn_ice_dta(jbdy) == 0) THEN
-          ALLOCATE(dta_bdy(jbdy) % a_i(nblen(1), jpl))
-          ALLOCATE(dta_bdy(jbdy) % h_i(nblen(1), jpl))
-          ALLOCATE(dta_bdy(jbdy) % h_s(nblen(1), jpl))
-        ELSE
-          IF (nice_cat == jpl) THEN
-            jfld = jfld + 1
-            dta_bdy(jbdy) % a_i => bf(jfld) % fnow(:, 1, :)
-            jfld = jfld + 1
-            dta_bdy(jbdy) % h_i => bf(jfld) % fnow(:, 1, :)
-            jfld = jfld + 1
-            dta_bdy(jbdy) % h_s => bf(jfld) % fnow(:, 1, :)
-          ELSE
-            jfld_ait(jbdy) = jfld + 1
-            jfld_htit(jbdy) = jfld + 2
-            jfld_htst(jbdy) = jfld + 3
-            jfld = jfld + 3
-            ALLOCATE(dta_bdy(jbdy) % a_i(nblen(1), jpl))
-            ALLOCATE(dta_bdy(jbdy) % h_i(nblen(1), jpl))
-            ALLOCATE(dta_bdy(jbdy) % h_s(nblen(1), jpl))
-            dta_bdy(jbdy) % a_i(:, :) = 0._wp
-            dta_bdy(jbdy) % h_i(:, :) = 0._wp
-            dta_bdy(jbdy) % h_s(:, :) = 0._wp
-          END IF
         END IF
       END IF
     END DO

@@ -14,6 +14,7 @@ MODULE dynadv_ubs
   PUBLIC :: dyn_adv_ubs
   CONTAINS
   SUBROUTINE dyn_adv_ubs(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zui, zvj, zfuj, zfvi, zl_u, zl_v
@@ -21,11 +22,14 @@ MODULE dynadv_ubs
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zfv_t, zfv_f, zfv_vw, zfv, zfw
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2) :: zlu_uu, zlu_uv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2) :: zlv_vv, zlv_vu
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dyn_adv_ubs', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn_adv_ubs : UBS flux form momentum advection'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zfu_t(:, :, :) = 0._wp
     zfv_t(:, :, :) = 0._wp

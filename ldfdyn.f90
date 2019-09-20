@@ -250,10 +250,12 @@ MODULE ldfdyn
     END IF
   END SUBROUTINE ldf_dyn_init
   SUBROUTINE ldf_dyn(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zu2pv2_ij_p1, zu2pv2_ij, zu2pv2_ij_m1, zetmax, zefmax
     REAL(KIND = wp) :: zcmsmag, zstabf_lo, zstabf_up, zdelta, zdb
+    TYPE(ProfileData), SAVE :: psy_profile0
     IF (ln_timing) CALL timing_start('ldf_dyn')
     SELECT CASE (nn_ahm_ijk_t)
     CASE (31)
@@ -343,10 +345,12 @@ MODULE ldfdyn
       END IF
       CALL lbc_lnk_multi(ahmt, 'T', 1., ahmf, 'F', 1.)
     END SELECT
+    CALL ProfileStart('ldf_dyn', 'r0', psy_profile0)
     CALL iom_put("ahmt_2d", ahmt(:, :, 1))
     CALL iom_put("ahmf_2d", ahmf(:, :, 1))
     CALL iom_put("ahmt_3d", ahmt(:, :, :))
     CALL iom_put("ahmf_3d", ahmf(:, :, :))
     IF (ln_timing) CALL timing_stop('ldf_dyn')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ldf_dyn
 END MODULE ldfdyn

@@ -45,7 +45,10 @@ MODULE nemogcm
   CHARACTER(LEN = lc) :: cform_aaa = "( /, 'AAAAAAAA', / ) "
   CONTAINS
   SUBROUTINE nemo_gcm
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: istp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('nemo_gcm', 'r0', psy_profile0)
     CALL nemo_init
     IF (lk_mpp) CALL mpp_max(nstop)
     IF (lwp) WRITE(numout, cform_aaa)
@@ -76,6 +79,7 @@ MODULE nemogcm
     ELSE IF (lk_mpp) THEN
       CALL mppstop
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE nemo_gcm
   SUBROUTINE nemo_init
     INTEGER :: ji

@@ -28,6 +28,7 @@ MODULE trdglo
   REAL(KIND = wp), DIMENSION(jptot_dyn) :: hke
   CONTAINS
   SUBROUTINE trd_glo(ptrdx, ptrdy, ktrd, ctype, kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
     INTEGER, INTENT(IN   ) :: ktrd
@@ -37,6 +38,7 @@ MODULE trdglo
     INTEGER :: ikbu, ikbv
     REAL(KIND = wp) :: zvm, zvt, zvs, z1_2rau0
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztswu, ztswv, z2dx, z2dy
+    TYPE(ProfileData), SAVE :: psy_profile0
     IF (MOD(kt, nn_trd) == 0 .OR. kt == nit000 .OR. kt == nitend) THEN
       SELECT CASE (ctype)
       CASE ('TRA')
@@ -55,6 +57,7 @@ MODULE trdglo
           END DO
         END DO
         !$ACC END KERNELS
+        CALL ProfileStart('trd_glo', 'r0', psy_profile0)
         IF (ln_linssh .AND. ktrd == jptra_zad) THEN
           tmo(jptra_sad) = SUM(wn(:, :, 1) * tsn(:, :, 1, jp_tem) * e1e2t(:, :) * tmask_i(:, :))
           smo(jptra_sad) = SUM(wn(:, :, 1) * tsn(:, :, 1, jp_sal) * e1e2t(:, :) * tmask_i(:, :))
@@ -68,6 +71,7 @@ MODULE trdglo
           t2(:) = 0._wp
           s2(:) = 0._wp
         END IF
+        CALL ProfileEnd(psy_profile0)
       CASE ('DYN')
         !$ACC KERNELS
         DO jk = 1, jpkm1
@@ -100,10 +104,12 @@ MODULE trdglo
     END IF
   END SUBROUTINE trd_glo
   SUBROUTINE glo_dyn_wri(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcof
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zkx, zky, zkz, zkepe
+    TYPE(ProfileData), SAVE :: psy_profile0
     IF (MOD(kt, nn_trd) == 0 .OR. kt == nit000 .OR. kt == nitend) THEN
       !$ACC KERNELS
       zkx(:, :, :) = 0._wp
@@ -136,6 +142,7 @@ MODULE trdglo
       END DO
       peke = 0._wp
       !$ACC END KERNELS
+      CALL ProfileStart('glo_dyn_wri', 'r0', psy_profile0)
       DO jk = 1, jpkm1
         peke = peke + SUM(zkepe(:, :, jk) * gdept_n(:, :, jk) * e1e2t(:, :) * e3t_n(:, :, jk))
       END DO
@@ -237,11 +244,15 @@ MODULE trdglo
 9547  FORMAT(' 0 < vertical diffusion                                    : ', E20.13)
 9548  FORMAT(' pressure gradient u2 = - 1/rau0 u.dz(rhop)                : ', E20.13, '  u.dz(rhop) =', E20.13)
       rpktrd = peke
+      CALL ProfileEnd(psy_profile0)
     END IF
   END SUBROUTINE glo_dyn_wri
   SUBROUTINE glo_tra_wri(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: jk
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('glo_tra_wri', 'r0', psy_profile0)
     IF (MOD(kt, nn_trd) == 0 .OR. kt == nit000 .OR. kt == nitend) THEN
       IF (lk_mpp) THEN
         CALL mpp_sum(tmo, jptot_tra)
@@ -330,6 +341,7 @@ MODULE trdglo
 9448  FORMAT(' 0 > vertical diffusion            * t  ', E20.13, '       ', E20.13)
 9449  FORMAT(' 0 > static instability mixing     * t  ', E20.13, '       ', E20.13)
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE glo_tra_wri
   SUBROUTINE trd_glo_init
     INTEGER :: ji, jj, jk

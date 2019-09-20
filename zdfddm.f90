@@ -12,6 +12,7 @@ MODULE zdfddm
   PUBLIC :: zdf_ddm
   CONTAINS
   SUBROUTINE zdf_ddm(kt, p_avm, p_avt, p_avs)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avt
@@ -23,6 +24,7 @@ MODULE zdfddm
     REAL(KIND = wp) :: zavft, zavfs
     REAL(KIND = wp) :: zavdt, zavds
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zrau, zmsks, zmskf, zmskd1, zmskd2, zmskd3
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     DO jk = 2, jpkm1
       DO jj = 1, jpj
@@ -82,8 +84,10 @@ MODULE zdfddm
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('zdf_ddm', 'r0', psy_profile0)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab3d_1 = avt, clinfo1 = ' ddm  - t: ', tab3d_2 = avs, clinfo2 = ' s: ', kdim = jpk)
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE zdf_ddm
 END MODULE zdfddm
