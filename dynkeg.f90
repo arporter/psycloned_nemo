@@ -39,9 +39,7 @@ MODULE dynkeg
     END IF
     CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
-      CALL ProfileStart('dyn_keg', 'r1', psy_profile1)
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :)
       ztrdv(:, :, :) = va(:, :, :)
@@ -50,7 +48,7 @@ MODULE dynkeg
     !$ACC KERNELS
     zhke(:, :, jpk) = 0._wp
     !$ACC END KERNELS
-    CALL ProfileStart('dyn_keg', 'r2', psy_profile2)
+    CALL ProfileStart('dyn_keg', 'r1', psy_profile1)
     IF (ln_bdy) THEN
       DO ib_bdy = 1, nb_bdy
         IF (cn_dyn3d(ib_bdy) /= 'none') THEN
@@ -75,7 +73,7 @@ MODULE dynkeg
         END IF
       END DO
     END IF
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
     SELECT CASE (kscheme)
     CASE (nkeg_C2)
       !$ACC KERNELS
@@ -124,8 +122,10 @@ MODULE dynkeg
       ztrdu(:, :, :) = ua(:, :, :) - ztrdu(:, :, :)
       ztrdv(:, :, :) = va(:, :, :) - ztrdv(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('dyn_keg', 'r2', psy_profile2)
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_keg, kt)
       DEALLOCATE(ztrdu, ztrdv)
+      CALL ProfileEnd(psy_profile2)
     END IF
     CALL ProfileStart('dyn_keg', 'r3', psy_profile3)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' keg  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')

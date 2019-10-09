@@ -39,24 +39,18 @@ MODULE dynhpg
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    CALL ProfileStart('dyn_hpg', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dyn_hpg')
-    CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
-      CALL ProfileStart('dyn_hpg', 'r1', psy_profile1)
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :)
       ztrdv(:, :, :) = va(:, :, :)
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('dyn_hpg', 'r0', psy_profile0)
     SELECT CASE (nhpg)
     CASE (np_zco)
-      CALL ProfileStart('dyn_hpg', 'r2', psy_profile2)
       CALL hpg_zco(kt)
-      CALL ProfileEnd(psy_profile2)
     CASE (np_zps)
       CALL hpg_zps(kt)
     CASE (np_sco)
@@ -68,18 +62,21 @@ MODULE dynhpg
     CASE (np_isf)
       CALL hpg_isf(kt)
     END SELECT
+    CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :) - ztrdu(:, :, :)
       ztrdv(:, :, :) = va(:, :, :) - ztrdv(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('dyn_hpg', 'r1', psy_profile1)
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_hpg, kt)
       DEALLOCATE(ztrdu, ztrdv)
+      CALL ProfileEnd(psy_profile1)
     END IF
-    CALL ProfileStart('dyn_hpg', 'r3', psy_profile3)
+    CALL ProfileStart('dyn_hpg', 'r2', psy_profile2)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' hpg  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_hpg')
-    CALL ProfileEnd(psy_profile3)
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE dyn_hpg
   SUBROUTINE dyn_hpg_init
     INTEGER :: ioptio = 0
@@ -299,7 +296,6 @@ MODULE dynhpg
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zhpi, zhpj
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zcpx, zcpy
     TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
     CALL ProfileStart('hpg_sco', 'r0', psy_profile0)
     IF (ln_wd_il) ALLOCATE(zcpx(jpi, jpj), zcpy(jpi, jpj))
     IF (kt == nit000) THEN
@@ -377,9 +373,7 @@ MODULE dynhpg
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('hpg_sco', 'r1', psy_profile1)
     IF (ln_wd_il) DEALLOCATE(zcpx, zcpy)
-    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE hpg_sco
   SUBROUTINE hpg_isf(kt)
     INTEGER, INTENT(IN) :: kt
@@ -444,12 +438,8 @@ MODULE dynhpg
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: rho_i, rho_j, rho_k
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zcpx, zcpy
     TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
     IF (ln_wd_il) THEN
-      CALL ProfileStart('hpg_djc', 'r0', psy_profile0)
       ALLOCATE(zcpx(jpi, jpj), zcpy(jpi, jpj))
-      CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -476,13 +466,13 @@ MODULE dynhpg
       !$ACC END KERNELS
       CALL lbc_lnk_multi(zcpx, 'U', 1., zcpy, 'V', 1.)
     END IF
-    CALL ProfileStart('hpg_djc', 'r1', psy_profile1)
+    CALL ProfileStart('hpg_djc', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn:hpg_djc : hydrostatic pressure gradient trend'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~   s-coordinate case, density Jacobian with cubic polynomial scheme'
     END IF
-    CALL ProfileEnd(psy_profile1)
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zcoef0 = - grav * 0.5_wp
     z1_10 = 1._wp / 10._wp
@@ -587,9 +577,7 @@ MODULE dynhpg
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('hpg_djc', 'r2', psy_profile2)
     IF (ln_wd_il) DEALLOCATE(zcpx, zcpy)
-    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE hpg_djc
   SUBROUTINE hpg_prj(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -609,7 +597,6 @@ MODULE dynhpg
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
     CALL ProfileStart('hpg_prj', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -621,9 +608,7 @@ MODULE dynhpg
     IF (ln_linssh) znad = 0._wp
     CALL ProfileEnd(psy_profile0)
     IF (ln_wd_il) THEN
-      CALL ProfileStart('hpg_prj', 'r1', psy_profile1)
       ALLOCATE(zcpx(jpi, jpj), zcpy(jpi, jpj))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -658,9 +643,9 @@ MODULE dynhpg
     !$ACC END KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
-        CALL ProfileStart('hpg_prj', 'r2', psy_profile2)
+        CALL ProfileStart('hpg_prj', 'r1', psy_profile1)
         jk = mbkt(ji, jj) + 1
-        CALL ProfileEnd(psy_profile2)
+        CALL ProfileEnd(psy_profile1)
         IF (jk <= 0) THEN
           !$ACC KERNELS
           zrhh(ji, jj, :) = 0._wp
@@ -751,7 +736,7 @@ MODULE dynhpg
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('hpg_prj', 'r3', psy_profile3)
+    CALL ProfileStart('hpg_prj', 'r2', psy_profile2)
     DO jk = 1, jpkm1
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -849,7 +834,7 @@ MODULE dynhpg
       END DO
     END DO
     IF (ln_wd_il) DEALLOCATE(zcpx, zcpy)
-    CALL ProfileEnd(psy_profile3)
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE hpg_prj
   SUBROUTINE cspline(fsp, xsp, asp, bsp, csp, dsp, polynomial_type)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

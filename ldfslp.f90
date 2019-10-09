@@ -53,10 +53,7 @@ MODULE ldfslp
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zgru, zwz, zdzr
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zgrv, zww
     TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('ldf_slp', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('ldf_slp')
-    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zeps = 1.E-20_wp
     z1_16 = 1.0_wp / 16._wp
@@ -206,14 +203,14 @@ MODULE ldfslp
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('ldf_slp', 'r1', psy_profile1)
+    CALL ProfileStart('ldf_slp', 'r0', psy_profile0)
     CALL lbc_lnk_multi(uslp, 'U', - 1., vslp, 'V', - 1., wslpi, 'W', - 1., wslpj, 'W', - 1.)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab3d_1 = uslp, clinfo1 = ' slp  - u : ', tab3d_2 = vslp, clinfo2 = ' v : ', kdim = jpk)
       CALL prt_ctl(tab3d_1 = wslpi, clinfo1 = ' slp  - wi: ', tab3d_2 = wslpj, clinfo2 = ' wj: ', kdim = jpk)
     END IF
     IF (ln_timing) CALL timing_stop('ldf_slp')
-    CALL ProfileEnd(psy_profile1)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ldf_slp
   SUBROUTINE ldf_slp_triad(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -234,10 +231,7 @@ MODULE ldfslp
     REAL(KIND = wp), DIMENSION(jpi, jpj, 0 : 1, 0 : 1) :: zti_mlb, ztj_mlb
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    CALL ProfileStart('ldf_slp_triad', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('ldf_slp_triad')
-    CALL ProfileEnd(psy_profile0)
     DO jl = 0, 1
       !$ACC KERNELS
       ip = jl
@@ -336,7 +330,7 @@ MODULE ldfslp
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('ldf_slp_triad', 'r1', psy_profile1)
+    CALL ProfileStart('ldf_slp_triad', 'r0', psy_profile0)
     DO kp = 0, 1
       DO jl = 0, 1
         ip = jl
@@ -386,14 +380,14 @@ MODULE ldfslp
         END DO
       END DO
     END DO
-    CALL ProfileEnd(psy_profile1)
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     wslp2(:, :, 1) = 0._wp
     !$ACC END KERNELS
-    CALL ProfileStart('ldf_slp_triad', 'r2', psy_profile2)
+    CALL ProfileStart('ldf_slp_triad', 'r1', psy_profile1)
     CALL lbc_lnk(wslp2, 'W', 1.)
     IF (ln_timing) CALL timing_stop('ldf_slp_triad')
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE ldf_slp_triad
   SUBROUTINE ldf_slp_mxl(prd, pn2, p_gru, p_grv, p_dzr)
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: prd

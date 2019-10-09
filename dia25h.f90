@@ -96,7 +96,6 @@ MODULE dia25h
     TYPE(ProfileData), SAVE :: psy_profile2
     TYPE(ProfileData), SAVE :: psy_profile3
     TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
     CALL ProfileStart('dia_25h', 'r0', psy_profile0)
     IF (MOD(3600, NINT(rdt)) == 0) THEN
       i_steps = 3600 / NINT(rdt)
@@ -168,9 +167,7 @@ MODULE dia25h
         rmxln_25h(:, :, :) = rmxln_25h(:, :, :) * r1_25
         !$ACC END KERNELS
       END IF
-      CALL ProfileStart('dia_25h', 'r4', psy_profile4)
       IF (lwp) WRITE(numout, FMT = *) 'dia_wri_tide : Mean calculated by dividing 25 hour sums and writing output'
-      CALL ProfileEnd(psy_profile4)
       !$ACC KERNELS
       zmdi = 1.E+20
       zw3d(:, :, :) = tn_25h(:, :, :) * tmask(:, :, :) + zmdi * (1.0 - tmask(:, :, :))
@@ -241,10 +238,10 @@ MODULE dia25h
         rmxln_25h(:, :, :) = hmxl_n(:, :, :)
         !$ACC END KERNELS
       END IF
-      CALL ProfileStart('dia_25h', 'r5', psy_profile5)
+      CALL ProfileStart('dia_25h', 'r4', psy_profile4)
       cnt_25h = 1
       IF (lwp) WRITE(numout, FMT = *) 'dia_wri_tide :       After 25hr mean write, reset sum to current value and cnt_25h to one for overlapping average', cnt_25h
-      CALL ProfileEnd(psy_profile5)
+      CALL ProfileEnd(psy_profile4)
     END IF
   END SUBROUTINE dia_25h
 END MODULE dia25h

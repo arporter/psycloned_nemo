@@ -61,14 +61,14 @@ MODULE trdpen
     CASE (jptra_zad)
       CALL iom_put("petrd_zad", zpe)
       IF (ln_linssh) THEN
-        CALL ProfileStart('trd_pen', 'r1', psy_profile1)
         ALLOCATE(z2d(jpi, jpj))
-        CALL ProfileEnd(psy_profile1)
         !$ACC KERNELS
         z2d(:, :) = wn(:, :, 1) * (- (rab_n(:, :, 1, jp_tem) + rab_pe(:, :, 1, jp_tem)) * tsn(:, :, 1, jp_tem) + (rab_n(:, :, 1, jp_sal) + rab_pe(:, :, 1, jp_sal)) * tsn(:, :, 1, jp_sal)) / e3t_n(:, :, 1)
         !$ACC END KERNELS
+        CALL ProfileStart('trd_pen', 'r1', psy_profile1)
         CALL iom_put("petrd_sad", z2d)
         DEALLOCATE(z2d)
+        CALL ProfileEnd(psy_profile1)
       END IF
     CASE (jptra_ldf)
       CALL ProfileStart('trd_pen', 'r2', psy_profile2)

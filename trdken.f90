@@ -27,6 +27,7 @@ MODULE trdken
     IF (trd_ken_alloc /= 0) CALL ctl_warn('trd_ken_alloc: failed to allocate arrays')
   END FUNCTION trd_ken_alloc
   SUBROUTINE trd_ken(putrd, pvtrd, ktrd, kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
     INTEGER, INTENT(IN   ) :: ktrd
     INTEGER, INTENT(IN   ) :: kt
@@ -35,6 +36,9 @@ MODULE trdken
     INTEGER :: ikbum1, ikbvm1
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: z2dx, z2dy, zke2d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zke
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
     CALL lbc_lnk_multi(putrd, 'U', - 1., pvtrd, 'V', - 1.)
     !$ACC KERNELS
     nkstp = kt
@@ -70,8 +74,10 @@ MODULE trdken
     CASE (jpdyn_ldf)
       CALL iom_put("ketrd_ldf", zke)
     CASE (jpdyn_zdf)
+      CALL ProfileStart('trd_ken', 'r0', psy_profile0)
       CALL iom_put("ketrd_zdf", zke)
       ALLOCATE(z2dx(jpi, jpj), z2dy(jpi, jpj), zke2d(jpi, jpj))
+      CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       z2dx(:, :) = un(:, :, 1) * (utau_b(:, :) + utau(:, :)) * e1e2u(:, :) * umask(:, :, 1)
       z2dy(:, :) = vn(:, :, 1) * (vtau_b(:, :) + vtau(:, :)) * e1e2v(:, :) * vmask(:, :, 1)
@@ -83,8 +89,10 @@ MODULE trdken
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('trd_ken', 'r1', psy_profile1)
       CALL iom_put("ketrd_tau", zke2d)
       DEALLOCATE(z2dx, z2dy, zke2d)
+      CALL ProfileEnd(psy_profile1)
     CASE (jpdyn_bfr)
       CALL iom_put("ketrd_bfr", zke)
     CASE (jpdyn_atf)
@@ -93,9 +101,11 @@ MODULE trdken
       !$ACC KERNELS
       zke(:, :, :) = 0.5_wp * zke(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('trd_ken', 'r2', psy_profile2)
       CALL iom_put("KE", zke)
       CALL ken_p2k(kt, zke)
       CALL iom_put("ketrd_convP2K", zke)
+      CALL ProfileEnd(psy_profile2)
     END SELECT
   END SUBROUTINE trd_ken
   SUBROUTINE ken_p2k(kt, pconv)

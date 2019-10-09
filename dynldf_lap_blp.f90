@@ -58,6 +58,7 @@ MODULE dynldf_lap_blp
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zulap, zvlap
     TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     CALL ProfileStart('dyn_ldf_blp', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -69,8 +70,10 @@ MODULE dynldf_lap_blp
     zulap(:, :, :) = 0._wp
     zvlap(:, :, :) = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('dyn_ldf_blp', 'r1', psy_profile1)
     CALL dyn_ldf_lap(kt, pub, pvb, zulap, zvlap, 1)
     CALL lbc_lnk_multi(zulap, 'U', - 1., zvlap, 'V', - 1.)
     CALL dyn_ldf_lap(kt, zulap, zvlap, pua, pva, 2)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE dyn_ldf_blp
 END MODULE dynldf_lap_blp

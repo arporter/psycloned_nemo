@@ -54,9 +54,9 @@ MODULE sbcice_if
       CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       fr_i(:, :) = fr_i(:, :) * tmask(:, :, 1)
+      IF (ln_cpl) a_i(:, :, 1) = fr_i(:, :)
       !$ACC END KERNELS
       CALL ProfileStart('sbc_ice_if', 'r2', psy_profile2)
-      IF (ln_cpl) a_i(:, :, 1) = fr_i(:, :)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zt_fzp = fr_i(ji, jj)

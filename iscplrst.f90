@@ -293,12 +293,14 @@ MODULE iscplrst
         END DO
       END DO
     END IF
+    !$ACC KERNELS
     WHERE (tmask(:, :, :) == 1._wp .AND. tsn(:, :, :, 2) == 0._wp)
       tsn(:, :, :, 2) = - 99._wp
       tmask(:, :, :) = 0._wp
       umask(:, :, :) = 0._wp
       vmask(:, :, :) = 0._wp
     END WHERE
+    !$ACC END KERNELS
     WHERE (SUM(tmask, dim = 3) == 0)
       mbkt(:, :) = 1
       mbku(:, :) = 1

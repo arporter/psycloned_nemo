@@ -230,10 +230,8 @@ MODULE sbcisf
     CASE (1)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '      ==>>>   presence of under iceshelf seas (nn_isf = 1)'
-      !$ACC KERNELS
       rhisf_tbl(:, :) = rn_hisf_tbl
       misfkt(:, :) = mikt(:, :)
-      !$ACC END KERNELS
     CASE (2, 3)
       IF (.NOT. l_isfcpl) THEN
         ALLOCATE(sf_rnfisf(1), STAT = ierror)
@@ -260,9 +258,7 @@ MODULE sbcisf
       cvarzisf = TRIM(sn_depmin_isf % clvar)
       CALL iom_get(inum, jpdom_data, cvarzisf, rzisf_tbl, 1)
       CALL iom_close(inum)
-      !$ACC KERNELS
       rhisf_tbl(:, :) = rhisf_tbl(:, :) - rzisf_tbl(:, :)
-      !$ACC END KERNELS
       DO ji = 1, jpi
         DO jj = 1, jpj
           ik = 2
@@ -275,10 +271,8 @@ MODULE sbcisf
     CASE (4)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '      ==>>>   specified fresh water flux in ISF (nn_isf = 4)'
-      !$ACC KERNELS
       rhisf_tbl(:, :) = rn_hisf_tbl
       misfkt(:, :) = mikt(:, :)
-      !$ACC END KERNELS
       IF (.NOT. l_isfcpl) THEN
         ALLOCATE(sf_fwfisf(1), STAT = ierror)
         ALLOCATE(sf_fwfisf(1) % fnow(jpi, jpj, 1), sf_fwfisf(1) % fdta(jpi, jpj, 1, 2))
@@ -617,16 +611,14 @@ MODULE sbcisf
     !$ACC END KERNELS
   END SUBROUTINE sbc_isf_tbl
   SUBROUTINE sbc_isf_div(phdivn)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT( INOUT ) :: phdivn
     INTEGER :: ji, jj, jk
     INTEGER :: ikt, ikb
     REAL(KIND = wp) :: zhk
     REAL(KIND = wp) :: zfact
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('sbc_isf_div', 'r0', psy_profile0)
     zfact = 0.5_wp
     IF (.NOT. ln_linssh) THEN
+      !$ACC KERNELS
       DO jj = 1, jpj
         DO ji = 1, jpi
           ikt = misfkt(ji, jj)
@@ -642,8 +634,8 @@ MODULE sbcisf
           ralpha(ji, jj) = rhisf_tbl(ji, jj) * (1._wp - zhk) / e3t_n(ji, jj, ikb)
         END DO
       END DO
+      !$ACC END KERNELS
     END IF
-    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi

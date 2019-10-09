@@ -61,7 +61,6 @@ MODULE sbcwave
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
     CALL ProfileStart('sbc_stokes', 'r0', psy_profile0)
     ALLOCATE(ze3divh(jpi, jpj, jpk))
     ALLOCATE(zk_t(jpi, jpj), zk_u(jpi, jpj), zk_v(jpi, jpj), zu0_sd(jpi, jpj), zv0_sd(jpi, jpj))
@@ -120,9 +119,7 @@ MODULE sbcwave
       END DO
       !$ACC END KERNELS
     ELSE IF (ll_st_li2017 .OR. ll_st_peakfr) THEN
-      CALL ProfileStart('sbc_stokes', 'r1', psy_profile1)
       ALLOCATE(zstokes_psi_u_top(jpi, jpj), zstokes_psi_v_top(jpi, jpj))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
@@ -159,9 +156,7 @@ MODULE sbcwave
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('sbc_stokes', 'r2', psy_profile2)
       DEALLOCATE(zstokes_psi_u_top, zstokes_psi_v_top)
-      CALL ProfileEnd(psy_profile2)
     END IF
     CALL lbc_lnk_multi(usd, 'U', - 1., vsd, 'V', - 1.)
     !$ACC KERNELS
@@ -173,14 +168,14 @@ MODULE sbcwave
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('sbc_stokes', 'r3', psy_profile3)
+    CALL ProfileStart('sbc_stokes', 'r1', psy_profile1)
     CALL lbc_lnk(ze3divh, 'T', 1.)
     IF (ln_linssh) THEN
       ik = 1
     ELSE
       ik = 2
     END IF
-    CALL ProfileEnd(psy_profile3)
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     DO jk = jpkm1, ik, - 1
       wsd(:, :, jk) = wsd(:, :, jk + 1) - ze3divh(:, :, jk)
@@ -199,11 +194,13 @@ MODULE sbcwave
       div_sd(:, :) = div_sd(:, :) + ze3divh(:, :, jk)
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('sbc_stokes', 'r2', psy_profile2)
     CALL iom_put("ustokes", usd)
     CALL iom_put("vstokes", vsd)
     CALL iom_put("wstokes", wsd)
     DEALLOCATE(ze3divh)
     DEALLOCATE(zk_t, zk_u, zk_v, zu0_sd, zv0_sd)
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE sbc_stokes
   SUBROUTINE sbc_wstress
     INTEGER :: jj, ji

@@ -68,17 +68,18 @@ MODULE sbcapr
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    CALL ProfileStart('sbc_apr', 'r0', psy_profile0)
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
+      !$ACC KERNELS
       IF (kt /= nit000) ssh_ibb(:, :) = ssh_ib(:, :)
+      !$ACC END KERNELS
+      CALL ProfileStart('sbc_apr', 'r0', psy_profile0)
       CALL fld_read(kt, nn_fsbc, sf_apr)
       IF (ln_ref_apr) rn_pref = glob_sum(sf_apr(1) % fnow(:, :, 1) * e1e2t(:, :)) / tarea
       ssh_ib(:, :) = - (sf_apr(1) % fnow(:, :, 1) - rn_pref) * r1_grau
       apr(:, :) = sf_apr(1) % fnow(:, :, 1)
       CALL iom_put("ssh_ib", ssh_ib)
+      CALL ProfileEnd(psy_profile0)
     END IF
-    CALL ProfileEnd(psy_profile0)
     IF (kt == nit000) THEN
       IF (ln_rstart .AND. iom_varid(numror, 'ssh_ibb', ldstop = .FALSE.) > 0) THEN
         CALL ProfileStart('sbc_apr', 'r1', psy_profile1)
@@ -86,15 +87,13 @@ MODULE sbcapr
         CALL iom_get(numror, jpdom_autoglo, 'ssh_ibb', ssh_ibb, ldxios = lrxios)
         CALL ProfileEnd(psy_profile1)
       ELSE
-        CALL ProfileStart('sbc_apr', 'r2', psy_profile2)
         IF (lwp) WRITE(numout, FMT = *) 'sbc_apr:   ssh_ibb set to nit000 values'
-        CALL ProfileEnd(psy_profile2)
         !$ACC KERNELS
         ssh_ibb(:, :) = ssh_ib(:, :)
         !$ACC END KERNELS
       END IF
     END IF
-    CALL ProfileStart('sbc_apr', 'r3', psy_profile3)
+    CALL ProfileStart('sbc_apr', 'r2', psy_profile2)
     IF (lrst_oce) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'sbc_apr : ssh_ib written in ocean restart file at it= ', kt, ' date= ', ndastp
@@ -103,6 +102,6 @@ MODULE sbcapr
       CALL iom_rstput(kt, nitrst, numrow, 'ssh_ibb', ssh_ib, ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
-    CALL ProfileEnd(psy_profile3)
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE sbc_apr
 END MODULE sbcapr

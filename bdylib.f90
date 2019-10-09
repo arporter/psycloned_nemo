@@ -12,12 +12,15 @@ MODULE bdylib
   PUBLIC :: bdy_orlanski_3d
   CONTAINS
   SUBROUTINE bdy_frs(idx, pta, dta)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: dta
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pta
     REAL(KIND = wp) :: zwgt
     INTEGER :: ib, ik, igrd
     INTEGER :: ii, ij
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_frs', 'r0', psy_profile0)
     igrd = 1
     DO ib = 1, idx % nblen(igrd)
       DO ik = 1, jpkm1
@@ -27,18 +30,26 @@ MODULE bdylib
         pta(ii, ij, ik) = (pta(ii, ij, ik) + zwgt * (dta(ib, ik) - pta(ii, ij, ik))) * tmask(ii, ij, ik)
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_frs
   SUBROUTINE bdy_spe(idx, pta, dta)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: dta
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pta
     REAL(KIND = wp) :: zwgt
     INTEGER :: ib, ik, igrd
     INTEGER :: ii, ij
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('bdy_spe', 'r0', psy_profile0)
     igrd = 1
+    CALL ProfileEnd(psy_profile0)
     DO ib = 1, idx % nblenrim(igrd)
+      CALL ProfileStart('bdy_spe', 'r1', psy_profile1)
       ii = idx % nbi(ib, igrd)
       ij = idx % nbj(ib, igrd)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       DO ik = 1, jpkm1
         pta(ii, ij, ik) = dta(ib, ik) * tmask(ii, ij, ik)
@@ -47,16 +58,21 @@ MODULE bdylib
     END DO
   END SUBROUTINE bdy_spe
   SUBROUTINE bdy_orl(idx, ptb, pta, dta, ll_npo)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: dta
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: ptb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pta
     LOGICAL, INTENT(IN) :: ll_npo
     INTEGER :: igrd
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_orl', 'r0', psy_profile0)
     igrd = 1
     CALL bdy_orlanski_3d(idx, igrd, ptb(:, :, :), pta(:, :, :), dta, ll_npo)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_orl
   SUBROUTINE bdy_orlanski_2d(idx, igrd, phib, phia, phi_ext, ll_npo)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(OBC_INDEX), INTENT(IN   ) :: idx
     INTEGER, INTENT(IN   ) :: igrd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: phib
@@ -80,6 +96,8 @@ MODULE bdylib
     REAL(KIND = wp), POINTER, DIMENSION(:, :) :: pmask_ydif
     REAL(KIND = wp), POINTER, DIMENSION(:, :) :: pe_xdif
     REAL(KIND = wp), POINTER, DIMENSION(:, :) :: pe_ydif
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_orlanski_2d', 'r0', psy_profile0)
     SELECT CASE (igrd)
     CASE (1)
       pmask => tmask(:, :, 1)
@@ -163,8 +181,10 @@ MODULE bdylib
       END IF
       phia(ii, ij) = phia(ii, ij) * pmask(ii, ij)
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_orlanski_2d
   SUBROUTINE bdy_orlanski_3d(idx, igrd, phib, phia, phi_ext, ll_npo)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(OBC_INDEX), INTENT(IN   ) :: idx
     INTEGER, INTENT(IN   ) :: igrd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: phib
@@ -188,6 +208,8 @@ MODULE bdylib
     REAL(KIND = wp), POINTER, DIMENSION(:, :, :) :: pmask_ydif
     REAL(KIND = wp), POINTER, DIMENSION(:, :) :: pe_xdif
     REAL(KIND = wp), POINTER, DIMENSION(:, :) :: pe_ydif
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_orlanski_3d', 'r0', psy_profile0)
     SELECT CASE (igrd)
     CASE (1)
       pmask => tmask(:, :, :)
@@ -273,8 +295,10 @@ MODULE bdylib
         phia(ii, ij, jk) = phia(ii, ij, jk) * pmask(ii, ij, jk)
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_orlanski_3d
   SUBROUTINE bdy_nmn(idx, igrd, phia)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: igrd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: phia
     TYPE(OBC_INDEX), INTENT(IN) :: idx
@@ -283,6 +307,8 @@ MODULE bdylib
     REAL(KIND = wp), POINTER, DIMENSION(:, :) :: bdypmask
     INTEGER :: ib, ik
     INTEGER :: ii, ij, ip, jp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_nmn', 'r0', psy_profile0)
     SELECT CASE (igrd)
     CASE (1)
       pmask => tmask(:, :, :)
@@ -321,5 +347,6 @@ MODULE bdylib
         END IF
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_nmn
 END MODULE bdylib

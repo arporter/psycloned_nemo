@@ -47,8 +47,11 @@ MODULE diatmb
     !$ACC END KERNELS
   END SUBROUTINE dia_calctmb
   SUBROUTINE dia_tmb
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp) :: zmdi = 1.E+20
     REAL(KIND = wp), DIMENSION(jpi, jpj, 3) :: zwtmb
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dia_tmb', 'r0', psy_profile0)
     CALL dia_calctmb(tsn(:, :, :, jp_tem), zwtmb)
     CALL iom_put("sshnmasked", sshn(:, :) * tmask(:, :, 1) + zmdi * (1.0 - tmask(:, :, 1)))
     CALL iom_put("top_temp", zwtmb(:, :, 1))
@@ -66,5 +69,6 @@ MODULE diatmb
     CALL iom_put("top_v", zwtmb(:, :, 1))
     CALL iom_put("mid_v", zwtmb(:, :, 2))
     CALL iom_put("bot_v", zwtmb(:, :, 3))
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE dia_tmb
 END MODULE diatmb

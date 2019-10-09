@@ -164,6 +164,7 @@ MODULE icedyn_adv_umx
     CALL lbc_lnk(ptc, 'T', 1.)
   END SUBROUTINE adv_umx
   SUBROUTINE macho(k_order, kt, pdt, ptc, puc, pvc, pubox, pvbox, pt_u, pt_v)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: k_order
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), INTENT(IN   ) :: pdt
@@ -174,6 +175,8 @@ MODULE icedyn_adv_umx
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zc_box
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zzt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     IF (MOD((kt - 1) / nn_fsbc, 2) == 0) THEN
       CALL ultimate_x(k_order, pdt, ptc, puc, pt_u)
       !$ACC KERNELS
@@ -184,8 +187,10 @@ MODULE icedyn_adv_umx
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('macho', 'r0', psy_profile0)
       CALL lbc_lnk(zzt, 'T', 1.)
       CALL ultimate_y(k_order, pdt, zzt, pvc, pt_v)
+      CALL ProfileEnd(psy_profile0)
     ELSE
       CALL ultimate_y(k_order, pdt, ptc, pvc, pt_v)
       !$ACC KERNELS
@@ -196,8 +201,10 @@ MODULE icedyn_adv_umx
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('macho', 'r1', psy_profile1)
       CALL lbc_lnk(zzt, 'T', 1.)
       CALL ultimate_x(k_order, pdt, zzt, puc, pt_u)
+      CALL ProfileEnd(psy_profile1)
     END IF
   END SUBROUTINE macho
   SUBROUTINE ultimate_x(k_order, pdt, pt, puc, pt_u)
@@ -388,12 +395,12 @@ MODULE icedyn_adv_umx
     END DO
     !$ACC END KERNELS
     CALL lbc_lnk(zdiv, 'T', 1.)
+    !$ACC KERNELS
     WHERE (pbef(:, :) == 0._wp .AND. paft(:, :) == 0._wp .AND. zdiv(:, :) == 0._wp)
       zmsk(:, :) = 0._wp
     ELSEWHERE
       zmsk(:, :) = 1._wp * tmask(:, :, 1)
     END WHERE
-    !$ACC KERNELS
     zbup(:, :) = MAX(pbef(:, :) * zmsk(:, :) - zbig * (1.E0 - zmsk(:, :)), paft(:, :) * zmsk(:, :) - zbig * (1.E0 - zmsk(:, :)))
     zbdo(:, :) = MIN(pbef(:, :) * zmsk(:, :) + zbig * (1.E0 - zmsk(:, :)), paft(:, :) * zmsk(:, :) + zbig * (1.E0 - zmsk(:, :)))
     z1_dt = 1._wp / pdt

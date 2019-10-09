@@ -131,8 +131,6 @@ MODULE zdfmxl
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
     CALL ProfileStart('zdf_mxl_zint_mld', 'r0', psy_profile0)
     nn_mld_type = sf % mld_type
     rn_zref = sf % zref
@@ -172,19 +170,17 @@ MODULE zdfmxl
       zdTdz(:, :, jk) = (zT(:, :, jk + 1) - zT(:, :, jk)) / e3w_n(:, :, jk + 1)
       zmoddT(:, :, jk) = ABS(zT(:, :, jk + 1) - zT(:, :, jk))
     END DO
-    !$ACC END KERNELS
-    CALL ProfileStart('zdf_mxl_zint_mld', 'r1', psy_profile1)
     DO jk = jpkm1, 2, - 1
       WHERE (gdept_n(:, :, jk) > rn_zref)
         ik_ref(:, :) = jk - 1
         zT_ref(:, :) = zT(:, :, jk - 1) + zdTdz(:, :, jk - 1) * (rn_zref - gdept_n(:, :, jk - 1))
       END WHERE
     END DO
+    !$ACC END KERNELS
     WHERE (gdept_n(:, :, 1) > rn_zref)
       zT_ref = zT(:, :, 1)
       ik_ref = 1
     END WHERE
-    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     ikmt(:, :) = mbkt(:, :) - 1
     ll_found(:, :) = .FALSE.
@@ -193,7 +189,7 @@ MODULE zdfmxl
       !$ACC KERNELS
       ik_iso(:, :) = ik_ref(:, :)
       !$ACC END KERNELS
-      CALL ProfileStart('zdf_mxl_zint_mld', 'r2', psy_profile2)
+      CALL ProfileStart('zdf_mxl_zint_mld', 'r1', psy_profile1)
       DO jj = 1, nlcj
         DO ji = 1, nlci
           DO jk = ik_ref(ji, jj), ikmt(ji, jj) - 1
@@ -205,7 +201,7 @@ MODULE zdfmxl
           END DO
         END DO
       END DO
-      CALL ProfileEnd(psy_profile2)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       hmld_zint(:, :) = rn_zref
       DO jj = 1, jpj
@@ -218,11 +214,9 @@ MODULE zdfmxl
       END DO
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('zdf_mxl_zint_mld', 'r3', psy_profile3)
     WHERE (tmask(:, :, 1) /= 1.0)
       ll_found = .TRUE.
     END WHERE
-    CALL ProfileEnd(psy_profile3)
     !$ACC KERNELS
     DO jk = 1, jpk
       ll_belowml(:, :, jk) = ABS(zT(:, :, jk) - zT_ref(:, :)) >= zdelta_T(:, :)
@@ -233,7 +227,7 @@ MODULE zdfmxl
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('zdf_mxl_zint_mld', 'r4', psy_profile4)
+    CALL ProfileStart('zdf_mxl_zint_mld', 'r2', psy_profile2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         DO jk = ik_ref(ji, jj) + 1, ikmt(ji, jj)
@@ -248,7 +242,7 @@ MODULE zdfmxl
         END DO
       END DO
     END DO
-    CALL ProfileEnd(psy_profile4)
+    CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     hmld_zint(:, :) = hmld_zint(:, :) * tmask(:, :, 1)
     !$ACC END KERNELS
@@ -264,7 +258,6 @@ MODULE zdfmxl
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
     CALL ProfileStart('zdf_mxl_zint_htc', 'r0', psy_profile0)
     IF (.NOT. ALLOCATED(ilevel)) THEN
       ALLOCATE(ilevel(jpi, jpj), zthick_0(jpi, jpj), zthick(jpi, jpj), STAT = ji)
@@ -321,9 +314,7 @@ MODULE zdfmxl
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('zdf_mxl_zint_htc', 'r3', psy_profile3)
     WRITE(numout, FMT = *) 'htc_mld(after) =', htc_mld(2, 2)
-    CALL ProfileEnd(psy_profile3)
     !$ACC KERNELS
     zcoef = rau0 * rcp
     htc_mld(:, :) = zcoef * htc_mld(:, :)

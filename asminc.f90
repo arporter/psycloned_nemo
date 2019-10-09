@@ -235,9 +235,9 @@ MODULE asminc
         !$ACC KERNELS
         t_bkginc(:, :, :) = t_bkginc(:, :, :) * tmask(:, :, :)
         s_bkginc(:, :, :) = s_bkginc(:, :, :) * tmask(:, :, :)
-        !$ACC END KERNELS
         WHERE (ABS(t_bkginc(:, :, :)) > 1.0E+10) t_bkginc(:, :, :) = 0.0
         WHERE (ABS(s_bkginc(:, :, :)) > 1.0E+10) s_bkginc(:, :, :) = 0.0
+        !$ACC END KERNELS
       END IF
       IF (ln_dyninc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'bckinu', u_bkginc, 1)
@@ -245,23 +245,23 @@ MODULE asminc
         !$ACC KERNELS
         u_bkginc(:, :, :) = u_bkginc(:, :, :) * umask(:, :, :)
         v_bkginc(:, :, :) = v_bkginc(:, :, :) * vmask(:, :, :)
-        !$ACC END KERNELS
         WHERE (ABS(u_bkginc(:, :, :)) > 1.0E+10) u_bkginc(:, :, :) = 0.0
         WHERE (ABS(v_bkginc(:, :, :)) > 1.0E+10) v_bkginc(:, :, :) = 0.0
+        !$ACC END KERNELS
       END IF
       IF (ln_sshinc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'bckineta', ssh_bkginc, 1)
         !$ACC KERNELS
         ssh_bkginc(:, :) = ssh_bkginc(:, :) * tmask(:, :, 1)
-        !$ACC END KERNELS
         WHERE (ABS(ssh_bkginc(:, :)) > 1.0E+10) ssh_bkginc(:, :) = 0.0
+        !$ACC END KERNELS
       END IF
       IF (ln_seaiceinc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'bckinseaice', seaice_bkginc, 1)
         !$ACC KERNELS
         seaice_bkginc(:, :) = seaice_bkginc(:, :) * tmask(:, :, 1)
-        !$ACC END KERNELS
         WHERE (ABS(seaice_bkginc(:, :)) > 1.0E+10) seaice_bkginc(:, :) = 0.0
+        !$ACC END KERNELS
       END IF
       CALL iom_close(inum)
     END IF
@@ -365,11 +365,6 @@ MODULE asminc
     TYPE(ProfileData), SAVE :: psy_profile2
     TYPE(ProfileData), SAVE :: psy_profile3
     TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
-    TYPE(ProfileData), SAVE :: psy_profile7
-    TYPE(ProfileData), SAVE :: psy_profile8
-    TYPE(ProfileData), SAVE :: psy_profile9
     CALL ProfileStart('tra_asm_inc', 'r0', psy_profile0)
     DO jk = 1, jpkm1
       CALL eos_fzp(tsn(:, :, jk, jp_sal), fzptnz(:, :, jk), gdept_n(:, :, jk))
@@ -388,22 +383,18 @@ MODULE asminc
         CALL ProfileEnd(psy_profile1)
         DO jk = 1, jpkm1
           IF (ln_temnofreeze) THEN
-            CALL ProfileStart('tra_asm_inc', 'r2', psy_profile2)
             WHERE (t_bkginc(:, :, jk) > 0.0_wp .OR. tsn(:, :, jk, jp_tem) + tsa(:, :, jk, jp_tem) + t_bkginc(:, :, jk) * wgtiau(it) > fzptnz(:, :, jk))
               tsa(:, :, jk, jp_tem) = tsa(:, :, jk, jp_tem) + t_bkginc(:, :, jk) * zincwgt
             END WHERE
-            CALL ProfileEnd(psy_profile2)
           ELSE
             !$ACC KERNELS
             tsa(:, :, jk, jp_tem) = tsa(:, :, jk, jp_tem) + t_bkginc(:, :, jk) * zincwgt
             !$ACC END KERNELS
           END IF
           IF (ln_salfix) THEN
-            CALL ProfileStart('tra_asm_inc', 'r3', psy_profile3)
             WHERE (s_bkginc(:, :, jk) > 0.0_wp .OR. tsn(:, :, jk, jp_sal) + tsa(:, :, jk, jp_sal) + s_bkginc(:, :, jk) * wgtiau(it) > salfixmin)
               tsa(:, :, jk, jp_sal) = tsa(:, :, jk, jp_sal) + s_bkginc(:, :, jk) * zincwgt
             END WHERE
-            CALL ProfileEnd(psy_profile3)
           ELSE
             !$ACC KERNELS
             tsa(:, :, jk, jp_sal) = tsa(:, :, jk, jp_sal) + s_bkginc(:, :, jk) * zincwgt
@@ -411,34 +402,34 @@ MODULE asminc
           END IF
         END DO
       END IF
-      CALL ProfileStart('tra_asm_inc', 'r4', psy_profile4)
+      CALL ProfileStart('tra_asm_inc', 'r2', psy_profile2)
       IF (kt == nitiaufin_r + 1) THEN
         DEALLOCATE(t_bkginc)
         DEALLOCATE(s_bkginc)
       END IF
-      CALL ProfileEnd(psy_profile4)
+      CALL ProfileEnd(psy_profile2)
     ELSE IF (ln_asmdin) THEN
       IF (kt == nitdin_r) THEN
-        CALL ProfileStart('tra_asm_inc', 'r5', psy_profile5)
+        CALL ProfileStart('tra_asm_inc', 'r3', psy_profile3)
         neuler = 0
-        CALL ProfileEnd(psy_profile5)
+        CALL ProfileEnd(psy_profile3)
         IF (ln_temnofreeze) THEN
-          CALL ProfileStart('tra_asm_inc', 'r6', psy_profile6)
+          !$ACC KERNELS
           WHERE (t_bkginc(:, :, :) > 0.0_wp .OR. tsn(:, :, :, jp_tem) + t_bkginc(:, :, :) > fzptnz(:, :, :))
             tsn(:, :, :, jp_tem) = t_bkg(:, :, :) + t_bkginc(:, :, :)
           END WHERE
-          CALL ProfileEnd(psy_profile6)
+          !$ACC END KERNELS
         ELSE
           !$ACC KERNELS
           tsn(:, :, :, jp_tem) = t_bkg(:, :, :) + t_bkginc(:, :, :)
           !$ACC END KERNELS
         END IF
         IF (ln_salfix) THEN
-          CALL ProfileStart('tra_asm_inc', 'r7', psy_profile7)
+          !$ACC KERNELS
           WHERE (s_bkginc(:, :, :) > 0.0_wp .OR. tsn(:, :, :, jp_sal) + s_bkginc(:, :, :) > salfixmin)
             tsn(:, :, :, jp_sal) = s_bkg(:, :, :) + s_bkginc(:, :, :)
           END WHERE
-          CALL ProfileEnd(psy_profile7)
+          !$ACC END KERNELS
         ELSE
           !$ACC KERNELS
           tsn(:, :, :, jp_sal) = s_bkg(:, :, :) + s_bkginc(:, :, :)
@@ -447,7 +438,7 @@ MODULE asminc
         !$ACC KERNELS
         tsb(:, :, :, :) = tsn(:, :, :, :)
         !$ACC END KERNELS
-        CALL ProfileStart('tra_asm_inc', 'r8', psy_profile8)
+        CALL ProfileStart('tra_asm_inc', 'r4', psy_profile4)
         CALL eos(tsb, rhd, rhop, gdept_0(:, :, :))
         IF (ln_zps .AND. .NOT. lk_c1d .AND. .NOT. ln_isfcav) CALL zps_hde(kt, jpts, tsb, gtsu, gtsv, rhd, gru, grv)
         IF (ln_zps .AND. .NOT. lk_c1d .AND. ln_isfcav) CALL zps_hde_isf(nit000, jpts, tsb, gtsu, gtsv, gtui, gtvi, rhd, gru, grv, grui, grvi)
@@ -455,12 +446,10 @@ MODULE asminc
         DEALLOCATE(s_bkginc)
         DEALLOCATE(t_bkg)
         DEALLOCATE(s_bkg)
-        CALL ProfileEnd(psy_profile8)
+        CALL ProfileEnd(psy_profile4)
       END IF
     END IF
-    CALL ProfileStart('tra_asm_inc', 'r9', psy_profile9)
     IF (ln_seaiceinc) CALL seaice_asm_inc(kt)
-    CALL ProfileEnd(psy_profile9)
   END SUBROUTINE tra_asm_inc
   SUBROUTINE dyn_asm_inc(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -567,8 +556,6 @@ MODULE asminc
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
     IF (ln_asmiau) THEN
       IF ((kt >= nitiaustr_r) .AND. (kt <= nitiaufin_r)) THEN
         CALL ProfileStart('seaice_asm_inc', 'r0', psy_profile0)
@@ -587,22 +574,18 @@ MODULE asminc
         at_i_b(:, :) = 1. - MIN(MAX(1. - at_i_b(:, :) - seaice_bkginc(:, :) * zincwgt, 0.0_wp), 1.0_wp)
         fr_i(:, :) = at_i(:, :)
         zseaicendg(:, :) = zofrld(:, :) - (1. - at_i(:, :))
-        !$ACC END KERNELS
-        CALL ProfileStart('seaice_asm_inc', 'r1', psy_profile1)
         WHERE (zseaicendg(:, :) > 0.0_wp .AND. hm_i(:, :) < zhicifmin)
           zhicifinc(:, :) = (zhicifmin - hm_i(:, :)) * zincwgt
         ELSEWHERE
           zhicifinc(:, :) = 0.0_wp
         END WHERE
-        CALL ProfileEnd(psy_profile1)
-        !$ACC KERNELS
         hm_i(:, :) = hm_i(:, :) + zhicifinc(:, :)
         !$ACC END KERNELS
-        CALL ProfileStart('seaice_asm_inc', 'r2', psy_profile2)
+        CALL ProfileStart('seaice_asm_inc', 'r1', psy_profile1)
         IF (kt == nitiaufin_r) THEN
           DEALLOCATE(seaice_bkginc)
         END IF
-        CALL ProfileEnd(psy_profile2)
+        CALL ProfileEnd(psy_profile1)
       ELSE
       END IF
     ELSE IF (ln_asmdin) THEN
@@ -615,22 +598,18 @@ MODULE asminc
         at_i_b(:, :) = at_i(:, :)
         fr_i(:, :) = at_i(:, :)
         zseaicendg(:, :) = zofrld(:, :) - (1. - at_i(:, :))
-        !$ACC END KERNELS
-        CALL ProfileStart('seaice_asm_inc', 'r3', psy_profile3)
         WHERE (zseaicendg(:, :) > 0.0_wp .AND. hm_i(:, :) < zhicifmin)
           zhicifinc(:, :) = (zhicifmin - hm_i(:, :)) * zincwgt
         ELSEWHERE
           zhicifinc(:, :) = 0.0_wp
         END WHERE
-        CALL ProfileEnd(psy_profile3)
-        !$ACC KERNELS
         hm_i(:, :) = hm_i(:, :) + zhicifinc(:, :)
         !$ACC END KERNELS
-        CALL ProfileStart('seaice_asm_inc', 'r4', psy_profile4)
+        CALL ProfileStart('seaice_asm_inc', 'r2', psy_profile2)
         IF (.NOT. PRESENT(kindic)) THEN
           DEALLOCATE(seaice_bkginc)
         END IF
-        CALL ProfileEnd(psy_profile4)
+        CALL ProfileEnd(psy_profile2)
       ELSE
       END IF
     END IF

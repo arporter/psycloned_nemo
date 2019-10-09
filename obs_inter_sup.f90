@@ -92,7 +92,6 @@ MODULE obs_inter_sup
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
     CALL ProfileStart('obs_int_comm_3d_global', 'r0', psy_profile0)
     IF ((MAXVAL(kgrdi) > jpiglo) .OR. (MINVAL(kgrdi) < 1) .OR. (MAXVAL(kgrdj) > jpjglo) .OR. (MINVAL(kgrdj) < 1)) THEN
       CALL ctl_stop('Error in obs_int_comm_3d_global', 'Point outside global domain')
@@ -171,9 +170,7 @@ MODULE obs_inter_sup
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('obs_int_comm_3d_global', 'r3', psy_profile3)
     DEALLOCATE(igrdij_send, igrdij_recv, zsend, zrecv)
-    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE obs_int_comm_3d_global
   SUBROUTINE obs_int_comm_3d_local(kptsi, kptsj, kobs, kpi, kpj, kpk, kgrdi, kgrdj, pval, pgval)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

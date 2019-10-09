@@ -52,9 +52,7 @@ MODULE dynzdf
     IF (.NOT. ln_drgimp) CALL zdf_drg_exp(kt, ub, vb, ua, va)
     CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
-      CALL ProfileStart('dyn_zdf', 'r1', psy_profile1)
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :)
       ztrdv(:, :, :) = va(:, :, :)
@@ -107,9 +105,9 @@ MODULE dynzdf
         !$ACC END KERNELS
       END IF
     END IF
-    CALL ProfileStart('dyn_zdf', 'r2', psy_profile2)
+    CALL ProfileStart('dyn_zdf', 'r1', psy_profile1)
     zdt = r2dt * 0.5
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
     SELECT CASE (nldf_dyn)
     CASE (np_lap_i)
       !$ACC KERNELS
@@ -308,8 +306,10 @@ MODULE dynzdf
       ztrdu(:, :, :) = (ua(:, :, :) - ub(:, :, :)) / r2dt - ztrdu(:, :, :)
       ztrdv(:, :, :) = (va(:, :, :) - vb(:, :, :)) / r2dt - ztrdv(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('dyn_zdf', 'r2', psy_profile2)
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_zdf, kt)
       DEALLOCATE(ztrdu, ztrdv)
+      CALL ProfileEnd(psy_profile2)
     END IF
     CALL ProfileStart('dyn_zdf', 'r3', psy_profile3)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' zdf  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')

@@ -93,8 +93,10 @@ MODULE traadv_qck
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_adv_qck_i', 'r0', psy_profile0)
       CALL lbc_lnk_multi(zfu(:, :, :), 'T', 1., zfd(:, :, :), 'T', 1., zfc(:, :, :), 'T', 1., zwx(:, :, :), 'T', 1.)
       CALL quickest(zfu, zfd, zfc, zwx)
+      CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
@@ -129,9 +131,7 @@ MODULE traadv_qck
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('tra_adv_qck_i', 'r0', psy_profile0)
       IF (l_trd) CALL trd_tra(kt, cdtype, jn, jptra_xad, zwx, pun, ptn(:, :, :, jn))
-      CALL ProfileEnd(psy_profile0)
     END DO
   END SUBROUTINE tra_adv_qck_i
   SUBROUTINE tra_adv_qck_j(kt, cdtype, p2dt, pvn, ptb, ptn, pta, kjpt)
@@ -147,6 +147,7 @@ MODULE traadv_qck
     REAL(KIND = wp) :: ztra, zbtr, zdir, zdx, zmsk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwy, zfu, zfc, zfd
     TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     DO jn = 1, kjpt
       !$ACC KERNELS
       zfu(:, :, :) = 0.0
@@ -184,8 +185,10 @@ MODULE traadv_qck
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_adv_qck_j', 'r0', psy_profile0)
       CALL lbc_lnk_multi(zfu(:, :, :), 'T', 1., zfd(:, :, :), 'T', 1., zfc(:, :, :), 'T', 1., zwy(:, :, :), 'T', 1.)
       CALL quickest(zfu, zfd, zfc, zwy)
+      CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
@@ -220,14 +223,13 @@ MODULE traadv_qck
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('tra_adv_qck_j', 'r0', psy_profile0)
+      CALL ProfileStart('tra_adv_qck_j', 'r1', psy_profile1)
       IF (l_trd) CALL trd_tra(kt, cdtype, jn, jptra_yad, zwy, pvn, ptn(:, :, :, jn))
       IF (l_ptr) CALL dia_ptr_hst(jn, 'adv', zwy(:, :, :))
-      CALL ProfileEnd(psy_profile0)
+      CALL ProfileEnd(psy_profile1)
     END DO
   END SUBROUTINE tra_adv_qck_j
   SUBROUTINE tra_adv_cen2_k(kt, cdtype, pwn, ptn, pta, kjpt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
     INTEGER, INTENT(IN   ) :: kjpt
@@ -236,7 +238,6 @@ MODULE traadv_qck
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwz
-    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     zwz(:, :, 1) = 0._wp
     zwz(:, :, jpk) = 0._wp
@@ -275,9 +276,7 @@ MODULE traadv_qck
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('tra_adv_cen2_k', 'r0', psy_profile0)
       IF (l_trd) CALL trd_tra(kt, cdtype, jn, jptra_zad, zwz, pwn, ptn(:, :, :, jn))
-      CALL ProfileEnd(psy_profile0)
     END DO
   END SUBROUTINE tra_adv_cen2_k
   SUBROUTINE quickest(pfu, pfd, pfc, puc)

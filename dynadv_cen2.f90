@@ -17,7 +17,6 @@ MODULE dynadv_cen2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zfu_t, zfu_f, zfu_uw, zfu
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zfv_t, zfv_f, zfv_vw, zfv, zfw
     TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
     CALL ProfileStart('dyn_adv_cen2', 'r0', psy_profile0)
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
@@ -112,8 +111,6 @@ MODULE dynadv_cen2
       !$ACC END KERNELS
       CALL trd_dyn(zfu_t, zfv_t, jpdyn_zad, kt)
     END IF
-    CALL ProfileStart('dyn_adv_cen2', 'r1', psy_profile1)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' cen2 adv - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
-    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE dyn_adv_cen2
 END MODULE dynadv_cen2

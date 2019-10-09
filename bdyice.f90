@@ -58,6 +58,7 @@ MODULE bdyice
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
     CALL ProfileStart('bdy_ice_frs', 'r0', psy_profile0)
     jgrd = 1
     DO jl = 1, jpl
@@ -186,6 +187,7 @@ MODULE bdyice
         END IF
       END DO
     END DO
+    CALL ProfileStart('bdy_ice_frs', 'r3', psy_profile3)
     CALL lbc_bdy_lnk(a_i(:, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(h_i(:, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(h_s(:, :, :), 'T', 1., jbdy)
@@ -201,6 +203,7 @@ MODULE bdyice
     CALL lbc_bdy_lnk(e_s(:, :, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(t_i(:, :, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(e_i(:, :, :, :), 'T', 1., jbdy)
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE bdy_ice_frs
   SUBROUTINE bdy_ice_dyn(cd_type)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

@@ -41,10 +41,7 @@ MODULE icestp
     INTEGER :: jl
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    CALL ProfileStart('ice_stp', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('ice_stp')
-    CALL ProfileEnd(psy_profile0)
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
       !$ACC KERNELS
       kt_ice = kt
@@ -55,7 +52,7 @@ MODULE icestp
       !$ACC KERNELS
       t_bo(:, :) = (t_bo(:, :) + rt0) * tmask(:, :, 1) + rt0 * (1._wp - tmask(:, :, 1))
       !$ACC END KERNELS
-      CALL ProfileStart('ice_stp', 'r1', psy_profile1)
+      CALL ProfileStart('ice_stp', 'r0', psy_profile0)
       CALL store_fields
       CALL ice_forcing_tau(kt, ksbc, utau_ice, vtau_ice)
       CALL diag_set0
@@ -75,12 +72,12 @@ MODULE icestp
       CALL ice_wri(kt)
       IF (lrst_ice) CALL ice_rst_write(kt)
       IF (ln_icectl) CALL ice_ctl(kt)
-      CALL ProfileEnd(psy_profile1)
+      CALL ProfileEnd(psy_profile0)
     END IF
-    CALL ProfileStart('ice_stp', 'r2', psy_profile2)
+    CALL ProfileStart('ice_stp', 'r1', psy_profile1)
     IF (ln_icedyn) CALL ice_update_tau(kt, ub(:, :, 1), vb(:, :, 1))
     IF (ln_timing) CALL timing_stop('ice_stp')
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE ice_stp
   SUBROUTINE ice_init
     INTEGER :: ji, jj, ierr
@@ -114,12 +111,12 @@ MODULE icestp
     !$ACC KERNELS
     fr_i(:, :) = at_i(:, :)
     tn_ice(:, :, :) = t_su(:, :, :)
-    !$ACC END KERNELS
     WHERE (gphit(:, :) > 0._wp)
       rn_amax_2d(:, :) = rn_amax_n
     ELSEWHERE
       rn_amax_2d(:, :) = rn_amax_s
     END WHERE
+    !$ACC END KERNELS
     IF (ln_rstart) CALL iom_close(numrir)
   END SUBROUTINE ice_init
   SUBROUTINE par_init
@@ -174,8 +171,6 @@ MODULE icestp
     oa_i_b(:, :, :) = oa_i(:, :, :)
     e_s_b(:, :, :, :) = e_s(:, :, :, :)
     e_i_b(:, :, :, :) = e_i(:, :, :, :)
-    !$ACC END KERNELS
-    CALL ProfileStart('store_fields', 'r0', psy_profile0)
     WHERE (a_i_b(:, :, :) >= epsi20)
       h_i_b(:, :, :) = v_i_b(:, :, :) / a_i_b(:, :, :)
       h_s_b(:, :, :) = v_s_b(:, :, :) / a_i_b(:, :, :)
@@ -183,6 +178,8 @@ MODULE icestp
       h_i_b(:, :, :) = 0._wp
       h_s_b(:, :, :) = 0._wp
     END WHERE
+    !$ACC END KERNELS
+    CALL ProfileStart('store_fields', 'r0', psy_profile0)
     at_i_b(:, :) = SUM(a_i_b(:, :, :), dim = 3)
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS

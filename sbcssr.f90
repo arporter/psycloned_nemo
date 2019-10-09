@@ -134,7 +134,9 @@ MODULE sbcssr
       IF (sf_sss(1) % ln_tint) ALLOCATE(sf_sss(1) % fdta(jpi, jpj, 1, 2), STAT = ierror)
       IF (ierror > 0) CALL ctl_stop('STOP', 'sbc_ssr: unable to allocate sf_sss data array')
     END IF
+    !$ACC KERNELS
     IF (nn_sstr /= 1) qrp(:, :) = 0._wp
     IF (nn_sssr /= 1 .OR. nn_sssr /= 2) erp(:, :) = 0._wp
+    !$ACC END KERNELS
   END SUBROUTINE sbc_ssr_init
 END MODULE sbcssr

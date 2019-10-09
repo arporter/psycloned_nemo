@@ -45,8 +45,6 @@ MODULE traadv_fct
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
     TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
     CALL ProfileStart('tra_adv_fct', 'r0', psy_profile0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -61,9 +59,7 @@ MODULE traadv_fct
     IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
     CALL ProfileEnd(psy_profile0)
     IF (l_trd .OR. l_hst) THEN
-      CALL ProfileStart('tra_adv_fct', 'r1', psy_profile1)
       ALLOCATE(ztrdx(jpi, jpj, jpk), ztrdy(jpi, jpj, jpk), ztrdz(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdx(:, :, :) = 0._wp
       ztrdy(:, :, :) = 0._wp
@@ -71,9 +67,7 @@ MODULE traadv_fct
       !$ACC END KERNELS
     END IF
     IF (l_ptr) THEN
-      CALL ProfileStart('tra_adv_fct', 'r2', psy_profile2)
       ALLOCATE(zptry(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile2)
       !$ACC KERNELS
       zptry(:, :, :) = 0._wp
       !$ACC END KERNELS
@@ -143,9 +137,9 @@ MODULE traadv_fct
         ztrdz(:, :, :) = zwz(:, :, :)
         !$ACC END KERNELS
       END IF
-      CALL ProfileStart('tra_adv_fct', 'r3', psy_profile3)
+      !$ACC KERNELS
       IF (l_ptr) zptry(:, :, :) = zwy(:, :, :)
-      CALL ProfileEnd(psy_profile3)
+      !$ACC END KERNELS
       SELECT CASE (kn_fct_h)
       CASE (2)
         !$ACC KERNELS
@@ -247,8 +241,10 @@ MODULE traadv_fct
         zwz(:, :, 1) = 0._wp
         !$ACC END KERNELS
       END IF
+      CALL ProfileStart('tra_adv_fct', 'r1', psy_profile1)
       CALL lbc_lnk_multi(zwx, 'U', - 1., zwy, 'V', - 1., zwz, 'W', 1.)
       CALL nonosc(ptb(:, :, :, jn), zwx, zwy, zwz, zwi, p2dt)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
@@ -264,14 +260,14 @@ MODULE traadv_fct
         ztrdy(:, :, :) = ztrdy(:, :, :) + zwy(:, :, :)
         ztrdz(:, :, :) = ztrdz(:, :, :) + zwz(:, :, :)
         !$ACC END KERNELS
-        CALL ProfileStart('tra_adv_fct', 'r4', psy_profile4)
+        CALL ProfileStart('tra_adv_fct', 'r2', psy_profile2)
         IF (l_trd) THEN
           CALL trd_tra(kt, cdtype, jn, jptra_xad, ztrdx, pun, ptn(:, :, :, jn))
           CALL trd_tra(kt, cdtype, jn, jptra_yad, ztrdy, pvn, ptn(:, :, :, jn))
           CALL trd_tra(kt, cdtype, jn, jptra_zad, ztrdz, pwn, ptn(:, :, :, jn))
         END IF
         IF (l_hst) CALL dia_ar5_hst(jn, 'adv', ztrdx(:, :, :), ztrdy(:, :, :))
-        CALL ProfileEnd(psy_profile4)
+        CALL ProfileEnd(psy_profile2)
       END IF
       IF (l_ptr) THEN
         !$ACC KERNELS
@@ -280,14 +276,14 @@ MODULE traadv_fct
         CALL dia_ptr_hst(jn, 'adv', zptry(:, :, :))
       END IF
     END DO
-    CALL ProfileStart('tra_adv_fct', 'r5', psy_profile5)
+    CALL ProfileStart('tra_adv_fct', 'r3', psy_profile3)
     IF (l_trd .OR. l_hst) THEN
       DEALLOCATE(ztrdx, ztrdy, ztrdz)
     END IF
     IF (l_ptr) THEN
       DEALLOCATE(zptry)
     END IF
-    CALL ProfileEnd(psy_profile5)
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE tra_adv_fct
   SUBROUTINE nonosc(pbef, paa, pbb, pcc, paft, p2dt)
     REAL(KIND = wp), INTENT(IN   ) :: p2dt

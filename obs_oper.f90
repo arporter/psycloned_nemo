@@ -17,6 +17,7 @@ MODULE obs_oper
   INTEGER, PARAMETER, PUBLIC :: imaxavtypes = 20
   CONTAINS
   SUBROUTINE obs_prof_opt(prodatqc, kt, kpi, kpj, kpk, kit000, kdaystp, pvar1, pvar2, pgdept, pgdepw, pmask1, pmask2, plam1, plam2, pphi1, pphi2, k1dint, k2dint, kdailyavtypes)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE obs_profiles_def
     IMPLICIT NONE
     TYPE(obs_prof), INTENT(INOUT) :: prodatqc
@@ -57,6 +58,15 @@ MODULE obs_oper
     REAL(KIND = wp), DIMENSION(1) :: zmsk_1, zmsk_2
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: interp_corner
     LOGICAL :: ld_dailyav
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    CALL ProfileStart('obs_prof_opt', 'r0', psy_profile0)
     inrc = kt - kit000 + 2
     ipro = prodatqc % npstp(inrc)
     ld_dailyav = .FALSE.
@@ -120,10 +130,12 @@ MODULE obs_oper
       igrdi2(2, 2, iobs) = prodatqc % mi(jobs, 2)
       igrdj2(2, 2, iobs) = prodatqc % mj(jobs, 2)
     END DO
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zgdept(:, :, :, :) = 0.0
     zgdepw(:, :, :, :) = 0.0
     !$ACC END KERNELS
+    CALL ProfileStart('obs_prof_opt', 'r1', psy_profile1)
     CALL obs_int_comm_2d(2, 2, ipro, kpi, kpj, igrdi1, igrdj1, plam1, zglam1)
     CALL obs_int_comm_2d(2, 2, ipro, kpi, kpj, igrdi1, igrdj1, pphi1, zgphi1)
     CALL obs_int_comm_3d(2, 2, ipro, kpi, kpj, kpk, igrdi1, igrdj1, pmask1, zmask1)
@@ -140,7 +152,9 @@ MODULE obs_oper
       CALL obs_int_comm_3d(2, 2, ipro, kpi, kpj, kpk, igrdi2, igrdj2, prodatqc % vdmean(:, :, :, 2), zinm2)
     END IF
     IF (ipro == 0) RETURN
+    CALL ProfileEnd(psy_profile1)
     DO jobs = prodatqc % nprofup + 1, prodatqc % nprofup + ipro
+      CALL ProfileStart('obs_prof_opt', 'r2', psy_profile2)
       iobs = jobs - prodatqc % nprofup
       IF (kt /= prodatqc % mstp(jobs)) THEN
         IF (lwp) THEN
@@ -160,7 +174,9 @@ MODULE obs_oper
       IF (prodatqc % npvend(jobs, 2) > 0) THEN
         CALL obs_int_h2d_init(1, 1, k2dint, zlam, zphi, zglam2(:, :, iobs), zgphi2(:, :, iobs), zmask2(:, :, 1, iobs), zweig2, zmsk_2)
       END IF
+      CALL ProfileEnd(psy_profile2)
       IF (prodatqc % npvend(jobs, 1) > 0) THEN
+        CALL ProfileStart('obs_prof_opt', 'r3', psy_profile3)
         zobsk(:) = obfillflt
         IF (ANY(idailyavtypes(:) == prodatqc % ntyp(jobs))) THEN
           IF (idayend == 0) THEN
@@ -193,11 +209,13 @@ MODULE obs_oper
             END DO
           END DO
         END IF
+        CALL ProfileEnd(psy_profile3)
         DO ikn = 1, inum_obs
           !$ACC KERNELS
           iend = ista + ikn - 1
           zweig(:, :, 1) = 0._wp
           !$ACC END KERNELS
+          CALL ProfileStart('obs_prof_opt', 'r4', psy_profile4)
           DO iin = 1, 2
             DO ijn = 1, 2
               depth_loop1:DO ik = kpk, 2, - 1
@@ -210,10 +228,12 @@ MODULE obs_oper
           END DO
           CALL obs_int_h2d(1, 1, zweig, interp_corner(:, :, ikn), prodatqc % var(1) % vmod(iend : iend))
           IF (SUM(zweig) == 0.0_wp) prodatqc % var(1) % nvqc(iend : iend) = 4
+          CALL ProfileEnd(psy_profile4)
         END DO
         DEALLOCATE(interp_corner, iv_indic)
       END IF
       IF (prodatqc % npvend(jobs, 2) > 0) THEN
+        CALL ProfileStart('obs_prof_opt', 'r5', psy_profile5)
         zobsk(:) = obfillflt
         IF (ANY(idailyavtypes(:) == prodatqc % ntyp(jobs))) THEN
           IF (idayend == 0) THEN
@@ -246,11 +266,13 @@ MODULE obs_oper
             END DO
           END DO
         END IF
+        CALL ProfileEnd(psy_profile5)
         DO ikn = 1, inum_obs
           !$ACC KERNELS
           iend = ista + ikn - 1
           zweig(:, :, 1) = 0._wp
           !$ACC END KERNELS
+          CALL ProfileStart('obs_prof_opt', 'r6', psy_profile6)
           DO iin = 1, 2
             DO ijn = 1, 2
               depth_loop2:DO ik = kpk, 2, - 1
@@ -263,17 +285,21 @@ MODULE obs_oper
           END DO
           CALL obs_int_h2d(1, 1, zweig, interp_corner(:, :, ikn), prodatqc % var(2) % vmod(iend : iend))
           IF (SUM(zweig) == 0.0_wp) prodatqc % var(2) % nvqc(iend : iend) = 4
+          CALL ProfileEnd(psy_profile6)
         END DO
         DEALLOCATE(interp_corner, iv_indic)
       END IF
     END DO
+    CALL ProfileStart('obs_prof_opt', 'r7', psy_profile7)
     DEALLOCATE(igrdi1, igrdi2, igrdj1, igrdj2, zglam1, zglam2, zgphi1, zgphi2, zmask1, zmask2, zint1, zint2, zgdept, zgdepw)
     IF (ld_dailyav .AND. idayend == 0) THEN
       DEALLOCATE(zinm1, zinm2)
     END IF
     prodatqc % nprofup = prodatqc % nprofup + ipro
+    CALL ProfileEnd(psy_profile7)
   END SUBROUTINE obs_prof_opt
   SUBROUTINE obs_surf_opt(surfdataqc, kt, kpi, kpj, kit000, kdaystp, psurf, psurfmask, k2dint, ldnightav, plamscl, pphiscl, lindegrees)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE obs_surf_def
     IMPLICIT NONE
     TYPE(obs_surf), INTENT(INOUT) :: surfdataqc
@@ -304,10 +330,21 @@ MODULE obs_oper
     REAL(KIND = wp) :: zdaystp
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: zweig, zmask, zsurf, zsurfm, zsurftmp, zglam, zgphi, zglamf, zgphif
     REAL(KIND = wp), DIMENSION(:, :), SAVE, ALLOCATABLE :: zintmp, zouttmp, zmeanday
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    CALL ProfileStart('obs_surf_opt', 'r0', psy_profile0)
     inrc = kt - kit000 + 2
     isurf = surfdataqc % nsstp(inrc)
     CALL obs_max_fpsize(k2dint, plamscl, pphiscl, lindegrees, psurfmask, imaxifp, imaxjfp)
+    CALL ProfileEnd(psy_profile0)
     IF (ldnightav) THEN
+      CALL ProfileStart('obs_surf_opt', 'r1', psy_profile1)
       IF (kt == 0) THEN
         ALLOCATE(icount_night(kpi, kpj))
         ALLOCATE(imask_night(kpi, kpj))
@@ -326,13 +363,17 @@ MODULE obs_oper
           END DO
         END DO
       END IF
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       zintmp(:, :) = 0.0
       !$ACC END KERNELS
+      CALL ProfileStart('obs_surf_opt', 'r2', psy_profile2)
       zouttmp(:, :) = sbc_dcy(zintmp(:, :), .TRUE.)
+      CALL ProfileEnd(psy_profile2)
       !$ACC KERNELS
       imask_night(:, :) = INT(zouttmp(:, :))
       !$ACC END KERNELS
+      CALL ProfileStart('obs_surf_opt', 'r3', psy_profile3)
       DO jj = 1, jpj
         DO ji = 1, jpi
           surfdataqc % vdmean(ji, jj) = surfdataqc % vdmean(ji, jj) + psurf(ji, jj) * REAL(imask_night(ji, jj))
@@ -353,7 +394,9 @@ MODULE obs_oper
           END DO
         END DO
       END IF
+      CALL ProfileEnd(psy_profile3)
     END IF
+    CALL ProfileStart('obs_surf_opt', 'r4', psy_profile4)
     ALLOCATE(zweig(imaxifp, imaxjfp, 1), igrdi(imaxifp, imaxjfp, isurf), igrdj(imaxifp, imaxjfp, isurf), zglam(imaxifp, imaxjfp, isurf), zgphi(imaxifp, imaxjfp, isurf), zmask(imaxifp, imaxjfp, isurf), zsurf(imaxifp, imaxjfp, isurf), zsurftmp(imaxifp, imaxjfp, isurf), zglamf(imaxifp + 1, imaxjfp + 1, isurf), zgphif(imaxifp + 1, imaxjfp + 1, isurf), igrdip1(imaxifp + 1, imaxjfp + 1, isurf), igrdjp1(imaxifp + 1, imaxjfp + 1, isurf))
     DO jobs = surfdataqc % nsurfup + 1, surfdataqc % nsurfup + isurf
       iobs = jobs - surfdataqc % nsurfup
@@ -384,7 +427,9 @@ MODULE obs_oper
       ALLOCATE(zsurfm(imaxifp, imaxjfp, isurf))
       CALL obs_int_comm_2d(imaxifp, imaxjfp, isurf, kpi, kpj, igrdi, igrdj, surfdataqc % vdmean(:, :), zsurfm)
     END IF
+    CALL ProfileEnd(psy_profile4)
     DO jobs = surfdataqc % nsurfup + 1, surfdataqc % nsurfup + isurf
+      CALL ProfileStart('obs_surf_opt', 'r5', psy_profile5)
       iobs = jobs - surfdataqc % nsurfup
       IF (kt /= surfdataqc % mstp(jobs)) THEN
         IF (lwp) THEN
@@ -398,6 +443,7 @@ MODULE obs_oper
       END IF
       zlam = surfdataqc % rlam(jobs)
       zphi = surfdataqc % rphi(jobs)
+      CALL ProfileEnd(psy_profile5)
       IF (ldnightav .AND. idayend == 0) THEN
         !$ACC KERNELS
         zsurftmp(:, :, iobs) = zsurfm(:, :, iobs)
@@ -407,6 +453,7 @@ MODULE obs_oper
         zsurftmp(:, :, iobs) = zsurf(:, :, iobs)
         !$ACC END KERNELS
       END IF
+      CALL ProfileStart('obs_surf_opt', 'r6', psy_profile6)
       IF (k2dint <= 4) THEN
         CALL obs_int_h2d_init(1, 1, k2dint, zlam, zphi, zglam(:, :, iobs), zgphi(:, :, iobs), zmask(:, :, iobs), zweig, zobsmask)
         CALL obs_int_h2d(1, 1, zweig, zsurftmp(:, :, iobs), zext)
@@ -423,11 +470,14 @@ MODULE obs_oper
       IF (zext(1) == obfillflt) THEN
         surfdataqc % nqc(jobs) = 4
       END IF
+      CALL ProfileEnd(psy_profile6)
     END DO
+    CALL ProfileStart('obs_surf_opt', 'r7', psy_profile7)
     DEALLOCATE(zweig, igrdi, igrdj, zglam, zgphi, zmask, zsurf, zsurftmp, zglamf, zgphif, igrdip1, igrdjp1)
     IF (idayend == 0 .AND. ldnightav) THEN
       DEALLOCATE(zsurfm)
     END IF
     surfdataqc % nsurfup = surfdataqc % nsurfup + isurf
+    CALL ProfileEnd(psy_profile7)
   END SUBROUTINE obs_surf_opt
 END MODULE obs_oper

@@ -28,14 +28,18 @@ MODULE lib_mpp
     lib_mpp_alloc = 0
   END FUNCTION lib_mpp_alloc
   FUNCTION mynode(ldtxt, ldname, kumnam_ref, knumnam_cfg, kumond, kstop, localComm) RESULT(function_value)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, OPTIONAL, INTENT(IN   ) :: localComm
     CHARACTER(LEN = *), DIMENSION(:) :: ldtxt
     CHARACTER(LEN = *) :: ldname
     INTEGER :: kumnam_ref, knumnam_cfg, kumond, kstop
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('mynode', 'r0', psy_profile0)
     IF (PRESENT(localComm)) mpi_comm_oce = localComm
     function_value = 0
     IF (.FALSE.) ldtxt(:) = 'never done'
     CALL ctl_opn(kumond, TRIM(ldname), 'UNKNOWN', 'FORMATTED', 'SEQUENTIAL', - 1, 6, .FALSE., 1)
+    CALL ProfileEnd(psy_profile0)
   END FUNCTION mynode
   SUBROUTINE mppsync
   END SUBROUTINE mppsync
@@ -168,8 +172,11 @@ MODULE lib_mpp
     WRITE(*, FMT = *) 'mppmax_real_multiple: You should not have seen this print! error?', ptab(1), kdim
   END SUBROUTINE mppmax_real_multiple
   SUBROUTINE ctl_stop(cd1, cd2, cd3, cd4, cd5, cd6, cd7, cd8, cd9, cd10)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cd1, cd2, cd3, cd4, cd5
     CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cd6, cd7, cd8, cd9, cd10
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ctl_stop', 'r0', psy_profile0)
     nstop = nstop + 1
     IF (lwp) THEN
       WRITE(numout, cform_err)
@@ -192,10 +199,14 @@ MODULE lib_mpp
       IF (lwp) WRITE(numout, FMT = *) 'huge E-R-R-O-R : immediate stop'
       CALL mppstop
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ctl_stop
   SUBROUTINE ctl_warn(cd1, cd2, cd3, cd4, cd5, cd6, cd7, cd8, cd9, cd10)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cd1, cd2, cd3, cd4, cd5
     CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cd6, cd7, cd8, cd9, cd10
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ctl_warn', 'r0', psy_profile0)
     nwarn = nwarn + 1
     IF (lwp) THEN
       WRITE(numout, cform_war)
@@ -211,8 +222,10 @@ MODULE lib_mpp
       IF (PRESENT(cd10)) WRITE(numout, FMT = *) cd10
     END IF
     CALL FLUSH(numout)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ctl_warn
   SUBROUTINE ctl_opn(knum, cdfile, cdstat, cdform, cdacce, klengh, kout, ldwp, karea)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(  OUT) :: knum
     CHARACTER(LEN = *), INTENT(IN   ) :: cdfile
     CHARACTER(LEN = *), INTENT(IN   ) :: cdstat
@@ -224,6 +237,8 @@ MODULE lib_mpp
     INTEGER, OPTIONAL, INTENT(IN   ) :: karea
     CHARACTER(LEN = 80) :: clfile
     INTEGER :: iost
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ctl_opn', 'r0', psy_profile0)
     clfile = TRIM(cdfile)
     IF (PRESENT(karea)) THEN
       IF (karea > 1) WRITE(clfile, FMT = "(a,'_',i4.4)") TRIM(clfile), karea - 1
@@ -273,12 +288,16 @@ MODULE lib_mpp
       CALL FLUSH(kout)
       STOP 'ctl_opn bad opening'
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ctl_opn
   SUBROUTINE ctl_nam(kios, cdnam, ldwp)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(INOUT) :: kios
     CHARACTER(LEN = *), INTENT(IN   ) :: cdnam
     CHARACTER(LEN = 5) :: clios
     LOGICAL, INTENT(IN   ) :: ldwp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ctl_nam', 'r0', psy_profile0)
     WRITE(clios, FMT = '(I5.0)') kios
     IF (kios < 0) THEN
       CALL ctl_warn('end of record or file while reading namelist ' // TRIM(cdnam) // ' iostat = ' // TRIM(clios))
@@ -288,9 +307,13 @@ MODULE lib_mpp
     END IF
     kios = 0
     RETURN
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ctl_nam
   INTEGER FUNCTION get_unit()
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     LOGICAL :: llopn
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('get_unit', 'r0', psy_profile0)
     get_unit = 15
     llopn = .TRUE.
     DO WHILE ((get_unit < 998) .AND. llopn)
@@ -301,5 +324,6 @@ MODULE lib_mpp
       CALL ctl_stop('get_unit: All logical units until 999 are used...')
       get_unit = - 1
     END IF
+    CALL ProfileEnd(psy_profile0)
   END FUNCTION get_unit
 END MODULE lib_mpp

@@ -31,9 +31,7 @@ MODULE dynzad
     END IF
     CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
-      CALL ProfileStart('dyn_zad', 'r1', psy_profile1)
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :)
       ztrdv(:, :, :) = va(:, :, :)
@@ -75,8 +73,10 @@ MODULE dynzad
       ztrdu(:, :, :) = ua(:, :, :) - ztrdu(:, :, :)
       ztrdv(:, :, :) = va(:, :, :) - ztrdv(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('dyn_zad', 'r1', psy_profile1)
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_zad, kt)
       DEALLOCATE(ztrdu, ztrdv)
+      CALL ProfileEnd(psy_profile1)
     END IF
     CALL ProfileStart('dyn_zad', 'r2', psy_profile2)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' zad  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')

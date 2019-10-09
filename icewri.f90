@@ -183,15 +183,18 @@ MODULE icewri
     CALL ProfileEnd(psy_profile5)
   END SUBROUTINE ice_wri
   SUBROUTINE ice_wri_state(kt, kid, kh_i)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
     INTEGER, INTENT( IN ) :: kid, kh_i
     INTEGER :: nz_i, jl
     REAL(KIND = wp), DIMENSION(jpl) :: jcat
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     DO jl = 1, jpl
       jcat(jl) = REAL(jl)
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ice_wri_state', 'r0', psy_profile0)
     CALL histvert(kid, "ncatice", "Ice Categories", "", jpl, jcat, nz_i, "up")
     CALL histdef(kid, "sithic", "Ice thickness", "m", jpi, jpj, kh_i, 1, 1, 1, - 99, 32, "inst(x)", rdt, rdt)
     CALL histdef(kid, "siconc", "Ice concentration", "%", jpi, jpj, kh_i, 1, 1, 1, - 99, 32, "inst(x)", rdt, rdt)
@@ -232,5 +235,6 @@ MODULE icewri
     CALL histwrite(kid, "siconcat", kt, a_i, jpi * jpj * jpl, (/1/))
     CALL histwrite(kid, "sisalcat", kt, s_i, jpi * jpj * jpl, (/1/))
     CALL histwrite(kid, "snthicat", kt, h_s, jpi * jpj * jpl, (/1/))
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_wri_state
 END MODULE icewri

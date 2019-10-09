@@ -184,13 +184,9 @@ MODULE closea
     TYPE(ProfileData), SAVE :: psy_profile9
     TYPE(ProfileData), SAVE :: psy_profile10
     TYPE(ProfileData), SAVE :: psy_profile11
-    TYPE(ProfileData), SAVE :: psy_profile12
-    TYPE(ProfileData), SAVE :: psy_profile13
-    CALL ProfileStart('sbc_clo', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('sbc_clo')
-    CALL ProfileEnd(psy_profile0)
     IF (kt == nit000) THEN
-      CALL ProfileStart('sbc_clo', 'r1', psy_profile1)
+      CALL ProfileStart('sbc_clo', 'r0', psy_profile0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'sbc_clo : closed seas '
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~'
@@ -204,42 +200,42 @@ MODULE closea
       IF (ierr /= 0) CALL ctl_stop('STOP', 'sbc_clo: failed to allocate surfe array')
       surfe(:) = 0.E0_wp
       surf(jncs + 1) = glob_sum(e1e2t(:, :))
-      CALL ProfileEnd(psy_profile1)
+      CALL ProfileEnd(psy_profile0)
       DO jc = 1, jncs
         !$ACC KERNELS
         ztmp2d(:, :) = 0.E0_wp
-        !$ACC END KERNELS
-        CALL ProfileStart('sbc_clo', 'r2', psy_profile2)
         WHERE (closea_mask(:, :) == jc) ztmp2d(:, :) = e1e2t(:, :) * tmask_i(:, :)
+        !$ACC END KERNELS
+        CALL ProfileStart('sbc_clo', 'r1', psy_profile1)
         surf(jc) = glob_sum(ztmp2d(:, :))
-        CALL ProfileEnd(psy_profile2)
+        CALL ProfileEnd(psy_profile1)
       END DO
-      CALL ProfileStart('sbc_clo', 'r3', psy_profile3)
+      CALL ProfileStart('sbc_clo', 'r2', psy_profile2)
       surf(jncs + 1) = surf(jncs + 1) - SUM(surf(1 : jncs))
-      CALL ProfileEnd(psy_profile3)
+      CALL ProfileEnd(psy_profile2)
       IF (jncsr > 0) THEN
         DO jcr = 1, jncsr
           !$ACC KERNELS
           ztmp2d(:, :) = 0.E0_wp
-          !$ACC END KERNELS
-          CALL ProfileStart('sbc_clo', 'r4', psy_profile4)
           WHERE (closea_mask_rnf(:, :) == jcr .AND. closea_mask(:, :) == 0) ztmp2d(:, :) = e1e2t(:, :) * tmask_i(:, :)
+          !$ACC END KERNELS
+          CALL ProfileStart('sbc_clo', 'r3', psy_profile3)
           surfr(jcr) = glob_sum(ztmp2d(:, :))
-          CALL ProfileEnd(psy_profile4)
+          CALL ProfileEnd(psy_profile3)
         END DO
       END IF
       IF (jncse > 0) THEN
         DO jce = 1, jncse
           !$ACC KERNELS
           ztmp2d(:, :) = 0.E0_wp
-          !$ACC END KERNELS
-          CALL ProfileStart('sbc_clo', 'r5', psy_profile5)
           WHERE (closea_mask_empmr(:, :) == jce .AND. closea_mask(:, :) == 0) ztmp2d(:, :) = e1e2t(:, :) * tmask_i(:, :)
+          !$ACC END KERNELS
+          CALL ProfileStart('sbc_clo', 'r4', psy_profile4)
           surfe(jce) = glob_sum(ztmp2d(:, :))
-          CALL ProfileEnd(psy_profile5)
+          CALL ProfileEnd(psy_profile4)
         END DO
       END IF
-      CALL ProfileStart('sbc_clo', 'r6', psy_profile6)
+      CALL ProfileStart('sbc_clo', 'r5', psy_profile5)
       IF (lwp) WRITE(numout, FMT = *) '     Closed sea surface areas (km2)'
       DO jc = 1, jncs
         IF (lwp) WRITE(numout, FMT = '(1I3,5X,ES12.2)') jc, surf(jc) * 1.0E-6
@@ -257,35 +253,37 @@ MODULE closea
           IF (lwp) WRITE(numout, FMT = '(1I3,5X,ES12.2)') jce, surfe(jce) * 1.0E-6
         END DO
       END IF
-      CALL ProfileEnd(psy_profile6)
+      CALL ProfileEnd(psy_profile5)
     END IF
-    CALL ProfileStart('sbc_clo', 'r7', psy_profile7)
+    CALL ProfileStart('sbc_clo', 'r6', psy_profile6)
     zfwf_total = 0._wp
     zfwf(:) = 0.E0_wp
-    CALL ProfileEnd(psy_profile7)
+    CALL ProfileEnd(psy_profile6)
     DO jc = 1, jncs
       !$ACC KERNELS
       ztmp2d(:, :) = 0.E0_wp
-      !$ACC END KERNELS
-      CALL ProfileStart('sbc_clo', 'r8', psy_profile8)
       WHERE (closea_mask(:, :) == jc) ztmp2d(:, :) = e1e2t(:, :) * (emp(:, :) - rnf(:, :)) * tmask_i(:, :)
+      !$ACC END KERNELS
+      CALL ProfileStart('sbc_clo', 'r7', psy_profile7)
       zfwf(jc) = glob_sum(ztmp2d(:, :))
-      CALL ProfileEnd(psy_profile8)
+      CALL ProfileEnd(psy_profile7)
     END DO
-    CALL ProfileStart('sbc_clo', 'r9', psy_profile9)
+    CALL ProfileStart('sbc_clo', 'r8', psy_profile8)
     zfwf_total = SUM(zfwf)
     zfwfr(:) = 0.E0_wp
-    CALL ProfileEnd(psy_profile9)
+    CALL ProfileEnd(psy_profile8)
     IF (jncsr > 0) THEN
       DO jcr = 1, jncsr
         !$ACC KERNELS
         ztmp2d(:, :) = 0.E0_wp
-        !$ACC END KERNELS
-        CALL ProfileStart('sbc_clo', 'r10', psy_profile10)
         WHERE (closea_mask_rnf(:, :) == jcr .AND. closea_mask(:, :) > 0) ztmp2d(:, :) = e1e2t(:, :) * (emp(:, :) - rnf(:, :)) * tmask_i(:, :)
+        !$ACC END KERNELS
+        CALL ProfileStart('sbc_clo', 'r9', psy_profile9)
         zfwfr(jcr) = glob_sum(ztmp2d(:, :))
+        CALL ProfileEnd(psy_profile9)
         IF (ABS(zfwfr(jcr) / surf(jncs + 1)) > rsmall) THEN
           IF (zfwfr(jcr) < 0.0) THEN
+            !$ACC KERNELS
             zfwf_total = zfwf_total - zfwfr(jcr)
             zcoef = zfwfr(jcr) / surfr(jcr)
             zcoef1 = rcp * zcoef
@@ -293,23 +291,25 @@ MODULE closea
               emp(:, :) = emp(:, :) + zcoef
               qns(:, :) = qns(:, :) - zcoef1 * sst_m(:, :)
             END WHERE
+            !$ACC END KERNELS
           END IF
         END IF
-        CALL ProfileEnd(psy_profile10)
       END DO
     END IF
-    CALL ProfileStart('sbc_clo', 'r11', psy_profile11)
+    CALL ProfileStart('sbc_clo', 'r10', psy_profile10)
     zfwfe(:) = 0.E0_wp
-    CALL ProfileEnd(psy_profile11)
+    CALL ProfileEnd(psy_profile10)
     IF (jncse > 0) THEN
       DO jce = 1, jncse
         !$ACC KERNELS
         ztmp2d(:, :) = 0.E0_wp
-        !$ACC END KERNELS
-        CALL ProfileStart('sbc_clo', 'r12', psy_profile12)
         WHERE (closea_mask_empmr(:, :) == jce .AND. closea_mask(:, :) > 0) ztmp2d(:, :) = e1e2t(:, :) * (emp(:, :) - rnf(:, :)) * tmask_i(:, :)
+        !$ACC END KERNELS
+        CALL ProfileStart('sbc_clo', 'r11', psy_profile11)
         zfwfe(jce) = glob_sum(ztmp2d(:, :))
+        CALL ProfileEnd(psy_profile11)
         IF (ABS(zfwfe(jce) / surf(jncs + 1)) > rsmall) THEN
+          !$ACC KERNELS
           zfwf_total = zfwf_total - zfwfe(jce)
           zcoef = zfwfe(jce) / surfe(jce)
           zcoef1 = rcp * zcoef
@@ -317,51 +317,53 @@ MODULE closea
             emp(:, :) = emp(:, :) + zcoef
             qns(:, :) = qns(:, :) - zcoef1 * sst_m(:, :)
           END WHERE
+          !$ACC END KERNELS
         END IF
-        CALL ProfileEnd(psy_profile12)
       END DO
     END IF
-    CALL ProfileStart('sbc_clo', 'r13', psy_profile13)
     IF (ABS(zfwf_total / surf(jncs + 1)) > rsmall) THEN
+      !$ACC KERNELS
       zcoef = zfwf_total / surf(jncs + 1)
       zcoef1 = rcp * zcoef
       WHERE (closea_mask(:, :) == 0)
         emp(:, :) = emp(:, :) + zcoef
         qns(:, :) = qns(:, :) - zcoef1 * sst_m(:, :)
       END WHERE
+      !$ACC END KERNELS
     END IF
     DO jc = 1, jncs
       IF (ABS(zfwf(jc) / surf(jncs + 1)) > rsmall) THEN
+        !$ACC KERNELS
         zcoef = zfwf(jc) / surf(jc)
         zcoef1 = rcp * zcoef
         WHERE (closea_mask(:, :) == jc)
           emp(:, :) = emp(:, :) - zcoef
           qns(:, :) = qns(:, :) + zcoef1 * sst_m(:, :)
         END WHERE
+        !$ACC END KERNELS
       END IF
     END DO
-    CALL ProfileEnd(psy_profile13)
     !$ACC KERNELS
     emp(:, :) = emp(:, :) * tmask(:, :, 1)
     !$ACC END KERNELS
     CALL lbc_lnk(emp, 'T', 1._wp)
   END SUBROUTINE sbc_clo
   SUBROUTINE clo_rnf(p_rnfmsk)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: p_rnfmsk
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('clo_rnf', 'r0', psy_profile0)
     IF (jncsr > 0) THEN
+      !$ACC KERNELS
       WHERE (closea_mask_rnf(:, :) > 0 .AND. closea_mask(:, :) == 0)
         p_rnfmsk(:, :) = MAX(p_rnfmsk(:, :), 1.0_wp)
       END WHERE
+      !$ACC END KERNELS
     END IF
     IF (jncse > 0) THEN
+      !$ACC KERNELS
       WHERE (closea_mask_empmr(:, :) > 0 .AND. closea_mask(:, :) == 0)
         p_rnfmsk(:, :) = MAX(p_rnfmsk(:, :), 1.0_wp)
       END WHERE
+      !$ACC END KERNELS
     END IF
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE clo_rnf
   SUBROUTINE clo_bat(k_top, k_bot)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -373,9 +375,6 @@ MODULE closea
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
     TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
     CALL ProfileStart('clo_bat', 'r0', psy_profile0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
@@ -395,27 +394,21 @@ MODULE closea
         CALL ProfileEnd(psy_profile2)
         !$ACC KERNELS
         closea_mask(:, :) = NINT(zdata_in(:, :))
-        !$ACC END KERNELS
-        CALL ProfileStart('clo_bat', 'r3', psy_profile3)
         WHERE (closea_mask(:, :) > 0)
           k_top(:, :) = 0
           k_bot(:, :) = 0
         END WHERE
-        CALL ProfileEnd(psy_profile3)
+        !$ACC END KERNELS
       ELSE
-        CALL ProfileStart('clo_bat', 'r4', psy_profile4)
         IF (lwp) WRITE(numout, FMT = *) 'No closea_mask field found in domain_cfg file. No suppression of closed seas.'
-        CALL ProfileEnd(psy_profile4)
       END IF
       CALL iom_close(inum)
     ELSE
-      CALL ProfileStart('clo_bat', 'r5', psy_profile5)
       IF (lwp) WRITE(numout, FMT = *) 'No domain_cfg file => no suppression of closed seas.'
-      CALL ProfileEnd(psy_profile5)
     END IF
-    CALL ProfileStart('clo_bat', 'r6', psy_profile6)
+    CALL ProfileStart('clo_bat', 'r3', psy_profile3)
     l_sbc_clo = .FALSE.
     l_clo_rnf = .FALSE.
-    CALL ProfileEnd(psy_profile6)
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE clo_bat
 END MODULE closea

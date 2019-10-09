@@ -85,7 +85,6 @@ MODULE dynspg_ts
     TYPE(ProfileData), SAVE :: psy_profile5
     TYPE(ProfileData), SAVE :: psy_profile6
     TYPE(ProfileData), SAVE :: psy_profile7
-    TYPE(ProfileData), SAVE :: psy_profile8
     CALL ProfileStart('dyn_spg_ts', 'r0', psy_profile0)
     IF (ln_wd_il) ALLOCATE(zcpx(jpi, jpj), zcpy(jpi, jpj))
     IF (ln_wd_dl) ALLOCATE(ztwdmask(jpi, jpj), zuwdmask(jpi, jpj), zvwdmask(jpi, jpj), zuwdav2(jpi, jpj), zvwdav2(jpi, jpj))
@@ -610,9 +609,7 @@ MODULE dynspg_ts
       zwx(:, :) = e2u(:, :) * ua_e(:, :) * zhup2_e(:, :)
       zwy(:, :) = e1v(:, :) * va_e(:, :) * zhvp2_e(:, :)
       !$ACC END KERNELS
-      CALL ProfileStart('dyn_spg_ts', 'r4', psy_profile4)
       IF (ln_wd_il) CALL wad_lmt_bt(zwx, zwy, sshn_e, zssh_frc, rdtbt)
-      CALL ProfileEnd(psy_profile4)
       IF (ln_wd_dl) THEN
         !$ACC KERNELS
         DO jj = 1, jpjm1
@@ -654,10 +651,10 @@ MODULE dynspg_ts
       END DO
       ssha_e(:, :) = (sshn_e(:, :) - rdtbt * (zssh_frc(:, :) + zhdiv(:, :))) * ssmask(:, :)
       !$ACC END KERNELS
-      CALL ProfileStart('dyn_spg_ts', 'r5', psy_profile5)
+      CALL ProfileStart('dyn_spg_ts', 'r4', psy_profile4)
       CALL lbc_lnk(ssha_e, 'T', 1._wp)
       IF (ln_bdy) CALL bdy_ssh(ssha_e)
-      CALL ProfileEnd(psy_profile5)
+      CALL ProfileEnd(psy_profile4)
       IF (.NOT. ln_linssh) THEN
         !$ACC KERNELS
         DO jj = 2, jpjm1
@@ -669,7 +666,7 @@ MODULE dynspg_ts
         !$ACC END KERNELS
         CALL lbc_lnk_multi(zsshu_a, 'U', 1._wp, zsshv_a, 'V', 1._wp)
       END IF
-      CALL ProfileStart('dyn_spg_ts', 'r6', psy_profile6)
+      CALL ProfileStart('dyn_spg_ts', 'r5', psy_profile5)
       IF ((jn == 1) .AND. ll_init) THEN
         za0 = 1._wp
         za1 = 0._wp
@@ -695,7 +692,7 @@ MODULE dynspg_ts
           za3 = zepsilon
         END IF
       END IF
-      CALL ProfileEnd(psy_profile6)
+      CALL ProfileEnd(psy_profile5)
       !$ACC KERNELS
       zsshp2_e(:, :) = za0 * ssha_e(:, :) + za1 * sshn_e(:, :) + za2 * sshb_e(:, :) + za3 * sshbb_e(:, :)
       !$ACC END KERNELS
@@ -869,10 +866,10 @@ MODULE dynspg_ts
         hvr_e(:, :) = ssvmask(:, :) / (hv_e(:, :) + 1._wp - ssvmask(:, :))
         !$ACC END KERNELS
       END IF
-      CALL ProfileStart('dyn_spg_ts', 'r7', psy_profile7)
+      CALL ProfileStart('dyn_spg_ts', 'r6', psy_profile6)
       CALL lbc_lnk_multi(ua_e, 'U', - 1._wp, va_e, 'V', - 1._wp)
       IF (ln_bdy) CALL bdy_dyn2d(jn, ua_e, va_e, un_e, vn_e, hur_e, hvr_e, ssha_e)
-      CALL ProfileEnd(psy_profile7)
+      CALL ProfileEnd(psy_profile6)
       !$ACC KERNELS
       ubb_e(:, :) = ub_e(:, :)
       ub_e(:, :) = un_e(:, :)
@@ -970,7 +967,7 @@ MODULE dynspg_ts
       END DO
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('dyn_spg_ts', 'r8', psy_profile8)
+    CALL ProfileStart('dyn_spg_ts', 'r7', psy_profile7)
     CALL iom_put("ubar", un_adv(:, :) * r1_hu_n(:, :))
     CALL iom_put("vbar", vn_adv(:, :) * r1_hv_n(:, :))
     IF (lrst_oce .AND. ln_bt_fw) CALL ts_rst(kt, 'WRITE')
@@ -980,7 +977,7 @@ MODULE dynspg_ts
       CALL iom_put("baro_u", un_b * ssumask(:, :) + zmdi * (1. - ssumask(:, :)))
       CALL iom_put("baro_v", vn_b * ssvmask(:, :) + zmdi * (1. - ssvmask(:, :)))
     END IF
-    CALL ProfileEnd(psy_profile8)
+    CALL ProfileEnd(psy_profile7)
   END SUBROUTINE dyn_spg_ts
   SUBROUTINE ts_wgt(ll_av, ll_fw, jpit, zwgt1, zwgt2)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

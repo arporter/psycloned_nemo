@@ -53,6 +53,7 @@ CONTAINS
       !
       INTEGER ::   jl, jn, jid, jjd
       !!----------------------------------------------------------------------
+      !$ACC KERNELS
       DO jl = 1, jpl
          DO jn = 1, ndim1d
             jid          = MOD( tab_ind(jn) - 1 , jpi ) + 1
@@ -60,6 +61,7 @@ CONTAINS
             tab1d(jn,jl) = tab2d(jid,jjd,jl)
          END DO
       END DO
+      !$ACC END KERNELS
    END SUBROUTINE tab_3d_2d
 
 
@@ -95,6 +97,7 @@ CONTAINS
       !
       INTEGER ::   jl, jn, jid, jjd
       !!----------------------------------------------------------------------
+      !$ACC KERNELS
       DO jl = 1, jpl
          DO jn = 1, ndim1d
             jid               = MOD( tab_ind(jn) - 1 ,  jpi ) + 1
@@ -102,6 +105,7 @@ CONTAINS
             tab2d(jid,jjd,jl) = tab1d(jn,jl)
          END DO
       END DO
+      !$ACC END KERNELS
    END SUBROUTINE tab_2d_3d
 
 

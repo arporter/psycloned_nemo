@@ -58,6 +58,9 @@ MODULE diurnal_bulk
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z_abflux
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z_fla
     TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
     IF (.NOT. PRESENT(pthick)) THEN
       !$ACC KERNELS
       zthick(:, :) = 3._wp
@@ -102,12 +105,18 @@ MODULE diurnal_bulk
         END DO
       END DO
     END IF
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     WHERE (tmask(:, :, 1) == 1._wp)
       z_abflux(:, :) = (x_solfrac(:, :) * psolflux(:, :)) + pqflux(:, :)
     ELSEWHERE
       z_abflux(:, :) = 0._wp
     END WHERE
+    !$ACC END KERNELS
+    CALL ProfileStart('diurnal_sst_takaya_step', 'r1', psy_profile1)
     IF (PRESENT(p_hflux_bkginc)) z_abflux(:, :) = z_abflux(:, :) + p_hflux_bkginc
+    CALL ProfileEnd(psy_profile1)
+    !$ACC KERNELS
     WHERE (ABS(z_abflux(:, :)) < rsmall)
       z_abflux(:, :) = rsmall
     END WHERE
@@ -116,14 +125,20 @@ MODULE diurnal_bulk
     ELSEWHERE
       z_fvel(:, :) = 0._wp
     END WHERE
+    !$ACC END KERNELS
+    CALL ProfileStart('diurnal_sst_takaya_step', 'r2', psy_profile2)
     IF (PRESENT(p_fvel_bkginc)) z_fvel(:, :) = z_fvel(:, :) + p_fvel_bkginc
+    CALL ProfileEnd(psy_profile2)
+    !$ACC KERNELS
     WHERE (tmask(:, :, 1) == 1.)
       z_fla(:, :) = MAX(1._wp, zla(:, :) ** (- 2._wp / 3._wp))
     ELSEWHERE
       z_fla(:, :) = 0._wp
     END WHERE
+    !$ACC END KERNELS
+    CALL ProfileStart('diurnal_sst_takaya_step', 'r3', psy_profile3)
     x_dsst(:, :) = t_imp(x_dsst(:, :), p_rdt, z_abflux(:, :), z_fvel(:, :), z_fla(:, :), zmu(:, :), zthick(:, :), prho(:, :))
-    CALL ProfileEnd(psy_profile0)
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE diurnal_sst_takaya_step
   FUNCTION t_imp(p_dsst, p_rdt, p_abflux, p_fvel, p_fla, pmu, pthick, prho)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

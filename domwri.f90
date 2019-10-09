@@ -21,6 +21,9 @@ MODULE domwri
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdepu, zdepv
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
     CALL ProfileStart('dom_wri', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'dom_wri : create NetCDF mesh and mask information file(s)'
@@ -68,8 +71,10 @@ MODULE domwri
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('dom_wri', 'r1', psy_profile1)
     CALL iom_rstput(0, 0, inum, 'tmaskutil', zprt, ktype = jp_i1)
     CALL dom_uniq(zprw, 'U')
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -77,8 +82,10 @@ MODULE domwri
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('dom_wri', 'r2', psy_profile2)
     CALL iom_rstput(0, 0, inum, 'umaskutil', zprt, ktype = jp_i1)
     CALL dom_uniq(zprw, 'V')
+    CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -86,6 +93,7 @@ MODULE domwri
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('dom_wri', 'r3', psy_profile3)
     CALL iom_rstput(0, 0, inum, 'vmaskutil', zprt, ktype = jp_i1)
     CALL iom_rstput(0, 0, inum, 'glamt', glamt, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'glamu', glamu, ktype = jp_r8)
@@ -105,6 +113,7 @@ MODULE domwri
     CALL iom_rstput(0, 0, inum, 'e2f', e2f, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'ff_f', ff_f, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'ff_t', ff_t, ktype = jp_r8)
+    CALL ProfileEnd(psy_profile3)
     !$ACC KERNELS
     zprt(:, :) = ssmask(:, :) * REAL(mbkt(:, :), wp)
     !$ACC END KERNELS
@@ -116,7 +125,7 @@ MODULE domwri
     !$ACC KERNELS
     zprt(:, :) = ssmask(:, :) * REAL(risfdep(:, :), wp)
     !$ACC END KERNELS
-    CALL ProfileStart('dom_wri', 'r1', psy_profile1)
+    CALL ProfileStart('dom_wri', 'r4', psy_profile4)
     CALL iom_rstput(0, 0, inum, 'isfdraft', zprt, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'e3t_0', e3t_0, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'e3u_0', e3u_0, ktype = jp_r8)
@@ -132,7 +141,7 @@ MODULE domwri
     END IF
     IF (ll_wd) CALL iom_rstput(0, 0, inum, 'ht_0', ht_0, ktype = jp_r8)
     CALL iom_close(inum)
-    CALL ProfileEnd(psy_profile1)
+    CALL ProfileEnd(psy_profile4)
   END SUBROUTINE dom_wri
   SUBROUTINE dom_uniq(puniq, cdgrd)
     CHARACTER(LEN = 1), INTENT(IN   ) :: cdgrd
@@ -141,11 +150,11 @@ MODULE domwri
     INTEGER :: ji
     LOGICAL, DIMENSION(SIZE(puniq, 1), SIZE(puniq, 2), 1) :: lldbl
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztstref
-    !$ACC KERNELS
+    !CC KERNELS
     zshift = jpi * jpj * (narea - 1)
     ztstref(:, :) = RESHAPE((/(zshift + REAL(ji, wp), ji = 1, jpi * jpj)/), (/jpi, jpj/))
     puniq(:, :) = ztstref(:, :)
-    !$ACC END KERNELS
+    !CC END KERNELS
     CALL lbc_lnk(puniq, cdgrd, 1.)
     !$ACC KERNELS
     lldbl(:, :, 1) = puniq(:, :) == ztstref(:, :)

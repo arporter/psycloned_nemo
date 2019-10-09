@@ -41,16 +41,16 @@ MODULE trazdf
     END IF
     CALL ProfileEnd(psy_profile0)
     IF (l_trdtra) THEN
-      CALL ProfileStart('tra_zdf', 'r1', psy_profile1)
       ALLOCATE(ztrdt(jpi, jpj, jpk), ztrds(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem)
       ztrds(:, :, :) = tsa(:, :, :, jp_sal)
       !$ACC END KERNELS
     END IF
     CALL tra_zdf_imp(kt, nit000, 'TRA', r2dt, tsb, tsa, jpts)
+    !$ACC KERNELS
     WHERE (tsa(:, :, :, jp_sal) < 0._wp) tsa(:, :, :, jp_sal) = 0.1_wp
+    !$ACC END KERNELS
     IF (l_trdtra) THEN
       !$ACC KERNELS
       DO jk = 1, jpkm1
@@ -58,10 +58,12 @@ MODULE trazdf
         ztrds(:, :, jk) = ((tsa(:, :, jk, jp_sal) * e3t_a(:, :, jk) - tsb(:, :, jk, jp_sal) * e3t_b(:, :, jk)) / (e3t_n(:, :, jk) * r2dt)) - ztrds(:, :, jk)
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_zdf', 'r1', psy_profile1)
       CALL lbc_lnk_multi(ztrdt, 'T', 1., ztrds, 'T', 1.)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_zdf, ztrdt)
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_zdf, ztrds)
       DEALLOCATE(ztrdt, ztrds)
+      CALL ProfileEnd(psy_profile1)
     END IF
     CALL ProfileStart('tra_zdf', 'r2', psy_profile2)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' zdf  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')

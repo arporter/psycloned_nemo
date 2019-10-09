@@ -40,7 +40,6 @@ MODULE zdfdrg
   REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :), PUBLIC :: rCdU_top, rCdU_bot
   CONTAINS
   SUBROUTINE zdf_drg(kt, k_mk, pCdmin, pCdmax, pz0, pke0, pCd0, pCdU)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     INTEGER, DIMENSION(:, :), INTENT(IN   ) :: k_mk
     REAL(KIND = wp), INTENT(IN   ) :: pCdmin
@@ -52,7 +51,6 @@ MODULE zdfdrg
     INTEGER :: ji, jj
     INTEGER :: imk
     REAL(KIND = wp) :: zzz, zut, zvt, zcd
-    TYPE(ProfileData), SAVE :: psy_profile0
     IF (l_log_not_linssh) THEN
       !$ACC KERNELS
       DO jj = 2, jpjm1
@@ -79,9 +77,7 @@ MODULE zdfdrg
       END DO
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('zdf_drg', 'r0', psy_profile0)
     IF (ln_ctl) CALL prt_ctl(tab2d_1 = pCdU, clinfo1 = ' Cd*U ')
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE zdf_drg
   SUBROUTINE zdf_drg_exp(kt, pub, pvb, pua, pva)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -95,14 +91,11 @@ MODULE zdfdrg
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: ztrdu, ztrdv
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
     CALL ProfileStart('zdf_drg_exp', 'r0', psy_profile0)
     zm1_2dt = - 1._wp / (2._wp * rdt)
     CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
-      CALL ProfileStart('zdf_drg_exp', 'r1', psy_profile1)
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdu(:, :, :) = pua(:, :, :)
       ztrdv(:, :, :) = pva(:, :, :)
@@ -139,12 +132,12 @@ MODULE zdfdrg
       ztrdu(:, :, :) = pua(:, :, :) - ztrdu(:, :, :)
       ztrdv(:, :, :) = pva(:, :, :) - ztrdv(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('zdf_drg_exp', 'r1', psy_profile1)
       CALL trd_dyn(ztrdu(:, :, :), ztrdv(:, :, :), jpdyn_bfr, kt)
       DEALLOCATE(ztrdu, ztrdv)
+      CALL ProfileEnd(psy_profile1)
     END IF
-    CALL ProfileStart('zdf_drg_exp', 'r2', psy_profile2)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = pua, clinfo1 = ' bfr  - Ua: ', mask1 = umask, tab3d_2 = pva, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
-    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE zdf_drg_exp
   SUBROUTINE zdf_drg_init
     INTEGER :: ji, jj
@@ -269,8 +262,10 @@ MODULE zdfdrg
       zmsk_boost(:, :) = 1._wp
       !$ACC END KERNELS
     END IF
+    !$ACC KERNELS
     IF (ll_top) zmsk_boost(:, :) = zmsk_boost(:, :) * ssmask(:, :) * (1. - tmask(:, :, 1))
     IF (ll_bot) zmsk_boost(:, :) = zmsk_boost(:, :) * ssmask(:, :)
+    !$ACC END KERNELS
     SELECT CASE (ndrg)
     CASE (np_OFF)
       IF (lwp) WRITE(numout, FMT = *)

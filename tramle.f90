@@ -42,6 +42,7 @@ MODULE tramle
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_NH, zLf_MH
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zpsi_uw, zpsi_vw
     TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     !$ACC KERNELS
     inml_mle(:, :) = mbkt(:, :) + 1
     !$ACC END KERNELS
@@ -183,8 +184,10 @@ MODULE tramle
         zpsi_vw(:, :, jk) = zpsi_vw(:, :, jk) * r1_e1v(:, :)
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_mle_trp', 'r1', psy_profile1)
       CALL iom_put("psiu_mle", zpsi_uw)
       CALL iom_put("psiv_mle", zpsi_vw)
+      CALL ProfileEnd(psy_profile1)
     END IF
   END SUBROUTINE tra_mle_trp
   SUBROUTINE tra_mle_init

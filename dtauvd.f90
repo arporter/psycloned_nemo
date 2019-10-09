@@ -83,7 +83,6 @@ MODULE dtauvd
     TYPE(ProfileData), SAVE :: psy_profile3
     TYPE(ProfileData), SAVE :: psy_profile4
     TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
     CALL ProfileStart('dta_uvd', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dta_uvd')
     CALL fld_read(kt, 1, sf_uvd)
@@ -136,9 +135,7 @@ MODULE dtauvd
           !$ACC END KERNELS
         END DO
       END DO
-      CALL ProfileStart('dta_uvd', 'r5', psy_profile5)
       DEALLOCATE(zup, zvp)
-      CALL ProfileEnd(psy_profile5)
     ELSE
       !$ACC KERNELS
       puvd(:, :, :, 1) = puvd(:, :, :, 1) * umask(:, :, :)
@@ -159,7 +156,7 @@ MODULE dtauvd
         !$ACC END KERNELS
       END IF
     END IF
-    CALL ProfileStart('dta_uvd', 'r6', psy_profile6)
+    CALL ProfileStart('dta_uvd', 'r5', psy_profile5)
     IF (.NOT. ln_uvd_dyndmp) THEN
       IF (lwp) WRITE(numout, FMT = *) 'dta_uvd: deallocate U & V current arrays as they are only used to initialize the run'
       DEALLOCATE(sf_uvd(1) % fnow)
@@ -169,6 +166,6 @@ MODULE dtauvd
       DEALLOCATE(sf_uvd)
     END IF
     IF (ln_timing) CALL timing_stop('dta_uvd')
-    CALL ProfileEnd(psy_profile6)
+    CALL ProfileEnd(psy_profile5)
   END SUBROUTINE dta_uvd
 END MODULE dtauvd

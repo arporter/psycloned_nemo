@@ -48,7 +48,6 @@ MODULE traldf_triad
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
     CALL ProfileStart('tra_ldf_triad', 'r0', psy_profile0)
     IF (.NOT. ALLOCATED(zdkt3d)) THEN
       ALLOCATE(zdkt3d(jpi, jpj, 0 : 1), STAT = ierr)
@@ -156,9 +155,7 @@ MODULE traldf_triad
         akz(:, :, :) = ah_wslp2(:, :, :)
         !$ACC END KERNELS
       END IF
-      CALL ProfileStart('tra_ldf_triad', 'r1', psy_profile1)
       IF (ln_ldfeiv_dia .AND. cdtype == 'TRA') CALL ldf_eiv_dia(zpsi_uw, zpsi_vw)
-      CALL ProfileEnd(psy_profile1)
     END IF
     DO jn = 1, kjpt
       !$ACC KERNELS
@@ -207,9 +204,9 @@ MODULE traldf_triad
           zdkt3d(:, :, 0) = (ptb(:, :, jk - 1, jn) - ptb(:, :, jk, jn)) * tmask(:, :, jk)
           !$ACC END KERNELS
         END IF
-        CALL ProfileStart('tra_ldf_triad', 'r2', psy_profile2)
+        CALL ProfileStart('tra_ldf_triad', 'r1', psy_profile1)
         zaei_slp = 0._wp
-        CALL ProfileEnd(psy_profile2)
+        CALL ProfileEnd(psy_profile1)
         IF (ln_botmix_triad) THEN
           !$ACC KERNELS
           DO ip = 0, 1
@@ -348,12 +345,12 @@ MODULE traldf_triad
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('tra_ldf_triad', 'r3', psy_profile3)
+      CALL ProfileStart('tra_ldf_triad', 'r2', psy_profile2)
       IF ((kpass == 1 .AND. ln_traldf_lap) .OR. (kpass == 2 .AND. ln_traldf_blp)) THEN
         IF (l_ptr) CALL dia_ptr_hst(jn, 'ldf', zftv(:, :, :))
         IF (l_hst) CALL dia_ar5_hst(jn, 'ldf', zftu(:, :, :), zftv(:, :, :))
       END IF
-      CALL ProfileEnd(psy_profile3)
+      CALL ProfileEnd(psy_profile2)
     END DO
   END SUBROUTINE tra_ldf_triad
 END MODULE traldf_triad

@@ -380,13 +380,9 @@ MODULE cpl_oasis3
     WRITE(numout, FMT = *) 'oasis_init_comp: Error you sould not be there...', cd1
   END SUBROUTINE oasis_init_comp
   SUBROUTINE oasis_abort(k1, cd1, cd2)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: k1
     CHARACTER(LEN = *), INTENT(IN   ) :: cd1, cd2
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('oasis_abort', 'r0', psy_profile0)
     WRITE(numout, FMT = *) 'oasis_abort: Error you sould not be there...', cd1, cd2
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE oasis_abort
   SUBROUTINE oasis_get_localcomm(k1, k2)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

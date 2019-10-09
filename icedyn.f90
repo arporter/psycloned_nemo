@@ -47,18 +47,16 @@ MODULE icedyn
     IF (ln_landfast) THEN
       !$ACC KERNELS
       tau_icebfr(:, :) = 0._wp
-      !$ACC END KERNELS
-      CALL ProfileStart('ice_dyn', 'r1', psy_profile1)
       DO jl = 1, jpl
         WHERE (h_i(:, :, jl) > ht_n(:, :) * rn_gamma) tau_icebfr(:, :) = tau_icebfr(:, :) + a_i(:, :, jl) * rn_icebfr
       END DO
+      !$ACC END KERNELS
       IF (iom_use('tau_icebfr')) CALL iom_put('tau_icebfr', tau_icebfr)
-      CALL ProfileEnd(psy_profile1)
     END IF
     !$ACC KERNELS
     zhmax(:, :, :) = h_i_b(:, :, :)
     !$ACC END KERNELS
-    CALL ProfileStart('ice_dyn', 'r2', psy_profile2)
+    CALL ProfileStart('ice_dyn', 'r1', psy_profile1)
     DO jl = 1, jpl
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -67,18 +65,22 @@ MODULE icedyn
       END DO
     END DO
     CALL lbc_lnk(zhmax(:, :, :), 'T', 1.)
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
     SELECT CASE (nice_dyn)
     CASE (np_dynFULL)
+      CALL ProfileStart('ice_dyn', 'r2', psy_profile2)
       CALL ice_dyn_rhg(kt)
       CALL ice_dyn_adv(kt)
       CALL hbig(zhmax)
       CALL ice_dyn_rdgrft(kt)
       CALL ice_cor(kt, 1)
+      CALL ProfileEnd(psy_profile2)
     CASE (np_dynRHGADV)
+      CALL ProfileStart('ice_dyn', 'r3', psy_profile3)
       CALL ice_dyn_rhg(kt)
       CALL ice_dyn_adv(kt)
       CALL Hpiling
+      CALL ProfileEnd(psy_profile3)
     CASE (np_dynADV)
       !$ACC KERNELS
       u_ice(:, :) = rn_uice * umask(:, :, 1)
@@ -86,16 +88,12 @@ MODULE icedyn
       !$ACC END KERNELS
       CALL ice_dyn_adv(kt)
     END SELECT
-    CALL ProfileStart('ice_dyn', 'r3', psy_profile3)
     IF (ln_timing) CALL timing_stop('icedyn')
-    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE ice_dyn
   SUBROUTINE Hbig(phmax)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: phmax
     INTEGER :: ji, jj, jl
     REAL(KIND = wp) :: zh, zdv
-    TYPE(ProfileData), SAVE :: psy_profile0
     CALL ice_var_zapsmall
     !$ACC KERNELS
     DO jl = 1, jpl
@@ -111,10 +109,8 @@ MODULE icedyn
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
-    CALL ProfileStart('hbig', 'r0', psy_profile0)
     WHERE (a_ip(:, :, :) > a_i(:, :, :)) a_ip(:, :, :) = a_i(:, :, :)
-    CALL ProfileEnd(psy_profile0)
+    !$ACC END KERNELS
   END SUBROUTINE Hbig
   SUBROUTINE Hpiling
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -123,12 +119,14 @@ MODULE icedyn
     CALL ProfileStart('hpiling', 'r0', psy_profile0)
     CALL ice_var_zapsmall
     at_i(:, :) = SUM(a_i(:, :, :), dim = 3)
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     DO jl = 1, jpl
       WHERE (at_i(:, :) > epsi20)
         a_i(:, :, jl) = a_i(:, :, jl) * (1._wp + MIN(rn_amax_2d(:, :) - at_i(:, :), 0._wp) / at_i(:, :))
       END WHERE
     END DO
-    CALL ProfileEnd(psy_profile0)
+    !$ACC END KERNELS
   END SUBROUTINE Hpiling
   SUBROUTINE ice_dyn_init
     INTEGER :: ios, ioptio
@@ -179,7 +177,9 @@ MODULE icedyn
     ELSE IF (2. < rn_ishlat) THEN
       IF (lwp) WRITE(numout, FMT = *) '   ===>>>   ice lateral  strong-slip'
     END IF
+    !$ACC KERNELS
     IF (.NOT. ln_landfast) tau_icebfr(:, :) = 0._wp
+    !$ACC END KERNELS
     CALL ice_dyn_rdgrft_init
     CALL ice_dyn_rhg_init
     CALL ice_dyn_adv_init

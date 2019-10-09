@@ -28,14 +28,9 @@ MODULE trabbc
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ztrdt
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    CALL ProfileStart('tra_bbc', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('tra_bbc')
-    CALL ProfileEnd(psy_profile0)
     IF (l_trdtra) THEN
-      CALL ProfileStart('tra_bbc', 'r1', psy_profile1)
       ALLOCATE(ztrdt(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem)
       !$ACC END KERNELS
@@ -52,13 +47,15 @@ MODULE trabbc
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem) - ztrdt(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('tra_bbc', 'r0', psy_profile0)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_bbc, ztrdt)
       DEALLOCATE(ztrdt)
+      CALL ProfileEnd(psy_profile0)
     END IF
-    CALL ProfileStart('tra_bbc', 'r2', psy_profile2)
+    CALL ProfileStart('tra_bbc', 'r1', psy_profile1)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' bbc  - Ta: ', mask1 = tmask, clinfo3 = 'tra-ta')
     IF (ln_timing) CALL timing_stop('tra_bbc')
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE tra_bbc
   SUBROUTINE tra_bbc_init
     INTEGER :: ji, jj

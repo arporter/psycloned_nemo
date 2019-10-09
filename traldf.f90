@@ -26,24 +26,18 @@ MODULE traldf
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    CALL ProfileStart('tra_ldf', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('tra_ldf')
-    CALL ProfileEnd(psy_profile0)
     IF (l_trdtra) THEN
-      CALL ProfileStart('tra_ldf', 'r1', psy_profile1)
       ALLOCATE(ztrdt(jpi, jpj, jpk), ztrds(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem)
       ztrds(:, :, :) = tsa(:, :, :, jp_sal)
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('tra_ldf', 'r0', psy_profile0)
     SELECT CASE (nldf_tra)
     CASE (np_lap)
-      CALL ProfileStart('tra_ldf', 'r2', psy_profile2)
       CALL tra_ldf_lap(kt, nit000, 'TRA', ahtu, ahtv, gtsu, gtsv, gtui, gtvi, tsb, tsa, jpts, 1)
-      CALL ProfileEnd(psy_profile2)
     CASE (np_lap_i)
       CALL tra_ldf_iso(kt, nit000, 'TRA', ahtu, ahtv, gtsu, gtsv, gtui, gtvi, tsb, tsb, tsa, jpts, 1)
     CASE (np_lap_it)
@@ -51,19 +45,22 @@ MODULE traldf
     CASE (np_blp, np_blp_i, np_blp_it)
       CALL tra_ldf_blp(kt, nit000, 'TRA', ahtu, ahtv, gtsu, gtsv, gtui, gtvi, tsb, tsa, jpts, nldf_tra)
     END SELECT
+    CALL ProfileEnd(psy_profile0)
     IF (l_trdtra) THEN
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem) - ztrdt(:, :, :)
       ztrds(:, :, :) = tsa(:, :, :, jp_sal) - ztrds(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('tra_ldf', 'r1', psy_profile1)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_ldf, ztrdt)
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_ldf, ztrds)
       DEALLOCATE(ztrdt, ztrds)
+      CALL ProfileEnd(psy_profile1)
     END IF
-    CALL ProfileStart('tra_ldf', 'r3', psy_profile3)
+    CALL ProfileStart('tra_ldf', 'r2', psy_profile2)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' ldf  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_ldf')
-    CALL ProfileEnd(psy_profile3)
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE tra_ldf
   SUBROUTINE tra_ldf_init
     INTEGER :: ioptio, ierr

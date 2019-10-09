@@ -20,41 +20,28 @@ MODULE obs_mpp
     INTEGER, DIMENSION(kno), INTENT(INOUT) :: kobsp
   END SUBROUTINE obs_mpp_find_obs_proc
   SUBROUTINE obs_mpp_sum_integers(kvalsin, kvalsout, kno)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kno
     INTEGER, DIMENSION(kno), INTENT(IN   ) :: kvalsin
     INTEGER, DIMENSION(kno), INTENT(  OUT) :: kvalsout
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('obs_mpp_sum_integers', 'r0', psy_profile0)
     kvalsout(:) = kvalsin(:)
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_mpp_sum_integers
   SUBROUTINE obs_mpp_sum_integer(kvalin, kvalout)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kvalin
     INTEGER, INTENT(  OUT) :: kvalout
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('obs_mpp_sum_integer', 'r0', psy_profile0)
     kvalout = kvalin
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_mpp_sum_integer
   SUBROUTINE mpp_global_max(pval)
     REAL(KIND = wp), DIMENSION(jpiglo, jpjglo), INTENT(INOUT) :: pval
     INTEGER :: ierr
   END SUBROUTINE mpp_global_max
   SUBROUTINE mpp_alltoall_int(kno, kvalsin, kvalsout)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kno
     INTEGER, DIMENSION(kno * jpnij), INTENT(IN   ) :: kvalsin
     INTEGER, DIMENSION(kno * jpnij), INTENT(  OUT) :: kvalsout
     INTEGER :: ierr
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('mpp_alltoall_int', 'r0', psy_profile0)
     kvalsout = kvalsin
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE mpp_alltoall_int
   SUBROUTINE mpp_alltoallv_int(kvalsin, knoin, kinv, kvalsout, knoout, koutv)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: knoin
     INTEGER, INTENT(IN) :: knoout
     INTEGER, DIMENSION(jpnij) :: kinv, koutv
@@ -62,13 +49,9 @@ MODULE obs_mpp
     INTEGER, DIMENSION(knoout), INTENT(  OUT) :: kvalsout
     INTEGER :: ierr
     INTEGER :: jproc
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('mpp_alltoallv_int', 'r0', psy_profile0)
     kvalsout = kvalsin
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE mpp_alltoallv_int
   SUBROUTINE mpp_alltoallv_real(pvalsin, knoin, kinv, pvalsout, knoout, koutv)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: knoin
     INTEGER, INTENT(IN   ) :: knoout
     INTEGER, DIMENSION(jpnij) :: kinv, koutv
@@ -76,9 +59,6 @@ MODULE obs_mpp
     REAL(KIND = wp), DIMENSION(knoout), INTENT(  OUT) :: pvalsout
     INTEGER :: ierr
     INTEGER :: jproc
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('mpp_alltoallv_real', 'r0', psy_profile0)
     pvalsout = pvalsin
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE mpp_alltoallv_real
 END MODULE obs_mpp

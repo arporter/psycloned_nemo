@@ -345,19 +345,13 @@ MODULE sbcblk
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqa
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pslp
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: rho_air
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('rho_air', 'r0', psy_profile0)
     rho_air = pslp / (R_dry * ptak * (1._wp + rctv0 * pqa))
-    CALL ProfileEnd(psy_profile0)
   END FUNCTION rho_air
   FUNCTION cp_air(pqa)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqa
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: cp_air
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('cp_air', 'r0', psy_profile0)
     Cp_air = Cp_dry + Cp_vap * pqa
-    CALL ProfileEnd(psy_profile0)
   END FUNCTION cp_air
   FUNCTION q_sat(ptak, pslp)
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: ptak
@@ -479,16 +473,21 @@ MODULE sbcblk
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
     TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
     CALL ProfileStart('blk_ice_flx', 'r0', psy_profile0)
     zcoef_dqlw = 4.0 * 0.95 * Stef
     zcoef_dqla = - Ls * 11637800. * (- 5897.8)
     zrhoa(:, :) = rho_air(sf(jp_tair) % fnow(:, :, 1), sf(jp_humi) % fnow(:, :, 1), sf(jp_slp) % fnow(:, :, 1))
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     zztmp = 1. / (1. - albo)
     WHERE (ptsu(:, :, :) /= 0._wp)
       z1_st(:, :, :) = 1._wp / ptsu(:, :, :)
     ELSEWHERE
       z1_st(:, :, :) = 0._wp
     END WHERE
+    !$ACC END KERNELS
+    CALL ProfileStart('blk_ice_flx', 'r1', psy_profile1)
     DO jl = 1, jpl
       DO jj = 1, jpj
         DO ji = 1, jpi
@@ -513,7 +512,7 @@ MODULE sbcblk
     sprecip(:, :) = sf(jp_snow) % fnow(:, :, 1) * rn_pfac * tmask(:, :, 1)
     CALL iom_put('snowpre', sprecip)
     CALL iom_put('precip', tprecip)
-    CALL ProfileEnd(psy_profile0)
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     z1_rLsub = 1._wp / rLsub
     evap_ice(:, :, :) = rn_efac * qla_ice(:, :, :) * z1_rLsub
@@ -525,19 +524,19 @@ MODULE sbcblk
     !$ACC KERNELS
     emp_oce(:, :) = (1._wp - at_i_b(:, :)) * zevap(:, :) - (tprecip(:, :) - sprecip(:, :)) - sprecip(:, :) * (1._wp - zsnw)
     !$ACC END KERNELS
-    CALL ProfileStart('blk_ice_flx', 'r1', psy_profile1)
+    CALL ProfileStart('blk_ice_flx', 'r2', psy_profile2)
     emp_ice(:, :) = SUM(a_i_b(:, :, :) * evap_ice(:, :, :), dim = 3) - sprecip(:, :) * zsnw
-    CALL ProfileEnd(psy_profile1)
+    CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     emp_tot(:, :) = emp_oce(:, :) + emp_ice(:, :)
     !$ACC END KERNELS
-    CALL ProfileStart('blk_ice_flx', 'r2', psy_profile2)
+    CALL ProfileStart('blk_ice_flx', 'r3', psy_profile3)
     qemp_oce(:, :) = - (1._wp - at_i_b(:, :)) * zevap(:, :) * sst_m(:, :) * rcp + (tprecip(:, :) - sprecip(:, :)) * (sf(jp_tair) % fnow(:, :, 1) - rt0) * rcp + sprecip(:, :) * (1._wp - zsnw) * ((MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi * tmask(:, :, 1) - rLfus)
     qemp_ice(:, :) = sprecip(:, :) * zsnw * ((MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi * tmask(:, :, 1) - rLfus)
     qns_tot(:, :) = (1._wp - at_i_b(:, :)) * qns_oce(:, :) + SUM(a_i_b(:, :, :) * qns_ice(:, :, :), dim = 3) + qemp_ice(:, :) + qemp_oce(:, :)
     qsr_tot(:, :) = (1._wp - at_i_b(:, :)) * qsr_oce(:, :) + SUM(a_i_b(:, :, :) * qsr_ice(:, :, :), dim = 3)
     qprec_ice(:, :) = rhos * ((MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi * tmask(:, :, 1) - rLfus)
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile3)
     !$ACC KERNELS
     DO jl = 1, jpl
       qevap_ice(:, :, jl) = 0._wp
@@ -545,7 +544,7 @@ MODULE sbcblk
     zfr1 = (0.18 * (1.0 - cldf_ice) + 0.35 * cldf_ice)
     zfr2 = (0.82 * (1.0 - cldf_ice) + 0.65 * cldf_ice)
     !$ACC END KERNELS
-    CALL ProfileStart('blk_ice_flx', 'r3', psy_profile3)
+    CALL ProfileStart('blk_ice_flx', 'r4', psy_profile4)
     WHERE (phs(:, :, :) <= 0._wp .AND. phi(:, :, :) < 0.1_wp)
       qtr_ice_top(:, :, :) = qsr_ice(:, :, :) * (zfr1 + zfr2 * (1._wp - phi(:, :, :) * 10._wp))
     ELSEWHERE(phs(:, :, :) <= 0._wp .AND. phi(:, :, :) >= 0.1_wp)
@@ -561,7 +560,7 @@ MODULE sbcblk
       CALL prt_ctl(tab3d_1 = ptsu, clinfo1 = ' blk_ice: ptsu     : ', tab3d_2 = qns_ice, clinfo2 = ' qns_ice  : ', kdim = jpl)
       CALL prt_ctl(tab2d_1 = tprecip, clinfo1 = ' blk_ice: tprecip  : ', tab2d_2 = sprecip, clinfo2 = ' sprecip  : ')
     END IF
-    CALL ProfileEnd(psy_profile3)
+    CALL ProfileEnd(psy_profile4)
   END SUBROUTINE blk_ice_flx
   SUBROUTINE blk_ice_qcn(k_virtual_itd, ptsu, ptb, phs, phi)
     INTEGER, INTENT(IN   ) :: k_virtual_itd

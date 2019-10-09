@@ -217,9 +217,7 @@ MODULE zdfiwm
     END IF
     CALL iom_put("av_wave", zav_wave)
     IF (iom_use("bflx_iwm") .OR. iom_use("pcmap_iwm")) THEN
-      CALL ProfileStart('zdf_iwm', 'r2', psy_profile2)
       ALLOCATE(z2d(jpi, jpj), z3d(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile2)
       !$ACC KERNELS
       z3d(:, :, :) = MAX(0._wp, rn2(:, :, :)) * zav_wave(:, :, :)
       z2d(:, :) = 0._wp
@@ -228,9 +226,11 @@ MODULE zdfiwm
       END DO
       z2d(:, :) = rau0 * z2d(:, :)
       !$ACC END KERNELS
+      CALL ProfileStart('zdf_iwm', 'r2', psy_profile2)
       CALL iom_put("bflx_iwm", z3d)
       CALL iom_put("pcmap_iwm", z2d)
       DEALLOCATE(z2d, z3d)
+      CALL ProfileEnd(psy_profile2)
     END IF
     CALL ProfileStart('zdf_iwm', 'r3', psy_profile3)
     CALL iom_put("emix_iwm", zemx_iwm)

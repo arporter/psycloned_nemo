@@ -41,8 +41,6 @@ MODULE traadv_mus
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
     IF (kt == kit000) THEN
       CALL ProfileStart('tra_adv_mus', 'r0', psy_profile0)
       IF (lwp) WRITE(numout, FMT = *)
@@ -56,9 +54,7 @@ MODULE traadv_mus
       xind(:, :, :) = 1._wp
       !$ACC END KERNELS
       IF (ld_msc_ups) THEN
-        CALL ProfileStart('tra_adv_mus', 'r1', psy_profile1)
         ALLOCATE(upsmsk(jpi, jpj), STAT = ierr)
-        CALL ProfileEnd(psy_profile1)
         !$ACC KERNELS
         upsmsk(:, :) = 0._wp
         DO jk = 1, jpkm1
@@ -67,14 +63,14 @@ MODULE traadv_mus
         !$ACC END KERNELS
       END IF
     END IF
-    CALL ProfileStart('tra_adv_mus', 'r2', psy_profile2)
+    CALL ProfileStart('tra_adv_mus', 'r1', psy_profile1)
     l_trd = .FALSE.
     l_hst = .FALSE.
     l_ptr = .FALSE.
     IF ((cdtype == 'TRA' .AND. l_trdtra) .OR. (cdtype == 'TRC' .AND. l_trdtrc)) l_trd = .TRUE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
     IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
     DO jn = 1, kjpt
       !$ACC KERNELS
       zwx(:, :, jpk) = 0._wp
@@ -137,14 +133,14 @@ MODULE traadv_mus
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('tra_adv_mus', 'r3', psy_profile3)
+      CALL ProfileStart('tra_adv_mus', 'r2', psy_profile2)
       IF (l_trd) THEN
         CALL trd_tra(kt, cdtype, jn, jptra_xad, zwx, pun, ptb(:, :, :, jn))
         CALL trd_tra(kt, cdtype, jn, jptra_yad, zwy, pvn, ptb(:, :, :, jn))
       END IF
       IF (l_ptr) CALL dia_ptr_hst(jn, 'adv', zwy(:, :, :))
       IF (l_hst) CALL dia_ar5_hst(jn, 'adv', zwx(:, :, :), zwy(:, :, :))
-      CALL ProfileEnd(psy_profile3)
+      CALL ProfileEnd(psy_profile2)
       !$ACC KERNELS
       zwx(:, :, 1) = 0._wp
       zwx(:, :, jpk) = 0._wp
@@ -203,9 +199,7 @@ MODULE traadv_mus
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('tra_adv_mus', 'r4', psy_profile4)
       IF (l_trd) CALL trd_tra(kt, cdtype, jn, jptra_zad, zwx, pwn, ptb(:, :, :, jn))
-      CALL ProfileEnd(psy_profile4)
     END DO
   END SUBROUTINE tra_adv_mus
 END MODULE traadv_mus

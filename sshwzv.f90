@@ -69,31 +69,23 @@ MODULE sshwzv
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: zhdiv
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    CALL ProfileStart('wzv', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('wzv')
-    CALL ProfileEnd(psy_profile0)
     IF (kt == nit000) THEN
-      CALL ProfileStart('wzv', 'r1', psy_profile1)
+      CALL ProfileStart('wzv', 'r0', psy_profile0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'wzv : now vertical velocity '
       IF (lwp) WRITE(numout, FMT = *) '~~~~~ '
-      CALL ProfileEnd(psy_profile1)
+      CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       wn(:, :, jpk) = 0._wp
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('wzv', 'r2', psy_profile2)
+    CALL ProfileStart('wzv', 'r1', psy_profile1)
     z1_2dt = 1. / (2. * rdt)
     IF (neuler == 0 .AND. kt == nit000) z1_2dt = 1. / rdt
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
     IF (ln_vvl_ztilde .OR. ln_vvl_layer) THEN
-      CALL ProfileStart('wzv', 'r3', psy_profile3)
       ALLOCATE(zhdiv(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile3)
       !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
@@ -109,9 +101,7 @@ MODULE sshwzv
         wn(:, :, jk) = wn(:, :, jk + 1) - (e3t_n(:, :, jk) * hdivn(:, :, jk) + zhdiv(:, :, jk) + z1_2dt * (e3t_a(:, :, jk) - e3t_b(:, :, jk))) * tmask(:, :, jk)
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('wzv', 'r4', psy_profile4)
       DEALLOCATE(zhdiv)
-      CALL ProfileEnd(psy_profile4)
     ELSE
       !$ACC KERNELS
       DO jk = jpkm1, 1, - 1
@@ -126,9 +116,7 @@ MODULE sshwzv
       END DO
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('wzv', 'r5', psy_profile5)
     IF (ln_timing) CALL timing_stop('wzv')
-    CALL ProfileEnd(psy_profile5)
   END SUBROUTINE wzv
   SUBROUTINE ssh_swp(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

@@ -43,7 +43,6 @@ MODULE zdftmx
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zav_tide
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
     !$ACC KERNELS
     zav_tide(:, :, :) = MIN(60.E-4, az_tmx(:, :, :) / MAX(rn_n2min, rn2(:, :, :)))
     zkz(:, :) = 0.E0
@@ -80,9 +79,7 @@ MODULE zdftmx
       IF (lwp) WRITE(numout, FMT = *) '          N Total power consumption by av_tide    : ztpc = ', ztpc * 1.E-12, 'TW'
       CALL ProfileEnd(psy_profile0)
     END IF
-    CALL ProfileStart('zdf_tmx', 'r1', psy_profile1)
     IF (ln_tmx_itf) CALL tmx_itf(kt, zav_tide)
-    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     DO jk = 2, jpkm1
       DO jj = 1, jpj
@@ -94,13 +91,12 @@ MODULE zdftmx
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('zdf_tmx', 'r2', psy_profile2)
+    CALL ProfileStart('zdf_tmx', 'r1', psy_profile1)
     CALL iom_put("av_tmx", zav_tide)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = zav_tide, clinfo1 = ' tmx - av_tide: ', tab3d_2 = p_avt, clinfo2 = ' p_avt: ', kdim = jpk)
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE zdf_tmx
   SUBROUTINE tmx_itf(kt, pav)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), INTENT(INOUT), DIMENSION(jpi, jpj, jpk) :: pav
     INTEGER :: ji, jj, jk
@@ -110,7 +106,6 @@ MODULE zdftmx
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zempba_3d_1, zempba_3d_2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zempba_3d, zdn2dz
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zavt_itf
-    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     zdn2dz(:, :, jpk) = 0.E0
     zempba_3d_1(:, :, jpk) = 0.E0
@@ -177,9 +172,7 @@ MODULE zdftmx
       END DO
       ztpc = rau0 * ztpc / (rn_me * rn_tfe_itf)
       !$ACC END KERNELS
-      CALL ProfileStart('tmx_itf', 'r0', psy_profile0)
       IF (lwp) WRITE(numout, FMT = *) '          N Total power consumption by zavt_itf: ztpc = ', ztpc * 1.E-12, 'TW'
-      CALL ProfileEnd(psy_profile0)
     END IF
     !$ACC KERNELS
     DO jk = 2, jpkm1

@@ -40,6 +40,9 @@ MODULE trdtra
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: zwt, zws, ztrdt
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
     CALL ProfileStart('trd_tra', 'r0', psy_profile0)
     IF (.NOT. ALLOCATED(trdtx)) THEN
       IF (trd_tra_alloc() /= 0) CALL ctl_stop('STOP', 'trd_tra : unable to allocate arrays')
@@ -72,18 +75,22 @@ MODULE trdtra
     IF (ctype == 'TRA' .AND. ktra == jp_sal) THEN
       SELECT CASE (ktrd)
       CASE (jptra_xad)
+        CALL ProfileStart('trd_tra', 'r1', psy_profile1)
         CALL trd_tra_adv(ptrd, pun, ptra, 'X', ztrds)
         CALL trd_tra_mng(trdtx, ztrds, ktrd, kt)
+        CALL ProfileEnd(psy_profile1)
       CASE (jptra_yad)
+        CALL ProfileStart('trd_tra', 'r2', psy_profile2)
         CALL trd_tra_adv(ptrd, pun, ptra, 'Y', ztrds)
         CALL trd_tra_mng(trdty, ztrds, ktrd, kt)
+        CALL ProfileEnd(psy_profile2)
       CASE (jptra_zad)
+        CALL ProfileStart('trd_tra', 'r3', psy_profile3)
         CALL trd_tra_adv(ptrd, pun, ptra, 'Z', ztrds)
         CALL trd_tra_mng(trdt, ztrds, ktrd, kt)
+        CALL ProfileEnd(psy_profile3)
       CASE (jptra_zdfp)
-        CALL ProfileStart('trd_tra', 'r1', psy_profile1)
         ALLOCATE(zwt(jpi, jpj, jpk), zws(jpi, jpj, jpk), ztrdt(jpi, jpj, jpk))
-        CALL ProfileEnd(psy_profile1)
         !$ACC KERNELS
         zwt(:, :, 1) = 0._wp
         zws(:, :, 1) = 0._wp
@@ -115,8 +122,10 @@ MODULE trdtra
           ztrds(:, :, jk) = (zws(:, :, jk) - zws(:, :, jk + 1)) / e3t_n(:, :, jk)
         END DO
         !$ACC END KERNELS
+        CALL ProfileStart('trd_tra', 'r4', psy_profile4)
         CALL trd_tra_mng(ztrdt, ztrds, jptra_evd, kt)
         DEALLOCATE(zwt, zws, ztrdt)
+        CALL ProfileEnd(psy_profile4)
       CASE DEFAULT
         !$ACC KERNELS
         ztrds(:, :, :) = ptrd(:, :, :) * tmask(:, :, :)
@@ -150,13 +159,12 @@ MODULE trdtra
     INTEGER :: ji, jj, jk
     INTEGER :: ii, ij, ik
     TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('trd_tra_adv', 'r0', psy_profile0)
     SELECT CASE (cdir)
     CASE ('X')
-      CALL ProfileStart('trd_tra_adv', 'r0', psy_profile0)
       ii = 1
       ij = 0
       ik = 0
-      CALL ProfileEnd(psy_profile0)
     CASE ('Y')
       ii = 0
       ij = 1
@@ -166,6 +174,7 @@ MODULE trdtra
       ij = 0
       ik = - 1
     END SELECT
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     ptrd(jpi, :, :) = 0._wp
     ptrd(1, :, :) = 0._wp

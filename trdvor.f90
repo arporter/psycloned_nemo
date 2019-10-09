@@ -46,6 +46,7 @@ MODULE trdvor
     INTEGER :: ji, jj
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztswu, ztswv
     TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     SELECT CASE (ktrd)
     CASE (jpdyn_hpg)
       CALL trd_vor_zint(putrd, pvtrd, jpvor_prg)
@@ -72,12 +73,14 @@ MODULE trdvor
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('trd_vor', 'r0', psy_profile0)
       CALL trd_vor_zint(putrd, pvtrd, jpvor_zdf)
       CALL trd_vor_zint(ztswu, ztswv, jpvor_swf)
-    CASE (jpdyn_bfr)
-      CALL ProfileStart('trd_vor', 'r0', psy_profile0)
-      CALL trd_vor_zint(putrd, pvtrd, jpvor_bfr)
       CALL ProfileEnd(psy_profile0)
+    CASE (jpdyn_bfr)
+      CALL ProfileStart('trd_vor', 'r1', psy_profile1)
+      CALL trd_vor_zint(putrd, pvtrd, jpvor_bfr)
+      CALL ProfileEnd(psy_profile1)
     CASE (jpdyn_atf)
       CALL trd_vor_iom(kt)
     END SELECT
@@ -188,8 +191,8 @@ MODULE trdvor
     INTEGER :: it, itmod
     REAL(KIND = wp) :: zmean
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zun, zvn
-    IF (kt > nit000) vor_avrb(:, :) = vor_avr(:, :)
     !$ACC KERNELS
+    IF (kt > nit000) vor_avrb(:, :) = vor_avr(:, :)
     vor_avr(:, :) = 0._wp
     zun(:, :) = 0._wp
     zvn(:, :) = 0._wp
@@ -265,7 +268,9 @@ MODULE trdvor
         CALL FLUSH(numout)
       END IF
     END IF
+    !$ACC KERNELS
     IF (MOD(it, nn_trd) == 0) rotot(:, :) = 0
+    !$ACC END KERNELS
     IF (kt == nitend) CALL histclo(nidvor)
   END SUBROUTINE trd_vor_iom
   SUBROUTINE trd_vor_init

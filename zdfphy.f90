@@ -170,7 +170,6 @@ MODULE zdfphy
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zsh2
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
     CALL ProfileStart('zdf_phy', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('zdf_phy')
     IF (l_zdfdrg) THEN
@@ -202,9 +201,7 @@ MODULE zdfphy
       END DO
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('zdf_phy', 'r1', psy_profile1)
     IF (ln_zdfevd) CALL zdf_evd(kt, avm, avt)
-    CALL ProfileEnd(psy_profile1)
     IF (ln_zdfddm) THEN
       CALL zdf_ddm(kt, avm, avt, avs)
     ELSE
@@ -212,7 +209,7 @@ MODULE zdfphy
       avs(2 : jpim1, 2 : jpjm1, 1 : jpkm1) = avt(2 : jpim1, 2 : jpjm1, 1 : jpkm1)
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('zdf_phy', 'r2', psy_profile2)
+    CALL ProfileStart('zdf_phy', 'r1', psy_profile1)
     IF (ln_zdfswm) CALL zdf_swm(kt, avm, avt, avs)
     IF (ln_zdfiwm) CALL zdf_iwm(kt, avm, avt, avs)
     IF (ln_zdftmx) CALL zdf_tmx(kt, avm, avt, avs)
@@ -235,6 +232,6 @@ MODULE zdfphy
       IF (ln_zdfric) CALL ric_rst(kt, 'WRITE')
     END IF
     IF (ln_timing) CALL timing_stop('zdf_phy')
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE zdf_phy
 END MODULE zdfphy

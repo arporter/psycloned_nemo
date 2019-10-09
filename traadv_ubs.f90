@@ -38,8 +38,6 @@ MODULE traadv_ubs
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
     CALL ProfileStart('tra_adv_ubs', 'r0', psy_profile0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -80,8 +78,10 @@ MODULE traadv_ubs
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_adv_ubs', 'r1', psy_profile1)
       CALL lbc_lnk(zltu, 'T', 1.)
       CALL lbc_lnk(zltv, 'T', 1.)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpjm1
@@ -107,20 +107,18 @@ MODULE traadv_ubs
       END DO
       zltu(:, :, :) = pta(:, :, :, jn) - zltu(:, :, :)
       !$ACC END KERNELS
-      CALL ProfileStart('tra_adv_ubs', 'r1', psy_profile1)
+      CALL ProfileStart('tra_adv_ubs', 'r2', psy_profile2)
       IF (l_trd) THEN
         CALL trd_tra(kt, cdtype, jn, jptra_xad, ztu, pun, ptn(:, :, :, jn))
         CALL trd_tra(kt, cdtype, jn, jptra_yad, ztv, pvn, ptn(:, :, :, jn))
       END IF
       IF (l_ptr) CALL dia_ptr_hst(jn, 'adv', ztv(:, :, :))
       IF (l_hst) CALL dia_ar5_hst(jn, 'adv', ztu(:, :, :), ztv(:, :, :))
-      CALL ProfileEnd(psy_profile1)
+      CALL ProfileEnd(psy_profile2)
       SELECT CASE (kn_ubs_v)
       CASE (2)
-        CALL ProfileStart('tra_adv_ubs', 'r2', psy_profile2)
-        IF (l_trd) zltv(:, :, :) = pta(:, :, :, jn)
-        CALL ProfileEnd(psy_profile2)
         !$ACC KERNELS
+        IF (l_trd) zltv(:, :, :) = pta(:, :, :, jn)
         DO jk = 2, jpkm1
           DO jj = 1, jpj
             DO ji = 1, jpi
@@ -166,11 +164,9 @@ MODULE traadv_ubs
             END DO
           END DO
         END DO
-        !$ACC END KERNELS
-        CALL ProfileStart('tra_adv_ubs', 'r3', psy_profile3)
         IF (ln_linssh) ztw(:, :, 1) = 0._wp
+        !$ACC END KERNELS
         CALL nonosc_z(ptb(:, :, :, jn), ztw, zti, p2dt)
-        CALL ProfileEnd(psy_profile3)
       CASE (4)
         CALL interp_4th_cpt(ptn(:, :, :, jn), ztw)
         !$ACC KERNELS
@@ -181,10 +177,8 @@ MODULE traadv_ubs
             END DO
           END DO
         END DO
-        !$ACC END KERNELS
-        CALL ProfileStart('tra_adv_ubs', 'r4', psy_profile4)
         IF (ln_linssh) ztw(:, :, 1) = pwn(:, :, 1) * ptn(:, :, 1, jn)
-        CALL ProfileEnd(psy_profile4)
+        !$ACC END KERNELS
       END SELECT
       !$ACC KERNELS
       DO jk = 1, jpkm1

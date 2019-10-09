@@ -48,11 +48,15 @@ MODULE zdftke
     IF (zdf_tke_alloc /= 0) CALL ctl_warn('zdf_tke_alloc: failed to allocate arrays')
   END FUNCTION zdf_tke_alloc
   SUBROUTINE zdf_tke(kt, p_sh2, p_avm, p_avt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('zdf_tke', 'r0', psy_profile0)
     CALL tke_tke(gdepw_n, e3t_n, e3w_n, p_sh2, p_avm, p_avt)
     CALL tke_avn(gdepw_n, e3t_n, e3w_n, p_avm, p_avt)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE zdf_tke
   SUBROUTINE tke_tke(pdepw, p_e3t, p_e3w, p_sh2, p_avm, p_avt)
     USE zdf_oce, ONLY: en

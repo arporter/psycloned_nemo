@@ -53,26 +53,18 @@ MODULE dynvor
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
     TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
-    CALL ProfileStart('dyn_vor', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dyn_vor')
-    CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
-      CALL ProfileStart('dyn_vor', 'r1', psy_profile1)
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :)
       ztrdv(:, :, :) = va(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('dyn_vor', 'r0', psy_profile0)
       SELECT CASE (nvor_scheme)
       CASE (np_ens)
-        CALL ProfileStart('dyn_vor', 'r2', psy_profile2)
         CALL vor_ens(kt, ncor, un, vn, ua, va)
         IF (ln_stcor) CALL vor_ens(kt, ncor, usd, vsd, ua, va)
-        CALL ProfileEnd(psy_profile2)
       CASE (np_ene, np_mix)
         CALL vor_ene(kt, ncor, un, vn, ua, va)
         IF (ln_stcor) CALL vor_ene(kt, ncor, usd, vsd, ua, va)
@@ -86,6 +78,7 @@ MODULE dynvor
         CALL vor_een(kt, ncor, un, vn, ua, va)
         IF (ln_stcor) CALL vor_een(kt, ncor, usd, vsd, ua, va)
       END SELECT
+      CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :) - ztrdu(:, :, :)
       ztrdv(:, :, :) = va(:, :, :) - ztrdv(:, :, :)
@@ -96,11 +89,10 @@ MODULE dynvor
         ztrdu(:, :, :) = ua(:, :, :)
         ztrdv(:, :, :) = va(:, :, :)
         !$ACC END KERNELS
+        CALL ProfileStart('dyn_vor', 'r1', psy_profile1)
         SELECT CASE (nvor_scheme)
         CASE (np_ent)
-          CALL ProfileStart('dyn_vor', 'r3', psy_profile3)
           CALL vor_ent(kt, nrvm, un, vn, ua, va)
-          CALL ProfileEnd(psy_profile3)
         CASE (np_eet)
           CALL vor_eet(kt, nrvm, un, vn, ua, va)
         CASE (np_ene)
@@ -110,22 +102,20 @@ MODULE dynvor
         CASE (np_een)
           CALL vor_een(kt, nrvm, un, vn, ua, va)
         END SELECT
+        CALL ProfileEnd(psy_profile1)
         !$ACC KERNELS
         ztrdu(:, :, :) = ua(:, :, :) - ztrdu(:, :, :)
         ztrdv(:, :, :) = va(:, :, :) - ztrdv(:, :, :)
         !$ACC END KERNELS
         CALL trd_dyn(ztrdu, ztrdv, jpdyn_rvo, kt)
       END IF
-      CALL ProfileStart('dyn_vor', 'r4', psy_profile4)
       DEALLOCATE(ztrdu, ztrdv)
-      CALL ProfileEnd(psy_profile4)
     ELSE
+      CALL ProfileStart('dyn_vor', 'r2', psy_profile2)
       SELECT CASE (nvor_scheme)
       CASE (np_ENT)
-        CALL ProfileStart('dyn_vor', 'r5', psy_profile5)
         CALL vor_enT(kt, ntot, un, vn, ua, va)
         IF (ln_stcor) CALL vor_enT(kt, ncor, usd, vsd, ua, va)
-        CALL ProfileEnd(psy_profile5)
       CASE (np_EET)
         CALL vor_eeT(kt, ntot, un, vn, ua, va)
         IF (ln_stcor) CALL vor_eeT(kt, ncor, usd, vsd, ua, va)
@@ -143,11 +133,12 @@ MODULE dynvor
         CALL vor_een(kt, ntot, un, vn, ua, va)
         IF (ln_stcor) CALL vor_een(kt, ncor, usd, vsd, ua, va)
       END SELECT
+      CALL ProfileEnd(psy_profile2)
     END IF
-    CALL ProfileStart('dyn_vor', 'r6', psy_profile6)
+    CALL ProfileStart('dyn_vor', 'r3', psy_profile3)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' vor  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_vor')
-    CALL ProfileEnd(psy_profile6)
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE dyn_vor
   SUBROUTINE vor_enT(kt, kvor, pu, pv, pu_rhs, pv_rhs)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

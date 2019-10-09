@@ -18,7 +18,6 @@ MODULE domngb
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zglam, zgphi, zmask, zdist
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
     !$ACC KERNELS
     zmask(:, :) = 0._wp
     ik = 1
@@ -56,16 +55,12 @@ MODULE domngb
     zlon = MOD(plon + 720., 360.)
     zglam(:, :) = MOD(zglam(:, :) + 720., 360.)
     IF (zlon > 270.) zlon = zlon - 360.
-    !$ACC END KERNELS
-    CALL ProfileStart('dom_ngb', 'r1', psy_profile1)
     IF (zlon < 90.) WHERE (zglam(:, :) > 180.) zglam(:, :) = zglam(:, :) - 360.
-    CALL ProfileEnd(psy_profile1)
-    !$ACC KERNELS
     zglam(:, :) = zglam(:, :) - zlon
     zgphi(:, :) = zgphi(:, :) - plat
     zdist(:, :) = zglam(:, :) * zglam(:, :) + zgphi(:, :) * zgphi(:, :)
     !$ACC END KERNELS
-    CALL ProfileStart('dom_ngb', 'r2', psy_profile2)
+    CALL ProfileStart('dom_ngb', 'r1', psy_profile1)
     IF (lk_mpp) THEN
       CALL mpp_minloc(zdist(:, :), zmask, zmini, kii, kjj)
     ELSE
@@ -73,6 +68,6 @@ MODULE domngb
       kii = iloc(1) + nimpp - 1
       kjj = iloc(2) + njmpp - 1
     END IF
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE dom_ngb
 END MODULE domngb

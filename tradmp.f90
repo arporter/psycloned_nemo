@@ -35,14 +35,9 @@ MODULE tradmp
     REAL(KIND = wp), DIMENSION(:, :, :, :), ALLOCATABLE :: ztrdts
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    CALL ProfileStart('tra_dmp', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('tra_dmp')
-    CALL ProfileEnd(psy_profile0)
     IF (l_trdtra) THEN
-      CALL ProfileStart('tra_dmp', 'r1', psy_profile1)
       ALLOCATE(ztrdts(jpi, jpj, jpk, jpts))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdts(:, :, :, :) = tsa(:, :, :, :)
       !$ACC END KERNELS
@@ -92,14 +87,16 @@ MODULE tradmp
       !$ACC KERNELS
       ztrdts(:, :, :, :) = tsa(:, :, :, :) - ztrdts(:, :, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('tra_dmp', 'r0', psy_profile0)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_dmp, ztrdts(:, :, :, jp_tem))
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_dmp, ztrdts(:, :, :, jp_sal))
       DEALLOCATE(ztrdts)
+      CALL ProfileEnd(psy_profile0)
     END IF
-    CALL ProfileStart('tra_dmp', 'r2', psy_profile2)
+    CALL ProfileStart('tra_dmp', 'r1', psy_profile1)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' dmp  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_dmp')
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE tra_dmp
   SUBROUTINE tra_dmp_init
     INTEGER :: ios, imask

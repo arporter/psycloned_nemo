@@ -155,7 +155,9 @@ MODULE sbcmod
       !$ACC END KERNELS
     END IF
     IF (nn_ice == 0) THEN
+      !$ACC KERNELS
       IF (nn_components /= jp_iam_opa) fr_i(:, :) = 0._wp
+      !$ACC END KERNELS
     END IF
     !$ACC KERNELS
     sfx(:, :) = 0._wp
@@ -252,11 +254,7 @@ MODULE sbcmod
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    CALL ProfileStart('sbc', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('sbc')
-    CALL ProfileEnd(psy_profile0)
     IF (kt /= nit000) THEN
       !$ACC KERNELS
       utau_b(:, :) = utau(:, :)
@@ -278,7 +276,7 @@ MODULE sbcmod
         !$ACC END KERNELS
       END IF
     END IF
-    CALL ProfileStart('sbc', 'r1', psy_profile1)
+    CALL ProfileStart('sbc', 'r0', psy_profile0)
     ll_sas = nn_components == jp_iam_sas
     ll_opa = nn_components == jp_iam_opa
     IF (.NOT. ll_sas) CALL sbc_ssm(kt)
@@ -315,16 +313,16 @@ MODULE sbcmod
     IF (ln_ssr) CALL sbc_ssr(kt)
     IF (nn_fwb /= 0) CALL sbc_fwb(kt, nn_fwb, nn_fsbc)
     IF (l_sbc_clo .AND. (.NOT. ln_diurnal_only)) CALL sbc_clo(kt)
-    CALL ProfileEnd(psy_profile1)
+    CALL ProfileEnd(psy_profile0)
     IF (kt == nit000) THEN
       IF (ln_rstart .AND. iom_varid(numror, 'utau_b', ldstop = .FALSE.) > 0) THEN
-        CALL ProfileStart('sbc', 'r2', psy_profile2)
+        CALL ProfileStart('sbc', 'r1', psy_profile1)
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 surface forcing fields red in the restart file'
         CALL iom_get(numror, jpdom_autoglo, 'utau_b', utau_b, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'vtau_b', vtau_b, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'qns_b', qns_b, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'emp_b', emp_b, ldxios = lrxios)
-        CALL ProfileEnd(psy_profile2)
+        CALL ProfileEnd(psy_profile1)
         IF (iom_varid(numror, 'sfx_b', ldstop = .FALSE.) > 0) THEN
           CALL iom_get(numror, jpdom_autoglo, 'sfx_b', sfx_b, ldxios = lrxios)
         ELSE
@@ -333,9 +331,7 @@ MODULE sbcmod
           !$ACC END KERNELS
         END IF
       ELSE
-        CALL ProfileStart('sbc', 'r3', psy_profile3)
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 surface forcing fields set to nit000'
-        CALL ProfileEnd(psy_profile3)
         !$ACC KERNELS
         utau_b(:, :) = utau(:, :)
         vtau_b(:, :) = vtau(:, :)
@@ -345,7 +341,7 @@ MODULE sbcmod
         !$ACC END KERNELS
       END IF
     END IF
-    CALL ProfileStart('sbc', 'r4', psy_profile4)
+    CALL ProfileStart('sbc', 'r2', psy_profile2)
     IF (lrst_oce) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'sbc : ocean surface forcing fields written in ocean restart file ', 'at it= ', kt, ' date= ', ndastp
@@ -385,7 +381,7 @@ MODULE sbcmod
     END IF
     IF (kt == nitend) CALL sbc_final
     IF (ln_timing) CALL timing_stop('sbc')
-    CALL ProfileEnd(psy_profile4)
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE sbc
   SUBROUTINE sbc_final
     IF (nn_ice == 3) CALL cice_sbc_final

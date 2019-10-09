@@ -32,7 +32,6 @@ MODULE dynldf_iso
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zjuf, zjvt, zdkv, zdk1v
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
     CALL ProfileStart('dyn_ldf_iso', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -148,9 +147,7 @@ MODULE dynldf_iso
       END DO
       !$ACC END KERNELS
     END DO
-    CALL ProfileStart('dyn_ldf_iso', 'r2', psy_profile2)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' ldfh - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
-    CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     DO jj = 2, jpjm1
       DO jk = 1, jpk

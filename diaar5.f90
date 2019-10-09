@@ -187,9 +187,7 @@ MODULE diaar5
       CALL ProfileEnd(psy_profile6)
     END IF
     IF (iom_use('tnpeo')) THEN
-      CALL ProfileStart('dia_ar5', 'r7', psy_profile7)
       ALLOCATE(zpe(jpi, jpj))
-      CALL ProfileEnd(psy_profile7)
       !$ACC KERNELS
       zpe(:, :) = 0._wp
       !$ACC END KERNELS
@@ -219,8 +217,10 @@ MODULE diaar5
         END DO
         !$ACC END KERNELS
       END IF
+      CALL ProfileStart('dia_ar5', 'r7', psy_profile7)
       CALL iom_put('tnpeo', zpe)
       DEALLOCATE(zpe)
+      CALL ProfileEnd(psy_profile7)
     END IF
     CALL ProfileStart('dia_ar5', 'r8', psy_profile8)
     IF (l_ar5) THEN

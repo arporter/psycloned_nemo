@@ -60,7 +60,6 @@ MODULE sbcrnf
     TYPE(ProfileData), SAVE :: psy_profile3
     TYPE(ProfileData), SAVE :: psy_profile4
     TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
     CALL ProfileStart('sbc_rnf', 'r0', psy_profile0)
     IF (.NOT. l_rnfcpl) CALL fld_read(kt, nn_fsbc, sf_rnf)
     IF (ln_rnf_tem) CALL fld_read(kt, nn_fsbc, sf_t_rnf)
@@ -101,16 +100,14 @@ MODULE sbcrnf
         CALL iom_get(numror, jpdom_autoglo, 'rnf_sc_b', rnf_tsc_b(:, :, jp_sal), ldxios = lrxios)
         CALL ProfileEnd(psy_profile4)
       ELSE
-        CALL ProfileStart('sbc_rnf', 'r5', psy_profile5)
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 runoff forcing fields set to nit000'
-        CALL ProfileEnd(psy_profile5)
         !$ACC KERNELS
         rnf_b(:, :) = rnf(:, :)
         rnf_tsc_b(:, :, :) = rnf_tsc(:, :, :)
         !$ACC END KERNELS
       END IF
     END IF
-    CALL ProfileStart('sbc_rnf', 'r6', psy_profile6)
+    CALL ProfileStart('sbc_rnf', 'r5', psy_profile5)
     IF (lrst_oce) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'sbcrnf : runoff forcing fields written in ocean restart file ', 'at it= ', kt, ' date= ', ndastp
@@ -121,7 +118,7 @@ MODULE sbcrnf
       CALL iom_rstput(kt, nitrst, numrow, 'rnf_sc_b', rnf_tsc(:, :, jp_sal), ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
-    CALL ProfileEnd(psy_profile6)
+    CALL ProfileEnd(psy_profile5)
   END SUBROUTINE sbc_rnf
   SUBROUTINE sbc_rnf_div(phdivn)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -304,9 +301,7 @@ MODULE sbcrnf
       !$ACC KERNELS
       h_rnf(:, :) = 1.
       zacoef = rn_dep_max / rn_rnf_max
-      !$ACC END KERNELS
       WHERE (zrnf(:, :) > 0._wp) h_rnf(:, :) = zacoef * zrnf(:, :)
-      !$ACC KERNELS
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (zrnf(ji, jj) > 0._wp) THEN

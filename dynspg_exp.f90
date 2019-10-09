@@ -17,7 +17,6 @@ MODULE dynspg_exp
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
     IF (kt == nit000) THEN
       CALL ProfileStart('dyn_spg_exp', 'r0', psy_profile0)
       IF (lwp) WRITE(numout, FMT = *)
@@ -28,9 +27,7 @@ MODULE dynspg_exp
       spgu(:, :) = 0._wp
       spgv(:, :) = 0._wp
       !$ACC END KERNELS
-      CALL ProfileStart('dyn_spg_exp', 'r1', psy_profile1)
       IF (.NOT. ln_linssh .AND. lwp) WRITE(numout, FMT = *) '      non linear free surface: spg is included in dynhpg'
-      CALL ProfileEnd(psy_profile1)
     END IF
     IF (ln_linssh) THEN
       !$ACC KERNELS

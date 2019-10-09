@@ -35,8 +35,6 @@ MODULE trasbc
     TYPE(ProfileData), SAVE :: psy_profile4
     TYPE(ProfileData), SAVE :: psy_profile5
     TYPE(ProfileData), SAVE :: psy_profile6
-    TYPE(ProfileData), SAVE :: psy_profile7
-    TYPE(ProfileData), SAVE :: psy_profile8
     CALL ProfileStart('tra_sbc', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('tra_sbc')
     IF (kt == nit000) THEN
@@ -46,9 +44,7 @@ MODULE trasbc
     END IF
     CALL ProfileEnd(psy_profile0)
     IF (l_trdtra) THEN
-      CALL ProfileStart('tra_sbc', 'r1', psy_profile1)
       ALLOCATE(ztrdt(jpi, jpj, jpk), ztrds(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem)
       ztrds(:, :, :) = tsa(:, :, :, jp_sal)
@@ -62,9 +58,7 @@ MODULE trasbc
     END IF
     IF (kt == nit000) THEN
       IF (ln_rstart .AND. iom_varid(numror, 'sbc_hc_b', ldstop = .FALSE.) > 0) THEN
-        CALL ProfileStart('tra_sbc', 'r2', psy_profile2)
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 sbc tracer content field read in the restart file'
-        CALL ProfileEnd(psy_profile2)
         !$ACC KERNELS
         zfact = 0.5_wp
         sbc_tsc(:, :, :) = 0._wp
@@ -84,7 +78,7 @@ MODULE trasbc
       sbc_tsc_b(:, :, :) = sbc_tsc(:, :, :)
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('tra_sbc', 'r3', psy_profile3)
+    CALL ProfileStart('tra_sbc', 'r1', psy_profile1)
     DO jj = 2, jpj
       DO ji = 2, jpim1
         IF (ll_wd) THEN
@@ -101,7 +95,7 @@ MODULE trasbc
         sbc_tsc(ji, jj, jp_sal) = r1_rau0 * sfx(ji, jj)
       END DO
     END DO
-    CALL ProfileEnd(psy_profile3)
+    CALL ProfileEnd(psy_profile1)
     IF (ln_linssh) THEN
       !$ACC KERNELS
       DO jj = 2, jpj
@@ -111,10 +105,10 @@ MODULE trasbc
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('tra_sbc', 'r4', psy_profile4)
+      CALL ProfileStart('tra_sbc', 'r2', psy_profile2)
       IF (iom_use('emp_x_sst')) CALL iom_put("emp_x_sst", emp(:, :) * tsn(:, :, 1, jp_tem))
       IF (iom_use('emp_x_sss')) CALL iom_put("emp_x_sss", emp(:, :) * tsn(:, :, 1, jp_sal))
-      CALL ProfileEnd(psy_profile4)
+      CALL ProfileEnd(psy_profile2)
     END IF
     !$ACC KERNELS
     DO jn = 1, jpts
@@ -125,14 +119,14 @@ MODULE trasbc
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('tra_sbc', 'r5', psy_profile5)
+    CALL ProfileStart('tra_sbc', 'r3', psy_profile3)
     IF (lrst_oce) THEN
       IF (lwxios) CALL iom_swap(cwxios_context)
       CALL iom_rstput(kt, nitrst, numrow, 'sbc_hc_b', sbc_tsc(:, :, jp_tem), ldxios = lwxios)
       CALL iom_rstput(kt, nitrst, numrow, 'sbc_sc_b', sbc_tsc(:, :, jp_sal), ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
-    CALL ProfileEnd(psy_profile5)
+    CALL ProfileEnd(psy_profile3)
     IF (ln_isf) THEN
       !$ACC KERNELS
       zfact = 0.5_wp
@@ -149,27 +143,27 @@ MODULE trasbc
       !$ACC END KERNELS
     END IF
     IF (ln_rnf) THEN
-      CALL ProfileStart('tra_sbc', 'r6', psy_profile6)
+      CALL ProfileStart('tra_sbc', 'r4', psy_profile4)
       zfact = 0.5_wp
-      CALL ProfileEnd(psy_profile6)
+      CALL ProfileEnd(psy_profile4)
+      !$ACC KERNELS
       DO jj = 2, jpj
         DO ji = 2, jpim1
           IF (rnf(ji, jj) /= 0._wp) THEN
-            !$ACC KERNELS
             zdep = zfact / h_rnf(ji, jj)
             DO jk = 1, nk_rnf(ji, jj)
               tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + (rnf_tsc_b(ji, jj, jp_tem) + rnf_tsc(ji, jj, jp_tem)) * zdep
               IF (ln_rnf_sal) tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + (rnf_tsc_b(ji, jj, jp_sal) + rnf_tsc(ji, jj, jp_sal)) * zdep
             END DO
-            !$ACC END KERNELS
           END IF
         END DO
       END DO
+      !$ACC END KERNELS
     END IF
-    CALL ProfileStart('tra_sbc', 'r7', psy_profile7)
+    CALL ProfileStart('tra_sbc', 'r5', psy_profile5)
     IF (iom_use('rnf_x_sst')) CALL iom_put("rnf_x_sst", rnf * tsn(:, :, 1, jp_tem))
     IF (iom_use('rnf_x_sss')) CALL iom_put("rnf_x_sss", rnf * tsn(:, :, 1, jp_sal))
-    CALL ProfileEnd(psy_profile7)
+    CALL ProfileEnd(psy_profile5)
     IF (ln_iscpl .AND. ln_hsb) THEN
       !$ACC KERNELS
       DO jk = 1, jpk
@@ -192,9 +186,9 @@ MODULE trasbc
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_nsr, ztrds)
       DEALLOCATE(ztrdt, ztrds)
     END IF
-    CALL ProfileStart('tra_sbc', 'r8', psy_profile8)
+    CALL ProfileStart('tra_sbc', 'r6', psy_profile6)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' sbc  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_sbc')
-    CALL ProfileEnd(psy_profile8)
+    CALL ProfileEnd(psy_profile6)
   END SUBROUTINE tra_sbc
 END MODULE trasbc

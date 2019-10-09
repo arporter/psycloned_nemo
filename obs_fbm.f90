@@ -1075,12 +1075,16 @@ MODULE obs_fbm
     CALL ProfileEnd(psy_profile0)
   END SUBROUTINE read_obfbdata
   SUBROUTINE getvaratt_obfbdata(idfile, idvar, cdlongname, cdunits)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: idfile
     INTEGER :: idvar
     CHARACTER(LEN = *) :: cdlongname
     CHARACTER(LEN = *) :: cdunits
     CHARACTER(LEN = 18), PARAMETER :: cpname = 'getvaratt_obfbdata'
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('getvaratt_obfbdata', 'r0', psy_profile0)
     CALL chkerr(nf90_get_att(idfile, idvar, 'long_name', cdlongname), cpname, 1990)
     CALL chkerr(nf90_get_att(idfile, idvar, 'units', cdunits), cpname, 1994)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE getvaratt_obfbdata
 END MODULE obs_fbm

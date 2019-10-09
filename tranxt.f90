@@ -34,7 +34,6 @@ MODULE tranxt
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
     TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
     CALL ProfileStart('tra_nxt', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('tra_nxt')
     IF (kt == nit000) THEN
@@ -51,19 +50,17 @@ MODULE tranxt
     END IF
     CALL ProfileEnd(psy_profile0)
     IF (l_trdtra) THEN
-      CALL ProfileStart('tra_nxt', 'r1', psy_profile1)
       ALLOCATE(ztrdt(jpi, jpj, jpk), ztrds(jpi, jpj, jpk))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrdt(:, :, jpk) = 0._wp
       ztrds(:, :, jpk) = 0._wp
       !$ACC END KERNELS
-      CALL ProfileStart('tra_nxt', 'r2', psy_profile2)
+      CALL ProfileStart('tra_nxt', 'r1', psy_profile1)
       IF (ln_traldf_iso) THEN
         CALL trd_tra(kt, 'TRA', jp_tem, jptra_zdfp, ztrdt)
         CALL trd_tra(kt, 'TRA', jp_sal, jptra_zdfp, ztrds)
       END IF
-      CALL ProfileEnd(psy_profile2)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       zfact = 1.0 / rdt
       DO jk = 1, jpkm1
@@ -97,14 +94,14 @@ MODULE tranxt
         CALL trd_tra(kt, 'TRA', jp_sal, jptra_atf, ztrds)
       END IF
     ELSE
-      CALL ProfileStart('tra_nxt', 'r3', psy_profile3)
+      CALL ProfileStart('tra_nxt', 'r2', psy_profile2)
       IF (ln_linssh) THEN
         CALL tra_nxt_fix(kt, nit000, 'TRA', tsb, tsn, tsa, jpts)
       ELSE
         CALL tra_nxt_vvl(kt, nit000, rdt, 'TRA', tsb, tsn, tsa, sbc_tsc, sbc_tsc_b, jpts)
       END IF
       CALL lbc_lnk_multi(tsb(:, :, :, jp_tem), 'T', 1., tsb(:, :, :, jp_sal), 'T', 1., tsn(:, :, :, jp_tem), 'T', 1., tsn(:, :, :, jp_sal), 'T', 1., tsa(:, :, :, jp_tem), 'T', 1., tsa(:, :, :, jp_sal), 'T', 1.)
-      CALL ProfileEnd(psy_profile3)
+      CALL ProfileEnd(psy_profile2)
     END IF
     IF (l_trdtra .AND. ln_linssh) THEN
       !$ACC KERNELS
@@ -117,11 +114,11 @@ MODULE tranxt
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_atf, ztrdt)
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_atf, ztrds)
     END IF
-    CALL ProfileStart('tra_nxt', 'r4', psy_profile4)
+    CALL ProfileStart('tra_nxt', 'r3', psy_profile3)
     IF (l_trdtra) DEALLOCATE(ztrdt, ztrds)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsn(:, :, :, jp_tem), clinfo1 = ' nxt  - Tn: ', mask1 = tmask, tab3d_2 = tsn(:, :, :, jp_sal), clinfo2 = ' Sn: ', mask2 = tmask)
     IF (ln_timing) CALL timing_stop('tra_nxt')
-    CALL ProfileEnd(psy_profile4)
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE tra_nxt
   SUBROUTINE tra_nxt_fix(kt, kit000, cdtype, ptb, ptn, pta, kjpt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -176,7 +173,6 @@ MODULE tranxt
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :, :) :: ztrd_atf
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
     CALL ProfileStart('tra_nxt_vvl', 'r0', psy_profile0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -194,17 +190,16 @@ MODULE tranxt
     END IF
     CALL ProfileEnd(psy_profile0)
     IF ((l_trdtra .AND. cdtype == 'TRA') .OR. (l_trdtrc .AND. cdtype == 'TRC')) THEN
-      CALL ProfileStart('tra_nxt_vvl', 'r1', psy_profile1)
       ALLOCATE(ztrd_atf(jpi, jpj, jpk, kjpt))
-      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       ztrd_atf(:, :, :, :) = 0.0_wp
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('tra_nxt_vvl', 'r2', psy_profile2)
+    CALL ProfileStart('tra_nxt_vvl', 'r1', psy_profile1)
     zfact = 1._wp / p2dt
     zfact1 = atfp * p2dt
     zfact2 = zfact1 * r1_rau0
+    !$ACC KERNELS
     DO jn = 1, kjpt
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
@@ -248,6 +243,7 @@ MODULE tranxt
         END DO
       END DO
     END DO
+    !$ACC END KERNELS
     IF ((l_trdtra .AND. cdtype == 'TRA') .OR. (l_trdtrc .AND. cdtype == 'TRC')) THEN
       IF (l_trdtra .AND. cdtype == 'TRA') THEN
         CALL trd_tra(kt, cdtype, jp_tem, jptra_atf, ztrd_atf(:, :, :, jp_tem))
@@ -260,6 +256,6 @@ MODULE tranxt
       END IF
       DEALLOCATE(ztrd_atf)
     END IF
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE tra_nxt_vvl
 END MODULE tranxt

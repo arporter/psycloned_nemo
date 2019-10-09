@@ -23,7 +23,6 @@ MODULE dynadv_ubs
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2) :: zlu_uu, zlu_uv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2) :: zlv_vv, zlv_vu
     TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
     CALL ProfileStart('dyn_adv_ubs', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -171,8 +170,6 @@ MODULE dynadv_ubs
       !$ACC END KERNELS
       CALL trd_dyn(zfu_t, zfv_t, jpdyn_zad, kt)
     END IF
-    CALL ProfileStart('dyn_adv_ubs', 'r1', psy_profile1)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' ubs2 adv - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
-    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE dyn_adv_ubs
 END MODULE dynadv_ubs

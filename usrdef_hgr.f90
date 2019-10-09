@@ -23,7 +23,6 @@ MODULE usrdef_hgr
     REAL(KIND = wp) :: zlam1, zlam0, zcos_alpha, zim1, zjm1, ze1, ze1deg, zf0
     REAL(KIND = wp) :: zphi1, zphi0, zsin_alpha, zim05, zjm05, zbeta, znorme
     TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
     CALL ProfileStart('usr_def_hgr', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'usr_def_hgr : GYRE configuration (beta-plane with rotated regular grid-spacing)'
@@ -80,8 +79,6 @@ MODULE usrdef_hgr
     pff_f(:, :) = (zf0 + zbeta * ABS(pphif(:, :) - zphi0) * rad * ra)
     pff_t(:, :) = (zf0 + zbeta * ABS(pphit(:, :) - zphi0) * rad * ra)
     !$ACC END KERNELS
-    CALL ProfileStart('usr_def_hgr', 'r1', psy_profile1)
     IF (lwp) WRITE(numout, FMT = *) '                           beta-plane used. beta = ', zbeta, ' 1/(s.m)'
-    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE usr_def_hgr
 END MODULE usrdef_hgr

@@ -37,9 +37,6 @@ MODULE sbcfwb
     TYPE(ProfileData), SAVE :: psy_profile4
     TYPE(ProfileData), SAVE :: psy_profile5
     TYPE(ProfileData), SAVE :: psy_profile6
-    TYPE(ProfileData), SAVE :: psy_profile7
-    TYPE(ProfileData), SAVE :: psy_profile8
-    TYPE(ProfileData), SAVE :: psy_profile9
     CALL ProfileStart('sbc_fwb', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) THEN
@@ -102,24 +99,20 @@ MODULE sbcfwb
       END IF
       CALL ProfileEnd(psy_profile3)
     CASE (3)
-      CALL ProfileStart('sbc_fwb', 'r4', psy_profile4)
       ALLOCATE(ztmsk_neg(jpi, jpj), ztmsk_pos(jpi, jpj), ztmsk_tospread(jpi, jpj), z_wgt(jpi, jpj), zerp_cor(jpi, jpj))
-      CALL ProfileEnd(psy_profile4)
       IF (MOD(kt - 1, kn_fsbc) == 0) THEN
         !$ACC KERNELS
         ztmsk_pos(:, :) = tmask_i(:, :)
         !$ACC END KERNELS
-        CALL ProfileStart('sbc_fwb', 'r5', psy_profile5)
         WHERE (erp < 0._wp) ztmsk_pos = 0._wp
-        CALL ProfileEnd(psy_profile5)
         !$ACC KERNELS
         ztmsk_neg(:, :) = tmask_i(:, :) - ztmsk_pos(:, :)
         !$ACC END KERNELS
-        CALL ProfileStart('sbc_fwb', 'r6', psy_profile6)
+        CALL ProfileStart('sbc_fwb', 'r4', psy_profile4)
         zsurf_neg = glob_sum(e1e2t(:, :) * ztmsk_neg(:, :))
         zsurf_pos = glob_sum(e1e2t(:, :) * ztmsk_pos(:, :))
         z_fwf = glob_sum(e1e2t(:, :) * (emp(:, :) - rnf(:, :) + fwfisf(:, :) - snwice_fmass(:, :))) / area
-        CALL ProfileEnd(psy_profile6)
+        CALL ProfileEnd(psy_profile4)
         IF (z_fwf < 0._wp) THEN
           !$ACC KERNELS
           zsurf_tospread = zsurf_pos
@@ -131,11 +124,11 @@ MODULE sbcfwb
           ztmsk_tospread(:, :) = ztmsk_neg(:, :)
           !$ACC END KERNELS
         END IF
-        CALL ProfileStart('sbc_fwb', 'r7', psy_profile7)
+        CALL ProfileStart('sbc_fwb', 'r5', psy_profile5)
         zsum_fwf = glob_sum(e1e2t(:, :) * z_fwf)
         z_fwf_nsrf = zsum_fwf / (zsurf_tospread + rsmall)
         zsum_erp = glob_sum(ztmsk_tospread(:, :) * erp(:, :) * e1e2t(:, :))
-        CALL ProfileEnd(psy_profile7)
+        CALL ProfileEnd(psy_profile5)
         !$ACC KERNELS
         z_wgt(:, :) = ztmsk_tospread(:, :) * erp(:, :) / (zsum_erp + rsmall)
         zerp_cor(:, :) = - 1. * z_fwf_nsrf * zsurf_tospread * z_wgt(:, :)
@@ -146,7 +139,7 @@ MODULE sbcfwb
         qns(:, :) = qns(:, :) - zerp_cor(:, :) * rcp * sst_m(:, :)
         erp(:, :) = erp(:, :) + zerp_cor(:, :)
         !$ACC END KERNELS
-        CALL ProfileStart('sbc_fwb', 'r8', psy_profile8)
+        CALL ProfileStart('sbc_fwb', 'r6', psy_profile6)
         IF (nprint == 1 .AND. lwp) THEN
           IF (z_fwf < 0._wp) THEN
             WRITE(numout, FMT = *) '   z_fwf < 0'
@@ -161,11 +154,9 @@ MODULE sbcfwb
           WRITE(numout, FMT = *) '   MIN(zerp_cor) = ', MINVAL(zerp_cor)
           WRITE(numout, FMT = *) '   MAX(zerp_cor) = ', MAXVAL(zerp_cor)
         END IF
-        CALL ProfileEnd(psy_profile8)
+        CALL ProfileEnd(psy_profile6)
       END IF
-      CALL ProfileStart('sbc_fwb', 'r9', psy_profile9)
       DEALLOCATE(ztmsk_neg, ztmsk_pos, ztmsk_tospread, z_wgt, zerp_cor)
-      CALL ProfileEnd(psy_profile9)
     CASE DEFAULT
       CALL ctl_stop('sbc_fwb : wrong nn_fwb value for the FreshWater Budget correction, choose either 1, 2 or 3')
     END SELECT
