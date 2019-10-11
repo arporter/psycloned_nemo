@@ -216,6 +216,8 @@ MODULE icethd_do
       DO ji = 1, npti
         za_newice(ji) = zv_newice(ji) / zh_newice(ji)
       END DO
+      !$ACC END KERNELS
+      CALL ProfileStart('ice_thd_do', 'r8', psy_profile8)
       DO ji = 1, npti
         IF (za_newice(ji) > (rn_amax_1d(ji) - at_i_1d(ji))) THEN
           zda_res(ji) = za_newice(ji) - (rn_amax_1d(ji) - at_i_1d(ji))
@@ -236,8 +238,6 @@ MODULE icethd_do
           END IF
         END DO
       END DO
-      !$ACC END KERNELS
-      CALL ProfileStart('ice_thd_do', 'r8', psy_profile8)
       at_i_1d(1 : npti) = SUM(a_i_2d(1 : npti, :), dim = 2)
       CALL ProfileEnd(psy_profile8)
       !$ACC KERNELS

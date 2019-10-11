@@ -22,13 +22,10 @@ MODULE icevar
   PUBLIC :: ice_var_enthalpy
   CONTAINS
   SUBROUTINE ice_var_agg(kn)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kn
     INTEGER :: ji, jj, jk, jl
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: z1_at_i, z1_vt_i, z1_vt_s
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('ice_var_agg', 'r0', psy_profile0)
+    !$ACC KERNELS
     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
     vt_s(:, :) = SUM(v_s(:, :, :), dim = 3)
     at_i(:, :) = SUM(a_i(:, :, :), dim = 3)
@@ -36,8 +33,6 @@ MODULE icevar
     et_i(:, :) = SUM(SUM(e_i(:, :, :, :), dim = 4), dim = 3)
     at_ip(:, :) = SUM(a_ip(:, :, :), dim = 3)
     vt_ip(:, :) = SUM(v_ip(:, :, :), dim = 3)
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     ato_i(:, :) = 1._wp - at_i(:, :)
     !$ACC END KERNELS
     IF (kn > 1) THEN
@@ -60,14 +55,10 @@ MODULE icevar
       END WHERE
       hm_i(:, :) = vt_i(:, :) * z1_at_i(:, :)
       hm_s(:, :) = vt_s(:, :) * z1_at_i(:, :)
-      !$ACC END KERNELS
-      CALL ProfileStart('ice_var_agg', 'r1', psy_profile1)
       tm_su(:, :) = SUM(t_su(:, :, :) * a_i(:, :, :), dim = 3) * z1_at_i(:, :)
       tm_si(:, :) = SUM(t_si(:, :, :) * a_i(:, :, :), dim = 3) * z1_at_i(:, :)
       om_i(:, :) = SUM(oa_i(:, :, :), dim = 3) * z1_at_i(:, :)
       sm_i(:, :) = SUM(sv_i(:, :, :), dim = 3) * z1_vt_i(:, :)
-      CALL ProfileEnd(psy_profile1)
-      !$ACC KERNELS
       tm_i(:, :) = 0._wp
       tm_s(:, :) = 0._wp
       DO jl = 1, jpl
@@ -110,13 +101,12 @@ MODULE icevar
       z1_v_i(:, :, :) = 0._wp
     END WHERE
     h_i(:, :, :) = v_i(:, :, :) * z1_a_i(:, :, :)
-    
     zhmax = hi_max(jpl)
     z1_zhmax = 1._wp / hi_max(jpl)
     WHERE (h_i(:, :, jpl) > zhmax)
       h_i(:, :, jpl) = zhmax
-      !a_i(:, :, jpl) = v_i(:, :, jpl) * z1_zhmax
-      !z1_a_i(:, :, jpl) = zhmax * z1_v_i(:, :, jpl)
+      a_i(:, :, jpl) = v_i(:, :, jpl) * z1_zhmax
+      z1_a_i(:, :, jpl) = zhmax * z1_v_i(:, :, jpl)
     END WHERE
     h_s(:, :, :) = v_s(:, :, :) * z1_a_i(:, :, :)
     o_i(:, :, :) = oa_i(:, :, :) * z1_a_i(:, :, :)
@@ -137,6 +127,7 @@ MODULE icevar
     CALL ProfileStart('ice_var_glo2eqv', 'r0', psy_profile0)
     CALL ice_var_salprof
     zlay_i = REAL(nlay_i, wp)
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     DO jl = 1, jpl
       DO jk = 1, nlay_i
@@ -156,8 +147,9 @@ MODULE icevar
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ice_var_glo2eqv', 'r1', psy_profile1)
     zlay_s = REAL(nlay_s, wp)
-    CALL ProfileEnd(psy_profile0)
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     DO jk = 1, nlay_s
       WHERE (v_s(:, :, :) > epsi20)
@@ -166,12 +158,10 @@ MODULE icevar
         t_s(:, :, jk, :) = rt0
       END WHERE
     END DO
-    !$ACC END KERNELS
-    CALL ProfileStart('ice_var_glo2eqv', 'r1', psy_profile1)
     vt_i(:, :) = SUM(v_i, dim = 3)
     vt_s(:, :) = SUM(v_s, dim = 3)
     at_i(:, :) = SUM(a_i, dim = 3)
-    CALL ProfileEnd(psy_profile1)
+    !$ACC END KERNELS
   END SUBROUTINE ice_var_glo2eqv
   SUBROUTINE ice_var_eqv2glo
     !$ACC KERNELS
@@ -219,7 +209,8 @@ MODULE icevar
           END DO
         END DO
       END DO
-      !CALL ProfileStart('ice_var_salprof', 'r0', psy_profile0)
+      !$ACC END KERNELS
+      CALL ProfileStart('ice_var_salprof', 'r0', psy_profile0)
       DO jl = 1, jpl
         DO jk = 1, nlay_i
           DO jj = 1, jpj
@@ -231,9 +222,8 @@ MODULE icevar
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
       DEALLOCATE(z_slope_s, zalpha)
-      !CALL ProfileEnd(psy_profile0)
+      CALL ProfileEnd(psy_profile0)
     CASE (3)
       !$ACC KERNELS
       s_i(:, :, :) = 2.30_wp
@@ -261,7 +251,6 @@ MODULE icevar
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
     SELECT CASE (nn_icesal)
     CASE (1)
       !$ACC KERNELS
@@ -275,15 +264,11 @@ MODULE icevar
       ELSEWHERE
         z_slope_s(1 : npti) = 0._wp
       END WHERE
-      CALL ProfileEnd(psy_profile0)
-      !$ACC KERNELS
       z1_dS = 1._wp / (zsi1 - zsi0)
       DO ji = 1, npti
         zalpha(ji) = MAX(0._wp, MIN((zsi1 - s_i_1d(ji)) * z1_dS, 1._wp))
         IF (2._wp * s_i_1d(ji) >= sss_1d(ji)) zalpha(ji) = 0._wp
       END DO
-      !$ACC END KERNELS
-      CALL ProfileStart('ice_var_salprof1d', 'r1', psy_profile1)
       DO jk = 1, nlay_i
         DO ji = 1, npti
           zs0 = z_slope_s(ji) * (REAL(jk, wp) - 0.5_wp) * h_i_1d(ji) * r1_nlay_i
@@ -292,17 +277,17 @@ MODULE icevar
         END DO
       END DO
       DEALLOCATE(z_slope_s, zalpha)
-      CALL ProfileEnd(psy_profile1)
+      CALL ProfileEnd(psy_profile0)
     CASE (3)
-      CALL ProfileStart('ice_var_salprof1d', 'r2', psy_profile2)
+      CALL ProfileStart('ice_var_salprof1d', 'r1', psy_profile1)
       s_i_1d(1 : npti) = 2.30_wp
-      CALL ProfileEnd(psy_profile2)
+      CALL ProfileEnd(psy_profile1)
       DO jk = 1, nlay_i
-        CALL ProfileStart('ice_var_salprof1d', 'r3', psy_profile3)
+        CALL ProfileStart('ice_var_salprof1d', 'r2', psy_profile2)
         zargtemp = (REAL(jk, wp) - 0.5_wp) * r1_nlay_i
-        zsal = 1.6_wp * (1._wp - COS(rpi * zargtemp ** (0.407_wp / (0.573_wp + zargtemp))))
-        CALL ProfileEnd(psy_profile3)
+        CALL ProfileEnd(psy_profile2)
         !$ACC KERNELS
+        zsal = 1.6_wp * (1._wp - COS(rpi * zargtemp ** (0.407_wp / (0.573_wp + zargtemp))))
         DO ji = 1, npti
           sz_i_1d(ji, jk) = zsal
         END DO
@@ -311,10 +296,8 @@ MODULE icevar
     END SELECT
   END SUBROUTINE ice_var_salprof1d
   SUBROUTINE ice_var_zapsmall
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji, jj, jl, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zswitch
-    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     DO jl = 1, jpl
       WHERE (a_i(:, :, jl) > epsi10)
@@ -363,12 +346,8 @@ MODULE icevar
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
-    CALL ProfileStart('ice_var_zapsmall', 'r0', psy_profile0)
     at_i(:, :) = SUM(a_i(:, :, :), dim = 3)
     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     WHERE (at_i(:, :) == 0._wp) ato_i(:, :) = 1._wp
     !$ACC END KERNELS
   END SUBROUTINE ice_var_zapsmall
@@ -528,6 +507,7 @@ MODULE icevar
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
     CALL ProfileStart('ice_var_itd2', 'r0', psy_profile0)
     idim = SIZE(zhti, 1)
     icat = SIZE(zhti, 2)
@@ -545,6 +525,8 @@ MODULE icevar
     CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     jlfil(:, :) = 0
+    !$ACC END KERNELS
+    CALL ProfileStart('ice_var_itd2', 'r2', psy_profile2)
     DO jl1 = 1, jpl
       DO jl2 = 1, icat
         DO ji = 1, idim
@@ -559,6 +541,8 @@ MODULE icevar
         END DO
       END DO
     END DO
+    CALL ProfileEnd(psy_profile2)
+    !$ACC KERNELS
     DO ji = 1, idim
       jl1 = jlmin(ji)
       jl2 = jlmax(ji)
@@ -595,15 +579,13 @@ MODULE icevar
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('ice_var_itd2', 'r2', psy_profile2)
+    CALL ProfileStart('ice_var_itd2', 'r3', psy_profile3)
     DEALLOCATE(jlfil, jlfil2)
     DEALLOCATE(jlmin, jlmax)
-    CALL ProfileEnd(psy_profile2)
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE ice_var_itd2
   SUBROUTINE ice_var_bv
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji, jj, jk, jl
-    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     bv_i(:, :, :) = 0._wp
     DO jl = 1, jpl
@@ -613,14 +595,12 @@ MODULE icevar
         END WHERE
       END DO
     END DO
-    !$ACC END KERNELS
-    CALL ProfileStart('ice_var_bv', 'r0', psy_profile0)
     WHERE (vt_i(:, :) > epsi20)
       bvm_i(:, :) = SUM(bv_i(:, :, :) * v_i(:, :, :), dim = 3) / vt_i(:, :)
     ELSEWHERE
       bvm_i(:, :) = 0._wp
     END WHERE
-    CALL ProfileEnd(psy_profile0)
+    !$ACC END KERNELS
   END SUBROUTINE ice_var_bv
   SUBROUTINE ice_var_enthalpy
     INTEGER :: ji, jk

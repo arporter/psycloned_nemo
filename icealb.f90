@@ -18,6 +18,7 @@ MODULE icealb
   REAL(KIND = wp) :: rn_alb_dpnd
   CONTAINS
   SUBROUTINE ice_alb(pt_su, ph_ice, ph_snw, ld_pnd_alb, pafrac_pnd, ph_pnd, palb_cs, palb_os)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: pt_su
     REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: ph_ice
     REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: ph_snw
@@ -32,8 +33,9 @@ MODULE icealb
     REAL(KIND = wp) :: zalb_pnd, zafrac_pnd
     REAL(KIND = wp) :: zalb_ice, zafrac_ice
     REAL(KIND = wp) :: zalb_snw, zafrac_snw
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice_alb', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('icealb')
-    !$ACC KERNELS
     z1_href_pnd = 1. / 0.05
     z1_c1 = 1. / (LOG(1.5) - LOG(0.05))
     z1_c2 = 1. / 0.05
@@ -84,8 +86,8 @@ MODULE icealb
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
     IF (ln_timing) CALL timing_stop('icealb')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_alb
   SUBROUTINE ice_alb_init
     INTEGER :: ios

@@ -444,15 +444,13 @@ MODULE obs_oper
       zlam = surfdataqc % rlam(jobs)
       zphi = surfdataqc % rphi(jobs)
       CALL ProfileEnd(psy_profile5)
+      !$ACC KERNELS
       IF (ldnightav .AND. idayend == 0) THEN
-        !$ACC KERNELS
         zsurftmp(:, :, iobs) = zsurfm(:, :, iobs)
-        !$ACC END KERNELS
       ELSE
-        !$ACC KERNELS
         zsurftmp(:, :, iobs) = zsurf(:, :, iobs)
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
       CALL ProfileStart('obs_surf_opt', 'r6', psy_profile6)
       IF (k2dint <= 4) THEN
         CALL obs_int_h2d_init(1, 1, k2dint, zlam, zphi, zglam(:, :, iobs), zgphi(:, :, iobs), zmask(:, :, iobs), zweig, zobsmask)

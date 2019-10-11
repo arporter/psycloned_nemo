@@ -328,12 +328,10 @@ MODULE bdydta
     IF (lwp) WRITE(numout, FMT = *) 'bdy_dta_ini : initialization of data at the open boundaries'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~'
     IF (lwp) WRITE(numout, FMT = *) ''
-    !$ACC KERNELS
     DO jbdy = 1, nb_bdy
       nn_dta(jbdy) = MAX(nn_dyn2d_dta(jbdy), nn_dyn3d_dta(jbdy), nn_tra_dta(jbdy), nn_ice_dta(jbdy))
       IF (nn_dta(jbdy) > 1) nn_dta(jbdy) = 1
     END DO
-    !$ACC END KERNELS
     ALLOCATE(nb_bdy_fld(nb_bdy))
     nb_bdy_fld(:) = 0
     DO jbdy = 1, nb_bdy

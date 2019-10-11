@@ -38,9 +38,7 @@ MODULE crsfld
     ze3u(:, :, :) = e3u_n(:, :, :)
     ze3v(:, :, :) = e3v_n(:, :, :)
     ze3w(:, :, :) = e3w_n(:, :, :)
-    !$ACC END KERNELS
     IF (kt == nit000) THEN
-      !$ACC KERNELS
       tsn_crs(:, :, :, :) = 0._wp
       un_crs(:, :, :) = 0._wp
       vn_crs(:, :, :) = 0._wp
@@ -56,8 +54,8 @@ MODULE crsfld
       emp_b_crs(:, :) = 0._wp
       rnf_crs(:, :) = 0._wp
       fr_i_crs(:, :) = 0._wp
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
     CALL iom_swap("nemo_crs")
     !$ACC KERNELS
     zt(:, :, :) = tsn(:, :, :, jp_tem)

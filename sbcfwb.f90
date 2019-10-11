@@ -84,13 +84,13 @@ MODULE sbcfwb
         fwfold = a_fwb
       END IF
       CALL ProfileEnd(psy_profile2)
+      !$ACC KERNELS
       IF (MOD(kt - 1, kn_fsbc) == 0) THEN
-        !$ACC KERNELS
         zcoef = fwfold * rcp
         emp(:, :) = emp(:, :) + fwfold * tmask(:, :, 1)
         qns(:, :) = qns(:, :) - zcoef * sst_m(:, :) * tmask(:, :, 1)
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
       CALL ProfileStart('sbc_fwb', 'r3', psy_profile3)
       IF (kt == nitend .AND. lwp) THEN
         CALL ctl_opn(inum, 'EMPave.dat', 'REPLACE', 'FORMATTED', 'SEQUENTIAL', - 1, numout, .FALSE., narea)
@@ -113,17 +113,15 @@ MODULE sbcfwb
         zsurf_pos = glob_sum(e1e2t(:, :) * ztmsk_pos(:, :))
         z_fwf = glob_sum(e1e2t(:, :) * (emp(:, :) - rnf(:, :) + fwfisf(:, :) - snwice_fmass(:, :))) / area
         CALL ProfileEnd(psy_profile4)
+        !$ACC KERNELS
         IF (z_fwf < 0._wp) THEN
-          !$ACC KERNELS
           zsurf_tospread = zsurf_pos
           ztmsk_tospread(:, :) = ztmsk_pos(:, :)
-          !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
           zsurf_tospread = zsurf_neg
           ztmsk_tospread(:, :) = ztmsk_neg(:, :)
-          !$ACC END KERNELS
         END IF
+        !$ACC END KERNELS
         CALL ProfileStart('sbc_fwb', 'r5', psy_profile5)
         zsum_fwf = glob_sum(e1e2t(:, :) * z_fwf)
         z_fwf_nsrf = zsum_fwf / (zsurf_tospread + rsmall)

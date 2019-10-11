@@ -46,6 +46,7 @@ MODULE lbcnfd
       ipj = 4
     END SELECT
     ipjm1 = ipj - 1
+    CALL ProfileEnd(psy_profile0)
     DO jf = 1, ipf
       SELECT CASE (npolj)
       CASE (3, 4)
@@ -150,7 +151,6 @@ MODULE lbcnfd
         END SELECT
       END SELECT
     END DO
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE lbc_nfd_2d
   SUBROUTINE lbc_nfd_2d_ptr(ptab, cd_nat, psgn, kfld)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

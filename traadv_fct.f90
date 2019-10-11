@@ -130,14 +130,12 @@ MODULE traadv_fct
       END DO
       !$ACC END KERNELS
       CALL lbc_lnk(zwi, 'T', 1.)
+      !$ACC KERNELS
       IF (l_trd .OR. l_hst) THEN
-        !$ACC KERNELS
         ztrdx(:, :, :) = zwx(:, :, :)
         ztrdy(:, :, :) = zwy(:, :, :)
         ztrdz(:, :, :) = zwz(:, :, :)
-        !$ACC END KERNELS
       END IF
-      !$ACC KERNELS
       IF (l_ptr) zptry(:, :, :) = zwy(:, :, :)
       !$ACC END KERNELS
       SELECT CASE (kn_fct_h)
@@ -340,11 +338,13 @@ MODULE traadv_fct
     CALL lbc_lnk_multi(paa, 'U', - 1., pbb, 'V', - 1.)
   END SUBROUTINE nonosc
   SUBROUTINE interp_4th_cpt_org(pt_in, pt_out)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pt_in
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: pt_out
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwd, zwi, zws, zwrm, zwt
-    !$ACC KERNELS
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('interp_4th_cpt_org', 'r0', psy_profile0)
     DO jk = 3, jpkm1
       DO jj = 1, jpj
         DO ji = 1, jpi
@@ -361,6 +361,8 @@ MODULE traadv_fct
         END DO
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     jk = 2
     DO jj = 1, jpj
       DO ji = 1, jpi

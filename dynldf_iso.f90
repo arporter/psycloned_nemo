@@ -62,18 +62,14 @@ MODULE dynldf_iso
       !$ACC KERNELS
       zdk1u(:, :) = (ub(:, :, jk) - ub(:, :, jk + 1)) * umask(:, :, jk + 1)
       zdk1v(:, :) = (vb(:, :, jk) - vb(:, :, jk + 1)) * vmask(:, :, jk + 1)
-      !$ACC END KERNELS
       IF (jk == 1) THEN
-        !$ACC KERNELS
         zdku(:, :) = zdk1u(:, :)
         zdkv(:, :) = zdk1v(:, :)
-        !$ACC END KERNELS
       ELSE
-        !$ACC KERNELS
         zdku(:, :) = (ub(:, :, jk - 1) - ub(:, :, jk)) * umask(:, :, jk)
         zdkv(:, :) = (vb(:, :, jk - 1) - vb(:, :, jk)) * vmask(:, :, jk)
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
       IF (ln_zps) THEN
         !$ACC KERNELS
         DO jj = 2, jpjm1

@@ -222,8 +222,8 @@ MODULE dynnxt
           DEALLOCATE(ze3u_f, ze3v_f)
         END IF
       END IF
+      !$ACC KERNELS
       IF (ln_dynspg_ts .AND. ln_bt_fw) THEN
-        !$ACC KERNELS
         zue(:, :) = e3u_b(:, :, 1) * ub(:, :, 1) * umask(:, :, 1)
         zve(:, :) = e3v_b(:, :, 1) * vb(:, :, 1) * vmask(:, :, 1)
         DO jk = 2, jpkm1
@@ -234,8 +234,8 @@ MODULE dynnxt
           ub(:, :, jk) = ub(:, :, jk) - (zue(:, :) * r1_hu_n(:, :) - un_b(:, :)) * umask(:, :, jk)
           vb(:, :, jk) = vb(:, :, jk) - (zve(:, :) * r1_hv_n(:, :) - vn_b(:, :)) * vmask(:, :, jk)
         END DO
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
     END IF
     IF (.NOT. ln_linssh) THEN
       !$ACC KERNELS

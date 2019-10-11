@@ -26,8 +26,10 @@ MODULE icethd_pnd
     END SELECT
   END SUBROUTINE ice_thd_pnd
   SUBROUTINE pnd_CST
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji
-    !$ACC KERNELS
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('pnd_cst', 'r0', psy_profile0)
     DO ji = 1, npti
       IF (a_i_1d(ji) > 0._wp .AND. t_su_1d(ji) >= rt0) THEN
         a_ip_frac_1d(ji) = rn_apnd
@@ -39,9 +41,10 @@ MODULE icethd_pnd
         a_ip_1d(ji) = 0._wp
       END IF
     END DO
-    !$ACC END KERNELS
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE pnd_CST
   SUBROUTINE pnd_H12
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), PARAMETER :: zrmin = 0.15_wp
     REAL(KIND = wp), PARAMETER :: zrmax = 0.70_wp
     REAL(KIND = wp), PARAMETER :: zpnd_aspect = 0.8_wp
@@ -53,7 +56,8 @@ MODULE icethd_pnd
     REAL(KIND = wp) :: z1_zpnd_aspect
     REAL(KIND = wp) :: zfac, zdum
     INTEGER :: ji
-    !$ACC KERNELS
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('pnd_h12', 'r0', psy_profile0)
     z1_rhow = 1._wp / rhow
     z1_zpnd_aspect = 1._wp / zpnd_aspect
     z1_Tp = 1._wp / zTp
@@ -80,7 +84,7 @@ MODULE icethd_pnd
         h_ip_1d(ji) = zpnd_aspect * a_ip_frac_1d(ji)
       END IF
     END DO
-    !$ACC END KERNELS
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE pnd_H12
   SUBROUTINE ice_thd_pnd_init
     INTEGER :: ios, ioptio

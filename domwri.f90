@@ -144,17 +144,21 @@ MODULE domwri
     CALL ProfileEnd(psy_profile4)
   END SUBROUTINE dom_wri
   SUBROUTINE dom_uniq(puniq, cdgrd)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = 1), INTENT(IN   ) :: cdgrd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: puniq
     REAL(KIND = wp) :: zshift
     INTEGER :: ji
     LOGICAL, DIMENSION(SIZE(puniq, 1), SIZE(puniq, 2), 1) :: lldbl
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztstref
-    !CC KERNELS
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dom_uniq', 'r0', psy_profile0)
     zshift = jpi * jpj * (narea - 1)
     ztstref(:, :) = RESHAPE((/(zshift + REAL(ji, wp), ji = 1, jpi * jpj)/), (/jpi, jpj/))
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     puniq(:, :) = ztstref(:, :)
-    !CC END KERNELS
+    !$ACC END KERNELS
     CALL lbc_lnk(puniq, cdgrd, 1.)
     !$ACC KERNELS
     lldbl(:, :, 1) = puniq(:, :) == ztstref(:, :)

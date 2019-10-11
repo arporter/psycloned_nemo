@@ -144,32 +144,26 @@ MODULE iscplrst
       gdept_n(:, :, 1) = 0.5_wp * e3w_n(:, :, 1)
       gdepw_n(:, :, 1) = 0.0_wp
       gde3w_n(:, :, 1) = gdept_n(:, :, 1) - sshn(:, :)
-      !$ACC END KERNELS
       DO jj = 1, jpj
         DO ji = 1, jpi
-          !$ACC KERNELS
           DO jk = 2, mikt(ji, jj) - 1
             gdept_n(ji, jj, jk) = gdept_0(ji, jj, jk)
             gdepw_n(ji, jj, jk) = gdepw_0(ji, jj, jk)
             gde3w_n(ji, jj, jk) = gdept_0(ji, jj, jk) - sshn(ji, jj)
           END DO
-          !$ACC END KERNELS
           IF (mikt(ji, jj) > 1) THEN
             jk = mikt(ji, jj)
             gdept_n(ji, jj, jk) = gdepw_0(ji, jj, jk) + 0.5_wp * e3w_n(ji, jj, jk)
             gdepw_n(ji, jj, jk) = gdepw_0(ji, jj, jk)
             gde3w_n(ji, jj, jk) = gdept_n(ji, jj, jk) - sshn(ji, jj)
           END IF
-          !$ACC KERNELS
           DO jk = mikt(ji, jj) + 1, jpk
             gdept_n(ji, jj, jk) = gdept_n(ji, jj, jk - 1) + e3w_n(ji, jj, jk)
             gdepw_n(ji, jj, jk) = gdepw_n(ji, jj, jk - 1) + e3t_n(ji, jj, jk - 1)
             gde3w_n(ji, jj, jk) = gdept_n(ji, jj, jk) - sshn(ji, jj)
           END DO
-          !$ACC END KERNELS
         END DO
       END DO
-      !$ACC KERNELS
       ht_n(:, :) = 0._wp
       hu_n(:, :) = 0._wp
       hv_n(:, :) = 0._wp
@@ -194,21 +188,13 @@ MODULE iscplrst
       END DO
     END DO
     ztrp(:, :, :) = ub(:, :, :) * pe3u_b(:, :, :)
-    !$ACC END KERNELS
     zbub(:, :) = SUM(ztrp, DIM = 3)
-    !$ACC KERNELS
     ztrp(:, :, :) = vb(:, :, :) * pe3v_b(:, :, :)
-    !$ACC END KERNELS
     zbvb(:, :) = SUM(ztrp, DIM = 3)
-    !$ACC KERNELS
     ztrp(:, :, :) = un(:, :, :) * e3u_n(:, :, :)
-    !$ACC END KERNELS
     zbun(:, :) = SUM(ztrp, DIM = 3)
-    !$ACC KERNELS
     ztrp(:, :, :) = vn(:, :, :) * e3v_n(:, :, :)
-    !$ACC END KERNELS
     zbvn(:, :) = SUM(ztrp, DIM = 3)
-    !$ACC KERNELS
     zhu1 = 0.0_wp
     zhv1 = 0.0_wp
     DO jk = 1, jpk

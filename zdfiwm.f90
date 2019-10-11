@@ -70,10 +70,8 @@ MODULE zdfiwm
     DO jk = 2, jpkm1
       zemx_iwm(:, :, jk) = zfact(:, :) * (EXP((gde3w_n(:, :, jk) - zhdep(:, :)) / hcri_iwm(:, :)) - EXP((gde3w_n(:, :, jk - 1) - zhdep(:, :)) / hcri_iwm(:, :))) * wmask(:, :, jk) / (gde3w_n(:, :, jk) - gde3w_n(:, :, jk - 1))
     END DO
-    !$ACC END KERNELS
     SELECT CASE (nn_zpyc)
     CASE (1)
-      !$ACC KERNELS
       zfact(:, :) = 0._wp
       DO jk = 2, jpkm1
         zfact(:, :) = zfact(:, :) + e3w_n(:, :, jk) * SQRT(MAX(0._wp, rn2(:, :, jk))) * wmask(:, :, jk)
@@ -86,9 +84,7 @@ MODULE zdfiwm
       DO jk = 2, jpkm1
         zemx_iwm(:, :, jk) = zemx_iwm(:, :, jk) + zfact(:, :) * SQRT(MAX(0._wp, rn2(:, :, jk))) * wmask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     CASE (2)
-      !$ACC KERNELS
       zfact(:, :) = 0._wp
       DO jk = 2, jpkm1
         zfact(:, :) = zfact(:, :) + e3w_n(:, :, jk) * MAX(0._wp, rn2(:, :, jk)) * wmask(:, :, jk)
@@ -101,9 +97,7 @@ MODULE zdfiwm
       DO jk = 2, jpkm1
         zemx_iwm(:, :, jk) = zemx_iwm(:, :, jk) + zfact(:, :) * MAX(0._wp, rn2(:, :, jk)) * wmask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     zwkb(:, :, :) = 0._wp
     zfact(:, :) = 0._wp
     DO jk = 2, jpkm1

@@ -62,12 +62,12 @@ MODULE crsdomwri
         !$ACC END KERNELS
       END IF
     END IF
+    !$ACC KERNELS
     IF (jperio == 5 .OR. jperio == 6) THEN
-      !$ACC KERNELS
       tpol_crs(1 : jpiglo_crs, :) = 0._wp
       fpol_crs(jpiglo_crs / 2 + 1 : jpiglo_crs, :) = 0._wp
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
     CALL ProfileStart('crs_dom_wri', 'r1', psy_profile1)
     CALL iom_rstput(0, 0, inum, 'tmaskutil', tmask_i_crs, ktype = jp_i1)
     CALL dom_uniq_crs(zprw, 'U')
@@ -148,17 +148,21 @@ MODULE crsdomwri
     CALL ProfileEnd(psy_profile3)
   END SUBROUTINE crs_dom_wri
   SUBROUTINE dom_uniq_crs(puniq, cdgrd)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = 1), INTENT(IN   ) :: cdgrd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: puniq
     REAL(KIND = wp) :: zshift
     INTEGER :: ji
     LOGICAL, DIMENSION(SIZE(puniq, 1), SIZE(puniq, 2), 1) :: lldbl
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs) :: ztstref
-    !CC KERNELS
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dom_uniq_crs', 'r0', psy_profile0)
     zshift = jpi_crs * jpj_crs * (narea - 1)
     ztstref(:, :) = RESHAPE((/(zshift + REAL(ji, wp), ji = 1, jpi_crs * jpj_crs)/), (/jpi_crs, jpj_crs/))
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     puniq(:, :) = ztstref(:, :)
-    !CC END KERNELS
+    !$ACC END KERNELS
     CALL crs_lbc_lnk(puniq, cdgrd, 1.)
     !$ACC KERNELS
     lldbl(:, :, 1) = puniq(:, :) == ztstref(:, :)

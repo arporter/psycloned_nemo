@@ -1576,16 +1576,16 @@ MODULE crsdom
           mis2_crs(ji) = ijis
           mie2_crs(ji) = ijie
         END DO
-        IF (jpiglo - 1 - mie2_crs(jpiglo_crsm1) <= nn_factx) mie2_crs(jpiglo_crsm1) = jpiglo - 2
         !$ACC END KERNELS
         CALL ProfileStart('crs_dom_def', 'r7', psy_profile7)
+        IF (jpiglo - 1 - mie2_crs(jpiglo_crsm1) <= nn_factx) mie2_crs(jpiglo_crsm1) = jpiglo - 2
+        CALL ProfileEnd(psy_profile7)
+        !$ACC KERNELS
         IF (nn_facty == 2) THEN
           ijjglot = jpjglo - 1
         ELSE
           ijjglot = jpjglo
         END IF
-        CALL ProfileEnd(psy_profile7)
-        !$ACC KERNELS
         DO jj = 2, jpjglo_crs
           ijje = ijjgloT - nn_facty * (jj - 3)
           ijjs = ijje - nn_facty + 1
@@ -1603,18 +1603,18 @@ MODULE crsdom
           mis2_crs(ji) = ijis
           mie2_crs(ji) = ijie
         END DO
-        IF (jpiglo - 1 - mie2_crs(jpiglo_crsm1) <= nn_factx) mie_crs(jpiglo_crsm1) = jpiglo - 2
-        jj = 2
-        ijje = jpj - nn_facty * (jj - 2)
         !$ACC END KERNELS
         CALL ProfileStart('crs_dom_def', 'r8', psy_profile8)
+        IF (jpiglo - 1 - mie2_crs(jpiglo_crsm1) <= nn_factx) mie_crs(jpiglo_crsm1) = jpiglo - 2
+        CALL ProfileEnd(psy_profile8)
+        !$ACC KERNELS
+        jj = 2
+        ijje = jpj - nn_facty * (jj - 2)
         IF (nn_facty == 3) THEN
           ijjs = ijje - 1
         ELSE
           ijjs = ijje - nn_facty + 1
         END IF
-        CALL ProfileEnd(psy_profile8)
-        !$ACC KERNELS
         mjs2_crs(jpj_crs - jj + 1) = ijjs
         mje2_crs(jpj_crs - jj + 1) = ijje
         DO jj = 3, jpjglo_crsm1

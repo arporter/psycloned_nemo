@@ -121,9 +121,9 @@ MODULE eosbn2
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
     TYPE(ProfileData), SAVE :: psy_profile0
     IF (ln_timing) CALL timing_start('eos-insitu')
+    !$ACC KERNELS
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -140,9 +140,7 @@ MODULE eosbn2
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (np_seos)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -155,8 +153,8 @@ MODULE eosbn2
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
+    !$ACC END KERNELS
     CALL ProfileStart('eos_insitu', 'r0', psy_profile0)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = prd, clinfo1 = ' eos-insitu  : ', kdim = jpk)
     IF (ln_timing) CALL timing_stop('eos-insitu')

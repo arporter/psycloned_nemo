@@ -141,16 +141,16 @@ MODULE domvvl
         END DO
         !$ACC END KERNELS
         IF (cn_cfg == "orca" .OR. cn_cfg == "ORCA") THEN
+          !$ACC KERNELS
           IF (nn_cfg == 3) THEN
-            !$ACC KERNELS
             ii0 = 103
             ii1 = 111
             ij0 = 128
             ij1 = 135
             frq_rst_e3t(mi0(ii0) : mi1(ii1), mj0(ij0) : mj1(ij1)) = 0.0_wp
             frq_rst_hdv(mi0(ii0) : mi1(ii1), mj0(ij0) : mj1(ij1)) = 1.E0_wp / rdt
-            !$ACC END KERNELS
           END IF
+          !$ACC END KERNELS
         END IF
       END IF
     END IF
@@ -214,13 +214,13 @@ MODULE domvvl
       zhdiv(:, :) = zhdiv(:, :) / (zht(:, :) + 1. - tmask_i(:, :))
       !$ACC END KERNELS
       IF (ln_vvl_ztilde) THEN
+        !$ACC KERNELS
         IF (kt > nit000) THEN
-          !$ACC KERNELS
           DO jk = 1, jpkm1
             hdiv_lf(:, :, jk) = hdiv_lf(:, :, jk) - rdt * frq_rst_hdv(:, :) * (hdiv_lf(:, :, jk) - e3t_n(:, :, jk) * (hdivn(:, :, jk) - zhdiv(:, :)))
           END DO
-          !$ACC END KERNELS
         END IF
+        !$ACC END KERNELS
       END IF
       !$ACC KERNELS
       tilde_e3t_a(:, :, :) = 0._wp
@@ -330,13 +330,13 @@ MODULE domvvl
       END DO
       !$ACC END KERNELS
     END IF
+    !$ACC KERNELS
     IF (ln_vvl_ztilde .OR. ln_vvl_layer) THEN
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         e3t_a(:, :, jk) = e3t_a(:, :, jk) + dtilde_e3t_a(:, :, jk) * tmask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
     IF (ln_vvl_dbg .AND. .NOT. ll_do_bclinic) THEN
       CALL ProfileStart('dom_vvl_sf_nxt', 'r3', psy_profile3)
       IF (lwp) WRITE(numout, FMT = *) 'kt =', kt
@@ -422,21 +422,15 @@ MODULE domvvl
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~~   - interpolate scale factors and compute depths for next time step'
     END IF
     CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     IF (ln_vvl_ztilde .OR. ln_vvl_layer) THEN
       IF (neuler == 0 .AND. kt == nit000) THEN
-        !$ACC KERNELS
         tilde_e3t_b(:, :, :) = tilde_e3t_n(:, :, :)
-        !$ACC END KERNELS
       ELSE
-        !$ACC KERNELS
         tilde_e3t_b(:, :, :) = tilde_e3t_n(:, :, :) + atfp * (tilde_e3t_b(:, :, :) - 2.0_wp * tilde_e3t_n(:, :, :) + tilde_e3t_a(:, :, :))
-        !$ACC END KERNELS
       END IF
-      !$ACC KERNELS
       tilde_e3t_n(:, :, :) = tilde_e3t_a(:, :, :)
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     gdept_b(:, :, :) = gdept_n(:, :, :)
     gdepw_b(:, :, :) = gdepw_n(:, :, :)
     e3t_n(:, :, :) = e3t_a(:, :, :)
@@ -584,12 +578,10 @@ MODULE domvvl
             e3t_n(:, :, :) = e3t_0(:, :, :)
             e3t_b(:, :, :) = e3t_0(:, :, :)
           END WHERE
-          !$ACC END KERNELS
           IF (neuler == 0) THEN
-            !$ACC KERNELS
             e3t_b(:, :, :) = e3t_n(:, :, :)
-            !$ACC END KERNELS
           END IF
+          !$ACC END KERNELS
         ELSE IF (id1 > 0) THEN
           IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_rst WARNING : e3t_n not found in restart files'
           IF (lwp) WRITE(numout, FMT = *) 'e3t_n set equal to e3t_b.'
@@ -689,13 +681,13 @@ MODULE domvvl
           e3t_b(:, :, :) = e3t_0(:, :, :)
           !$ACC END KERNELS
         END IF
+        !$ACC KERNELS
         IF (ln_vvl_ztilde .OR. ln_vvl_layer) THEN
-          !$ACC KERNELS
           tilde_e3t_b(:, :, :) = 0._wp
           tilde_e3t_n(:, :, :) = 0._wp
           IF (ln_vvl_ztilde) hdiv_lf(:, :, :) = 0._wp
-          !$ACC END KERNELS
         END IF
+        !$ACC END KERNELS
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
       IF (lwp) WRITE(numout, FMT = *) '---- dom_vvl_rst ----'

@@ -28,13 +28,13 @@ MODULE dynldf_lap_blp
       WRITE(numout, FMT = *) 'dyn_ldf : iso-level harmonic (laplacian) operator, pass=', kpass
       WRITE(numout, FMT = *) '~~~~~~~ '
     END IF
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     IF (kpass == 1) THEN
       zsign = 1._wp
     ELSE
       zsign = - 1._wp
     END IF
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     DO jk = 1, jpkm1
       DO jj = 2, jpj
         DO ji = 2, jpi

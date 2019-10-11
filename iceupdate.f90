@@ -56,8 +56,10 @@ MODULE iceupdate
       qemp_ice(:, :) = 0._wp
       qevap_ice(:, :, :) = 0._wp
       !$ACC END KERNELS
-    END IF
-    CALL ProfileStart('ice_update_flx', 'r1', psy_profile1)
+   END IF
+   ! PSyclone - no support for array slices
+    !CALL ProfileStart('ice_update_flx', 'r1', psy_profile1)
+    !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
         zqsr = qsr_tot(ji, jj) - SUM(a_i_b(ji, jj, :) * (qsr_ice(ji, jj, :) - qtr_ice_bot(ji, jj, :)))
@@ -77,8 +79,8 @@ MODULE iceupdate
         snwice_fmass(ji, jj) = (snwice_mass(ji, jj) - snwice_mass_b(ji, jj)) * r1_rdtice
       END DO
     END DO
-    CALL ProfileEnd(psy_profile1)
-    !$ACC KERNELS
+    !CALL ProfileEnd(psy_profile1)
+    !CC KERNELS
     fr_i(:, :) = at_i(:, :)
     tn_ice(:, :, :) = t_su(:, :, :)
     !$ACC END KERNELS

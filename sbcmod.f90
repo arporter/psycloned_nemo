@@ -154,12 +154,10 @@ MODULE sbcmod
       risf_tsc_b(:, :, :) = 0._wp
       !$ACC END KERNELS
     END IF
-    IF (nn_ice == 0) THEN
-      !$ACC KERNELS
-      IF (nn_components /= jp_iam_opa) fr_i(:, :) = 0._wp
-      !$ACC END KERNELS
-    END IF
     !$ACC KERNELS
+    IF (nn_ice == 0) THEN
+      IF (nn_components /= jp_iam_opa) fr_i(:, :) = 0._wp
+    END IF
     sfx(:, :) = 0._wp
     fmmflx(:, :) = 0._wp
     taum(:, :) = 0._wp

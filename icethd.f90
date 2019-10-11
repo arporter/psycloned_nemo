@@ -105,9 +105,11 @@ MODULE icethd
     qt_oce_ai(:, :) = (1._wp - at_i_b(:, :)) * qns_oce(:, :) + qemp_oce(:, :) - qlead(:, :) * r1_rdtice - at_i(:, :) * qsb_ice_bot(:, :) - at_i(:, :) * fhld(:, :)
     !$ACC END KERNELS
     DO jl = 1, jpl
+      CALL ProfileStart('ice_thd', 'r1', psy_profile1)
       npti = 0
-      !$ACC KERNELS
       nptidx(:) = 0
+      CALL ProfileEnd(psy_profile1)
+      !$ACC KERNELS
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (a_i(ji, jj, jl) > epsi10) THEN
@@ -120,8 +122,7 @@ MODULE icethd
       CALL ProfileStart('ice_thd', 'r2', psy_profile2)
       IF (lk_mpp) CALL mpp_ini_ice(npti, numout)
       IF (npti > 0) THEN
-         CALL ice_thd_1d2d(jl, 1)
-         !$ACC KERNELS
+        CALL ice_thd_1d2d(jl, 1)
         s_i_new(1 : npti) = 0._wp
         dh_s_tot(1 : npti) = 0._wp
         dh_i_sum(1 : npti) = 0._wp
@@ -131,7 +132,6 @@ MODULE icethd
         dh_i_bog(1 : npti) = 0._wp
         dh_snowice(1 : npti) = 0._wp
         dh_s_mlt(1 : npti) = 0._wp
-        !$ACC END KERNELS
         IF (ln_icedH) THEN
           CALL ice_thd_zdf
           CALL ice_thd_dh
@@ -181,11 +181,13 @@ MODULE icethd
     !$ACC END KERNELS
   END SUBROUTINE ice_thd_temp
   SUBROUTINE ice_thd_mono
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji
     REAL(KIND = wp) :: zhi_bef
     REAL(KIND = wp) :: zdh_mel, zda_mel
     REAL(KIND = wp) :: zvi, zvs
-    !$ACC KERNELS
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice_thd_mono', 'r0', psy_profile0)
     DO ji = 1, npti
       zdh_mel = MIN(0._wp, dh_i_itm(ji) + dh_i_sum(ji) + dh_i_bom(ji) + dh_snowice(ji) + dh_i_sub(ji))
       IF (zdh_mel < 0._wp .AND. a_i_1d(ji) > 0._wp) THEN
@@ -200,7 +202,7 @@ MODULE icethd
         at_i_1d(ji) = a_i_1d(ji)
       END IF
     END DO
-    !$ACC END KERNELS
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_thd_mono
   SUBROUTINE ice_thd_1d2d(kl, kn)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -279,14 +281,12 @@ MODULE icethd
       CALL tab_2d_1d(npti, nptidx(1 : npti), qt_oce_ai_1d(1 : npti), qt_oce_ai)
       CALL tab_2d_1d(npti, nptidx(1 : npti), sst_1d(1 : npti), sst_m)
       CALL tab_2d_1d(npti, nptidx(1 : npti), sss_1d(1 : npti), sss_m)
-      !$ACC KERNELS
       DO jk = 1, nlay_i
         WHERE (h_i_1d(1 : npti) > 0._wp) e_i_1d(1 : npti, jk) = e_i_1d(1 : npti, jk) / (h_i_1d(1 : npti) * a_i_1d(1 : npti)) * nlay_i
       END DO
       DO jk = 1, nlay_s
         WHERE (h_s_1d(1 : npti) > 0._wp) e_s_1d(1 : npti, jk) = e_s_1d(1 : npti, jk) / (h_s_1d(1 : npti) * a_i_1d(1 : npti)) * nlay_s
-     END DO
-     !$ACC END KERNELS
+      END DO
       CALL ProfileEnd(psy_profile0)
     CASE (2)
       !$ACC KERNELS
@@ -295,13 +295,13 @@ MODULE icethd
       END DO
       DO jk = 1, nlay_s
         e_s_1d(1 : npti, jk) = e_s_1d(1 : npti, jk) * h_s_1d(1 : npti) * a_i_1d(1 : npti) * r1_nlay_s
-      END DO      
+      END DO
+      !$ACC END KERNELS
+      CALL ProfileStart('ice_thd_1d2d', 'r1', psy_profile1)
       v_i_1d(1 : npti) = h_i_1d(1 : npti) * a_i_1d(1 : npti)
       v_s_1d(1 : npti) = h_s_1d(1 : npti) * a_i_1d(1 : npti)
       sv_i_1d(1 : npti) = s_i_1d(1 : npti) * v_i_1d(1 : npti)
       v_ip_1d(1 : npti) = h_ip_1d(1 : npti) * a_ip_1d(1 : npti)
-      !$ACC END KERNELS
-      CALL ProfileStart('ice_thd_1d2d', 'r1', psy_profile1)
       CALL tab_1d_2d(npti, nptidx(1 : npti), at_i_1d(1 : npti), at_i)
       CALL tab_1d_2d(npti, nptidx(1 : npti), a_i_1d(1 : npti), a_i(:, :, kl))
       CALL tab_1d_2d(npti, nptidx(1 : npti), h_i_1d(1 : npti), h_i(:, :, kl))
@@ -316,7 +316,7 @@ MODULE icethd
         CALL tab_1d_2d(npti, nptidx(1 : npti), t_i_1d(1 : npti, jk), t_i(:, :, jk, kl))
         CALL tab_1d_2d(npti, nptidx(1 : npti), e_i_1d(1 : npti, jk), e_i(:, :, jk, kl))
         CALL tab_1d_2d(npti, nptidx(1 : npti), sz_i_1d(1 : npti, jk), sz_i(:, :, jk, kl))
-     END DO
+      END DO
       CALL tab_1d_2d(npti, nptidx(1 : npti), a_ip_1d(1 : npti), a_ip(:, :, kl))
       CALL tab_1d_2d(npti, nptidx(1 : npti), h_ip_1d(1 : npti), h_ip(:, :, kl))
       CALL tab_1d_2d(npti, nptidx(1 : npti), a_ip_frac_1d(1 : npti), a_ip_frac(:, :, kl))

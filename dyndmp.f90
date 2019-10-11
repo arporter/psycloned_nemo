@@ -86,9 +86,9 @@ MODULE dyndmp
     IF (ln_timing) CALL timing_start('dyn_dmp')
     CALL dta_uvd(kt, zuv_dta)
     CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     SELECT CASE (nn_zdmp)
     CASE (0)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -101,9 +101,7 @@ MODULE dyndmp
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (1)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -121,9 +119,7 @@ MODULE dyndmp
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (2)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -141,8 +137,8 @@ MODULE dyndmp
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
+    !$ACC END KERNELS
     CALL ProfileStart('dyn_dmp', 'r1', psy_profile1)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua(:, :, :), clinfo1 = ' dmp  - Ua: ', mask1 = umask, tab3d_2 = va(:, :, :), clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_dmp')

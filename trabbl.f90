@@ -114,11 +114,11 @@ MODULE trabbl
     INTEGER :: ikus, ikud, ikvs, ikvd
     REAL(KIND = wp) :: zbtr, ztra
     REAL(KIND = wp) :: zu_bbl, zv_bbl
+    !$ACC KERNELS
     DO jn = 1, kjpt
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           IF (utr_bbl(ji, jj) /= 0.E0) THEN
-            !$ACC KERNELS
             iid = ji + MAX(0, mgrhu(ji, jj))
             iis = ji + 1 - MAX(0, mgrhu(ji, jj))
             ikud = mbku_d(ji, jj)
@@ -135,10 +135,8 @@ MODULE trabbl
             zbtr = r1_e1e2t(iid, jj) / e3t_n(iid, jj, ikud)
             ztra = zu_bbl * (ptb(iis, jj, ikus, jn) - ptb(iid, jj, ikud, jn)) * zbtr
             pta(iid, jj, ikud, jn) = pta(iid, jj, ikud, jn) + ztra
-            !$ACC END KERNELS
           END IF
           IF (vtr_bbl(ji, jj) /= 0.E0) THEN
-            !$ACC KERNELS
             ijd = jj + MAX(0, mgrhv(ji, jj))
             ijs = jj + 1 - MAX(0, mgrhv(ji, jj))
             ikvd = mbkv_d(ji, jj)
@@ -155,11 +153,11 @@ MODULE trabbl
             zbtr = r1_e1e2t(ji, ijd) / e3t_n(ji, ijd, ikvd)
             ztra = zv_bbl * (ptb(ji, ijs, ikvs, jn) - ptb(ji, ijd, ikvd, jn)) * zbtr
             pta(ji, ijd, ikvd, jn) = pta(ji, ijd, ikvd, jn) + ztra
-            !$ACC END KERNELS
           END IF
         END DO
       END DO
     END DO
+    !$ACC END KERNELS
   END SUBROUTINE tra_bbl_adv
   SUBROUTINE bbl(kt, kit000, cdtype)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -195,8 +193,8 @@ MODULE trabbl
     END DO
     !$ACC END KERNELS
     CALL eos_rab(zts, zdep, zab)
+    !$ACC KERNELS
     IF (nn_bbl_ldf == 1) THEN
-      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           za = zab(ji + 1, jj, jp_tem) + zab(ji, jj, jp_tem)
@@ -211,12 +209,10 @@ MODULE trabbl
           ahv_bbl(ji, jj) = (0.5 - zsign) * ahv_bbl_0(ji, jj)
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
     IF (nn_bbl_adv /= 0) THEN
       SELECT CASE (nn_bbl_adv)
       CASE (1)
-        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             za = zab(ji + 1, jj, jp_tem) + zab(ji, jj, jp_tem)
@@ -233,9 +229,7 @@ MODULE trabbl
             vtr_bbl(ji, jj) = (0.5 + zsigna) * (0.5 - zsign) * e1v(ji, jj) * e3v_bbl_0(ji, jj) * zvb(ji, jj)
           END DO
         END DO
-        !$ACC END KERNELS
       CASE (2)
-        !$ACC KERNELS
         zgbbl = grav * rn_gambbl
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
@@ -259,9 +253,9 @@ MODULE trabbl
             vtr_bbl(ji, jj) = e1v(ji, jj) * e3v_bbl_0(ji, jj) * zgbbl * zgdrho * REAL(mgrhv(ji, jj))
           END DO
         END DO
-        !$ACC END KERNELS
       END SELECT
     END IF
+    !$ACC END KERNELS
   END SUBROUTINE bbl
   SUBROUTINE tra_bbl_init
     INTEGER :: ji, jj

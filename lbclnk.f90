@@ -50,6 +50,7 @@ MODULE lbclnk
     ELSE
       zland = 0._wp
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (PRESENT(cd_mpp)) THEN
     ELSE
       DO jf = 1, ipf
@@ -59,8 +60,10 @@ MODULE lbclnk
           ptab(jpi, :) = ptab(2, :)
           !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
+          CALL ProfileStart('lbc_lnk_2d', 'r1', psy_profile1)
           IF (.NOT. cd_nat == 'F') ptab(1, :) = zland
+          CALL ProfileEnd(psy_profile1)
+          !$ACC KERNELS
           ptab(jpi, :) = zland
           !$ACC END KERNELS
         END IF
@@ -70,19 +73,20 @@ MODULE lbclnk
           ptab(:, jpj) = ptab(:, 2)
           !$ACC END KERNELS
         ELSE IF (ll_nfd) THEN
-           !$ACC KERNELS
-           IF (.NOT. cd_nat == 'F') ptab(:, 1) = zland
-           !$ACC END KERNELS
-          CALL lbc_nfd(ptab, cd_nat, psgn)
-        ELSE
-          !$ACC KERNELS
+          CALL ProfileStart('lbc_lnk_2d', 'r2', psy_profile2)
           IF (.NOT. cd_nat == 'F') ptab(:, 1) = zland
+          CALL lbc_nfd(ptab, cd_nat, psgn)
+          CALL ProfileEnd(psy_profile2)
+        ELSE
+          CALL ProfileStart('lbc_lnk_2d', 'r3', psy_profile3)
+          IF (.NOT. cd_nat == 'F') ptab(:, 1) = zland
+          CALL ProfileEnd(psy_profile3)
+          !$ACC KERNELS
           ptab(:, jpj) = zland
           !$ACC END KERNELS
         END IF
       END DO
     END IF
-    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE lbc_lnk_2d
   SUBROUTINE lbc_lnk_2d_ptr(ptab, cd_nat, psgn, kfld, cd_mpp, pval)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

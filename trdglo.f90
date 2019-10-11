@@ -85,9 +85,7 @@ MODULE trdglo
             END DO
           END DO
         END DO
-        !$ACC END KERNELS
         IF (ktrd == jpdyn_zdf) THEN
-          !$ACC KERNELS
           z1_2rau0 = 0.5_wp / rau0
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
@@ -98,8 +96,8 @@ MODULE trdglo
               hke(jpdyn_tau) = hke(jpdyn_tau) + un(ji, jj, 1) * zvt + vn(ji, jj, 1) * zvs
             END DO
           END DO
-          !$ACC END KERNELS
         END IF
+        !$ACC END KERNELS
       END SELECT
     END IF
   END SUBROUTINE trd_glo

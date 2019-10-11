@@ -31,7 +31,6 @@ MODULE dynzdf
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
     CALL ProfileStart('dyn_zdf', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dyn_zdf')
     IF (kt == nit000) THEN
@@ -58,21 +57,19 @@ MODULE dynzdf
       ztrdv(:, :, :) = va(:, :, :)
       !$ACC END KERNELS
     END IF
+    !$ACC KERNELS
     IF (ln_dynadv_vec .OR. ln_linssh) THEN
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         ua(:, :, jk) = (ub(:, :, jk) + r2dt * ua(:, :, jk)) * umask(:, :, jk)
         va(:, :, jk) = (vb(:, :, jk) + r2dt * va(:, :, jk)) * vmask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     ELSE
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         ua(:, :, jk) = (e3u_b(:, :, jk) * ub(:, :, jk) + r2dt * e3u_n(:, :, jk) * ua(:, :, jk)) / e3u_a(:, :, jk) * umask(:, :, jk)
         va(:, :, jk) = (e3v_b(:, :, jk) * vb(:, :, jk) + r2dt * e3v_n(:, :, jk) * va(:, :, jk)) / e3v_a(:, :, jk) * vmask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
     IF (ln_drgimp .AND. ln_dynspg_ts) THEN
       !$ACC KERNELS
       DO jk = 1, jpkm1
@@ -105,12 +102,10 @@ MODULE dynzdf
         !$ACC END KERNELS
       END IF
     END IF
-    CALL ProfileStart('dyn_zdf', 'r1', psy_profile1)
+    !$ACC KERNELS
     zdt = r2dt * 0.5
-    CALL ProfileEnd(psy_profile1)
     SELECT CASE (nldf_dyn)
     CASE (np_lap_i)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -123,9 +118,7 @@ MODULE dynzdf
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE DEFAULT
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -138,9 +131,7 @@ MODULE dynzdf
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zwi(ji, jj, 1) = 0._wp
@@ -204,10 +195,8 @@ MODULE dynzdf
       END DO
     END DO
     zdt = r2dt * 0.5
-    !$ACC END KERNELS
     SELECT CASE (nldf_dyn)
     CASE (np_lap_i)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -220,9 +209,7 @@ MODULE dynzdf
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE DEFAULT
-      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -235,9 +222,7 @@ MODULE dynzdf
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zwi(ji, jj, 1) = 0._wp
@@ -306,14 +291,14 @@ MODULE dynzdf
       ztrdu(:, :, :) = (ua(:, :, :) - ub(:, :, :)) / r2dt - ztrdu(:, :, :)
       ztrdv(:, :, :) = (va(:, :, :) - vb(:, :, :)) / r2dt - ztrdv(:, :, :)
       !$ACC END KERNELS
-      CALL ProfileStart('dyn_zdf', 'r2', psy_profile2)
+      CALL ProfileStart('dyn_zdf', 'r1', psy_profile1)
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_zdf, kt)
       DEALLOCATE(ztrdu, ztrdv)
-      CALL ProfileEnd(psy_profile2)
+      CALL ProfileEnd(psy_profile1)
     END IF
-    CALL ProfileStart('dyn_zdf', 'r3', psy_profile3)
+    CALL ProfileStart('dyn_zdf', 'r2', psy_profile2)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' zdf  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_zdf')
-    CALL ProfileEnd(psy_profile3)
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE dyn_zdf
 END MODULE dynzdf

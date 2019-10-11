@@ -81,8 +81,6 @@ MODULE dtauvd
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
     TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
     CALL ProfileStart('dta_uvd', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dta_uvd')
     CALL fld_read(kt, 1, sf_uvd)
@@ -99,22 +97,16 @@ MODULE dtauvd
       CALL ProfileEnd(psy_profile1)
       DO jj = 1, jpj
         DO ji = 1, jpi
+          CALL ProfileStart('dta_uvd', 'r2', psy_profile2)
           DO jk = 1, jpk
-            CALL ProfileStart('dta_uvd', 'r2', psy_profile2)
             zl = gdept_n(ji, jj, jk)
-            CALL ProfileEnd(psy_profile2)
             IF (zl < gdept_1d(1)) THEN
-              CALL ProfileStart('dta_uvd', 'r3', psy_profile3)
               zup(jk) = puvd(ji, jj, 1, 1)
               zvp(jk) = puvd(ji, jj, 1, 2)
-              CALL ProfileEnd(psy_profile3)
             ELSE IF (zl > gdept_1d(jpk)) THEN
-              CALL ProfileStart('dta_uvd', 'r4', psy_profile4)
               zup(jk) = puvd(ji, jj, jpkm1, 1)
               zvp(jk) = puvd(ji, jj, jpkm1, 2)
-              CALL ProfileEnd(psy_profile4)
             ELSE
-              !$ACC KERNELS
               DO jkk = 1, jpkm1
                 IF ((zl - gdept_1d(jkk)) * (zl - gdept_1d(jkk + 1)) <= 0._wp) THEN
                   zi = (zl - gdept_1d(jkk)) / (gdept_1d(jkk + 1) - gdept_1d(jkk))
@@ -122,9 +114,9 @@ MODULE dtauvd
                   zvp(jk) = puvd(ji, jj, jkk, 2) + (puvd(ji, jj, jkk + 1, 2) - puvd(ji, jj, jkk, 2)) * zi
                 END IF
               END DO
-              !$ACC END KERNELS
             END IF
           END DO
+          CALL ProfileEnd(psy_profile2)
           !$ACC KERNELS
           DO jk = 1, jpkm1
             puvd(ji, jj, jk, 1) = zup(jk) * umask(ji, jj, jk)
@@ -156,7 +148,7 @@ MODULE dtauvd
         !$ACC END KERNELS
       END IF
     END IF
-    CALL ProfileStart('dta_uvd', 'r5', psy_profile5)
+    CALL ProfileStart('dta_uvd', 'r3', psy_profile3)
     IF (.NOT. ln_uvd_dyndmp) THEN
       IF (lwp) WRITE(numout, FMT = *) 'dta_uvd: deallocate U & V current arrays as they are only used to initialize the run'
       DEALLOCATE(sf_uvd(1) % fnow)
@@ -166,6 +158,6 @@ MODULE dtauvd
       DEALLOCATE(sf_uvd)
     END IF
     IF (ln_timing) CALL timing_stop('dta_uvd')
-    CALL ProfileEnd(psy_profile5)
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE dta_uvd
 END MODULE dtauvd

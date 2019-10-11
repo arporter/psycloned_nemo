@@ -81,17 +81,15 @@ MODULE ldfslp
       END DO
       !$ACC END KERNELS
     END IF
+    !$ACC KERNELS
     IF (ln_zps .AND. ln_isfcav) THEN
-      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           IF (miku(ji, jj) > 1) zgru(ji, jj, miku(ji, jj)) = grui(ji, jj)
           IF (mikv(ji, jj) > 1) zgrv(ji, jj, mikv(ji, jj)) = grvi(ji, jj)
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     zdzr(:, :, 1) = 0._wp
     DO jk = 2, jpkm1
       zdzr(:, :, jk) = zm1_g * (prd(:, :, jk) + 1._wp) * (pn2(:, :, jk) + pn2(:, :, jk + 1)) * (1._wp - 0.5_wp * tmask(:, :, jk + 1))
@@ -232,8 +230,8 @@ MODULE ldfslp
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     IF (ln_timing) CALL timing_start('ldf_slp_triad')
+    !$ACC KERNELS
     DO jl = 0, 1
-      !$ACC KERNELS
       ip = jl
       jp = jl
       DO jk = 1, jpkm1
@@ -250,9 +248,7 @@ MODULE ldfslp
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
       IF (ln_zps .AND. l_grad_zps) THEN
-        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             iku = mbku(ji, jj)
@@ -267,10 +263,8 @@ MODULE ldfslp
             zdyrho(ji, jj + jp, ikv, 1 - jp) = SIGN(MAX(repsln, ABS(zdyrho_raw)), zdyrho_raw)
           END DO
         END DO
-        !$ACC END KERNELS
       END IF
     END DO
-    !$ACC KERNELS
     DO kp = 0, 1
       DO jk = 1, jpkm1
         DO jj = 1, jpj

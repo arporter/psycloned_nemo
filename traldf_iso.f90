@@ -157,20 +157,14 @@ MODULE traldf_iso
           !$ACC END KERNELS
         END IF
       END IF
+      !$ACC KERNELS
       DO jk = 1, jpkm1
-        !$ACC KERNELS
         zdk1t(:, :) = (ptb(:, :, jk, jn) - ptb(:, :, jk + 1, jn)) * wmask(:, :, jk + 1)
-        !$ACC END KERNELS
         IF (jk == 1) THEN
-          !$ACC KERNELS
           zdkt(:, :) = zdk1t(:, :)
-          !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
           zdkt(:, :) = (ptb(:, :, jk - 1, jn) - ptb(:, :, jk, jn)) * wmask(:, :, jk)
-          !$ACC END KERNELS
         END IF
-        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * e3u_n(ji, jj, jk)
@@ -188,9 +182,7 @@ MODULE traldf_iso
             pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (zftu(ji, jj, jk) - zftu(ji - 1, jj, jk) + zftv(ji, jj, jk) - zftv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
           END DO
         END DO
-        !$ACC END KERNELS
       END DO
-      !$ACC KERNELS
       ztfw(1, :, :) = 0._wp
       ztfw(jpi, :, :) = 0._wp
       ztfw(:, :, 1) = 0._wp
@@ -220,9 +212,9 @@ MODULE traldf_iso
         END DO
         !$ACC END KERNELS
       ELSE
+        !$ACC KERNELS
         SELECT CASE (kpass)
         CASE (1)
-          !$ACC KERNELS
           DO jk = 2, jpkm1
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
@@ -230,9 +222,7 @@ MODULE traldf_iso
               END DO
             END DO
           END DO
-          !$ACC END KERNELS
         CASE (2)
-          !$ACC KERNELS
           DO jk = 2, jpkm1
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
@@ -240,8 +230,8 @@ MODULE traldf_iso
               END DO
             END DO
           END DO
-          !$ACC END KERNELS
         END SELECT
+        !$ACC END KERNELS
       END IF
       !$ACC KERNELS
       DO jk = 1, jpkm1

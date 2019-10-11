@@ -345,13 +345,19 @@ MODULE sbcblk
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqa
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pslp
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: rho_air
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('rho_air', 'r0', psy_profile0)
     rho_air = pslp / (R_dry * ptak * (1._wp + rctv0 * pqa))
+    CALL ProfileEnd(psy_profile0)
   END FUNCTION rho_air
   FUNCTION cp_air(pqa)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqa
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: cp_air
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('cp_air', 'r0', psy_profile0)
     Cp_air = Cp_dry + Cp_vap * pqa
+    CALL ProfileEnd(psy_profile0)
   END FUNCTION cp_air
   FUNCTION q_sat(ptak, pslp)
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: ptak
@@ -523,18 +529,18 @@ MODULE sbcblk
     CALL ice_thd_snwblow((1. - at_i_b(:, :)), zsnw)
     !$ACC KERNELS
     emp_oce(:, :) = (1._wp - at_i_b(:, :)) * zevap(:, :) - (tprecip(:, :) - sprecip(:, :)) - sprecip(:, :) * (1._wp - zsnw)
-    !$ACC END KERNELS
-    CALL ProfileStart('blk_ice_flx', 'r2', psy_profile2)
     emp_ice(:, :) = SUM(a_i_b(:, :, :) * evap_ice(:, :, :), dim = 3) - sprecip(:, :) * zsnw
-    CALL ProfileEnd(psy_profile2)
-    !$ACC KERNELS
     emp_tot(:, :) = emp_oce(:, :) + emp_ice(:, :)
     !$ACC END KERNELS
-    CALL ProfileStart('blk_ice_flx', 'r3', psy_profile3)
+    CALL ProfileStart('blk_ice_flx', 'r2', psy_profile2)
     qemp_oce(:, :) = - (1._wp - at_i_b(:, :)) * zevap(:, :) * sst_m(:, :) * rcp + (tprecip(:, :) - sprecip(:, :)) * (sf(jp_tair) % fnow(:, :, 1) - rt0) * rcp + sprecip(:, :) * (1._wp - zsnw) * ((MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi * tmask(:, :, 1) - rLfus)
     qemp_ice(:, :) = sprecip(:, :) * zsnw * ((MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi * tmask(:, :, 1) - rLfus)
+    CALL ProfileEnd(psy_profile2)
+    !$ACC KERNELS
     qns_tot(:, :) = (1._wp - at_i_b(:, :)) * qns_oce(:, :) + SUM(a_i_b(:, :, :) * qns_ice(:, :, :), dim = 3) + qemp_ice(:, :) + qemp_oce(:, :)
     qsr_tot(:, :) = (1._wp - at_i_b(:, :)) * qsr_oce(:, :) + SUM(a_i_b(:, :, :) * qsr_ice(:, :, :), dim = 3)
+    !$ACC END KERNELS
+    CALL ProfileStart('blk_ice_flx', 'r3', psy_profile3)
     qprec_ice(:, :) = rhos * ((MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi * tmask(:, :, 1) - rLfus)
     CALL ProfileEnd(psy_profile3)
     !$ACC KERNELS
@@ -579,10 +585,8 @@ MODULE sbcblk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: zgfac
     !$ACC KERNELS
     zgfac(:, :, :) = 1._wp
-    !$ACC END KERNELS
     SELECT CASE (k_virtual_itd)
     CASE (1, 2)
-      !$ACC KERNELS
       zfac = 1._wp / (rn_cnd_s + rcnd_i)
       zfac2 = EXP(1._wp) * 0.5_wp * zepsilon
       zfac3 = 2._wp / zepsilon
@@ -594,9 +598,7 @@ MODULE sbcblk
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     zfac = rcnd_i * rn_cnd_s
     DO jl = 1, jpl
       DO jj = 1, jpj

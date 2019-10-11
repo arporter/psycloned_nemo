@@ -23,16 +23,13 @@ MODULE diacfl
     REAL(KIND = wp) :: z2dt, zCu_max, zCv_max, zCw_max
     INTEGER, DIMENSION(3) :: iloc_u, iloc_v, iloc_w, iloc
     TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('dia_cfl', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dia_cfl')
+    !$ACC KERNELS
     IF (neuler == 0 .AND. kt == nit000) THEN
       z2dt = rdt
     ELSE
       z2dt = rdt * 2._wp
     END IF
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     DO jk = 1, jpk
       DO jj = 1, jpj
         DO ji = 1, jpim1
@@ -43,7 +40,7 @@ MODULE diacfl
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('dia_cfl', 'r1', psy_profile1)
+    CALL ProfileStart('dia_cfl', 'r0', psy_profile0)
     IF (lk_mpp) THEN
       CALL mpp_maxloc(zCu_cfl, umask, zCu_max, iloc_u(1), iloc_u(2), iloc_u(3))
       CALL mpp_maxloc(zCv_cfl, vmask, zCv_max, iloc_v(1), iloc_v(2), iloc_v(3))
@@ -101,7 +98,7 @@ MODULE diacfl
       WRITE(numout, FMT = *) '   Max Cw = ', rCw_max, ' at (i,j,k) = (', nCw_loc(1), nCw_loc(2), nCw_loc(3), ') => dt/C = ', z2dt / rCw_max
     END IF
     IF (ln_timing) CALL timing_stop('dia_cfl')
-    CALL ProfileEnd(psy_profile1)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE dia_cfl
   SUBROUTINE dia_cfl_init
     IF (lwp) THEN

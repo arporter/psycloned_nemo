@@ -46,8 +46,8 @@ MODULE trdmxl
     REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: kmxln
     INTEGER :: ji, jj, jk
     TYPE(ProfileData), SAVE :: psy_profile0
+    !$ACC KERNELS
     IF (kt /= nkstp) THEN
-      !$ACC KERNELS
       nkstp = kt
       tmltrd(:, :, :) = 0._wp
       smltrd(:, :, :) = 0._wp
@@ -72,9 +72,7 @@ MODULE trdmxl
         tml(:, :) = tml(:, :) + wkx(:, :, jk) * tsn(:, :, jk, jp_tem)
         sml(:, :) = sml(:, :) + wkx(:, :, jk) * tsn(:, :, jk, jp_sal)
       END DO
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     tmltrd(:, :, ktrd) = tmltrd(:, :, ktrd) + ptrdx(:, :, jk) * wkx(:, :, jk)
     smltrd(:, :, ktrd) = smltrd(:, :, ktrd) + ptrdy(:, :, jk) * wkx(:, :, jk)
     !$ACC END KERNELS
@@ -99,19 +97,15 @@ MODULE trdmxl
     END SELECT
   END SUBROUTINE trd_tra_mxl
   SUBROUTINE trd_mean(kt, ptrd, ptrdm)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: ptrd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdm
     INTEGER, INTENT(IN   ) :: kt
-    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     IF (kt == nn_it000) ptrdm(:, :, :) = 0._wp
     ptrdm(:, :, :) = ptrdm(:, :, :) + ptrd(:, :, :)
-    !$ACC END KERNELS
-    CALL ProfileStart('trd_mean', 'r0', psy_profile0)
     IF (MOD(kt - nn_it000 + 1, nn_trd) == 0) THEN
     END IF
-    CALL ProfileEnd(psy_profile0)
+    !$ACC END KERNELS
   END SUBROUTINE trd_mean
   SUBROUTINE trd_mxl_zint(pttrdmxl, pstrdmxl, ktrd, ctype)
     INTEGER, INTENT( IN ) :: ktrd
@@ -120,22 +114,18 @@ MODULE trdmxl
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( IN ) :: pstrdmxl
     INTEGER :: ji, jj, jk, isum
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zvlmsk
+    !$ACC KERNELS
     IF (icount == 1) THEN
       IF (nn_ctls == 0) THEN
-        !$ACC KERNELS
         nmxl(:, :) = nmln(:, :)
-        !$ACC END KERNELS
       ELSE IF (nn_ctls == 1) THEN
-        !$ACC KERNELS
         nmxl(:, :) = nbol(:, :)
-        !$ACC END KERNELS
       ELSE IF (nn_ctls >= 2) THEN
-        !$ACC KERNELS
         nn_ctls = MIN(nn_ctls, jpktrd - 1)
         nmxl(:, :) = nn_ctls + 1
-        !$ACC END KERNELS
       END IF
     END IF
+    !$ACC END KERNELS
   END SUBROUTINE trd_mxl_zint
   SUBROUTINE trd_mxl(kt, p2dt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -163,15 +153,13 @@ MODULE trdmxl
     zsmlres2(:, :) = 0.E0
     ztmlatf2(:, :) = 0.E0
     zsmlatf2(:, :) = 0.E0
-    !$ACC END KERNELS
     IF (kt > nit000) THEN
-      !$ACC KERNELS
       tmlb(:, :) = tml(:, :)
       smlb(:, :) = sml(:, :)
       tmlatfn(:, :) = tmltrd(:, :, jpmxl_atf)
       smlatfn(:, :) = smltrd(:, :, jpmxl_atf)
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
     IF (kt == 2) THEN
       !$ACC KERNELS
       tmlbb(:, :) = tmlb(:, :)
@@ -212,8 +200,8 @@ MODULE trdmxl
       END IF
     END IF
     CALL ProfileEnd(psy_profile1)
+    !$ACC KERNELS
     IF ((kt >= 2) .OR. (ln_rstart)) THEN
-      !$ACC KERNELS
       nmoymltrd = nmoymltrd + 1
       DO jl = 1, jpltrd
         tmltrdm(:, :) = tmltrdm(:, :) + tmltrd(:, :, jl)
@@ -228,9 +216,7 @@ MODULE trdmxl
       smltrd_csum_ln(:, :, :) = smltrd_csum_ln(:, :, :) + smltrd_sum(:, :, :)
       sml_sum(:, :) = sml_sum(:, :) + sml(:, :)
       hmxl_sum(:, :) = hmxl_sum(:, :) + hmxl(:, :)
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     tmltrd(:, :, :) = tmltrd(:, :, :) * rn_ucf
     smltrd(:, :, :) = smltrd(:, :, :) * rn_ucf
     it = kt
@@ -406,8 +392,8 @@ MODULE trdmxl
       CALL iom_put(TRIM("sml" // ctrd(jpmxl_atf, 2)), zsmlatf2(:, :))
     END IF
     CALL ProfileEnd(psy_profile6)
+    !$ACC KERNELS
     IF (MOD(itmod, nn_trd) == 0) THEN
-      !$ACC KERNELS
       nmoymltrd = 0
       tmltrdm(:, :) = 0.E0
       smltrdm(:, :) = 0.E0
@@ -420,8 +406,8 @@ MODULE trdmxl
       tmltrd_sum(:, :, :) = 0.E0
       smltrd_sum(:, :, :) = 0.E0
       hmxl_sum(:, :) = 0.E0
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
     IF (lrst_oce) CALL trd_mxl_rst_write(kt)
   END SUBROUTINE trd_mxl
   SUBROUTINE trd_mxl_init

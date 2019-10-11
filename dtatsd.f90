@@ -80,8 +80,6 @@ MODULE dtatsd
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
     TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
     CALL ProfileStart('dta_tsd', 'r0', psy_profile0)
     CALL fld_read(kt, 1, sf_tsd)
     IF (cn_cfg == "orca" .OR. cn_cfg == "ORCA") THEN
@@ -122,22 +120,16 @@ MODULE dtatsd
       CALL ProfileEnd(psy_profile1)
       DO jj = 1, jpj
         DO ji = 1, jpi
+          CALL ProfileStart('dta_tsd', 'r2', psy_profile2)
           DO jk = 1, jpk
-            CALL ProfileStart('dta_tsd', 'r2', psy_profile2)
             zl = gdept_0(ji, jj, jk)
-            CALL ProfileEnd(psy_profile2)
             IF (zl < gdept_1d(1)) THEN
-              CALL ProfileStart('dta_tsd', 'r3', psy_profile3)
               ztp(jk) = ptsd(ji, jj, 1, jp_tem)
               zsp(jk) = ptsd(ji, jj, 1, jp_sal)
-              CALL ProfileEnd(psy_profile3)
             ELSE IF (zl > gdept_1d(jpk)) THEN
-              CALL ProfileStart('dta_tsd', 'r4', psy_profile4)
               ztp(jk) = ptsd(ji, jj, jpkm1, jp_tem)
               zsp(jk) = ptsd(ji, jj, jpkm1, jp_sal)
-              CALL ProfileEnd(psy_profile4)
             ELSE
-              !$ACC KERNELS
               DO jkk = 1, jpkm1
                 IF ((zl - gdept_1d(jkk)) * (zl - gdept_1d(jkk + 1)) <= 0._wp) THEN
                   zi = (zl - gdept_1d(jkk)) / (gdept_1d(jkk + 1) - gdept_1d(jkk))
@@ -145,9 +137,9 @@ MODULE dtatsd
                   zsp(jk) = ptsd(ji, jj, jkk, jp_sal) + (ptsd(ji, jj, jkk + 1, jp_sal) - ptsd(ji, jj, jkk, jp_sal)) * zi
                 END IF
               END DO
-              !$ACC END KERNELS
             END IF
           END DO
+          CALL ProfileEnd(psy_profile2)
           !$ACC KERNELS
           DO jk = 1, jpkm1
             ptsd(ji, jj, jk, jp_tem) = ztp(jk) * tmask(ji, jj, jk)
@@ -184,7 +176,7 @@ MODULE dtatsd
         !$ACC END KERNELS
       END IF
     END IF
-    CALL ProfileStart('dta_tsd', 'r5', psy_profile5)
+    CALL ProfileStart('dta_tsd', 'r3', psy_profile3)
     IF (.NOT. ln_tsd_dmp) THEN
       IF (lwp) WRITE(numout, FMT = *) 'dta_tsd: deallocte T & S arrays as they are only use to initialize the run'
       DEALLOCATE(sf_tsd(jp_tem) % fnow)
@@ -193,6 +185,6 @@ MODULE dtatsd
       IF (sf_tsd(jp_sal) % ln_tint) DEALLOCATE(sf_tsd(jp_sal) % fdta)
       DEALLOCATE(sf_tsd)
     END IF
-    CALL ProfileEnd(psy_profile5)
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE dta_tsd
 END MODULE dtatsd

@@ -51,9 +51,7 @@ MODULE dynspg
           spgv(ji, jj) = 0._wp
         END DO
       END DO
-      !$ACC END KERNELS
       IF (ln_apr_dyn .AND. .NOT. ln_dynspg_ts) THEN
-        !$ACC KERNELS
         zg_2 = grav * 0.5
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -61,8 +59,8 @@ MODULE dynspg
             spgv(ji, jj) = spgv(ji, jj) + zg_2 * (ssh_ib(ji, jj + 1) - ssh_ib(ji, jj) + ssh_ibb(ji, jj + 1) - ssh_ibb(ji, jj)) * r1_e2v(ji, jj)
           END DO
         END DO
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
       IF (.NOT. ln_dynspg_ts .AND. (ln_tide_pot .AND. ln_tide)) THEN
         CALL upd_tide(kt)
         !$ACC KERNELS

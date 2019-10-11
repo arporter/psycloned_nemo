@@ -57,6 +57,7 @@ MODULE icedyn_rdgrft
     IF (ice_dyn_rdgrft_alloc /= 0) CALL ctl_warn('ice_dyn_rdgrft_alloc: failed to allocate arrays')
   END FUNCTION ice_dyn_rdgrft_alloc
   SUBROUTINE ice_dyn_rdgrft(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jl
     INTEGER :: iter, iterate_ridging
@@ -66,6 +67,10 @@ MODULE icedyn_rdgrft
     REAL(KIND = wp), DIMENSION(jpij) :: zdivu_adv
     REAL(KIND = wp), DIMENSION(jpij) :: zdivu, zdelt
     INTEGER, PARAMETER :: jp_itermax = 20
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    CALL ProfileStart('ice_dyn_rdgrft', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('icedyn_rdgrft')
     IF (ln_icediachk) CALL ice_cons_hsm(0, 'icedyn_rdgrft', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (kt == nit000) THEN
@@ -74,6 +79,8 @@ MODULE icedyn_rdgrft
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~~'
     END IF
     CALL ice_var_zapsmall
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     npti = 0
     nptidx(:) = 0
     ipti = 0
@@ -86,7 +93,9 @@ MODULE icedyn_rdgrft
         END IF
       END DO
     END DO
+    !$ACC END KERNELS
     IF (npti > 0) THEN
+      CALL ProfileStart('ice_dyn_rdgrft', 'r1', psy_profile1)
       CALL tab_2d_1d(npti, nptidx(1 : npti), zdivu(1 : npti), divu_i(:, :))
       CALL tab_2d_1d(npti, nptidx(1 : npti), zdelt(1 : npti), delta_i(:, :))
       CALL tab_3d_2d(npti, nptidx(1 : npti), a_i_2d(1 : npti, 1 : jpl), a_i(:, :, :))
@@ -99,6 +108,7 @@ MODULE icedyn_rdgrft
         opning(ji) = closing_net(ji) + zdivu_adv(ji)
       END DO
       CALL rdgrft_prep(a_i_2d, v_i_2d, ato_i_1d, closing_net)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       DO ji = 1, npti
         IF (SUM(apartf(ji, 1 : jpl)) > 0._wp .AND. closing_gross(ji) > 0._wp) THEN
@@ -114,6 +124,7 @@ MODULE icedyn_rdgrft
       END DO
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('ice_dyn_rdgrft', 'r2', psy_profile2)
     nptidx(:) = iptidx(:)
     npti = ipti
     IF (npti > 0) THEN
@@ -146,8 +157,10 @@ MODULE icedyn_rdgrft
     IF (ln_icediachk) CALL ice_cons_hsm(1, 'icedyn_rdgrft', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (ln_ctl) CALL ice_prt3D('icedyn_rdgrft')
     IF (ln_timing) CALL timing_stop('icedyn_rdgrft')
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE ice_dyn_rdgrft
   SUBROUTINE rdgrft_prep(pa_i, pv_i, pato_i, pclosing_net)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:), INTENT(IN) :: pato_i, pclosing_net
     REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: pa_i, pv_i
     INTEGER :: ji, jl
@@ -155,8 +168,18 @@ MODULE icedyn_rdgrft
     REAL(KIND = wp), DIMENSION(jpij) :: zasum, z1_asum, zaksum
     REAL(KIND = wp), DIMENSION(jpij, jpl) :: zhi
     REAL(KIND = wp), DIMENSION(jpij, - 1 : jpl) :: zGsum
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    !PSyclone does not support ranges in array slices. #278
+    ! Manually putting this code inside a KERNELS region causes a seg.
+    ! fault with 19.4 of the PGI compiler.
+    CALL ProfileStart('rdgrft_prep', 'r0', psy_profile0)
     z1_gstar = 1._wp / rn_gstar
     z1_astar = 1._wp / rn_astar
+    !CC KERNELS
     WHERE (pa_i(1 : npti, :) > 0._wp)
       zhi(1 : npti, :) = pv_i(1 : npti, :) / pa_i(1 : npti, :)
     ELSEWHERE
@@ -168,11 +191,14 @@ MODULE icedyn_rdgrft
     ELSEWHERE
       z1_asum(1 : npti) = 0._wp
     END WHERE
+    !CC KERNELS
     zGsum(1 : npti, - 1) = 0._wp
     zGsum(1 : npti, 0) = pato_i(1 : npti) * z1_asum(1 : npti)
     DO jl = 1, jpl
       zGsum(1 : npti, jl) = (pato_i(1 : npti) + SUM(pa_i(1 : npti, 1 : jl), dim = 2)) * z1_asum(1 : npti)
     END DO
+    !CC END KERNELS
+    CALL ProfileEnd(psy_profile0)
     IF (ln_partf_lin) THEN
       !$ACC KERNELS
       DO jl = 0, jpl
@@ -203,12 +229,17 @@ MODULE icedyn_rdgrft
       !$ACC END KERNELS
     END IF
     IF (ln_rafting .AND. ln_ridging) THEN
+       !PSyclone TANH not supported?
+       !CALL ProfileStart('rdgrft_prep', 'r1', psy_profile1)
+       !$ACC KERNELS
       DO jl = 1, jpl
         DO ji = 1, npti
           aridge(ji, jl) = (1._wp + TANH(rn_craft * (zhi(ji, jl) - rn_hraft))) * 0.5_wp * apartf(ji, jl)
           araft(ji, jl) = apartf(ji, jl) - aridge(ji, jl)
         END DO
-      END DO
+     END DO
+     !$ACC END KERNELS
+      !CALL ProfileEnd(psy_profile1)
     ELSE IF (ln_ridging .AND. .NOT. ln_rafting) THEN
       !$ACC KERNELS
       DO jl = 1, jpl
@@ -218,27 +249,31 @@ MODULE icedyn_rdgrft
         END DO
       END DO
       !$ACC END KERNELS
-    ELSE IF (ln_rafting .AND. .NOT. ln_ridging) THEN
+   ELSE IF (ln_rafting .AND. .NOT. ln_ridging) THEN
       !$ACC KERNELS
       DO jl = 1, jpl
         DO ji = 1, npti
           aridge(ji, jl) = 0._wp
           araft(ji, jl) = apartf(ji, jl)
         END DO
-      END DO
-      !$ACC END KERNELS
-    ELSE
+     END DO
+     !$ACC END KERNELS
+   ELSE
       !$ACC KERNELS
       DO jl = 1, jpl
         DO ji = 1, npti
           aridge(ji, jl) = 0._wp
           araft(ji, jl) = 0._wp
         END DO
-      END DO
-      !$ACC END KERNELS
+     END DO
+     !$ACC END KERNELS
     END IF
+    !CALL ProfileStart('rdgrft_prep', 'r3', psy_profile3)
     zfac = 1._wp / hi_hrft
+    !PSyclone 1D loops not supported
+    !$ACC KERNELS
     zaksum(1 : npti) = apartf(1 : npti, 0)
+    !CALL ProfileEnd(psy_profile3)
     DO jl = 1, jpl
       DO ji = 1, npti
         IF (apartf(ji, jl) > 0._wp) THEN
@@ -256,12 +291,14 @@ MODULE icedyn_rdgrft
         END IF
       END DO
     END DO
+    !CC END KERNELS
+    !PSyclone array slice with limits
     WHERE (zaksum(1 : npti) > 0._wp)
       closing_gross(1 : npti) = pclosing_net(1 : npti) / zaksum(1 : npti)
     ELSEWHERE
       closing_gross(1 : npti) = 0._wp
     END WHERE
-    !$ACC KERNELS
+    !CC KERNELS
     DO jl = 1, jpl
       DO ji = 1, npti
         zfac = apartf(ji, jl) * closing_gross(ji) * rdt_ice
@@ -270,6 +307,8 @@ MODULE icedyn_rdgrft
         END IF
       END DO
     END DO
+    !CC END KERNELS
+    !CALL ProfileStart('rdgrft_prep', 'r4', psy_profile4)
     DO ji = 1, npti
       zfac = pato_i(ji) + (opning(ji) - apartf(ji, 0) * closing_gross(ji)) * rdt_ice
       IF (zfac < 0._wp) THEN
@@ -277,10 +316,12 @@ MODULE icedyn_rdgrft
       ELSE IF (zfac > zasum(ji)) THEN
         opning(ji) = apartf(ji, 0) * closing_gross(ji) + (zasum(ji) - pato_i(ji)) * r1_rdtice
       END IF
-    END DO
-    !$ACC END KERNELS
+   END DO
+   !$ACC END KERNELS
+    !CALL ProfileEnd(psy_profile4)
   END SUBROUTINE rdgrft_prep
   SUBROUTINE rdgrft_shift
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji, jj, jl, jl1, jl2, jk
     REAL(KIND = wp) :: hL, hR, farea
     REAL(KIND = wp) :: vsw
@@ -297,6 +338,8 @@ MODULE icedyn_rdgrft
     REAL(KIND = wp), DIMENSION(jpij, nlay_s) :: esrdg
     REAL(KIND = wp), DIMENSION(jpij, nlay_i) :: eirdg
     INTEGER, DIMENSION(jpij) :: itest_rdg, itest_rft
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     !$ACC KERNELS
     DO ji = 1, npti
       ato_i_1d(ji) = MAX(0._wp, ato_i_1d(ji) + (opning(ji) - apartf(ji, 0) * closing_gross(ji)) * rdt_ice)
@@ -304,7 +347,7 @@ MODULE icedyn_rdgrft
     !$ACC END KERNELS
     DO jl1 = 1, jpl
       CALL tab_2d_1d(npti, nptidx(1 : npti), s_i_1d(1 : npti), s_i(:, :, jl1))
-    !$ACC KERNELS
+      !$ACC KERNELS
       DO ji = 1, npti
         IF (apartf(ji, jl1) > 0._wp .AND. closing_gross(ji) > 0._wp) THEN
           z1_ai(ji) = 1._wp / a_i_2d(ji, jl1)
@@ -378,8 +421,13 @@ MODULE icedyn_rdgrft
           END IF
         END DO
       END DO
+      !CC END KERNELS
+      !CALL ProfileStart('rdgrft_shift', 'r0', psy_profile0)
+      !PSyclone 1D loops
       itest_rdg(1 : npti) = 0
       itest_rft(1 : npti) = 0
+      !CALL ProfileEnd(psy_profile0)
+      !CC KERNELS
       DO jl2 = 1, jpl
         DO ji = 1, npti
           IF (apartf(ji, jl1) > 0._wp .AND. closing_gross(ji) > 0._wp) THEN
@@ -426,23 +474,31 @@ MODULE icedyn_rdgrft
           END DO
         END DO
       END DO
-    !$ACC END KERNELS
+      !$ACC END KERNELS
     END DO
+    !CALL ProfileStart('rdgrft_shift', 'r1', psy_profile1)
+    !PSyclone array slices.
+    !$ACC KERNELS
     WHERE (a_i_2d(1 : npti, :) < 0._wp) a_i_2d(1 : npti, :) = 0._wp
     WHERE (v_i_2d(1 : npti, :) < 0._wp) v_i_2d(1 : npti, :) = 0._wp
+    !$ACC END KERNELS
+    !CALL ProfileEnd(psy_profile1)
   END SUBROUTINE rdgrft_shift
   SUBROUTINE ice_strength
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji, jj, jl
     INTEGER :: ismooth
     INTEGER :: itframe
     REAL(KIND = wp) :: zp, z1_3
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zworka
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zstrp1, zstrp2
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     IF (ln_str_H79) THEN
-      !CC KERNELS
+      !$ACC KERNELS
       strength(:, :) = rn_pstar * SUM(v_i(:, :, :), dim = 3) * EXP(- rn_crhg * (1._wp - SUM(a_i(:, :, :), dim = 3)))
       ismooth = 1
-      !CC END KERNELS
+      !$ACC END KERNELS
     ELSE
       !$ACC KERNELS
       strength(:, :) = 0._wp
@@ -451,7 +507,9 @@ MODULE icedyn_rdgrft
     END IF
     SELECT CASE (ismooth)
     CASE (1)
-      !$ACC KERNELS
+      !PSyclone - array slice not yet recognised #412.
+       !CALL ProfileStart('ice_strength', 'r0', psy_profile0)
+       !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           IF (SUM(a_i(ji, jj, :)) > 0._wp) THEN
@@ -461,6 +519,8 @@ MODULE icedyn_rdgrft
           END IF
         END DO
       END DO
+      !CALL ProfileEnd(psy_profile0)
+      !CC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           strength(ji, jj) = zworka(ji, jj)
@@ -469,13 +529,14 @@ MODULE icedyn_rdgrft
       !$ACC END KERNELS
       CALL lbc_lnk(strength, 'T', 1.)
     CASE (2)
+      !$ACC KERNELS
       IF (kt_ice == nit000) THEN
-        !$ACC KERNELS
         zstrp1(:, :) = 0._wp
         zstrp2(:, :) = 0._wp
-        !$ACC END KERNELS
-      END IF
-      !$ACC KERNELS
+     END IF
+      !PSyclone - array slice not yet recognised #412.
+      !CC END KERNELS
+      !CALL ProfileStart('ice_strength', 'r1', psy_profile1)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           IF (SUM(a_i(ji, jj, :)) > 0._wp) THEN
@@ -488,14 +549,18 @@ MODULE icedyn_rdgrft
             strength(ji, jj) = zp
           END IF
         END DO
-      END DO
-      !$ACC END KERNELS
+     END DO
+     !$ACC END KERNELS
       CALL lbc_lnk(strength, 'T', 1.)
+      !CALL ProfileEnd(psy_profile1)
     END SELECT
   END SUBROUTINE ice_strength
   SUBROUTINE ice_dyn_1d2d(kn)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kn
     INTEGER :: jl, jk
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice_dyn_1d2d', 'r0', psy_profile0)
     SELECT CASE (kn)
     CASE (1)
       CALL tab_2d_1d(npti, nptidx(1 : npti), sss_1d(1 : npti), sss_m(:, :))
@@ -543,6 +608,7 @@ MODULE icedyn_rdgrft
       CALL tab_1d_2d(npti, nptidx(1 : npti), wfx_snw_dyn_1d(1 : npti), wfx_snw_dyn(:, :))
       CALL tab_1d_2d(npti, nptidx(1 : npti), wfx_pnd_1d(1 : npti), wfx_pnd(:, :))
     END SELECT
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_dyn_1d2d
   SUBROUTINE ice_dyn_rdgrft_init
     INTEGER :: ios

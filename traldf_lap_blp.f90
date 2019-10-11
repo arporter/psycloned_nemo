@@ -47,13 +47,13 @@ MODULE traldf_lap_blp
     l_ptr = .FALSE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
     IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     IF (kpass == 1) THEN
       zsign = 1._wp
     ELSE
       zsign = - 1._wp
     END IF
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     DO jk = 1, jpkm1
       DO jj = 1, jpjm1
         DO ji = 1, jpim1

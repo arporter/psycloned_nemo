@@ -350,20 +350,18 @@ MODULE closea
   END SUBROUTINE sbc_clo
   SUBROUTINE clo_rnf(p_rnfmsk)
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: p_rnfmsk
+    !$ACC KERNELS
     IF (jncsr > 0) THEN
-      !$ACC KERNELS
       WHERE (closea_mask_rnf(:, :) > 0 .AND. closea_mask(:, :) == 0)
         p_rnfmsk(:, :) = MAX(p_rnfmsk(:, :), 1.0_wp)
       END WHERE
-      !$ACC END KERNELS
     END IF
     IF (jncse > 0) THEN
-      !$ACC KERNELS
       WHERE (closea_mask_empmr(:, :) > 0 .AND. closea_mask(:, :) == 0)
         p_rnfmsk(:, :) = MAX(p_rnfmsk(:, :), 1.0_wp)
       END WHERE
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
   END SUBROUTINE clo_rnf
   SUBROUTINE clo_bat(k_top, k_bot)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

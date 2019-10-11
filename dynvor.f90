@@ -447,9 +447,9 @@ MODULE dynvor
     END IF
     CALL ProfileEnd(psy_profile0)
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       SELECT CASE (nn_een_e3f)
       CASE (0)
-        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             ze3f = (e3t_n(ji, jj + 1, jk) * tmask(ji, jj + 1, jk) + e3t_n(ji + 1, jj + 1, jk) * tmask(ji + 1, jj + 1, jk) + e3t_n(ji, jj, jk) * tmask(ji, jj, jk) + e3t_n(ji + 1, jj, jk) * tmask(ji + 1, jj, jk))
@@ -460,9 +460,7 @@ MODULE dynvor
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
       CASE (1)
-        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             ze3f = (e3t_n(ji, jj + 1, jk) * tmask(ji, jj + 1, jk) + e3t_n(ji + 1, jj + 1, jk) * tmask(ji + 1, jj + 1, jk) + e3t_n(ji, jj, jk) * tmask(ji, jj, jk) + e3t_n(ji + 1, jj, jk) * tmask(ji + 1, jj, jk))
@@ -474,8 +472,8 @@ MODULE dynvor
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
       END SELECT
+      !$ACC END KERNELS
       SELECT CASE (kvor)
       CASE (np_COR)
         !$ACC KERNELS
@@ -704,7 +702,6 @@ MODULE dynvor
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) '      change fmask value in the angles (T)           ln_vorlat = ', ln_vorlat
     IF (ln_vorlat .AND. (ln_dynvor_ene .OR. ln_dynvor_ens .OR. ln_dynvor_mix)) THEN
-      !$ACC KERNELS
       DO jk = 1, jpk
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
@@ -712,7 +709,6 @@ MODULE dynvor
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
       CALL lbc_lnk(fmask, 'F', 1._wp)
     END IF
     ioptio = 0

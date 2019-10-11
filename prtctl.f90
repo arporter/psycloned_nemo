@@ -307,26 +307,20 @@ MODULE prtctl
     !$ACC KERNELS
     iimpptl(:, :) = 1
     ijmpptl(:, :) = 1
-    !$ACC END KERNELS
     IF (isplt > 1) THEN
-      !$ACC KERNELS
       DO jj = 1, jsplt
         DO ji = 2, isplt
           iimpptl(ji, jj) = iimpptl(ji - 1, jj) + ilcitl(ji - 1, jj) - nrecil
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
     IF (jsplt > 1) THEN
-      !$ACC KERNELS
       DO jj = 2, jsplt
         DO ji = 1, isplt
           ijmpptl(ji, jj) = ijmpptl(ji, jj - 1) + ilcjtl(ji, jj - 1) - nrecjl
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jn = 1, ijsplt
       ii = 1 + MOD(jn - 1, isplt)
       ij = 1 + (jn - 1) / isplt

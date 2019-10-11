@@ -58,7 +58,6 @@ MODULE bdyice
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
     CALL ProfileStart('bdy_ice_frs', 'r0', psy_profile0)
     jgrd = 1
     DO jl = 1, jpl
@@ -100,18 +99,16 @@ MODULE bdyice
         ib = ji
         jb = jj - 1
         IF (nn_ice_dta(jbdy) == 0) jpbound = 0
+        CALL ProfileEnd(psy_profile1)
+        !$ACC KERNELS
         ib = ji
         jb = jj
-        CALL ProfileEnd(psy_profile1)
         IF (a_i(ib, jb, jl) > 0._wp) THEN
-          CALL ProfileStart('bdy_ice_frs', 'r2', psy_profile2)
           a_i(ji, jj, jl) = a_i(ib, jb, jl)
           h_i(ji, jj, jl) = h_i(ib, jb, jl)
           h_s(ji, jj, jl) = h_s(ib, jb, jl)
-          CALL ProfileEnd(psy_profile2)
           SELECT CASE (jpbound)
           CASE (0)
-            !$ACC KERNELS
             oa_i(ji, jj, jl) = rn_ice_age(jbdy) * a_i(ji, jj, jl)
             a_ip(ji, jj, jl) = 0._wp
             v_ip(ji, jj, jl) = 0._wp
@@ -120,9 +117,7 @@ MODULE bdyice
             t_i(ji, jj, :, jl) = rn_ice_tem(jbdy)
             s_i(ji, jj, jl) = rn_ice_sal(jbdy)
             sz_i(ji, jj, :, jl) = rn_ice_sal(jbdy)
-            !$ACC END KERNELS
           CASE (1)
-            !$ACC KERNELS
             oa_i(ji, jj, jl) = oa_i(ib, jb, jl)
             a_ip(ji, jj, jl) = a_ip(ib, jb, jl)
             v_ip(ji, jj, jl) = v_ip(ib, jb, jl)
@@ -131,15 +126,11 @@ MODULE bdyice
             t_i(ji, jj, :, jl) = t_i(ib, jb, :, jl)
             s_i(ji, jj, jl) = s_i(ib, jb, jl)
             sz_i(ji, jj, :, jl) = sz_i(ib, jb, :, jl)
-            !$ACC END KERNELS
           END SELECT
           IF (nn_icesal == 1) THEN
-            !$ACC KERNELS
             s_i(ji, jj, jl) = rn_icesal
             sz_i(ji, jj, :, jl) = rn_icesal
-            !$ACC END KERNELS
           END IF
-          !$ACC KERNELS
           v_i(ji, jj, jl) = h_i(ji, jj, jl) * a_i(ji, jj, jl)
           v_s(ji, jj, jl) = h_s(ji, jj, jl) * a_i(ji, jj, jl)
           sv_i(ji, jj, jl) = MIN(s_i(ji, jj, jl), sss_m(ji, jj)) * v_i(ji, jj, jl)
@@ -153,9 +144,7 @@ MODULE bdyice
             e_i(ji, jj, jk, jl) = rhoi * (rcpi * (ztmelts - (t_i(ji, jj, jk, jl) - rt0)) + rLfus * (1._wp - ztmelts / (t_i(ji, jj, jk, jl) - rt0)) - rcp * ztmelts)
             e_i(ji, jj, jk, jl) = e_i(ji, jj, jk, jl) * v_i(ji, jj, jl) * r1_nlay_i
           END DO
-          !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
           a_i(ji, jj, jl) = 0._wp
           h_i(ji, jj, jl) = 0._wp
           h_s(ji, jj, jl) = 0._wp
@@ -165,29 +154,23 @@ MODULE bdyice
           t_su(ji, jj, jl) = rt0
           t_s(ji, jj, :, jl) = rt0
           t_i(ji, jj, :, jl) = rt0
-          !$ACC END KERNELS
           IF (nn_icesal == 1) THEN
-            !$ACC KERNELS
             s_i(ji, jj, jl) = rn_icesal
             sz_i(ji, jj, :, jl) = rn_icesal
-            !$ACC END KERNELS
           ELSE
-            !$ACC KERNELS
             s_i(ji, jj, jl) = rn_simin
             sz_i(ji, jj, :, jl) = rn_simin
-            !$ACC END KERNELS
           END IF
-          !$ACC KERNELS
           v_i(ji, jj, jl) = 0._wp
           v_s(ji, jj, jl) = 0._wp
           sv_i(ji, jj, jl) = 0._wp
           e_s(ji, jj, :, jl) = 0._wp
           e_i(ji, jj, :, jl) = 0._wp
-          !$ACC END KERNELS
         END IF
+        !$ACC END KERNELS
       END DO
     END DO
-    CALL ProfileStart('bdy_ice_frs', 'r3', psy_profile3)
+    CALL ProfileStart('bdy_ice_frs', 'r2', psy_profile2)
     CALL lbc_bdy_lnk(a_i(:, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(h_i(:, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(h_s(:, :, :), 'T', 1., jbdy)
@@ -203,7 +186,7 @@ MODULE bdyice
     CALL lbc_bdy_lnk(e_s(:, :, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(t_i(:, :, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(e_i(:, :, :, :), 'T', 1., jbdy)
-    CALL ProfileEnd(psy_profile3)
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE bdy_ice_frs
   SUBROUTINE bdy_ice_dyn(cd_type)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

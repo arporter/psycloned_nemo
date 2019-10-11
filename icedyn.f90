@@ -113,14 +113,10 @@ MODULE icedyn
     !$ACC END KERNELS
   END SUBROUTINE Hbig
   SUBROUTINE Hpiling
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: jl
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('hpiling', 'r0', psy_profile0)
     CALL ice_var_zapsmall
-    at_i(:, :) = SUM(a_i(:, :, :), dim = 3)
-    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
+    at_i(:, :) = SUM(a_i(:, :, :), dim = 3)
     DO jl = 1, jpl
       WHERE (at_i(:, :) > epsi20)
         a_i(:, :, jl) = a_i(:, :, jl) * (1._wp + MIN(rn_amax_2d(:, :) - at_i(:, :), 0._wp) / at_i(:, :))

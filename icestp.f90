@@ -160,9 +160,7 @@ MODULE icestp
     r1_nlay_s = 1._wp / REAL(nlay_s, wp)
   END SUBROUTINE par_init
   SUBROUTINE store_fields
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji, jj, jl
-    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     a_i_b(:, :, :) = a_i(:, :, :)
     v_i_b(:, :, :) = v_i(:, :, :)
@@ -178,11 +176,7 @@ MODULE icestp
       h_i_b(:, :, :) = 0._wp
       h_s_b(:, :, :) = 0._wp
     END WHERE
-    !$ACC END KERNELS
-    CALL ProfileStart('store_fields', 'r0', psy_profile0)
     at_i_b(:, :) = SUM(a_i_b(:, :, :), dim = 3)
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     u_ice_b(:, :) = u_ice(:, :)
     v_ice_b(:, :) = v_ice(:, :)
     !$ACC END KERNELS

@@ -640,8 +640,10 @@ MODULE ldftra
     !$ACC END KERNELS
     CALL ProfileStart('ldf_eiv_dia', 'r2', psy_profile2)
     CALL lbc_lnk(zw2d, 'V', - 1.)
-    !CALL iom_put("veiv_heattr", zztmp * zw2d)
-    !CALL iom_put("veiv_heattr", zztmp * zw3d)
+    IF (iom_use('veiv_heattr')) THEN
+      CALL iom_put("veiv_heattr", zztmp * zw2d)
+      CALL iom_put("veiv_heattr", zztmp * zw3d)
+    END IF
     IF (ln_diaptr) CALL dia_ptr_hst(jp_tem, 'eiv', 0.5 * zw3d)
     zztmp = 0.5_wp * 0.5
     CALL ProfileEnd(psy_profile2)
@@ -661,8 +663,8 @@ MODULE ldftra
       CALL ProfileStart('ldf_eiv_dia', 'r3', psy_profile3)
       CALL lbc_lnk(zw2d, 'U', - 1.)
       CALL lbc_lnk(zw3d, 'U', - 1.)
-      !CALL iom_put("ueiv_salttr", zztmp * zw2d)
-      !CALL iom_put("ueiv_salttr3d", zztmp * zw3d)
+      CALL iom_put("ueiv_salttr", zztmp * zw2d)
+      CALL iom_put("ueiv_salttr3d", zztmp * zw3d)
       CALL ProfileEnd(psy_profile3)
     END IF
     !$ACC KERNELS
@@ -678,9 +680,11 @@ MODULE ldftra
     END DO
     !$ACC END KERNELS
     CALL ProfileStart('ldf_eiv_dia', 'r4', psy_profile4)
-    CALL lbc_lnk(zw2d, 'V', - 1.)
-    !CALL iom_put("veiv_salttr", zztmp * zw2d)
-    !CALL iom_put("veiv_salttr", zztmp * zw3d)
+    IF (iom_use('veiv_salttr') .OR. iom_use('veiv_salttr3d')) THEN
+      CALL lbc_lnk(zw2d, 'V', - 1.)
+      CALL iom_put("veiv_salttr", zztmp * zw2d)
+      CALL iom_put("veiv_salttr", zztmp * zw3d)
+    END IF
     IF (ln_diaptr) CALL dia_ptr_hst(jp_sal, 'eiv', 0.5 * zw3d)
     CALL ProfileEnd(psy_profile4)
   END SUBROUTINE ldf_eiv_dia

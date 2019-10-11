@@ -141,31 +141,24 @@ MODULE asminc
       ALLOCATE(wgtiau(icycper))
       wgtiau(:) = 0._wp
       IF (niaufn == 0) THEN
-        !$ACC KERNELS
         DO jt = 1, iiauper
           wgtiau(jt + nitiaustr - 1) = 1.0 / REAL(iiauper)
         END DO
-        !$ACC END KERNELS
       ELSE IF (niaufn == 1) THEN
         znorm = 0._wp
         IF (MOD(iiauper, 2) == 0) THEN
-          !$ACC KERNELS
           imid = iiauper / 2
           DO jt = 1, imid
             znorm = znorm + REAL(jt)
           END DO
           znorm = 2.0 * znorm
-          !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
           imid = (iiauper + 1) / 2
           DO jt = 1, imid - 1
             znorm = znorm + REAL(jt)
           END DO
           znorm = 2.0 * znorm + REAL(imid)
-          !$ACC END KERNELS
         END IF
-        !$ACC KERNELS
         znorm = 1.0 / znorm
         DO jt = 1, imid - 1
           wgtiau(jt + nitiaustr - 1) = REAL(jt) * znorm
@@ -173,7 +166,6 @@ MODULE asminc
         DO jt = imid, iiauper
           wgtiau(jt + nitiaustr - 1) = REAL(iiauper - jt + 1) * znorm
         END DO
-        !$ACC END KERNELS
       END IF
       IF (lwp) THEN
         WRITE(numout, FMT = *)
@@ -192,29 +184,17 @@ MODULE asminc
       END IF
     END IF
     ALLOCATE(t_bkginc(jpi, jpj, jpk))
-    !$ACC KERNELS
     t_bkginc(:, :, :) = 0._wp
-    !$ACC END KERNELS
     ALLOCATE(s_bkginc(jpi, jpj, jpk))
-    !$ACC KERNELS
     s_bkginc(:, :, :) = 0._wp
-    !$ACC END KERNELS
     ALLOCATE(u_bkginc(jpi, jpj, jpk))
-    !$ACC KERNELS
     u_bkginc(:, :, :) = 0._wp
-    !$ACC END KERNELS
     ALLOCATE(v_bkginc(jpi, jpj, jpk))
-    !$ACC KERNELS
     v_bkginc(:, :, :) = 0._wp
-    !$ACC END KERNELS
     ALLOCATE(ssh_bkginc(jpi, jpj))
-    !$ACC KERNELS
     ssh_bkginc(:, :) = 0._wp
-    !$ACC END KERNELS
     ALLOCATE(seaice_bkginc(jpi, jpj))
-    !$ACC KERNELS
     seaice_bkginc(:, :) = 0._wp
-    !$ACC END KERNELS
     IF (ln_trainc .OR. ln_dyninc .OR. ln_sshinc .OR. ln_seaiceinc) THEN
       CALL iom_open(c_asminc, inum)
       CALL iom_get(inum, 'time', zdate_inc)
@@ -232,36 +212,28 @@ MODULE asminc
       IF (ln_trainc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'bckint', t_bkginc, 1)
         CALL iom_get(inum, jpdom_autoglo, 'bckins', s_bkginc, 1)
-        !$ACC KERNELS
         t_bkginc(:, :, :) = t_bkginc(:, :, :) * tmask(:, :, :)
         s_bkginc(:, :, :) = s_bkginc(:, :, :) * tmask(:, :, :)
         WHERE (ABS(t_bkginc(:, :, :)) > 1.0E+10) t_bkginc(:, :, :) = 0.0
         WHERE (ABS(s_bkginc(:, :, :)) > 1.0E+10) s_bkginc(:, :, :) = 0.0
-        !$ACC END KERNELS
       END IF
       IF (ln_dyninc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'bckinu', u_bkginc, 1)
         CALL iom_get(inum, jpdom_autoglo, 'bckinv', v_bkginc, 1)
-        !$ACC KERNELS
         u_bkginc(:, :, :) = u_bkginc(:, :, :) * umask(:, :, :)
         v_bkginc(:, :, :) = v_bkginc(:, :, :) * vmask(:, :, :)
         WHERE (ABS(u_bkginc(:, :, :)) > 1.0E+10) u_bkginc(:, :, :) = 0.0
         WHERE (ABS(v_bkginc(:, :, :)) > 1.0E+10) v_bkginc(:, :, :) = 0.0
-        !$ACC END KERNELS
       END IF
       IF (ln_sshinc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'bckineta', ssh_bkginc, 1)
-        !$ACC KERNELS
         ssh_bkginc(:, :) = ssh_bkginc(:, :) * tmask(:, :, 1)
         WHERE (ABS(ssh_bkginc(:, :)) > 1.0E+10) ssh_bkginc(:, :) = 0.0
-        !$ACC END KERNELS
       END IF
       IF (ln_seaiceinc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'bckinseaice', seaice_bkginc, 1)
-        !$ACC KERNELS
         seaice_bkginc(:, :) = seaice_bkginc(:, :) * tmask(:, :, 1)
         WHERE (ABS(seaice_bkginc(:, :)) > 1.0E+10) seaice_bkginc(:, :) = 0.0
-        !$ACC END KERNELS
       END IF
       CALL iom_close(inum)
     END IF
@@ -269,48 +241,34 @@ MODULE asminc
       ALLOCATE(zhdiv(jpi, jpj))
       DO jt = 1, nn_divdmp
         DO jk = 1, jpkm1
-          !$ACC KERNELS
           zhdiv(:, :) = 0._wp
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               zhdiv(ji, jj) = (e2u(ji, jj) * e3u_n(ji, jj, jk) * u_bkginc(ji, jj, jk) - e2u(ji - 1, jj) * e3u_n(ji - 1, jj, jk) * u_bkginc(ji - 1, jj, jk) + e1v(ji, jj) * e3v_n(ji, jj, jk) * v_bkginc(ji, jj, jk) - e1v(ji, jj - 1) * e3v_n(ji, jj - 1, jk) * v_bkginc(ji, jj - 1, jk)) / e3t_n(ji, jj, jk)
             END DO
           END DO
-          !$ACC END KERNELS
           CALL lbc_lnk(zhdiv, 'T', 1.)
-          !$ACC KERNELS
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               u_bkginc(ji, jj, jk) = u_bkginc(ji, jj, jk) + 0.2_wp * (zhdiv(ji + 1, jj) - zhdiv(ji, jj)) * r1_e1u(ji, jj) * umask(ji, jj, jk)
               v_bkginc(ji, jj, jk) = v_bkginc(ji, jj, jk) + 0.2_wp * (zhdiv(ji, jj + 1) - zhdiv(ji, jj)) * r1_e2v(ji, jj) * vmask(ji, jj, jk)
             END DO
           END DO
-          !$ACC END KERNELS
         END DO
       END DO
       DEALLOCATE(zhdiv)
     END IF
     IF (ln_asmdin) THEN
       ALLOCATE(t_bkg(jpi, jpj, jpk))
-      !$ACC KERNELS
       t_bkg(:, :, :) = 0._wp
-      !$ACC END KERNELS
       ALLOCATE(s_bkg(jpi, jpj, jpk))
-      !$ACC KERNELS
       s_bkg(:, :, :) = 0._wp
-      !$ACC END KERNELS
       ALLOCATE(u_bkg(jpi, jpj, jpk))
-      !$ACC KERNELS
       u_bkg(:, :, :) = 0._wp
-      !$ACC END KERNELS
       ALLOCATE(v_bkg(jpi, jpj, jpk))
-      !$ACC KERNELS
       v_bkg(:, :, :) = 0._wp
-      !$ACC END KERNELS
       ALLOCATE(ssh_bkg(jpi, jpj))
-      !$ACC KERNELS
       ssh_bkg(:, :) = 0._wp
-      !$ACC END KERNELS
       CALL iom_open(c_asmdin, inum)
       CALL iom_get(inum, 'rdastp', zdate_bkg)
       IF (lwp) THEN
@@ -322,24 +280,18 @@ MODULE asminc
       IF (ln_trainc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'tn', t_bkg)
         CALL iom_get(inum, jpdom_autoglo, 'sn', s_bkg)
-        !$ACC KERNELS
         t_bkg(:, :, :) = t_bkg(:, :, :) * tmask(:, :, :)
         s_bkg(:, :, :) = s_bkg(:, :, :) * tmask(:, :, :)
-        !$ACC END KERNELS
       END IF
       IF (ln_dyninc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'un', u_bkg)
         CALL iom_get(inum, jpdom_autoglo, 'vn', v_bkg)
-        !$ACC KERNELS
         u_bkg(:, :, :) = u_bkg(:, :, :) * umask(:, :, :)
         v_bkg(:, :, :) = v_bkg(:, :, :) * vmask(:, :, :)
-        !$ACC END KERNELS
       END IF
       IF (ln_sshinc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'sshn', ssh_bkg)
-        !$ACC KERNELS
         ssh_bkg(:, :) = ssh_bkg(:, :) * tmask(:, :, 1)
-        !$ACC END KERNELS
       END IF
       CALL iom_close(inum)
     END IF

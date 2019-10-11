@@ -41,6 +41,8 @@ MODULE icedyn_adv_umx
     zcfl = MAXVAL(ABS(pu_ice(:, :)) * rdt_ice * r1_e1u(:, :))
     zcfl = MAX(zcfl, MAXVAL(ABS(pv_ice(:, :)) * rdt_ice * r1_e2v(:, :)))
     IF (lk_mpp) CALL mpp_max(zcfl)
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     IF (zcfl > 0.5) THEN
       initad = 2
       zusnit = 0.5_wp
@@ -48,8 +50,6 @@ MODULE icedyn_adv_umx
       initad = 1
       zusnit = 1.0_wp
     END IF
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     zdt = rdt_ice / REAL(initad)
     zudy(:, :) = pu_ice(:, :) * e2u(:, :)
     zvdx(:, :) = pv_ice(:, :) * e1v(:, :)
@@ -238,26 +238,22 @@ MODULE icedyn_adv_umx
     END DO
     !$ACC END KERNELS
     CALL lbc_lnk(ztu4, 'T', 1.)
+    !$ACC KERNELS
     SELECT CASE (k_order)
     CASE (1)
-      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           pt_u(ji, jj) = 0.5_wp * umask(ji, jj, 1) * (pt(ji + 1, jj) + pt(ji, jj) - SIGN(1._wp, puc(ji, jj)) * (pt(ji + 1, jj) - pt(ji, jj)))
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (2)
-      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
           pt_u(ji, jj) = 0.5_wp * umask(ji, jj, 1) * (pt(ji + 1, jj) + pt(ji, jj) - zcu * (pt(ji + 1, jj) - pt(ji, jj)))
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (3)
-      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
@@ -265,9 +261,7 @@ MODULE icedyn_adv_umx
           pt_u(ji, jj) = 0.5_wp * umask(ji, jj, 1) * ((pt(ji + 1, jj) + pt(ji, jj) - zcu * (pt(ji + 1, jj) - pt(ji, jj))) + z1_6 * zdx2 * (zcu * zcu - 1._wp) * (ztu2(ji + 1, jj) + ztu2(ji, jj) - SIGN(1._wp, zcu) * (ztu2(ji + 1, jj) - ztu2(ji, jj))))
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (4)
-      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
@@ -275,9 +269,7 @@ MODULE icedyn_adv_umx
           pt_u(ji, jj) = 0.5_wp * umask(ji, jj, 1) * ((pt(ji + 1, jj) + pt(ji, jj) - zcu * (pt(ji + 1, jj) - pt(ji, jj))) + z1_6 * zdx2 * (zcu * zcu - 1._wp) * (ztu2(ji + 1, jj) + ztu2(ji, jj) - 0.5_wp * zcu * (ztu2(ji + 1, jj) - ztu2(ji, jj))))
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (5)
-      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
@@ -286,8 +278,8 @@ MODULE icedyn_adv_umx
           pt_u(ji, jj) = 0.5_wp * umask(ji, jj, 1) * ((pt(ji + 1, jj) + pt(ji, jj) - zcu * (pt(ji + 1, jj) - pt(ji, jj))) + z1_6 * zdx2 * (zcu * zcu - 1._wp) * (ztu2(ji + 1, jj) + ztu2(ji, jj) - 0.5_wp * zcu * (ztu2(ji + 1, jj) - ztu2(ji, jj))) + z1_120 * zdx4 * (zcu * zcu - 1._wp) * (zcu * zcu - 4._wp) * (ztu4(ji + 1, jj) + ztu4(ji, jj) - SIGN(1._wp, zcu) * (ztu4(ji + 1, jj) - ztu4(ji, jj))))
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
+    !$ACC END KERNELS
   END SUBROUTINE ultimate_x
   SUBROUTINE ultimate_y(k_order, pdt, pt, pvc, pt_v)
     INTEGER, INTENT(IN   ) :: k_order
@@ -354,7 +346,6 @@ MODULE icedyn_adv_umx
       END DO
       !$ACC END KERNELS
     CASE (4)
-      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
@@ -362,9 +353,7 @@ MODULE icedyn_adv_umx
           pt_v(ji, jj) = 0.5_wp * vmask(ji, jj, 1) * ((pt(ji, jj + 1) + pt(ji, jj) - zcv * (pt(ji, jj + 1) - pt(ji, jj))) + z1_6 * zdy2 * (zcv * zcv - 1._wp) * (ztv2(ji, jj + 1) + ztv2(ji, jj) - 0.5_wp * zcv * (ztv2(ji, jj + 1) - ztv2(ji, jj))))
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (5)
-      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
@@ -373,7 +362,6 @@ MODULE icedyn_adv_umx
           pt_v(ji, jj) = 0.5_wp * vmask(ji, jj, 1) * ((pt(ji, jj + 1) + pt(ji, jj) - zcv * (pt(ji, jj + 1) - pt(ji, jj))) + z1_6 * zdy2 * (zcv * zcv - 1._wp) * (ztv2(ji, jj + 1) + ztv2(ji, jj) - 0.5_wp * zcv * (ztv2(ji, jj + 1) - ztv2(ji, jj))) + z1_120 * zdy4 * (zcv * zcv - 1._wp) * (zcv * zcv - 4._wp) * (ztv4(ji, jj + 1) + ztv4(ji, jj) - SIGN(1._wp, zcv) * (ztv4(ji, jj + 1) - ztv4(ji, jj))))
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
   END SUBROUTINE ultimate_y
   SUBROUTINE nonosc_2d(pbef, paa, pbb, paft, pdt)

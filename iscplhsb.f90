@@ -33,7 +33,6 @@ MODULE iscplhsb
     INTEGER, DIMENSION(:), ALLOCATABLE :: ixpts, iypts, izpts, inpts
     INTEGER :: jpts, npts
     TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
     !$ACC KERNELS
     zde3t = 0._wp
     zdsal = 0._wp
@@ -46,9 +45,9 @@ MODULE iscplhsb
     tsb(:, :, :, jp_sal) = tsb(:, :, :, jp_sal) * ptmask_b(:, :, :)
     tsn(:, :, :, jp_sal) = tsn(:, :, :, jp_sal) * tmask(:, :, :)
     zdssh(:, :) = sshn(:, :) * ssmask(:, :) - sshb(:, :) * psmask_b(:, :)
-    IF (.NOT. ln_linssh) zdssh = 0.0_wp
     !$ACC END KERNELS
     CALL ProfileStart('iscpl_cons', 'r0', psy_profile0)
+    IF (.NOT. ln_linssh) zdssh = 0.0_wp
     DO jk = 1, jpk - 1
       DO jj = 2, jpj - 1
         DO ji = 2, jpim1
@@ -161,10 +160,8 @@ MODULE iscplhsb
     CALL mpp_max(zcorr_vol, npts)
     CALL mpp_max(zcorr_sal, npts)
     CALL mpp_max(zcorr_tem, npts)
-    CALL ProfileEnd(psy_profile0)
     DO jpts = 1, npts
       CALL dom_ngb(zlon(jpts), zlat(jpts), ixpts(jpts), iypts(jpts), 'T', izpts(jpts))
-      !$ACC KERNELS
       DO jj = mj0(iypts(jpts)), mj1(iypts(jpts))
         DO ji = mi0(ixpts(jpts)), mi1(ixpts(jpts))
           jk = izpts(jpts)
@@ -178,12 +175,10 @@ MODULE iscplhsb
           END IF
         END DO
       END DO
-      !$ACC END KERNELS
     END DO
-    CALL ProfileStart('iscpl_cons', 'r1', psy_profile1)
     DEALLOCATE(inpts)
     DEALLOCATE(ixpts, iypts, izpts, zcorr_vol, zcorr_sal, zcorr_tem, zlon, zlat)
-    CALL ProfileEnd(psy_profile1)
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     pvol_flx(:, :, :) = pvol_flx(:, :, :) * tmask(:, :, :)
     pts_flx(:, :, :, jp_sal) = pts_flx(:, :, :, jp_sal) * tmask(:, :, :)
