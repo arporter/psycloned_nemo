@@ -199,9 +199,10 @@ MODULE tranxt
     zfact = 1._wp / p2dt
     zfact1 = atfp * p2dt
     zfact2 = zfact1 * r1_rau0
-    !$ACC KERNELS
+
     DO jn = 1, kjpt
-      DO jk = 1, jpkm1
+       !$ACC KERNELS
+       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ze3t_b = e3t_b(ji, jj, jk)
@@ -242,8 +243,9 @@ MODULE tranxt
           END DO
         END DO
       END DO
-    END DO
-    !$ACC END KERNELS
+      !$ACC END KERNELS
+   END DO
+
     IF ((l_trdtra .AND. cdtype == 'TRA') .OR. (l_trdtrc .AND. cdtype == 'TRC')) THEN
       IF (l_trdtra .AND. cdtype == 'TRA') THEN
         CALL trd_tra(kt, cdtype, jp_tem, jptra_atf, ztrd_atf(:, :, :, jp_tem))

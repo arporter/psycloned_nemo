@@ -157,8 +157,8 @@ MODULE traldf_iso
           !$ACC END KERNELS
         END IF
       END IF
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+      !$ACC KERNELS
         zdk1t(:, :) = (ptb(:, :, jk, jn) - ptb(:, :, jk + 1, jn)) * wmask(:, :, jk + 1)
         IF (jk == 1) THEN
           zdkt(:, :) = zdk1t(:, :)
@@ -182,7 +182,9 @@ MODULE traldf_iso
             pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (zftu(ji, jj, jk) - zftu(ji - 1, jj, jk) + zftv(ji, jj, jk) - zftv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
           END DO
         END DO
+        !$ACC END KERNELS
       END DO
+      !$ACC KERNELS
       ztfw(1, :, :) = 0._wp
       ztfw(jpi, :, :) = 0._wp
       ztfw(:, :, 1) = 0._wp
