@@ -46,8 +46,8 @@ MODULE dynadv_ubs
       zfv_vw(:, :, :) = va(:, :, :)
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       zfu(:, :, jk) = e2u(:, :) * e3u_n(:, :, jk) * un(:, :, jk)
       zfv(:, :, jk) = e1v(:, :) * e3v_n(:, :, jk) * vn(:, :, jk)
       DO jj = 2, jpjm1
@@ -62,11 +62,11 @@ MODULE dynadv_ubs
           zlv_vu(ji, jj, jk, 2) = (zfv(ji + 1, jj, jk) - zfv(ji, jj, jk)) * fmask(ji, jj, jk) - (zfv(ji, jj, jk) - zfv(ji - 1, jj, jk)) * fmask(ji - 1, jj, jk)
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     CALL lbc_lnk_multi(zlu_uu(:, :, :, 1), 'U', 1., zlu_uv(:, :, :, 1), 'U', 1., zlu_uu(:, :, :, 2), 'U', 1., zlu_uv(:, :, :, 2), 'U', 1., zlv_vv(:, :, :, 1), 'V', 1., zlv_vu(:, :, :, 1), 'V', 1., zlv_vv(:, :, :, 2), 'V', 1., zlv_vu(:, :, :, 2), 'V', 1.)
-    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       zfu(:, :, jk) = 0.25_wp * e2u(:, :) * e3u_n(:, :, jk) * un(:, :, jk)
       zfv(:, :, jk) = 0.25_wp * e1v(:, :) * e3v_n(:, :, jk) * vn(:, :, jk)
       DO jj = 1, jpjm1
@@ -107,8 +107,8 @@ MODULE dynadv_ubs
           va(ji, jj, jk) = va(ji, jj, jk) - (zfu_f(ji, jj, jk) - zfu_f(ji - 1, jj, jk) + zfv_t(ji, jj + 1, jk) - zfv_t(ji, jj, jk)) * r1_e1e2v(ji, jj) / e3v_n(ji, jj, jk)
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     IF (l_trddyn) THEN
       !$ACC KERNELS
       zfu_uw(:, :, :) = ua(:, :, :) - zfu_uw(:, :, :)
@@ -140,8 +140,8 @@ MODULE dynadv_ubs
       END DO
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       DO jj = 2, jpj
         DO ji = 2, jpi
           zfw(ji, jj, jk) = 0.25_wp * e1e2t(ji, jj) * wn(ji, jj, jk)
@@ -153,7 +153,9 @@ MODULE dynadv_ubs
           zfv_vw(ji, jj, jk) = (zfw(ji, jj, jk) + zfw(ji, jj + 1, jk)) * (vn(ji, jj, jk) + vn(ji, jj, jk - 1))
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jk = 1, jpkm1
       DO jj = 2, jpjm1
         DO ji = 2, jpim1

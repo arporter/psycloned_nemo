@@ -229,15 +229,17 @@ MODULE diahsb
         !$ACC KERNELS
         surf_ini(:, :) = e1e2t(:, :) * tmask_i(:, :)
         ssh_ini(:, :) = sshn(:, :)
+        !$ACC END KERNELS
         DO jk = 1, jpk
+          !$ACC KERNELS
           e3t_ini(:, :, jk) = e3t_n(:, :, jk) * tmask(:, :, jk)
           hc_loc_ini(:, :, jk) = tsn(:, :, jk, jp_tem) * e3t_n(:, :, jk) * tmask(:, :, jk)
           sc_loc_ini(:, :, jk) = tsn(:, :, jk, jp_sal) * e3t_n(:, :, jk) * tmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
         frc_v = 0._wp
         frc_t = 0._wp
         frc_s = 0._wp
-        !$ACC END KERNELS
         IF (ln_linssh) THEN
           IF (ln_isfcav) THEN
             !$ACC KERNELS

@@ -41,8 +41,8 @@ MODULE trdvor
   SUBROUTINE trd_vor(putrd, pvtrd, ktrd, kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
-    INTEGER, INTENT(IN   ) :: ktrd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: ktrd
+    INTEGER, INTENT(IN ) :: kt
     INTEGER :: ji, jj
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztswu, ztswv
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -87,7 +87,7 @@ MODULE trdvor
   END SUBROUTINE trd_vor
   SUBROUTINE trd_vor_zint_2d(putrdvor, pvtrdvor, ktrd)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: ktrd
+    INTEGER, INTENT(IN ) :: ktrd
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: putrdvor
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: pvtrdvor
     INTEGER :: ji, jj
@@ -132,7 +132,7 @@ MODULE trdvor
   END SUBROUTINE trd_vor_zint_2d
   SUBROUTINE trd_vor_zint_3d(putrdvor, pvtrdvor, ktrd)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: ktrd
+    INTEGER, INTENT(IN ) :: ktrd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: putrdvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pvtrdvor
     INTEGER :: ji, jj, jk
@@ -146,11 +146,13 @@ MODULE trdvor
     zvdpvor(:, :) = 0._wp
     !$ACC END KERNELS
     CALL lbc_lnk_multi(putrdvor, 'U', - 1., pvtrdvor, 'V', - 1.)
-    !$ACC KERNELS
     DO jk = 1, jpk
+      !$ACC KERNELS
       zudpvor(:, :) = zudpvor(:, :) + putrdvor(:, :, jk) * e3u_n(:, :, jk) * e1u(:, :) * umask(:, :, jk)
       zvdpvor(:, :) = zvdpvor(:, :) + pvtrdvor(:, :, jk) * e3v_n(:, :, jk) * e2v(:, :) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     IF (ktrd == jpvor_pvo) THEN
       zubet(:, :) = zudpvor(:, :)
       zvbet(:, :) = zvdpvor(:, :)
@@ -179,7 +181,7 @@ MODULE trdvor
   END SUBROUTINE trd_vor_zint_3d
   SUBROUTINE trd_vor_iom(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     INTEGER :: ji, jj, jk, jl
     INTEGER :: it, itmod
     REAL(KIND = wp) :: zmean
@@ -194,10 +196,14 @@ MODULE trdvor
     zvn(:, :) = 0._wp
     vor_avrtot(:, :) = 0._wp
     vor_avrres(:, :) = 0._wp
+    !$ACC END KERNELS
     DO jk = 1, jpk - 1
+      !$ACC KERNELS
       zun(:, :) = zun(:, :) + e1u(:, :) * un(:, :, jk) * e3u_n(:, :, jk)
       zvn(:, :) = zvn(:, :) + e2v(:, :) * vn(:, :, jk) * e3v_n(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     zun(:, :) = zun(:, :) * r1_hu_n(:, :)
     zvn(:, :) = zvn(:, :) * r1_hv_n(:, :)
     DO ji = 1, jpim1

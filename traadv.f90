@@ -62,19 +62,25 @@ MODULE traadv
     zun(:, :, jpk) = 0._wp
     zvn(:, :, jpk) = 0._wp
     zwn(:, :, jpk) = 0._wp
+    !$ACC END KERNELS
     IF (ln_wave .AND. ln_sdw) THEN
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         zun(:, :, jk) = e2u(:, :) * e3u_n(:, :, jk) * (un(:, :, jk) + usd(:, :, jk))
         zvn(:, :, jk) = e1v(:, :) * e3v_n(:, :, jk) * (vn(:, :, jk) + vsd(:, :, jk))
         zwn(:, :, jk) = e1e2t(:, :) * (wn(:, :, jk) + wsd(:, :, jk))
+        !$ACC END KERNELS
       END DO
     ELSE
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         zun(:, :, jk) = e2u(:, :) * e3u_n(:, :, jk) * un(:, :, jk)
         zvn(:, :, jk) = e1v(:, :) * e3v_n(:, :, jk) * vn(:, :, jk)
         zwn(:, :, jk) = e1e2t(:, :) * wn(:, :, jk)
+        !$ACC END KERNELS
       END DO
     END IF
+    !$ACC KERNELS
     IF (ln_vvl_ztilde .OR. ln_vvl_layer) THEN
       zun(:, :, :) = zun(:, :, :) + un_td(:, :, :)
       zvn(:, :, :) = zvn(:, :, :) + vn_td(:, :, :)
@@ -113,12 +119,12 @@ MODULE traadv
     END SELECT
     CALL ProfileEnd(psy_profile1)
     IF (l_trdtra) THEN
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ztrdt(:, :, jk) = tsa(:, :, jk, jp_tem) - ztrdt(:, :, jk)
         ztrds(:, :, jk) = tsa(:, :, jk, jp_sal) - ztrds(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
       CALL ProfileStart('tra_adv', 'r2', psy_profile2)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_totad, ztrdt)
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_totad, ztrds)

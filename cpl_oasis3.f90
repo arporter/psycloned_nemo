@@ -49,8 +49,8 @@ MODULE cpl_oasis3
   REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: exfld
   CONTAINS
   SUBROUTINE cpl_init(cd_modname, kl_comm)
-    CHARACTER(LEN = *), INTENT(IN   ) :: cd_modname
-    INTEGER, INTENT(  OUT) :: kl_comm
+    CHARACTER(LEN = *), INTENT(IN ) :: cd_modname
+    INTEGER, INTENT( OUT) :: kl_comm
     CALL oasis_init_comp(ncomp_id, TRIM(cd_modname), nerror)
     IF (nerror /= OASIS_Ok) CALL oasis_abort(ncomp_id, 'cpl_init', 'Failure in oasis_init_comp')
     CALL oasis_get_localcomm(kl_comm, nerror)
@@ -195,10 +195,10 @@ MODULE cpl_oasis3
   END SUBROUTINE cpl_define
   SUBROUTINE cpl_snd(kid, kstep, pdata, kinfo)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kid
-    INTEGER, INTENT(  OUT) :: kinfo
-    INTEGER, INTENT(IN   ) :: kstep
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdata
+    INTEGER, INTENT(IN ) :: kid
+    INTEGER, INTENT( OUT) :: kinfo
+    INTEGER, INTENT(IN ) :: kstep
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pdata
     INTEGER :: jc, jm
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('cpl_snd', 'r0', psy_profile0)
@@ -242,11 +242,11 @@ MODULE cpl_oasis3
   END SUBROUTINE cpl_snd
   SUBROUTINE cpl_rcv(kid, kstep, pdata, pmask, kinfo)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kid
-    INTEGER, INTENT(IN   ) :: kstep
+    INTEGER, INTENT(IN ) :: kid
+    INTEGER, INTENT(IN ) :: kstep
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: pdata
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pmask
-    INTEGER, INTENT(  OUT) :: kinfo
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pmask
+    INTEGER, INTENT( OUT) :: kinfo
     INTEGER :: jc, jm
     LOGICAL :: llaction, llfisrt
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -373,20 +373,20 @@ MODULE cpl_oasis3
     END IF
   END SUBROUTINE cpl_finalize
   SUBROUTINE oasis_init_comp(k1, cd1, k2)
-    CHARACTER(LEN = *), INTENT(IN   ) :: cd1
-    INTEGER, INTENT(  OUT) :: k1, k2
+    CHARACTER(LEN = *), INTENT(IN ) :: cd1
+    INTEGER, INTENT( OUT) :: k1, k2
     k1 = - 1
     k2 = - 1
     WRITE(numout, FMT = *) 'oasis_init_comp: Error you sould not be there...', cd1
   END SUBROUTINE oasis_init_comp
   SUBROUTINE oasis_abort(k1, cd1, cd2)
-    INTEGER, INTENT(IN   ) :: k1
-    CHARACTER(LEN = *), INTENT(IN   ) :: cd1, cd2
+    INTEGER, INTENT(IN ) :: k1
+    CHARACTER(LEN = *), INTENT(IN ) :: cd1, cd2
     WRITE(numout, FMT = *) 'oasis_abort: Error you sould not be there...', cd1, cd2
   END SUBROUTINE oasis_abort
   SUBROUTINE oasis_get_localcomm(k1, k2)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(  OUT) :: k1, k2
+    INTEGER, INTENT( OUT) :: k1, k2
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('oasis_get_localcomm', 'r0', psy_profile0)
     k1 = - 1
@@ -396,9 +396,9 @@ MODULE cpl_oasis3
   END SUBROUTINE oasis_get_localcomm
   SUBROUTINE oasis_def_partition(k1, k2, k3, k4)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(  OUT) :: k1, k3
-    INTEGER, INTENT(IN   ) :: k2(5)
-    INTEGER, INTENT(IN   ) :: k4
+    INTEGER, INTENT( OUT) :: k1, k3
+    INTEGER, INTENT(IN ) :: k2(5)
+    INTEGER, INTENT(IN ) :: k4
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('oasis_def_partition', 'r0', psy_profile0)
     k1 = k2(1)
@@ -408,9 +408,9 @@ MODULE cpl_oasis3
   END SUBROUTINE oasis_def_partition
   SUBROUTINE oasis_def_var(k1, cd1, k2, k3, k4, k5, k6, k7)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = *), INTENT(IN   ) :: cd1
-    INTEGER, INTENT(IN   ) :: k2, k3(2), k4, k5(2, 2), k6
-    INTEGER, INTENT(  OUT) :: k1, k7
+    CHARACTER(LEN = *), INTENT(IN ) :: cd1
+    INTEGER, INTENT(IN ) :: k2, k3(2), k4, k5(2, 2), k6
+    INTEGER, INTENT( OUT) :: k1, k7
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('oasis_def_var', 'r0', psy_profile0)
     k1 = - 1
@@ -420,7 +420,7 @@ MODULE cpl_oasis3
   END SUBROUTINE oasis_def_var
   SUBROUTINE oasis_enddef(k1)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(  OUT) :: k1
+    INTEGER, INTENT( OUT) :: k1
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('oasis_enddef', 'r0', psy_profile0)
     k1 = - 1
@@ -429,9 +429,9 @@ MODULE cpl_oasis3
   END SUBROUTINE oasis_enddef
   SUBROUTINE oasis_put(k1, k2, p1, k3)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: p1
-    INTEGER, INTENT(IN   ) :: k1, k2
-    INTEGER, INTENT(  OUT) :: k3
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: p1
+    INTEGER, INTENT(IN ) :: k1, k2
+    INTEGER, INTENT( OUT) :: k3
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('oasis_put', 'r0', psy_profile0)
     k3 = - 1
@@ -440,9 +440,9 @@ MODULE cpl_oasis3
   END SUBROUTINE oasis_put
   SUBROUTINE oasis_get(k1, k2, p1, k3)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(  OUT) :: p1
-    INTEGER, INTENT(IN   ) :: k1, k2
-    INTEGER, INTENT(  OUT) :: k3
+    REAL(KIND = wp), DIMENSION(:, :), INTENT( OUT) :: p1
+    INTEGER, INTENT(IN ) :: k1, k2
+    INTEGER, INTENT( OUT) :: k3
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('oasis_get', 'r0', psy_profile0)
     p1(1, 1) = - 1.
@@ -452,9 +452,9 @@ MODULE cpl_oasis3
   END SUBROUTINE oasis_get
   SUBROUTINE oasis_get_freqs(k1, k2, k3, k4)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: k1, k2
-    INTEGER, DIMENSION(1), INTENT(  OUT) :: k3
-    INTEGER, INTENT(  OUT) :: k4
+    INTEGER, INTENT(IN ) :: k1, k2
+    INTEGER, DIMENSION(1), INTENT( OUT) :: k3
+    INTEGER, INTENT( OUT) :: k4
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('oasis_get_freqs', 'r0', psy_profile0)
     k3(1) = k1
@@ -464,7 +464,7 @@ MODULE cpl_oasis3
   END SUBROUTINE oasis_get_freqs
   SUBROUTINE oasis_terminate(k1)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(  OUT) :: k1
+    INTEGER, INTENT( OUT) :: k1
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('oasis_terminate', 'r0', psy_profile0)
     k1 = - 1

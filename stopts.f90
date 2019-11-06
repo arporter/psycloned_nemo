@@ -24,9 +24,9 @@ MODULE stopts
       CALL lbc_lnk(pts(:, :, :, jts), 'T', 1._wp)
     END DO
     CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     DO jdof = 1, nn_sto_eos
       DO jts = 1, jpts
+        !$ACC KERNELS
         DO jk = 1, jpkm1
           jkm1 = MAX(jk - 1, 1)
           jkp1 = MIN(jk + 1, jpkm1)
@@ -48,9 +48,11 @@ MODULE stopts
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       END DO
     END DO
     DO jdof = 1, nn_sto_eos
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -58,8 +60,8 @@ MODULE stopts
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     CALL ProfileStart('sto_pts', 'r1', psy_profile1)
     DO jdof = 1, nn_sto_eos
       DO jts = 1, jpts

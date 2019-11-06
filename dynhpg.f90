@@ -824,9 +824,9 @@ MODULE dynhpg
   END SUBROUTINE hpg_prj
   SUBROUTINE cspline(fsp, xsp, asp, bsp, csp, dsp, polynomial_type)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: fsp, xsp
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: asp, bsp, csp, dsp
-    INTEGER, INTENT(IN   ) :: polynomial_type
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: fsp, xsp
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: asp, bsp, csp, dsp
+    INTEGER, INTENT(IN ) :: polynomial_type
     INTEGER :: ji, jj, jk
     INTEGER :: jpi, jpj, jpkm1
     REAL(KIND = wp) :: zdf1, zdf2, zddf1, zddf2, ztmp1, ztmp2, zdxtmp
@@ -839,9 +839,9 @@ MODULE dynhpg
     jpkm1 = MAX(1, SIZE(fsp, 3) - 1)
     CALL ProfileEnd(psy_profile0)
     IF (polynomial_type == 1) THEN
-      !$ACC KERNELS
       DO ji = 1, jpi
         DO jj = 1, jpj
+          !$ACC KERNELS
           DO jk = 2, jpkm1 - 1
             zdf1 = (fsp(ji, jj, jk) - fsp(ji, jj, jk - 1)) / (xsp(ji, jj, jk) - xsp(ji, jj, jk - 1))
             zdf2 = (fsp(ji, jj, jk + 1) - fsp(ji, jj, jk)) / (xsp(ji, jj, jk + 1) - xsp(ji, jj, jk))
@@ -865,13 +865,13 @@ MODULE dynhpg
             bsp(ji, jj, jk) = (fsp(ji, jj, jk + 1) - fsp(ji, jj, jk)) / zdxtmp - csp(ji, jj, jk) * (xsp(ji, jj, jk + 1) + xsp(ji, jj, jk)) - dsp(ji, jj, jk) * ((xsp(ji, jj, jk + 1) + xsp(ji, jj, jk)) ** 2 - xsp(ji, jj, jk + 1) * xsp(ji, jj, jk))
             asp(ji, jj, jk) = fsp(ji, jj, jk) - xsp(ji, jj, jk) * (bsp(ji, jj, jk) + (xsp(ji, jj, jk) * (csp(ji, jj, jk) + dsp(ji, jj, jk) * xsp(ji, jj, jk))))
           END DO
+          !$ACC END KERNELS
         END DO
       END DO
-      !$ACC END KERNELS
     ELSE IF (polynomial_type == 2) THEN
-      !$ACC KERNELS
       DO ji = 1, jpi
         DO jj = 1, jpj
+          !$ACC KERNELS
           DO jk = 1, jpkm1 - 1
             zdxtmp = xsp(ji, jj, jk + 1) - xsp(ji, jj, jk)
             ztmp1 = fsp(ji, jj, jk + 1) - fsp(ji, jj, jk)
@@ -880,9 +880,9 @@ MODULE dynhpg
             bsp(ji, jj, jk) = ztmp1 / zdxtmp
             asp(ji, jj, jk) = fsp(ji, jj, jk) - bsp(ji, jj, jk) * xsp(ji, jj, jk)
           END DO
+          !$ACC END KERNELS
         END DO
       END DO
-      !$ACC END KERNELS
     ELSE
       CALL ctl_stop('invalid polynomial type in cspline')
     END IF

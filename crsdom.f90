@@ -208,13 +208,13 @@ MODULE crsdom
   END SUBROUTINE crs_dom_hgr
   SUBROUTINE crs_dom_facvol(p_mask, cd_type, p_e1, p_e2, p_e3, p_fld1_crs, p_fld2_crs)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 1), INTENT(IN   ) :: cd_type
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: p_mask
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: p_e1
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: p_e2
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: p_e3
-    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(  OUT) :: p_fld1_crs
-    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(  OUT) :: p_fld2_crs
+    CHARACTER(LEN = 1), INTENT(IN ) :: cd_type
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: p_mask
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: p_e1
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: p_e2
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: p_e3
+    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT( OUT) :: p_fld1_crs
+    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT( OUT) :: p_fld2_crs
     INTEGER :: ji, jj, jk, ii, ij, je_2
     REAL(KIND = wp) :: zdAm
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zvol, zmask
@@ -297,7 +297,7 @@ MODULE crsdom
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(IN), OPTIONAL :: p_surf_crs
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(IN), OPTIONAL :: p_mask_crs
     REAL(KIND = wp), INTENT(IN) :: psgn
-    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(  OUT) :: p_fld_crs
+    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT( OUT) :: p_fld_crs
     INTEGER :: ji, jj, jk
     INTEGER :: ii, ij, ijie, ijje, je_2
     REAL(KIND = wp) :: zflcrs, zsfcrs
@@ -315,21 +315,23 @@ MODULE crsdom
       SELECT CASE (cd_type)
       CASE ('T', 'W')
         IF (cd_type == 'T') THEN
-          !$ACC KERNELS
           DO jk = 1, jpk
+            !$ACC KERNELS
             zsurf(:, :, jk) = p_e12(:, :) * p_e3(:, :, jk) * p_mask(:, :, jk)
             zsurfmsk(:, :, jk) = zsurf(:, :, jk)
+            !$ACC END KERNELS
           END DO
-          !$ACC END KERNELS
         ELSE
           !$ACC KERNELS
           zsurf(:, :, 1) = p_e12(:, :) * p_e3(:, :, 1)
           zsurfmsk(:, :, 1) = zsurf(:, :, 1) * p_mask(:, :, 1)
+          !$ACC END KERNELS
           DO jk = 2, jpk
+            !$ACC KERNELS
             zsurf(:, :, jk) = p_e12(:, :) * p_e3(:, :, jk)
             zsurfmsk(:, :, jk) = zsurf(:, :, jk) * p_mask(:, :, jk - 1)
+            !$ACC END KERNELS
           END DO
-          !$ACC END KERNELS
         END IF
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN

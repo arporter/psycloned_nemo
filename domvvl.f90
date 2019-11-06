@@ -100,13 +100,17 @@ MODULE domvvl
     hu_n(:, :) = e3u_n(:, :, 1) * umask(:, :, 1)
     hv_b(:, :) = e3v_b(:, :, 1) * vmask(:, :, 1)
     hv_n(:, :) = e3v_n(:, :, 1) * vmask(:, :, 1)
+    !$ACC END KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       ht_n(:, :) = ht_n(:, :) + e3t_n(:, :, jk) * tmask(:, :, jk)
       hu_b(:, :) = hu_b(:, :) + e3u_b(:, :, jk) * umask(:, :, jk)
       hu_n(:, :) = hu_n(:, :) + e3u_n(:, :, jk) * umask(:, :, jk)
       hv_b(:, :) = hv_b(:, :) + e3v_b(:, :, jk) * vmask(:, :, jk)
       hv_n(:, :) = hv_n(:, :) + e3v_n(:, :, jk) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     r1_hu_b(:, :) = ssumask(:, :) / (hu_b(:, :) + 1._wp - ssumask(:, :))
     r1_hu_n(:, :) = ssumask(:, :) / (hu_n(:, :) + 1._wp - ssumask(:, :))
     r1_hv_b(:, :) = ssvmask(:, :) / (hv_b(:, :) + 1._wp - ssvmask(:, :))
@@ -207,10 +211,14 @@ MODULE domvvl
       !$ACC KERNELS
       zhdiv(:, :) = 0._wp
       zht(:, :) = 0._wp
+      !$ACC END KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         zhdiv(:, :) = zhdiv(:, :) + e3t_n(:, :, jk) * hdivn(:, :, jk)
         zht(:, :) = zht(:, :) + e3t_n(:, :, jk) * tmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
+      !$ACC KERNELS
       zhdiv(:, :) = zhdiv(:, :) / (zht(:, :) + 1. - tmask_i(:, :))
       !$ACC END KERNELS
       IF (ln_vvl_ztilde) THEN
@@ -396,10 +404,14 @@ MODULE domvvl
     !$ACC KERNELS
     hu_a(:, :) = e3u_a(:, :, 1) * umask(:, :, 1)
     hv_a(:, :) = e3v_a(:, :, 1) * vmask(:, :, 1)
+    !$ACC END KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       hu_a(:, :) = hu_a(:, :) + e3u_a(:, :, jk) * umask(:, :, jk)
       hv_a(:, :) = hv_a(:, :) + e3v_a(:, :, jk) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     r1_hu_a(:, :) = ssumask(:, :) / (hu_a(:, :) + 1._wp - ssumask(:, :))
     r1_hv_a(:, :) = ssvmask(:, :) / (hv_a(:, :) + 1._wp - ssvmask(:, :))
     !$ACC END KERNELS
@@ -476,9 +488,9 @@ MODULE domvvl
   END SUBROUTINE dom_vvl_sf_swp
   SUBROUTINE dom_vvl_interpol(pe3_in, pe3_out, pout)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pe3_in
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pe3_in
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pe3_out
-    CHARACTER(LEN = *), INTENT(IN   ) :: pout
+    CHARACTER(LEN = *), INTENT(IN ) :: pout
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zlnwd
     TYPE(ProfileData), SAVE :: psy_profile0

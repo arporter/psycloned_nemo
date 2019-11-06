@@ -145,7 +145,7 @@ MODULE domwri
   END SUBROUTINE dom_wri
   SUBROUTINE dom_uniq(puniq, cdgrd)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 1), INTENT(IN   ) :: cdgrd
+    CHARACTER(LEN = 1), INTENT(IN ) :: cdgrd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: puniq
     REAL(KIND = wp) :: zshift
     INTEGER :: ji

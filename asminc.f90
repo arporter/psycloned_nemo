@@ -423,12 +423,12 @@ MODULE asminc
           WRITE(numout, FMT = *) '~~~~~~~~~~~~'
         END IF
         CALL ProfileEnd(psy_profile0)
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           ua(:, :, jk) = ua(:, :, jk) + u_bkginc(:, :, jk) * zincwgt
           va(:, :, jk) = va(:, :, jk) + v_bkginc(:, :, jk) * zincwgt
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
         CALL ProfileStart('dyn_asm_inc', 'r1', psy_profile1)
         IF (kt == nitiaufin_r) THEN
           DEALLOCATE(u_bkginc)

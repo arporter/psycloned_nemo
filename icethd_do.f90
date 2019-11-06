@@ -280,12 +280,14 @@ MODULE icethd_do
           sv_i_2d(ji, jl) = sv_i_2d(ji, jl) + zs_newice(ji) * (v_i_2d(ji, jl) - zv_b(ji, jl))
         END DO
       END DO
+      !$ACC END KERNELS
       DO jl = 1, jpl
+        !$ACC KERNELS
         DO jk = 1, nlay_i
           ze_i_2d(1 : npti, jk, jl) = ze_i_2d(1 : npti, jk, jl) * v_i_2d(1 : npti, jl) * r1_nlay_i
         END DO
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
       CALL ProfileStart('ice_thd_do', 'r9', psy_profile9)
       CALL tab_2d_3d(npti, nptidx(1 : npti), a_i_2d(1 : npti, 1 : jpl), a_i(:, :, :))
       CALL tab_2d_3d(npti, nptidx(1 : npti), v_i_2d(1 : npti, 1 : jpl), v_i(:, :, :))

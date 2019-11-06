@@ -16,9 +16,9 @@ MODULE bdydyn2d
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: pua2d, pva2d
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pub2d, pvb2d
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: phur, phvr
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pssh
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pub2d, pvb2d
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: phur, phvr
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pssh
     INTEGER :: ib_bdy
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('bdy_dyn2d', 'r0', psy_profile0)

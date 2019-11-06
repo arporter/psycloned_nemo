@@ -40,14 +40,14 @@ MODULE zdfdrg
   REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :), PUBLIC :: rCdU_top, rCdU_bot
   CONTAINS
   SUBROUTINE zdf_drg(kt, k_mk, pCdmin, pCdmax, pz0, pke0, pCd0, pCdU)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, DIMENSION(:, :), INTENT(IN   ) :: k_mk
-    REAL(KIND = wp), INTENT(IN   ) :: pCdmin
-    REAL(KIND = wp), INTENT(IN   ) :: pCdmax
-    REAL(KIND = wp), INTENT(IN   ) :: pz0
-    REAL(KIND = wp), INTENT(IN   ) :: pke0
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: pCd0
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(  OUT) :: pCdU
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, DIMENSION(:, :), INTENT(IN ) :: k_mk
+    REAL(KIND = wp), INTENT(IN ) :: pCdmin
+    REAL(KIND = wp), INTENT(IN ) :: pCdmax
+    REAL(KIND = wp), INTENT(IN ) :: pz0
+    REAL(KIND = wp), INTENT(IN ) :: pke0
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: pCd0
+    REAL(KIND = wp), DIMENSION(:, :), INTENT( OUT) :: pCdU
     INTEGER :: ji, jj
     INTEGER :: imk
     REAL(KIND = wp) :: zzz, zut, zvt, zcd
@@ -81,7 +81,7 @@ MODULE zdfdrg
   END SUBROUTINE zdf_drg
   SUBROUTINE zdf_drg_exp(kt, pub, pvb, pua, pva)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pub, pvb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj
@@ -187,13 +187,13 @@ MODULE zdfdrg
     END IF
   END SUBROUTINE zdf_drg_init
   SUBROUTINE drg_init(cd_topbot, k_mk, pCdmin, pCdmax, pz0, pke0, pCd0, pCdU)
-    CHARACTER(LEN = 6), INTENT(IN   ) :: cd_topbot
-    INTEGER, DIMENSION(:, :), INTENT(IN   ) :: k_mk
-    REAL(KIND = wp), INTENT(  OUT) :: pCdmin, pCdmax
-    REAL(KIND = wp), INTENT(  OUT) :: pz0
-    REAL(KIND = wp), INTENT(  OUT) :: pke0
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(  OUT) :: pCd0
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(  OUT) :: pCdU
+    CHARACTER(LEN = 6), INTENT(IN ) :: cd_topbot
+    INTEGER, DIMENSION(:, :), INTENT(IN ) :: k_mk
+    REAL(KIND = wp), INTENT( OUT) :: pCdmin, pCdmax
+    REAL(KIND = wp), INTENT( OUT) :: pz0
+    REAL(KIND = wp), INTENT( OUT) :: pke0
+    REAL(KIND = wp), DIMENSION(:, :), INTENT( OUT) :: pCd0
+    REAL(KIND = wp), DIMENSION(:, :), INTENT( OUT) :: pCdU
     CHARACTER(LEN = 40) :: cl_namdrg, cl_file, cl_varname, cl_namref, cl_namcfg
     INTEGER :: ji, jj
     LOGICAL :: ll_top, ll_bot

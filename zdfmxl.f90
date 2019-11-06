@@ -165,11 +165,13 @@ MODULE zdfmxl
       zT(:, :, :) = tsn(:, :, :, jp_tem)
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jk = 1, jpk - 2
+      !$ACC KERNELS
       zdTdz(:, :, jk) = (zT(:, :, jk + 1) - zT(:, :, jk)) / e3w_n(:, :, jk + 1)
       zmoddT(:, :, jk) = ABS(zT(:, :, jk + 1) - zT(:, :, jk))
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jk = jpkm1, 2, - 1
       WHERE (gdept_n(:, :, jk) > rn_zref)
         ik_ref(:, :) = jk - 1

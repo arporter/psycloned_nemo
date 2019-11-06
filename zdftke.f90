@@ -49,8 +49,8 @@ MODULE zdftke
   END FUNCTION zdf_tke_alloc
   SUBROUTINE zdf_tke(kt, p_sh2, p_avm, p_avt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_sh2
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('zdf_tke', 'r0', psy_profile0)
@@ -60,10 +60,10 @@ MODULE zdftke
   END SUBROUTINE zdf_tke
   SUBROUTINE tke_tke(pdepw, p_e3t, p_e3w, p_sh2, p_avm, p_avt)
     USE zdf_oce, ONLY: en
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdepw
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_e3t, p_e3w
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_avm, p_avt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pdepw
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_e3t, p_e3w
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_sh2
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zetop, zebot, zmsku, zmskv
     REAL(KIND = wp) :: zrhoa = 1.22
@@ -251,9 +251,9 @@ MODULE zdftke
   SUBROUTINE tke_avn(pdepw, p_e3t, p_e3w, p_avm, p_avt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE zdf_oce, ONLY: en, avtb, avmb, avtb_2d
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdepw
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_e3t, p_e3w
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: p_avm, p_avt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pdepw
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_e3t, p_e3w
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zrn2, zraug, zcoef, zav
     REAL(KIND = wp) :: zdku, zdkv, zsqen

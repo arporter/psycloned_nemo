@@ -19,14 +19,14 @@ MODULE icealb
   CONTAINS
   SUBROUTINE ice_alb(pt_su, ph_ice, ph_snw, ld_pnd_alb, pafrac_pnd, ph_pnd, palb_cs, palb_os)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: pt_su
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: ph_ice
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: ph_snw
-    LOGICAL, INTENT(IN   ) :: ld_pnd_alb
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: pafrac_pnd
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: ph_pnd
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(:, :, :) :: palb_cs
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(:, :, :) :: palb_os
+    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: pt_su
+    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: ph_ice
+    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: ph_snw
+    LOGICAL, INTENT(IN ) :: ld_pnd_alb
+    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: pafrac_pnd
+    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: ph_pnd
+    REAL(KIND = wp), INTENT( OUT), DIMENSION(:, :, :) :: palb_cs
+    REAL(KIND = wp), INTENT( OUT), DIMENSION(:, :, :) :: palb_os
     INTEGER :: ji, jj, jl
     REAL(KIND = wp) :: z1_c1, z1_c2, z1_c3, z1_c4
     REAL(KIND = wp) :: z1_href_pnd

@@ -11,11 +11,11 @@ MODULE crslbclnk
   CONTAINS
   SUBROUTINE crs_lbc_lnk_3d(pt3d1, cd_type1, psgn, cd_mpp, pval)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 1), INTENT(IN   ) :: cd_type1
-    REAL(KIND = wp), INTENT(IN   ) :: psgn
+    CHARACTER(LEN = 1), INTENT(IN ) :: cd_type1
+    REAL(KIND = wp), INTENT(IN ) :: psgn
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(INOUT) :: pt3d1
-    REAL(KIND = wp), OPTIONAL, INTENT(IN   ) :: pval
-    CHARACTER(LEN = 3), OPTIONAL, INTENT(IN   ) :: cd_mpp
+    REAL(KIND = wp), OPTIONAL, INTENT(IN ) :: pval
+    CHARACTER(LEN = 3), OPTIONAL, INTENT(IN ) :: cd_mpp
     LOGICAL :: ll_grid_crs
     REAL(KIND = wp) :: zval
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -37,11 +37,11 @@ MODULE crslbclnk
   END SUBROUTINE crs_lbc_lnk_3d
   SUBROUTINE crs_lbc_lnk_2d(pt2d, cd_type, psgn, cd_mpp, pval)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 1), INTENT(IN   ) :: cd_type
-    REAL(KIND = wp), INTENT(IN   ) :: psgn
+    CHARACTER(LEN = 1), INTENT(IN ) :: cd_type
+    REAL(KIND = wp), INTENT(IN ) :: psgn
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs), INTENT(INOUT) :: pt2d
-    REAL(KIND = wp), OPTIONAL, INTENT(IN   ) :: pval
-    CHARACTER(LEN = 3), OPTIONAL, INTENT(IN   ) :: cd_mpp
+    REAL(KIND = wp), OPTIONAL, INTENT(IN ) :: pval
+    CHARACTER(LEN = 3), OPTIONAL, INTENT(IN ) :: cd_mpp
     LOGICAL :: ll_grid_crs
     REAL(KIND = wp) :: zval
     TYPE(ProfileData), SAVE :: psy_profile0

@@ -32,7 +32,7 @@ MODULE zdfiwm
   END FUNCTION zdf_iwm_alloc
   SUBROUTINE zdf_iwm(kt, p_avm, p_avt, p_avs)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avt, p_avs
     INTEGER :: ji, jj, jk
@@ -100,10 +100,14 @@ MODULE zdfiwm
     END SELECT
     zwkb(:, :, :) = 0._wp
     zfact(:, :) = 0._wp
+    !$ACC END KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       zfact(:, :) = zfact(:, :) + e3w_n(:, :, jk) * SQRT(MAX(0._wp, rn2(:, :, jk))) * wmask(:, :, jk)
       zwkb(:, :, jk) = zfact(:, :)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jk = 2, jpkm1
       DO jj = 1, jpj
         DO ji = 1, jpi
@@ -193,21 +197,21 @@ MODULE zdfiwm
       END DO
       CALL iom_put("av_ratio", zav_ratio)
       CALL ProfileEnd(psy_profile1)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC KERNELS
         p_avs(:, :, jk) = p_avs(:, :, jk) + zav_wave(:, :, jk) * zav_ratio(:, :, jk)
         p_avt(:, :, jk) = p_avt(:, :, jk) + zav_wave(:, :, jk)
         p_avm(:, :, jk) = p_avm(:, :, jk) + zav_wave(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
     ELSE
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC KERNELS
         p_avs(:, :, jk) = p_avs(:, :, jk) + zav_wave(:, :, jk)
         p_avt(:, :, jk) = p_avt(:, :, jk) + zav_wave(:, :, jk)
         p_avm(:, :, jk) = p_avm(:, :, jk) + zav_wave(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
     END IF
     CALL iom_put("av_wave", zav_wave)
     IF (iom_use("bflx_iwm") .OR. iom_use("pcmap_iwm")) THEN

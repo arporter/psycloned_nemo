@@ -149,7 +149,7 @@ MODULE crsdomwri
   END SUBROUTINE crs_dom_wri
   SUBROUTINE dom_uniq_crs(puniq, cdgrd)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 1), INTENT(IN   ) :: cdgrd
+    CHARACTER(LEN = 1), INTENT(IN ) :: cdgrd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: puniq
     REAL(KIND = wp) :: zshift
     INTEGER :: ji

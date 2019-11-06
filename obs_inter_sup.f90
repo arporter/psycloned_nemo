@@ -193,16 +193,16 @@ MODULE obs_inter_sup
       CALL ctl_stop('Error in obs_int_comm_3d_local', 'Point outside local domain')
     END IF
     CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     DO jobs = 1, kobs
       DO jj = 1, kptsj
         DO ji = 1, kptsi
+          !$ACC KERNELS
           DO jk = 1, kpk
             pgval(ji, jj, jk, jobs) = pval(kgrdi(ji, jj, jobs), kgrdj(ji, jj, jobs), jk)
           END DO
+          !$ACC END KERNELS
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
   END SUBROUTINE obs_int_comm_3d_local
 END MODULE obs_inter_sup

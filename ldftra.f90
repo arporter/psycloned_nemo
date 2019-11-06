@@ -217,15 +217,16 @@ MODULE ldftra
         CALL iom_get(inum, jpdom_data, 'ahtu_2D', ahtu(:, :, 1))
         CALL iom_get(inum, jpdom_data, 'ahtv_2D', ahtv(:, :, 1))
         CALL iom_close(inum)
-        !$ACC KERNELS
         DO jk = 2, jpkm1
+          !$ACC KERNELS
           ahtu(:, :, jk) = ahtu(:, :, 1)
           ahtv(:, :, jk) = ahtv(:, :, 1)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       CASE (20)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( e1, e2 ) or F( e1^3, e2^3 ) (lap or blp case)'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ud, ' m/s   and   Ld = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1)'
         CALL ldf_c2d('TRA', zUfac, inn, ahtu, ahtv)
       CASE (21)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( latitude, longitude, time )'
@@ -243,6 +244,7 @@ MODULE ldftra
       CASE (30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( latitude, longitude, depth )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ud, ' m/s   and   Ld = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1)'
         CALL ldf_c2d('TRA', zUfac, inn, ahtu, ahtv)
         CALL ldf_c1d('TRA', ahtu(:, :, 1), ahtv(:, :, 1), ahtu, ahtv)
       CASE (31)
@@ -301,26 +303,28 @@ MODULE ldftra
           ahtv(ji, jj, 1) = (MAX(zaht_min, ahtv(ji, jj, 1)) + zahf)
         END DO
       END DO
+      !$ACC END KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ahtu(:, :, jk) = ahtu(:, :, 1) * umask(:, :, jk)
         ahtv(:, :, jk) = ahtv(:, :, 1) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
     CASE (31)
       IF (ln_traldf_lap) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           ahtu(:, :, jk) = ABS(ub(:, :, jk)) * e1u(:, :) * r1_12
           ahtv(:, :, jk) = ABS(vb(:, :, jk)) * e2v(:, :) * r1_12
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       ELSE IF (ln_traldf_blp) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           ahtu(:, :, jk) = SQRT(ABS(ub(:, :, jk)) * e1u(:, :) * r1_12) * e1u(:, :)
           ahtv(:, :, jk) = SQRT(ABS(vb(:, :, jk)) * e2v(:, :) * r1_12) * e2v(:, :)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
     END SELECT
     CALL ProfileStart('ldf_tra', 'r1', psy_profile1)
@@ -402,15 +406,16 @@ MODULE ldftra
         CALL iom_get(inum, jpdom_data, 'aeiu', aeiu(:, :, 1))
         CALL iom_get(inum, jpdom_data, 'aeiv', aeiv(:, :, 1))
         CALL iom_close(inum)
-        !$ACC KERNELS
         DO jk = 2, jpkm1
+          !$ACC KERNELS
           aeiu(:, :, jk) = aeiu(:, :, 1)
           aeiv(:, :, jk) = aeiv(:, :, 1)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       CASE (20)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F( e1, e2 )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ue, ' m/s   and   Le = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, ' m2/s   for e1=1)'
         CALL ldf_c2d('TRA', zUfac, inn, aeiu, aeiv)
       CASE (21)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F( latitude, longitude, time )'
@@ -431,17 +436,17 @@ MODULE ldftra
         CALL ctl_stop('ldf_tra_init: wrong choice for nn_aei_ijk_t, the type of space-time variation of aei')
       END SELECT
       IF (.NOT. l_ldfeiv_time) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           aeiu(:, :, jk) = aeiu(:, :, jk) * umask(:, :, jk)
           ahtv(:, :, jk) = ahtv(:, :, jk) * vmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
     END IF
   END SUBROUTINE ldf_eiv_init
   SUBROUTINE ldf_eiv(kt, paei0, paeiu, paeiv)
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     REAL(KIND = wp), INTENT(INOUT) :: paei0
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: paeiu, paeiv
     INTEGER :: ji, jj, jk
@@ -508,18 +513,18 @@ MODULE ldftra
     END DO
     !$ACC END KERNELS
     CALL lbc_lnk_multi(paeiu(:, :, 1), 'U', 1., paeiv(:, :, 1), 'V', 1.)
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       paeiu(:, :, jk) = paeiu(:, :, 1) * umask(:, :, jk)
       paeiv(:, :, jk) = paeiv(:, :, 1) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
   END SUBROUTINE ldf_eiv
   SUBROUTINE ldf_eiv_trp(kt, kit000, pun, pvn, pwn, cdtype)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pun
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pvn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pwn

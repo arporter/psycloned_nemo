@@ -93,11 +93,13 @@ MODULE zdfphy
       WHERE (- 5. <= gphit .AND. gphit < 5) avtb_2d = 0.1
       WHERE (5. <= gphit .AND. gphit < 15) avtb_2d = (0.1 + 0.09 * (gphit - 5.))
     END IF
-    !$ACC KERNELS
     DO jk = 1, jpk
+      !$ACC KERNELS
       avt_k(:, :, jk) = avtb_2d(:, :) * avtb(jk) * wmask(:, :, jk)
       avm_k(:, :, jk) = avmb(jk) * wmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     avt(:, :, :) = 0._wp
     avs(:, :, :) = 0._wp
     avm(:, :, :) = 0._wp

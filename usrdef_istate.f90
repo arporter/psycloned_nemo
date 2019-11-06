@@ -9,12 +9,12 @@ MODULE usrdef_istate
   CONTAINS
   SUBROUTINE usr_def_istate(pdept, ptmask, pts, pu, pv, pssh)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pdept
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: ptmask
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(  OUT) :: pts
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: pu
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: pv
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: pssh
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pdept
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: ptmask
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT( OUT) :: pts
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: pu
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: pv
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: pssh
     INTEGER :: ji, jj, jk
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1

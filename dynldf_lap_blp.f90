@@ -13,9 +13,9 @@ MODULE dynldf_lap_blp
   CONTAINS
   SUBROUTINE dyn_ldf_lap(kt, pub, pvb, pua, pva, kpass)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kpass
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pub, pvb
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kpass
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pub, pvb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zsign
@@ -28,14 +28,14 @@ MODULE dynldf_lap_blp
       WRITE(numout, FMT = *) 'dyn_ldf : iso-level harmonic (laplacian) operator, pass=', kpass
       WRITE(numout, FMT = *) '~~~~~~~ '
     END IF
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     IF (kpass == 1) THEN
       zsign = 1._wp
     ELSE
       zsign = - 1._wp
     END IF
+    CALL ProfileEnd(psy_profile0)
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       DO jj = 2, jpj
         DO ji = 2, jpi
           zcur(ji - 1, jj - 1) = ahmf(ji - 1, jj - 1, jk) * e3f_n(ji - 1, jj - 1, jk) * r1_e1e2f(ji - 1, jj - 1) * (e2v(ji, jj - 1) * pvb(ji, jj - 1, jk) - e2v(ji - 1, jj - 1) * pvb(ji - 1, jj - 1, jk) - e1u(ji - 1, jj) * pub(ji - 1, jj, jk) + e1u(ji - 1, jj - 1) * pub(ji - 1, jj - 1, jk))
@@ -48,13 +48,13 @@ MODULE dynldf_lap_blp
           pva(ji, jj, jk) = pva(ji, jj, jk) + zsign * ((zcur(ji, jj) - zcur(ji - 1, jj)) * r1_e1v(ji, jj) / e3v_n(ji, jj, jk) + (zdiv(ji, jj + 1) - zdiv(ji, jj)) * r1_e2v(ji, jj))
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
   END SUBROUTINE dyn_ldf_lap
   SUBROUTINE dyn_ldf_blp(kt, pub, pvb, pua, pva)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pub, pvb
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pub, pvb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zulap, zvlap
     TYPE(ProfileData), SAVE :: psy_profile0

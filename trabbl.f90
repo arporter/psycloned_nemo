@@ -81,8 +81,8 @@ MODULE trabbl
     IF (ln_timing) CALL timing_stop('tra_bbl')
   END SUBROUTINE tra_bbl
   SUBROUTINE tra_bbl_dif(ptb, pta, kjpt)
-    INTEGER, INTENT(IN   ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb
+    INTEGER, INTENT(IN ) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jn
     INTEGER :: ik
@@ -106,8 +106,8 @@ MODULE trabbl
     !$ACC END KERNELS
   END SUBROUTINE tra_bbl_dif
   SUBROUTINE tra_bbl_adv(ptb, pta, kjpt)
-    INTEGER, INTENT(IN   ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb
+    INTEGER, INTENT(IN ) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     INTEGER :: iis, iid, ijs, ijd
@@ -161,9 +161,9 @@ MODULE trabbl
   END SUBROUTINE tra_bbl_adv
   SUBROUTINE bbl(kt, kit000, cdtype)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
     INTEGER :: ji, jj
     INTEGER :: ik
     INTEGER :: iis, iid, ikus, ikud

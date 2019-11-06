@@ -61,14 +61,18 @@ MODULE icevar
       sm_i(:, :) = SUM(sv_i(:, :, :), dim = 3) * z1_vt_i(:, :)
       tm_i(:, :) = 0._wp
       tm_s(:, :) = 0._wp
+      !$ACC END KERNELS
       DO jl = 1, jpl
+        !$ACC KERNELS
         DO jk = 1, nlay_i
           tm_i(:, :) = tm_i(:, :) + r1_nlay_i * t_i(:, :, jk, jl) * v_i(:, :, jl) * z1_vt_i(:, :)
         END DO
         DO jk = 1, nlay_s
           tm_s(:, :) = tm_s(:, :) + r1_nlay_s * t_s(:, :, jk, jl) * v_s(:, :, jl) * z1_vt_s(:, :)
         END DO
+        !$ACC END KERNELS
       END DO
+      !$ACC KERNELS
       WHERE (at_i(:, :) <= epsi20)
         tm_su(:, :) = rt0
         tm_si(:, :) = rt0
@@ -128,8 +132,8 @@ MODULE icevar
     CALL ice_var_salprof
     zlay_i = REAL(nlay_i, wp)
     CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     DO jl = 1, jpl
+      !$ACC KERNELS
       DO jk = 1, nlay_i
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -145,8 +149,8 @@ MODULE icevar
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     CALL ProfileStart('ice_var_glo2eqv', 'r1', psy_profile1)
     zlay_s = REAL(nlay_s, wp)
     CALL ProfileEnd(psy_profile1)
@@ -189,12 +193,14 @@ MODULE icevar
       !$ACC END KERNELS
     CASE (2)
       ALLOCATE(z_slope_s(jpi, jpj, jpl), zalpha(jpi, jpj, jpl))
-      !$ACC KERNELS
       DO jl = 1, jpl
+        !$ACC KERNELS
         DO jk = 1, nlay_i
           sz_i(:, :, jk, jl) = s_i(:, :, jl)
         END DO
+        !$ACC END KERNELS
       END DO
+      !$ACC KERNELS
       WHERE (h_i(:, :, :) > epsi20)
         z_slope_s(:, :, :) = 2._wp * s_i(:, :, :) / h_i(:, :, :)
       ELSEWHERE
@@ -369,7 +375,9 @@ MODULE icevar
     WHERE (pa_i(:, :, :) < 0._wp) pa_i(:, :, :) = 0._wp
     WHERE (pa_ip(:, :, :) < 0._wp) pa_ip(:, :, :) = 0._wp
     WHERE (pv_ip(:, :, :) < 0._wp) pv_ip(:, :, :) = 0._wp
+    !$ACC END KERNELS
     DO jl = 1, jpl
+      !$ACC KERNELS
       DO jk = 1, nlay_i
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -406,8 +414,8 @@ MODULE icevar
           END IF
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
   END SUBROUTINE ice_var_zapneg
   SUBROUTINE ice_var_itd(zhti, zhts, zati, zh_i, zh_s, za_i)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -588,13 +596,17 @@ MODULE icevar
     INTEGER :: ji, jj, jk, jl
     !$ACC KERNELS
     bv_i(:, :, :) = 0._wp
+    !$ACC END KERNELS
     DO jl = 1, jpl
+      !$ACC KERNELS
       DO jk = 1, nlay_i
         WHERE (t_i(:, :, jk, jl) < rt0 - epsi10)
           bv_i(:, :, jl) = bv_i(:, :, jl) - rTmlt * sz_i(:, :, jk, jl) * r1_nlay_i / (t_i(:, :, jk, jl) - rt0)
         END WHERE
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     WHERE (vt_i(:, :) > epsi20)
       bvm_i(:, :) = SUM(bv_i(:, :, :) * v_i(:, :, :), dim = 3) / vt_i(:, :)
     ELSEWHERE

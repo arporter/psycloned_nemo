@@ -236,10 +236,14 @@ MODULE dynspg_ts
     !$ACC KERNELS
     zu_frc(:, :) = 0._wp
     zv_frc(:, :) = 0._wp
+    !$ACC END KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       zu_frc(:, :) = zu_frc(:, :) + e3u_n(:, :, jk) * ua(:, :, jk) * umask(:, :, jk)
       zv_frc(:, :) = zv_frc(:, :) + e3v_n(:, :, jk) * va(:, :, jk) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     zu_frc(:, :) = zu_frc(:, :) * r1_hu_n(:, :)
     zv_frc(:, :) = zv_frc(:, :) * r1_hv_n(:, :)
     DO jk = 1, jpkm1
@@ -910,12 +914,12 @@ MODULE dynspg_ts
       !$ACC END KERNELS
     END IF
     IF (ln_dynadv_vec .OR. ln_linssh) THEN
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ua(:, :, jk) = ua(:, :, jk) + (ua_b(:, :) - ub_b(:, :)) * r1_2dt_b
         va(:, :, jk) = va(:, :, jk) + (va_b(:, :) - vb_b(:, :)) * r1_2dt_b
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
     ELSE
       !$ACC KERNELS
       DO jj = 1, jpjm1
@@ -926,27 +930,31 @@ MODULE dynspg_ts
       END DO
       !$ACC END KERNELS
       CALL lbc_lnk_multi(zsshu_a, 'U', 1._wp, zsshv_a, 'V', 1._wp)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ua(:, :, jk) = ua(:, :, jk) + r1_hu_n(:, :) * (ua_b(:, :) - ub_b(:, :) * hu_b(:, :)) * r1_2dt_b
         va(:, :, jk) = va(:, :, jk) + r1_hv_n(:, :) * (va_b(:, :) - vb_b(:, :) * hv_b(:, :)) * r1_2dt_b
+        !$ACC END KERNELS
       END DO
+      !$ACC KERNELS
       ua_b(:, :) = ua_b(:, :) / (hu_0(:, :) + zsshu_a(:, :) + 1._wp - ssumask(:, :))
       va_b(:, :) = va_b(:, :) / (hv_0(:, :) + zsshv_a(:, :) + 1._wp - ssvmask(:, :))
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       un(:, :, jk) = (un(:, :, jk) + un_adv(:, :) * r1_hu_n(:, :) - un_b(:, :)) * umask(:, :, jk)
       vn(:, :, jk) = (vn(:, :, jk) + vn_adv(:, :) * r1_hv_n(:, :) - vn_b(:, :)) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
     IF (ln_wd_dl .AND. ln_wd_dl_bc) THEN
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         un(:, :, jk) = (un_adv(:, :) * r1_hu_n(:, :) + zuwdav2(:, :) * (un(:, :, jk) - un_adv(:, :) * r1_hu_n(:, :))) * umask(:, :, jk)
         vn(:, :, jk) = (vn_adv(:, :) * r1_hv_n(:, :) + zvwdav2(:, :) * (vn(:, :, jk) - vn_adv(:, :) * r1_hv_n(:, :))) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
     END IF
-    !$ACC END KERNELS
     CALL ProfileStart('dyn_spg_ts', 'r9', psy_profile9)
     CALL iom_put("ubar", un_adv(:, :) * r1_hu_n(:, :))
     CALL iom_put("vbar", vn_adv(:, :) * r1_hv_n(:, :))

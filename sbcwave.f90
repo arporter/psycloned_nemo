@@ -226,7 +226,7 @@ MODULE sbcwave
   END SUBROUTINE sbc_wstress
   SUBROUTINE sbc_wave(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('sbc_wave', 'r0', psy_profile0)
     IF (ln_cdgw .AND. .NOT. cpl_wdrag) THEN

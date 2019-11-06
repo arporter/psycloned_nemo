@@ -20,8 +20,8 @@ MODULE trddyn
   SUBROUTINE trd_dyn(putrd, pvtrd, ktrd, kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
-    INTEGER, INTENT(IN   ) :: ktrd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: ktrd
+    INTEGER, INTENT(IN ) :: kt
     TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     putrd(:, :, :) = putrd(:, :, :) * umask(:, :, :)
@@ -37,8 +37,8 @@ MODULE trddyn
   SUBROUTINE trd_dyn_iom(putrd, pvtrd, ktrd, kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
-    INTEGER, INTENT(IN   ) :: ktrd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: ktrd
+    INTEGER, INTENT(IN ) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: ikbu, ikbv
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: z2dx, z2dy

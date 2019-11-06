@@ -8,10 +8,10 @@ MODULE domngb
   CONTAINS
   SUBROUTINE dom_ngb(plon, plat, kii, kjj, cdgrid, kkk)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), INTENT(IN   ) :: plon, plat
-    INTEGER, INTENT(  OUT) :: kii, kjj
-    INTEGER, INTENT(IN   ), OPTIONAL :: kkk
-    CHARACTER(LEN = 1), INTENT(IN   ) :: cdgrid
+    REAL(KIND = wp), INTENT(IN ) :: plon, plat
+    INTEGER, INTENT( OUT) :: kii, kjj
+    INTEGER, INTENT(IN ), OPTIONAL :: kkk
+    CHARACTER(LEN = 1), INTENT(IN ) :: cdgrid
     INTEGER :: ik
     INTEGER, DIMENSION(2) :: iloc
     REAL(KIND = wp) :: zlon, zmini

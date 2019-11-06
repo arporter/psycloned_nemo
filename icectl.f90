@@ -222,10 +222,10 @@ MODULE icectl
     !$ACC END KERNELS
     CALL ProfileStart('ice_ctl', 'r8', psy_profile8)
     cl_alname(ialert_id) = ' Very warm ice                '
-    CALL ProfileEnd(psy_profile8)
-    !$ACC KERNELS
     inb_alp(ialert_id) = 0
+    CALL ProfileEnd(psy_profile8)
     DO jl = 1, jpl
+      !$ACC KERNELS
       DO jk = 1, nlay_i
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -236,8 +236,8 @@ MODULE icectl
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     CALL ProfileStart('ice_ctl', 'r9', psy_profile9)
     IF (lk_mpp) THEN
       DO ialert_id = 1, inb_altests

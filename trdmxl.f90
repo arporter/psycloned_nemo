@@ -40,14 +40,14 @@ MODULE trdmxl
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
-    INTEGER, INTENT(IN   ) :: ktrd
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: kmxln
+    INTEGER, INTENT(IN ) :: ktrd
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: kmxln
     INTEGER :: ji, jj, jk
     TYPE(ProfileData), SAVE :: psy_profile0
-    !$ACC KERNELS
     IF (kt /= nkstp) THEN
+      !$ACC KERNELS
       nkstp = kt
       tmltrd(:, :, :) = 0._wp
       smltrd(:, :, :) = 0._wp
@@ -68,11 +68,15 @@ MODULE trdmxl
       END DO
       tml(:, :) = 0._wp
       sml(:, :) = 0._wp
+      !$ACC END KERNELS
       DO jk = 1, jpktrd
+        !$ACC KERNELS
         tml(:, :) = tml(:, :) + wkx(:, :, jk) * tsn(:, :, jk, jp_tem)
         sml(:, :) = sml(:, :) + wkx(:, :, jk) * tsn(:, :, jk, jp_sal)
+        !$ACC END KERNELS
       END DO
     END IF
+    !$ACC KERNELS
     tmltrd(:, :, ktrd) = tmltrd(:, :, ktrd) + ptrdx(:, :, jk) * wkx(:, :, jk)
     smltrd(:, :, ktrd) = smltrd(:, :, ktrd) + ptrdy(:, :, jk) * wkx(:, :, jk)
     !$ACC END KERNELS
@@ -97,9 +101,9 @@ MODULE trdmxl
     END SELECT
   END SUBROUTINE trd_tra_mxl
   SUBROUTINE trd_mean(kt, ptrd, ptrdm)
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: ptrd
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: ptrd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdm
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     !$ACC KERNELS
     IF (kt == nn_it000) ptrdm(:, :, :) = 0._wp
     ptrdm(:, :, :) = ptrdm(:, :, :) + ptrd(:, :, :)
@@ -129,8 +133,8 @@ MODULE trdmxl
   END SUBROUTINE trd_mxl_zint
   SUBROUTINE trd_mxl(kt, p2dt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
     INTEGER :: ji, jj, jk, jl, ik, it, itmod
     LOGICAL :: lldebug = .TRUE.
     REAL(KIND = wp) :: zavt, zfn, zfn2

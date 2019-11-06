@@ -15,8 +15,8 @@ MODULE ldfc1d_c2d
   CONTAINS
   SUBROUTINE ldf_c1d(cd_type, pahs1, pahs2, pah1, pah2)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cd_type
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pahs1, pahs2
+    CHARACTER(LEN = 3), INTENT(IN ) :: cd_type
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pahs1, pahs2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pah1, pah2
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zh, zc, zdep1
@@ -71,10 +71,10 @@ MODULE ldfc1d_c2d
   END SUBROUTINE ldf_c1d
   SUBROUTINE ldf_c2d(cd_type, pUfac, knn, pah1, pah2)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cd_type
-    REAL(KIND = wp), INTENT(IN   ) :: pUfac
-    INTEGER, INTENT(IN   ) :: knn
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pah1, pah2
+    CHARACTER(LEN = 3), INTENT(IN ) :: cd_type
+    REAL(KIND = wp), INTENT(IN ) :: pUfac
+    INTEGER, INTENT(IN ) :: knn
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: pah1, pah2
     INTEGER :: ji, jj, jk
     INTEGER :: inn
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -104,11 +104,11 @@ MODULE ldfc1d_c2d
     CASE DEFAULT
       CALL ctl_stop('ldf_c2d: ', cd_type, ' Unknown, i.e. /= DYN or TRA')
     END SELECT
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       pah1(:, :, jk) = pah1(:, :, 1)
       pah2(:, :, jk) = pah2(:, :, 1)
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
   END SUBROUTINE ldf_c2d
 END MODULE ldfc1d_c2d

@@ -96,12 +96,14 @@ MODULE domain
     ht_0(:, :) = 0._wp
     hu_0(:, :) = 0._wp
     hv_0(:, :) = 0._wp
+    !$ACC END KERNELS
     DO jk = 1, jpk
+      !$ACC KERNELS
       ht_0(:, :) = ht_0(:, :) + e3t_0(:, :, jk) * tmask(:, :, jk)
       hu_0(:, :) = hu_0(:, :) + e3u_0(:, :, jk) * umask(:, :, jk)
       hv_0(:, :) = hv_0(:, :) + e3v_0(:, :, jk) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     IF (ln_linssh) THEN
       !$ACC KERNELS
       gdept_b = gdept_0

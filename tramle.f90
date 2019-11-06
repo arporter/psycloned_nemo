@@ -28,9 +28,9 @@ MODULE tramle
   CONTAINS
   SUBROUTINE tra_mle_trp(kt, kit000, pu, pv, pw, cdtype)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pu
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pw
@@ -141,7 +141,9 @@ MODULE tramle
         END DO
       END DO
     END DO
+    !$ACC END KERNELS
     DO jk = 1, ikmax
+      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           pu(ji, jj, jk) = pu(ji, jj, jk) + (zpsi_uw(ji, jj, jk) - zpsi_uw(ji, jj, jk + 1))
@@ -153,19 +155,19 @@ MODULE tramle
           pw(ji, jj, jk) = pw(ji, jj, jk) - (zpsi_uw(ji, jj, jk) - zpsi_uw(ji - 1, jj, jk) + zpsi_vw(ji, jj, jk) - zpsi_vw(ji, jj - 1, jk))
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     IF (cdtype == 'TRA') THEN
       !$ACC KERNELS
       zLf_NH(:, :) = SQRT(rb_c * zmld(:, :)) * r1_ft(:, :)
       !$ACC END KERNELS
       CALL iom_put("Lf_NHpf", zLf_NH)
-      !$ACC KERNELS
       DO jk = 1, ikmax + 1
+        !$ACC KERNELS
         zpsi_uw(:, :, jk) = zpsi_uw(:, :, jk) * r1_e2u(:, :)
         zpsi_vw(:, :, jk) = zpsi_vw(:, :, jk) * r1_e1v(:, :)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
       CALL ProfileStart('tra_mle_trp', 'r1', psy_profile1)
       CALL iom_put("psiu_mle", zpsi_uw)
       CALL iom_put("psiv_mle", zpsi_vw)

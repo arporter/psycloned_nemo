@@ -95,7 +95,7 @@ MODULE obs_readmdt
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kpi, kpj
     REAL(KIND = wp), DIMENSION(kpi, kpj), INTENT(INOUT) :: mdt
-    REAL(KIND = wp), INTENT(IN   ) :: zfill
+    REAL(KIND = wp), INTENT(IN ) :: zfill
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zdxdy, zarea, zeta1, zeta2, zcorr_mdt, zcorr_bcketa, zcorr
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zpromsk

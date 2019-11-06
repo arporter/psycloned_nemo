@@ -224,8 +224,8 @@ MODULE iceitd
   END SUBROUTINE ice_itd_rem
   SUBROUTINE itd_glinear(HbL, Hbr, phice, paice, pg0, pg1, phL, phR)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(:), INTENT(IN   ) :: HbL, HbR
-    REAL(KIND = wp), DIMENSION(:), INTENT(IN   ) :: phice, paice
+    REAL(KIND = wp), DIMENSION(:), INTENT(IN ) :: HbL, HbR
+    REAL(KIND = wp), DIMENSION(:), INTENT(IN ) :: phice, paice
     REAL(KIND = wp), DIMENSION(:), INTENT(INOUT) :: pg0, pg1
     REAL(KIND = wp), DIMENSION(:), INTENT(INOUT) :: phL, phR
     INTEGER :: ji

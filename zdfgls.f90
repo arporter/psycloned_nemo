@@ -85,8 +85,8 @@ MODULE zdfgls
   SUBROUTINE zdf_gls(kt, p_sh2, p_avm, p_avt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE zdf_oce, ONLY: en, avtb, avmb
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_sh2
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     INTEGER :: ibot, ibotm1

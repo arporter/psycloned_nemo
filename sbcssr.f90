@@ -28,7 +28,7 @@ MODULE sbcssr
   CONTAINS
   SUBROUTINE sbc_ssr(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zerp
     REAL(KIND = wp) :: zqrp

@@ -29,8 +29,8 @@ MODULE trdken
   SUBROUTINE trd_ken(putrd, pvtrd, ktrd, kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
-    INTEGER, INTENT(IN   ) :: ktrd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: ktrd
+    INTEGER, INTENT(IN ) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: ikbu, ikbv
     INTEGER :: ikbum1, ikbvm1
@@ -39,14 +39,19 @@ MODULE trdken
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    CALL ProfileStart('trd_ken', 'r0', psy_profile0)
     CALL lbc_lnk_multi(putrd, 'U', - 1., pvtrd, 'V', - 1.)
-    !$ACC KERNELS
     nkstp = kt
+    CALL ProfileEnd(psy_profile0)
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       bu(:, :, jk) = e1e2u(:, :) * e3u_n(:, :, jk)
       bv(:, :, jk) = e1e2v(:, :) * e3v_n(:, :, jk)
       r1_bt(:, :, jk) = r1_e1e2t(:, :) / e3t_n(:, :, jk) * tmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     zke(:, :, jpk) = 0._wp
     zke(1, :, :) = 0._wp
     zke(:, 1, :) = 0._wp
@@ -74,10 +79,10 @@ MODULE trdken
     CASE (jpdyn_ldf)
       CALL iom_put("ketrd_ldf", zke)
     CASE (jpdyn_zdf)
-      CALL ProfileStart('trd_ken', 'r0', psy_profile0)
+      CALL ProfileStart('trd_ken', 'r1', psy_profile1)
       CALL iom_put("ketrd_zdf", zke)
       ALLOCATE(z2dx(jpi, jpj), z2dy(jpi, jpj), zke2d(jpi, jpj))
-      CALL ProfileEnd(psy_profile0)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       z2dx(:, :) = un(:, :, 1) * (utau_b(:, :) + utau(:, :)) * e1e2u(:, :) * umask(:, :, 1)
       z2dy(:, :) = vn(:, :, 1) * (vtau_b(:, :) + vtau(:, :)) * e1e2v(:, :) * vmask(:, :, 1)
@@ -89,10 +94,10 @@ MODULE trdken
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('trd_ken', 'r1', psy_profile1)
+      CALL ProfileStart('trd_ken', 'r2', psy_profile2)
       CALL iom_put("ketrd_tau", zke2d)
       DEALLOCATE(z2dx, z2dy, zke2d)
-      CALL ProfileEnd(psy_profile1)
+      CALL ProfileEnd(psy_profile2)
     CASE (jpdyn_bfr)
       CALL iom_put("ketrd_bfr", zke)
     CASE (jpdyn_atf)
@@ -101,16 +106,16 @@ MODULE trdken
       !$ACC KERNELS
       zke(:, :, :) = 0.5_wp * zke(:, :, :)
       !$ACC END KERNELS
-      CALL ProfileStart('trd_ken', 'r2', psy_profile2)
+      CALL ProfileStart('trd_ken', 'r3', psy_profile3)
       CALL iom_put("KE", zke)
       CALL ken_p2k(kt, zke)
       CALL iom_put("ketrd_convP2K", zke)
-      CALL ProfileEnd(psy_profile2)
+      CALL ProfileEnd(psy_profile3)
     END SELECT
   END SUBROUTINE trd_ken
   SUBROUTINE ken_p2k(kt, pconv)
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pconv
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: pconv
     INTEGER :: ji, jj, jk
     INTEGER :: iku, ikv
     REAL(KIND = wp) :: zcoef

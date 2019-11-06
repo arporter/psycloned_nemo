@@ -70,8 +70,8 @@ MODULE dtatsd
   END SUBROUTINE dta_tsd_init
   SUBROUTINE dta_tsd(kt, ptsd)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(  OUT) :: ptsd
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT( OUT) :: ptsd
     INTEGER :: ji, jj, jk, jl, jkk
     INTEGER :: ik, il0, il1, ii0, ii1, ij0, ij1
     REAL(KIND = wp) :: zl, zi

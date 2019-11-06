@@ -12,7 +12,7 @@ MODULE zdfswm
   PUBLIC :: zdf_swm_init
   CONTAINS
   SUBROUTINE zdf_swm(kt, p_avm, p_avt, p_avs)
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avt, p_avs
     INTEGER :: ji, jj, jk

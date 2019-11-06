@@ -142,8 +142,8 @@ MODULE dynvor
   END SUBROUTINE dyn_vor
   SUBROUTINE vor_enT(kt, kvor, pu, pv, pu_rhs, pv_rhs)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kvor
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pu, pv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pu_rhs, pv_rhs
     INTEGER :: ji, jj, jk
@@ -244,8 +244,8 @@ MODULE dynvor
   END SUBROUTINE vor_enT
   SUBROUTINE vor_ene(kt, kvor, pun, pvn, pua, pva)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kvor
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pun, pvn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj, jk
@@ -337,8 +337,8 @@ MODULE dynvor
   END SUBROUTINE vor_ene
   SUBROUTINE vor_ens(kt, kvor, pun, pvn, pua, pva)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kvor
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pun, pvn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj, jk
@@ -428,8 +428,8 @@ MODULE dynvor
   END SUBROUTINE vor_ens
   SUBROUTINE vor_een(kt, kvor, pun, pvn, pua, pva)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kvor
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pun, pvn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj, jk
@@ -563,8 +563,8 @@ MODULE dynvor
   END SUBROUTINE vor_een
   SUBROUTINE vor_eeT(kt, kvor, pun, pvn, pua, pva)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kvor
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pun, pvn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj, jk

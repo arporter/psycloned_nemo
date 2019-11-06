@@ -14,12 +14,12 @@ MODULE zpshde
   CONTAINS
   SUBROUTINE zps_hde(kt, kjpt, pta, pgtu, pgtv, prd, pgru, pgrv)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: pta
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(  OUT) :: pgtu, pgtv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ), OPTIONAL :: prd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT), OPTIONAL :: pgru, pgrv
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: pta
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT( OUT) :: pgtu, pgtv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ), OPTIONAL :: prd
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT), OPTIONAL :: pgru, pgrv
     INTEGER :: ji, jj, jn
     INTEGER :: iku, ikv, ikum1, ikvm1
     REAL(KIND = wp) :: ze3wu, ze3wv, zmaxu, zmaxv
@@ -121,14 +121,14 @@ MODULE zpshde
   END SUBROUTINE zps_hde
   SUBROUTINE zps_hde_isf(kt, kjpt, pta, pgtu, pgtv, pgtui, pgtvi, prd, pgru, pgrv, pgrui, pgrvi)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: pta
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(  OUT) :: pgtu, pgtv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(  OUT) :: pgtui, pgtvi
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ), OPTIONAL :: prd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT), OPTIONAL :: pgru, pgrv
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT), OPTIONAL :: pgrui, pgrvi
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: pta
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT( OUT) :: pgtu, pgtv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT( OUT) :: pgtui, pgtvi
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ), OPTIONAL :: prd
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT), OPTIONAL :: pgru, pgrv
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT), OPTIONAL :: pgrui, pgrvi
     INTEGER :: ji, jj, jn
     INTEGER :: iku, ikv, ikum1, ikvm1, ikup1, ikvp1
     REAL(KIND = wp) :: ze3wu, ze3wv, zmaxu, zmaxv

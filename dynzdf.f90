@@ -57,25 +57,29 @@ MODULE dynzdf
       ztrdv(:, :, :) = va(:, :, :)
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     IF (ln_dynadv_vec .OR. ln_linssh) THEN
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ua(:, :, jk) = (ub(:, :, jk) + r2dt * ua(:, :, jk)) * umask(:, :, jk)
         va(:, :, jk) = (vb(:, :, jk) + r2dt * va(:, :, jk)) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
     ELSE
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ua(:, :, jk) = (e3u_b(:, :, jk) * ub(:, :, jk) + r2dt * e3u_n(:, :, jk) * ua(:, :, jk)) / e3u_a(:, :, jk) * umask(:, :, jk)
         va(:, :, jk) = (e3v_b(:, :, jk) * vb(:, :, jk) + r2dt * e3v_n(:, :, jk) * va(:, :, jk)) / e3v_a(:, :, jk) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
     END IF
-    !$ACC END KERNELS
     IF (ln_drgimp .AND. ln_dynspg_ts) THEN
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ua(:, :, jk) = (ua(:, :, jk) - ua_b(:, :)) * umask(:, :, jk)
         va(:, :, jk) = (va(:, :, jk) - va_b(:, :)) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
+      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           iku = mbku(ji, jj)

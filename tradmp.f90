@@ -43,10 +43,10 @@ MODULE tradmp
       !$ACC END KERNELS
     END IF
     CALL dta_tsd(kt, zts_dta)
-    !$ACC KERNELS
     SELECT CASE (nn_zdmp)
     CASE (0)
       DO jn = 1, jpts
+        !$ACC KERNELS
         DO jk = 1, jpkm1
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
@@ -54,8 +54,10 @@ MODULE tradmp
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       END DO
     CASE (1)
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -66,6 +68,7 @@ MODULE tradmp
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (2)
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
@@ -78,7 +81,6 @@ MODULE tradmp
         END DO
       END DO
     END SELECT
-    !$ACC END KERNELS
     IF (l_trdtra) THEN
       !$ACC KERNELS
       ztrdts(:, :, :, :) = tsa(:, :, :, :) - ztrdts(:, :, :, :)

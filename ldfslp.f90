@@ -136,8 +136,8 @@ MODULE ldfslp
     END DO
     !$ACC END KERNELS
     CALL lbc_lnk_multi(zwz, 'U', - 1., zww, 'V', - 1.)
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       DO jj = 2, jpjm1, MAX(1, jpj - 3)
         DO ji = 2, jpim1
           uslp(ji, jj, jk) = z1_16 * (zwz(ji - 1, jj - 1, jk) + zwz(ji + 1, jj - 1, jk) + zwz(ji - 1, jj + 1, jk) + zwz(ji + 1, jj + 1, jk) + 2. * (zwz(ji, jj - 1, jk) + zwz(ji - 1, jj, jk) + zwz(ji + 1, jj, jk) + zwz(ji, jj + 1, jk)) + 4. * zwz(ji, jj, jk))
@@ -156,7 +156,9 @@ MODULE ldfslp
           vslp(ji, jj, jk) = vslp(ji, jj, jk) * (vmask(ji + 1, jj, jk) + vmask(ji - 1, jj, jk)) * 0.5_wp * (vmask(ji, jj, jk) + vmask(ji, jj, jk + 1)) * 0.5_wp
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jk = 2, jpkm1
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -176,8 +178,8 @@ MODULE ldfslp
     END DO
     !$ACC END KERNELS
     CALL lbc_lnk_multi(zwz, 'T', - 1., zww, 'T', - 1.)
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       DO jj = 2, jpjm1, MAX(1, jpj - 3)
         DO ji = 2, jpim1
           zcofw = wmask(ji, jj, jk) * z1_16
@@ -199,8 +201,8 @@ MODULE ldfslp
           wslpj(ji, jj, jk) = wslpj(ji, jj, jk) * zck
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     CALL ProfileStart('ldf_slp', 'r0', psy_profile0)
     CALL lbc_lnk_multi(uslp, 'U', - 1., vslp, 'V', - 1., wslpi, 'W', - 1., wslpj, 'W', - 1.)
     IF (ln_ctl) THEN
@@ -265,7 +267,9 @@ MODULE ldfslp
         END DO
       END IF
     END DO
+    !$ACC END KERNELS
     DO kp = 0, 1
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -281,7 +285,9 @@ MODULE ldfslp
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
         jk = MIN(nmln(ji, jj), mbkt(ji, jj)) + 1

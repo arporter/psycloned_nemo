@@ -37,8 +37,8 @@ MODULE dynzad
       ztrdv(:, :, :) = va(:, :, :)
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       DO jj = 2, jpj
         DO ji = 2, jpi
           zww(ji, jj) = 0.25_wp * e1e2t(ji, jj) * wn(ji, jj, jk)
@@ -50,7 +50,9 @@ MODULE dynzad
           zwvw(ji, jj, jk) = (zww(ji, jj + 1) + zww(ji, jj)) * (vn(ji, jj, jk - 1) - vn(ji, jj, jk))
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zwuw(ji, jj, 1) = 0._wp

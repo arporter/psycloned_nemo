@@ -71,8 +71,8 @@ MODULE dtauvd
   END SUBROUTINE dta_uvd_init
   SUBROUTINE dta_uvd(kt, puvd)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2), INTENT(  OUT) :: puvd
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2), INTENT( OUT) :: puvd
     INTEGER :: ji, jj, jk, jl, jkk
     INTEGER :: ik, il0, il1, ii0, ii1, ij0, ij1
     REAL(KIND = wp) :: zl, zi

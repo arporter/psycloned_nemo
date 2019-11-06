@@ -15,10 +15,10 @@ MODULE icedyn_adv_umx
   CONTAINS
   SUBROUTINE ice_dyn_adv_umx(k_order, kt, pu_ice, pv_ice, pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pe_s, pe_i)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: k_order
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: pu_ice
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: pv_ice
+    INTEGER, INTENT(IN ) :: k_order
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: pu_ice
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: pv_ice
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: pato_i
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: pv_i
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: pv_s
@@ -97,11 +97,11 @@ MODULE icedyn_adv_umx
     CALL ProfileEnd(psy_profile1)
   END SUBROUTINE ice_dyn_adv_umx
   SUBROUTINE adv_umx(k_order, kt, pdt, puc, pvc, pubox, pvbox, ptc)
-    INTEGER, INTENT(IN   ) :: k_order
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), INTENT(IN   ) :: pdt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: puc, pvc
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pubox, pvbox
+    INTEGER, INTENT(IN ) :: k_order
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), INTENT(IN ) :: pdt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: puc, pvc
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pubox, pvbox
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: ptc
     INTEGER :: ji, jj
     REAL(KIND = wp) :: ztra
@@ -165,13 +165,13 @@ MODULE icedyn_adv_umx
   END SUBROUTINE adv_umx
   SUBROUTINE macho(k_order, kt, pdt, ptc, puc, pvc, pubox, pvbox, pt_u, pt_v)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: k_order
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), INTENT(IN   ) :: pdt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: ptc
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: puc, pvc
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pubox, pvbox
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: pt_u, pt_v
+    INTEGER, INTENT(IN ) :: k_order
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), INTENT(IN ) :: pdt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: ptc
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: puc, pvc
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pubox, pvbox
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: pt_u, pt_v
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zc_box
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zzt
@@ -208,11 +208,11 @@ MODULE icedyn_adv_umx
     END IF
   END SUBROUTINE macho
   SUBROUTINE ultimate_x(k_order, pdt, pt, puc, pt_u)
-    INTEGER, INTENT(IN   ) :: k_order
-    REAL(KIND = wp), INTENT(IN   ) :: pdt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: puc
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: pt_u
+    INTEGER, INTENT(IN ) :: k_order
+    REAL(KIND = wp), INTENT(IN ) :: pdt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: puc
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: pt_u
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zcu, zdx2, zdx4
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztu1, ztu2, ztu3, ztu4
@@ -282,11 +282,11 @@ MODULE icedyn_adv_umx
     !$ACC END KERNELS
   END SUBROUTINE ultimate_x
   SUBROUTINE ultimate_y(k_order, pdt, pt, pvc, pt_v)
-    INTEGER, INTENT(IN   ) :: k_order
-    REAL(KIND = wp), INTENT(IN   ) :: pdt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pvc
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: pt_v
+    INTEGER, INTENT(IN ) :: k_order
+    REAL(KIND = wp), INTENT(IN ) :: pdt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pvc
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: pt_v
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zcv, zdy2, zdy4
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztv1, ztv2, ztv3, ztv4
@@ -365,8 +365,8 @@ MODULE icedyn_adv_umx
     END SELECT
   END SUBROUTINE ultimate_y
   SUBROUTINE nonosc_2d(pbef, paa, pbb, paft, pdt)
-    REAL(KIND = wp), INTENT(IN   ) :: pdt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pbef, paft
+    REAL(KIND = wp), INTENT(IN ) :: pdt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pbef, paft
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: paa, pbb
     INTEGER :: ji, jj
     INTEGER :: ikm1

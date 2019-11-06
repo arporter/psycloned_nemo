@@ -192,15 +192,16 @@ MODULE ldfdyn
         CALL iom_get(inum, jpdom_data, 'ahmt_2d', ahmt(:, :, 1))
         CALL iom_get(inum, jpdom_data, 'ahmf_2d', ahmf(:, :, 1))
         CALL iom_close(inum)
-        !$ACC KERNELS
         DO jk = 2, jpkm1
+          !$ACC KERNELS
           ahmt(:, :, jk) = ahmt(:, :, 1)
           ahmf(:, :, jk) = ahmf(:, :, 1)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       CASE (20)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( e1, e2 ) or F( e1^3, e2^3 ) (lap. or blp. case)'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed viscous velocity = ', rn_Uv, ' m/s   and   Lv = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1)'
         CALL ldf_c2d('DYN', zUfac, inn, ahmt, ahmf)
       CASE (- 30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F(i,j,k) read in eddy_viscosity_3D.nc file'
@@ -211,6 +212,7 @@ MODULE ldfdyn
       CASE (30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( latitude, longitude, depth )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed viscous velocity = ', rn_Uv, ' m/s   and   Ld = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1)'
         CALL ldf_c2d('DYN', zUfac, inn, ahmt, ahmf)
         CALL ldf_c1d('DYN', ahmt(:, :, 1), ahmf(:, :, 1), ahmt, ahmf)
       CASE (31)
@@ -302,8 +304,8 @@ MODULE ldfdyn
         zstabf_up = rn_maxfac / (4._wp * zcmsmag * 2._wp * rdt)
         IF (ln_dynldf_blp) zstabf_lo = (16._wp / 9._wp) * zstabf_lo
         CALL ProfileEnd(psy_profile0)
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           DO jj = 2, jpj
             DO ji = 2, jpi
               zdb = ((ub(ji, jj, jk) * r1_e2u(ji, jj) - ub(ji - 1, jj, jk) * r1_e2u(ji - 1, jj)) * r1_e1t(ji, jj) * e2t(ji, jj) - (vb(ji, jj, jk) * r1_e1v(ji, jj) - vb(ji, jj - 1, jk) * r1_e1v(ji, jj - 1)) * r1_e2t(ji, jj) * e1t(ji, jj)) * tmask(ji, jj, jk)
@@ -331,8 +333,8 @@ MODULE ldfdyn
               ahmf(ji, jj, jk) = MIN(ahmf(ji, jj, jk), zdelta * zstabf_up)
             END DO
           END DO
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
       IF (ln_dynldf_blp) THEN
         !$ACC KERNELS

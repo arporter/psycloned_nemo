@@ -97,7 +97,7 @@ MODULE zdftmx
     CALL ProfileEnd(psy_profile1)
   END SUBROUTINE zdf_tmx
   SUBROUTINE tmx_itf(kt, pav)
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     REAL(KIND = wp), INTENT(INOUT), DIMENSION(jpi, jpj, jpk) :: pav
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcoef, ztpc
@@ -110,18 +110,26 @@ MODULE zdftmx
     zdn2dz(:, :, jpk) = 0.E0
     zempba_3d_1(:, :, jpk) = 0.E0
     zempba_3d_2(:, :, jpk) = 0.E0
+    !$ACC END KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       zdn2dz(:, :, jk) = rn2(:, :, jk) - rn2(:, :, jk + 1)
       zempba_3d_1(:, :, jk) = SQRT(MAX(0.E0, rn2(:, :, jk)))
       zempba_3d_2(:, :, jk) = MAX(0.E0, rn2(:, :, jk))
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     zsum(:, :) = 0.E0
     zsum1(:, :) = 0.E0
     zsum2(:, :) = 0.E0
+    !$ACC END KERNELS
     DO jk = 2, jpk
+      !$ACC KERNELS
       zsum1(:, :) = zsum1(:, :) + zempba_3d_1(:, :, jk) * e3w_n(:, :, jk) * tmask(:, :, jk) * tmask(:, :, jk - 1)
       zsum2(:, :) = zsum2(:, :) + zempba_3d_2(:, :, jk) * e3w_n(:, :, jk) * tmask(:, :, jk) * tmask(:, :, jk - 1)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (zsum1(ji, jj) /= 0.E0) zsum1(ji, jj) = 1.E0 / zsum1(ji, jj)

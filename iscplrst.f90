@@ -89,10 +89,14 @@ MODULE iscplrst
     tsn(:, :, :, jp_sal) = tsn(:, :, :, jp_sal) * ptmask_b(:, :, :)
     zwmaskn(:, :, 1) = tmask(:, :, 1)
     zwmaskb(:, :, 1) = ptmask_b(:, :, 1)
+    !$ACC END KERNELS
     DO jk = 2, jpk
+      !$ACC KERNELS
       zwmaskn(:, :, jk) = tmask(:, :, jk) * tmask(:, :, jk - 1)
       zwmaskb(:, :, jk) = ptmask_b(:, :, jk) * ptmask_b(:, :, jk - 1)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     sshb(:, :) = sshn(:, :)
     zssh0(:, :) = sshn(:, :)
     zsmask0(:, :) = psmask_b(:, :)
@@ -144,8 +148,10 @@ MODULE iscplrst
       gdept_n(:, :, 1) = 0.5_wp * e3w_n(:, :, 1)
       gdepw_n(:, :, 1) = 0.0_wp
       gde3w_n(:, :, 1) = gdept_n(:, :, 1) - sshn(:, :)
+      !$ACC END KERNELS
       DO jj = 1, jpj
         DO ji = 1, jpi
+          !$ACC KERNELS
           DO jk = 2, mikt(ji, jj) - 1
             gdept_n(ji, jj, jk) = gdept_0(ji, jj, jk)
             gdepw_n(ji, jj, jk) = gdepw_0(ji, jj, jk)
@@ -162,16 +168,22 @@ MODULE iscplrst
             gdepw_n(ji, jj, jk) = gdepw_n(ji, jj, jk - 1) + e3t_n(ji, jj, jk - 1)
             gde3w_n(ji, jj, jk) = gdept_n(ji, jj, jk) - sshn(ji, jj)
           END DO
+          !$ACC END KERNELS
         END DO
       END DO
+      !$ACC KERNELS
       ht_n(:, :) = 0._wp
       hu_n(:, :) = 0._wp
       hv_n(:, :) = 0._wp
+      !$ACC END KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         hu_n(:, :) = hu_n(:, :) + e3u_n(:, :, jk) * umask(:, :, jk)
         hv_n(:, :) = hv_n(:, :) + e3v_n(:, :, jk) * vmask(:, :, jk)
         ht_n(:, :) = ht_n(:, :) + e3t_n(:, :, jk) * tmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
+      !$ACC KERNELS
       r1_hu_n(:, :) = 1._wp / (hu_n(:, :) + 1._wp - ssumask(:, :)) * ssumask(:, :)
       r1_hv_n(:, :) = 1._wp / (hv_n(:, :) + 1._wp - ssvmask(:, :)) * ssvmask(:, :)
       !$ACC END KERNELS
@@ -197,10 +209,14 @@ MODULE iscplrst
     zbvn(:, :) = SUM(ztrp, DIM = 3)
     zhu1 = 0.0_wp
     zhv1 = 0.0_wp
+    !$ACC END KERNELS
     DO jk = 1, jpk
+      !$ACC KERNELS
       zhu1(:, :) = zhu1(:, :) + e3u_n(:, :, jk) * umask(:, :, jk)
       zhv1(:, :) = zhv1(:, :) + e3v_n(:, :, jk) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     zucorr = 0._wp
     zvcorr = 0._wp
     DO jj = 1, jpj
@@ -213,10 +229,14 @@ MODULE iscplrst
         END IF
       END DO
     END DO
+    !$ACC END KERNELS
     DO jk = 1, jpk
+      !$ACC KERNELS
       un(:, :, jk) = (un(:, :, jk) - zucorr(:, :)) * umask(:, :, jk)
       vn(:, :, jk) = (vn(:, :, jk) - zvcorr(:, :)) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     tsb(:, :, :, :) = tsn(:, :, :, :)
     zts0(:, :, :, :) = tsn(:, :, :, :)
     ztmask1(:, :, :) = ptmask_b(:, :, :)

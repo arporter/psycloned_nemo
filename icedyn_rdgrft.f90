@@ -291,14 +291,13 @@ MODULE icedyn_rdgrft
         END IF
       END DO
     END DO
-    !CC END KERNELS
-    !PSyclone array slice with limits
+    !$ACC END KERNELS
     WHERE (zaksum(1 : npti) > 0._wp)
       closing_gross(1 : npti) = pclosing_net(1 : npti) / zaksum(1 : npti)
     ELSEWHERE
       closing_gross(1 : npti) = 0._wp
     END WHERE
-    !CC KERNELS
+    !$ACC KERNELS
     DO jl = 1, jpl
       DO ji = 1, npti
         zfac = apartf(ji, jl) * closing_gross(ji) * rdt_ice
@@ -307,8 +306,8 @@ MODULE icedyn_rdgrft
         END IF
       END DO
     END DO
-    !CC END KERNELS
-    !CALL ProfileStart('rdgrft_prep', 'r4', psy_profile4)
+    !$ACC END KERNELS
+    CALL ProfileStart('rdgrft_prep', 'r4', psy_profile4)
     DO ji = 1, npti
       zfac = pato_i(ji) + (opning(ji) - apartf(ji, 0) * closing_gross(ji)) * rdt_ice
       IF (zfac < 0._wp) THEN
@@ -316,9 +315,8 @@ MODULE icedyn_rdgrft
       ELSE IF (zfac > zasum(ji)) THEN
         opning(ji) = apartf(ji, 0) * closing_gross(ji) + (zasum(ji) - pato_i(ji)) * r1_rdtice
       END IF
-   END DO
-   !$ACC END KERNELS
-    !CALL ProfileEnd(psy_profile4)
+    END DO
+    CALL ProfileEnd(psy_profile4)
   END SUBROUTINE rdgrft_prep
   SUBROUTINE rdgrft_shift
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

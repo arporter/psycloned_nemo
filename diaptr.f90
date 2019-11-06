@@ -594,7 +594,7 @@ MODULE diaptr
           END DO
         END IF
       END IF
-   END IF
+    END IF
     CALL ProfileEnd(psy_profile0)
   END SUBROUTINE dia_ptr_hst
   FUNCTION dia_ptr_alloc()
@@ -614,11 +614,12 @@ MODULE diaptr
     INTEGER :: ji, jj, jk
     INTEGER :: ijpj
     REAL(KIND = wp), POINTER, DIMENSION(:) :: p_fval
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ptr_sj_3d', 'r0', psy_profile0)
     p_fval => p_fval1d
     ijpj = jpj
-    !$ACC KERNELS
     p_fval(:) = 0._wp
-    !$ACC END KERNELS
+    CALL ProfileEnd(psy_profile0)
     IF (PRESENT(pmsk)) THEN
       !$ACC KERNELS
       DO jk = 1, jpkm1
@@ -648,11 +649,12 @@ MODULE diaptr
     INTEGER :: ji, jj
     INTEGER :: ijpj
     REAL(KIND = wp), POINTER, DIMENSION(:) :: p_fval
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ptr_sj_2d', 'r0', psy_profile0)
     p_fval => p_fval1d
     ijpj = jpj
-    !$ACC KERNELS
     p_fval(:) = 0._wp
-    !$ACC END KERNELS
+    CALL ProfileEnd(psy_profile0)
     IF (PRESENT(pmsk)) THEN
       !$ACC KERNELS
       DO jj = 2, jpjm1

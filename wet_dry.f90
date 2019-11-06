@@ -68,8 +68,8 @@ MODULE wet_dry
   SUBROUTINE wad_lmt(sshb1, sshemp, z2dt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: sshb1
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: sshemp
-    REAL(KIND = wp), INTENT(IN   ) :: z2dt
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: sshemp
+    REAL(KIND = wp), INTENT(IN ) :: z2dt
     INTEGER :: ji, jj, jk, jk1
     INTEGER :: jflag
     REAL(KIND = wp) :: zcoef, zdep1, zdep2
@@ -84,11 +84,13 @@ MODULE wet_dry
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
     IF (ln_timing) CALL timing_start('wad_lmt')
-    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       un(:, :, jk) = un(:, :, jk) * zwdlmtu(:, :)
       vn(:, :, jk) = vn(:, :, jk) * zwdlmtv(:, :)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     jflag = 0
     zdepwd = 50._wp
     zflxp(:, :) = 0._wp
@@ -97,10 +99,14 @@ MODULE wet_dry
     zflxv(:, :) = 0._wp
     zwdlmtu(:, :) = 1._wp
     zwdlmtv(:, :) = 1._wp
+    !$ACC END KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       zflxu(:, :) = zflxu(:, :) + e3u_n(:, :, jk) * un(:, :, jk) * umask(:, :, jk)
       zflxv(:, :) = zflxv(:, :) + e3v_n(:, :, jk) * vn(:, :, jk) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     zflxu(:, :) = zflxu(:, :) * e2u(:, :)
     zflxv(:, :) = zflxv(:, :) * e1v(:, :)
     wdmask(:, :) = 1._wp
@@ -170,11 +176,13 @@ MODULE wet_dry
       IF (jflag == 0) EXIT
       CALL ProfileEnd(psy_profile1)
     END DO
-    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       un(:, :, jk) = un(:, :, jk) * zwdlmtu(:, :)
       vn(:, :, jk) = vn(:, :, jk) * zwdlmtv(:, :)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     un_b(:, :) = un_b(:, :) * zwdlmtu(:, :)
     vn_b(:, :) = vn_b(:, :) * zwdlmtv(:, :)
     !$ACC END KERNELS
@@ -187,7 +195,7 @@ MODULE wet_dry
   END SUBROUTINE wad_lmt
   SUBROUTINE wad_lmt_bt(zflxu, zflxv, sshn_e, zssh_frc, rdtbt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), INTENT(IN   ) :: rdtbt
+    REAL(KIND = wp), INTENT(IN ) :: rdtbt
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: zflxu, zflxv, sshn_e, zssh_frc
     INTEGER :: ji, jj, jk, jk1
     INTEGER :: jflag

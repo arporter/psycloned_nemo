@@ -29,7 +29,7 @@ MODULE lib_mpp
   END FUNCTION lib_mpp_alloc
   FUNCTION mynode(ldtxt, ldname, kumnam_ref, knumnam_cfg, kumond, kstop, localComm) RESULT(function_value)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, OPTIONAL, INTENT(IN   ) :: localComm
+    INTEGER, OPTIONAL, INTENT(IN ) :: localComm
     CHARACTER(LEN = *), DIMENSION(:) :: ldtxt
     CHARACTER(LEN = *) :: ldname
     INTEGER :: kumnam_ref, knumnam_cfg, kumond, kstop
@@ -73,13 +73,13 @@ MODULE lib_mpp
   END SUBROUTINE mpp_sum_i
   SUBROUTINE mppsum_realdd(ytab, kcom)
     COMPLEX(KIND = wp), INTENT(INOUT) :: ytab
-    INTEGER, INTENT( IN  ), OPTIONAL :: kcom
+    INTEGER, INTENT( IN ), OPTIONAL :: kcom
     WRITE(*, FMT = *) 'mppsum_realdd: You should not have seen this print! error?', ytab
   END SUBROUTINE mppsum_realdd
   SUBROUTINE mppsum_a_realdd(ytab, kdim, kcom)
     INTEGER, INTENT( IN ) :: kdim
     COMPLEX(KIND = wp), DIMENSION(kdim), INTENT( INOUT ) :: ytab
-    INTEGER, INTENT( IN  ), OPTIONAL :: kcom
+    INTEGER, INTENT( IN ), OPTIONAL :: kcom
     WRITE(*, FMT = *) 'mppsum_a_realdd: You should not have seen this print! error?', kdim, ytab(1), kcom
   END SUBROUTINE mppsum_a_realdd
   SUBROUTINE mppmax_a_real(parr, kdim, kcom)
@@ -226,15 +226,15 @@ MODULE lib_mpp
   END SUBROUTINE ctl_warn
   SUBROUTINE ctl_opn(knum, cdfile, cdstat, cdform, cdacce, klengh, kout, ldwp, karea)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(  OUT) :: knum
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdfile
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdstat
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdform
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdacce
-    INTEGER, INTENT(IN   ) :: klengh
-    INTEGER, INTENT(IN   ) :: kout
-    LOGICAL, INTENT(IN   ) :: ldwp
-    INTEGER, OPTIONAL, INTENT(IN   ) :: karea
+    INTEGER, INTENT( OUT) :: knum
+    CHARACTER(LEN = *), INTENT(IN ) :: cdfile
+    CHARACTER(LEN = *), INTENT(IN ) :: cdstat
+    CHARACTER(LEN = *), INTENT(IN ) :: cdform
+    CHARACTER(LEN = *), INTENT(IN ) :: cdacce
+    INTEGER, INTENT(IN ) :: klengh
+    INTEGER, INTENT(IN ) :: kout
+    LOGICAL, INTENT(IN ) :: ldwp
+    INTEGER, OPTIONAL, INTENT(IN ) :: karea
     CHARACTER(LEN = 80) :: clfile
     INTEGER :: iost
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -293,9 +293,9 @@ MODULE lib_mpp
   SUBROUTINE ctl_nam(kios, cdnam, ldwp)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(INOUT) :: kios
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdnam
+    CHARACTER(LEN = *), INTENT(IN ) :: cdnam
     CHARACTER(LEN = 5) :: clios
-    LOGICAL, INTENT(IN   ) :: ldwp
+    LOGICAL, INTENT(IN ) :: ldwp
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('ctl_nam', 'r0', psy_profile0)
     WRITE(clios, FMT = '(I5.0)') kios

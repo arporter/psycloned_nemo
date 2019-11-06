@@ -9,10 +9,10 @@ MODULE dianam
   CONTAINS
   SUBROUTINE dia_nam(cdfnam, kfreq, cdsuff, ldfsec)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = *), INTENT(  OUT) :: cdfnam
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdsuff
-    INTEGER, INTENT(IN   ) :: kfreq
-    LOGICAL, INTENT(IN   ), OPTIONAL :: ldfsec
+    CHARACTER(LEN = *), INTENT( OUT) :: cdfnam
+    CHARACTER(LEN = *), INTENT(IN ) :: cdsuff
+    INTEGER, INTENT(IN ) :: kfreq
+    LOGICAL, INTENT(IN ), OPTIONAL :: ldfsec
     CHARACTER(LEN = 20) :: clfmt, clfmt0
     CHARACTER(LEN = 20) :: clave
     CHARACTER(LEN = 20) :: cldate1

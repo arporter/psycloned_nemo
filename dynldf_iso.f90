@@ -144,8 +144,8 @@ MODULE dynldf_iso
       !$ACC END KERNELS
     END DO
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' ldfh - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
-    !$ACC KERNELS
     DO jj = 2, jpjm1
+      !$ACC KERNELS
       DO jk = 1, jpk
         DO ji = 2, jpi
           zdiu(ji, jk) = tmask(ji, jj, jk) * (ub(ji, jj, jk) - ub(ji - 1, jj, jk))
@@ -198,7 +198,7 @@ MODULE dynldf_iso
           va(ji, jj, jk) = va(ji, jj, jk) + (zfvw(ji, jk) - zfvw(ji, jk + 1)) * r1_e1e2v(ji, jj) / e3v_n(ji, jj, jk)
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
   END SUBROUTINE dyn_ldf_iso
 END MODULE dynldf_iso

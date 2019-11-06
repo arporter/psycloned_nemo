@@ -56,22 +56,26 @@ MODULE dynnxt
       !$ACC KERNELS
       zue(:, :) = e3u_a(:, :, 1) * ua(:, :, 1) * umask(:, :, 1)
       zve(:, :) = e3v_a(:, :, 1) * va(:, :, 1) * vmask(:, :, 1)
+      !$ACC END KERNELS
       DO jk = 2, jpkm1
+        !$ACC KERNELS
         zue(:, :) = zue(:, :) + e3u_a(:, :, jk) * ua(:, :, jk) * umask(:, :, jk)
         zve(:, :) = zve(:, :) + e3v_a(:, :, jk) * va(:, :, jk) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ua(:, :, jk) = (ua(:, :, jk) - zue(:, :) * r1_hu_a(:, :) + ua_b(:, :)) * umask(:, :, jk)
         va(:, :, jk) = (va(:, :, jk) - zve(:, :) * r1_hv_a(:, :) + va_b(:, :)) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
       IF (.NOT. ln_bt_fw) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           un(:, :, jk) = (un(:, :, jk) - un_adv(:, :) * r1_hu_n(:, :) + un_b(:, :)) * umask(:, :, jk)
           vn(:, :, jk) = (vn(:, :, jk) - vn_adv(:, :) * r1_hv_n(:, :) + vn_b(:, :)) * vmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
     END IF
     CALL ProfileStart('dyn_nxt', 'r1', psy_profile1)
@@ -101,20 +105,20 @@ MODULE dynnxt
       !$ACC END KERNELS
     END IF
     IF (neuler == 0 .AND. kt == nit000) THEN
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         un(:, :, jk) = ua(:, :, jk)
         vn(:, :, jk) = va(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
       IF (.NOT. ln_linssh) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           e3t_n(:, :, jk) = e3t_a(:, :, jk)
           e3u_n(:, :, jk) = e3u_a(:, :, jk)
           e3v_n(:, :, jk) = e3v_a(:, :, jk)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
     ELSE
       IF (ln_linssh) THEN
@@ -222,29 +226,37 @@ MODULE dynnxt
           DEALLOCATE(ze3u_f, ze3v_f)
         END IF
       END IF
-      !$ACC KERNELS
       IF (ln_dynspg_ts .AND. ln_bt_fw) THEN
+        !$ACC KERNELS
         zue(:, :) = e3u_b(:, :, 1) * ub(:, :, 1) * umask(:, :, 1)
         zve(:, :) = e3v_b(:, :, 1) * vb(:, :, 1) * vmask(:, :, 1)
+        !$ACC END KERNELS
         DO jk = 2, jpkm1
+          !$ACC KERNELS
           zue(:, :) = zue(:, :) + e3u_b(:, :, jk) * ub(:, :, jk) * umask(:, :, jk)
           zve(:, :) = zve(:, :) + e3v_b(:, :, jk) * vb(:, :, jk) * vmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           ub(:, :, jk) = ub(:, :, jk) - (zue(:, :) * r1_hu_n(:, :) - un_b(:, :)) * umask(:, :, jk)
           vb(:, :, jk) = vb(:, :, jk) - (zve(:, :) * r1_hv_n(:, :) - vn_b(:, :)) * vmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
       END IF
-      !$ACC END KERNELS
     END IF
     IF (.NOT. ln_linssh) THEN
       !$ACC KERNELS
       hu_b(:, :) = e3u_b(:, :, 1) * umask(:, :, 1)
       hv_b(:, :) = e3v_b(:, :, 1) * vmask(:, :, 1)
+      !$ACC END KERNELS
       DO jk = 2, jpkm1
+        !$ACC KERNELS
         hu_b(:, :) = hu_b(:, :) + e3u_b(:, :, jk) * umask(:, :, jk)
         hv_b(:, :) = hv_b(:, :) + e3v_b(:, :, jk) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
+      !$ACC KERNELS
       r1_hu_b(:, :) = ssumask(:, :) / (hu_b(:, :) + 1._wp - ssumask(:, :))
       r1_hv_b(:, :) = ssvmask(:, :) / (hv_b(:, :) + 1._wp - ssvmask(:, :))
       !$ACC END KERNELS
@@ -254,12 +266,16 @@ MODULE dynnxt
     ub_b(:, :) = e3u_b(:, :, 1) * ub(:, :, 1) * umask(:, :, 1)
     vn_b(:, :) = e3v_a(:, :, 1) * vn(:, :, 1) * vmask(:, :, 1)
     vb_b(:, :) = e3v_b(:, :, 1) * vb(:, :, 1) * vmask(:, :, 1)
+    !$ACC END KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       un_b(:, :) = un_b(:, :) + e3u_a(:, :, jk) * un(:, :, jk) * umask(:, :, jk)
       ub_b(:, :) = ub_b(:, :) + e3u_b(:, :, jk) * ub(:, :, jk) * umask(:, :, jk)
       vn_b(:, :) = vn_b(:, :) + e3v_a(:, :, jk) * vn(:, :, jk) * vmask(:, :, jk)
       vb_b(:, :) = vb_b(:, :) + e3v_b(:, :, jk) * vb(:, :, jk) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     un_b(:, :) = un_b(:, :) * r1_hu_a(:, :)
     vn_b(:, :) = vn_b(:, :) * r1_hv_a(:, :)
     ub_b(:, :) = ub_b(:, :) * r1_hu_b(:, :)

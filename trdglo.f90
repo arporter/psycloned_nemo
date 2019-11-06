@@ -31,9 +31,9 @@ MODULE trdglo
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
-    INTEGER, INTENT(IN   ) :: ktrd
-    CHARACTER(LEN = 3), INTENT(IN   ) :: ctype
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: ktrd
+    CHARACTER(LEN = 3), INTENT(IN ) :: ctype
+    INTEGER, INTENT(IN ) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: ikbu, ikbv
     REAL(KIND = wp) :: zvm, zvt, zvs, z1_2rau0

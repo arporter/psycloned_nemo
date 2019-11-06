@@ -192,7 +192,7 @@ MODULE sbcblk
   END SUBROUTINE sbc_blk
   SUBROUTINE blk_oce(kt, sf, pst, pu, pv)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     TYPE(fld), INTENT(INOUT), DIMENSION(:) :: sf
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: pst
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: pu
@@ -431,10 +431,10 @@ MODULE sbcblk
       !$ACC KERNELS
       Ch_atm(:, :) = Cd_atm(:, :)
       !$ACC END KERNELS
-      CALL ProfileStart('blk_ice_tau', 'r1', psy_profile1)
     ELSE IF (ln_Cd_L15) THEN
-      CALL ProfileEnd(psy_profile1)
+      CALL ProfileStart('blk_ice_tau', 'r1', psy_profile1)
       CALL Cdn10_Lupkes2015(Cd_atm, Ch_atm)
+      CALL ProfileEnd(psy_profile1)
     END IF
     CALL ProfileStart('blk_ice_tau', 'r2', psy_profile2)
     zrhoa(:, :) = rho_air(sf(jp_tair) % fnow(:, :, 1), sf(jp_humi) % fnow(:, :, 1), sf(jp_slp) % fnow(:, :, 1))
@@ -569,11 +569,11 @@ MODULE sbcblk
     CALL ProfileEnd(psy_profile4)
   END SUBROUTINE blk_ice_flx
   SUBROUTINE blk_ice_qcn(k_virtual_itd, ptsu, ptb, phs, phi)
-    INTEGER, INTENT(IN   ) :: k_virtual_itd
+    INTEGER, INTENT(IN ) :: k_virtual_itd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptsu
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: ptb
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: phs
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: phi
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: ptb
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: phs
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: phi
     INTEGER, PARAMETER :: nit = 10
     REAL(KIND = wp), PARAMETER :: zepsilon = 0.1_wp
     INTEGER :: ji, jj, jl

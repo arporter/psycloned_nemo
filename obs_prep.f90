@@ -437,20 +437,20 @@ MODULE obs_prep
   END SUBROUTINE obs_coo_grd
   SUBROUTINE obs_coo_spc_2d(kobsno, kpi, kpj, kobsi, kobsj, pobslam, pobsphi, plam, pphi, pmask, kobsqc, kosdobs, klanobs, knlaobs, ld_nea, kbdyobs, ld_bound_reject, kqc_cutoff)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kobsno
-    INTEGER, INTENT(IN   ) :: kpi, kpj
-    INTEGER, INTENT(IN   ), DIMENSION(kobsno) :: kobsi, kobsj
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(kobsno) :: pobslam, pobsphi
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(kpi, kpj) :: plam, pphi
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(kpi, kpj) :: pmask
+    INTEGER, INTENT(IN ) :: kobsno
+    INTEGER, INTENT(IN ) :: kpi, kpj
+    INTEGER, INTENT(IN ), DIMENSION(kobsno) :: kobsi, kobsj
+    REAL(KIND = wp), INTENT(IN ), DIMENSION(kobsno) :: pobslam, pobsphi
+    REAL(KIND = wp), INTENT(IN ), DIMENSION(kpi, kpj) :: plam, pphi
+    REAL(KIND = wp), INTENT(IN ), DIMENSION(kpi, kpj) :: pmask
     INTEGER, INTENT(INOUT), DIMENSION(kobsno) :: kobsqc
     INTEGER, INTENT(INOUT) :: kosdobs
     INTEGER, INTENT(INOUT) :: klanobs
     INTEGER, INTENT(INOUT) :: knlaobs
     INTEGER, INTENT(INOUT) :: kbdyobs
-    LOGICAL, INTENT(IN   ) :: ld_nea
-    LOGICAL, INTENT(IN   ) :: ld_bound_reject
-    INTEGER, INTENT(IN   ) :: kqc_cutoff
+    LOGICAL, INTENT(IN ) :: ld_nea
+    LOGICAL, INTENT(IN ) :: ld_bound_reject
+    INTEGER, INTENT(IN ) :: kqc_cutoff
     REAL(KIND = wp), DIMENSION(2, 2, kobsno) :: zgmsk
     REAL(KIND = wp), DIMENSION(2, 2, kobsno) :: zbmsk
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zbdymask
@@ -715,7 +715,7 @@ MODULE obs_prep
   SUBROUTINE obs_pro_rej(profdata, kqc_cutoff)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obs_prof), INTENT(INOUT) :: profdata
-    INTEGER, INTENT(IN   ) :: kqc_cutoff
+    INTEGER, INTENT(IN ) :: kqc_cutoff
     INTEGER :: jprof
     INTEGER :: jvar
     INTEGER :: jobs

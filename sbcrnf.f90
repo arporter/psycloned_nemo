@@ -131,15 +131,15 @@ MODULE sbcrnf
     CALL ProfileEnd(psy_profile0)
     IF (ln_rnf_depth .OR. ln_rnf_depth_ini) THEN
       IF (ln_linssh) THEN
-        !$ACC KERNELS
         DO jj = 1, jpj
           DO ji = 1, jpi
+            !$ACC KERNELS
             DO jk = 1, nk_rnf(ji, jj)
               phdivn(ji, jj, jk) = phdivn(ji, jj, jk) - (rnf(ji, jj) + rnf_b(ji, jj)) * zfact * r1_rau0 / h_rnf(ji, jj)
             END DO
+            !$ACC END KERNELS
           END DO
         END DO
-        !$ACC END KERNELS
       ELSE
         !$ACC KERNELS
         DO jj = 1, jpj

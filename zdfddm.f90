@@ -13,10 +13,10 @@ MODULE zdfddm
   CONTAINS
   SUBROUTINE zdf_ddm(kt, p_avm, p_avt, p_avs)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: p_avs
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: p_avs
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zaw, zbw, zrw
     REAL(KIND = wp) :: zdt, zds
@@ -25,8 +25,8 @@ MODULE zdfddm
     REAL(KIND = wp) :: zavdt, zavds
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zrau, zmsks, zmskf, zmskd1, zmskd2, zmskd3
     TYPE(ProfileData), SAVE :: psy_profile0
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       DO jj = 1, jpj
         DO ji = 1, jpi
           zrw = (gdepw_n(ji, jj, jk) - gdept_n(ji, jj, jk)) / (gdept_n(ji, jj, jk - 1) - gdept_n(ji, jj, jk))
@@ -82,8 +82,8 @@ MODULE zdfddm
           p_avm(ji, jj, jk) = p_avm(ji, jj, jk) + MAX(zavft + zavdt, zavfs + zavds)
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     CALL ProfileStart('zdf_ddm', 'r0', psy_profile0)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab3d_1 = avt, clinfo1 = ' ddm  - t: ', tab3d_2 = avs, clinfo2 = ' s: ', kdim = jpk)

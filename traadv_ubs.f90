@@ -21,14 +21,14 @@ MODULE traadv_ubs
   CONTAINS
   SUBROUTINE tra_adv_ubs(kt, kit000, cdtype, p2dt, pun, pvn, pwn, ptb, ptn, pta, kjpt, kn_ubs_v)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    INTEGER, INTENT(IN   ) :: kn_ubs_v
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun, pvn, pwn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb, ptn
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    INTEGER, INTENT(IN ) :: kn_ubs_v
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun, pvn, pwn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb, ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp) :: ztra, zbtr, zcoef
@@ -59,8 +59,8 @@ MODULE traadv_ubs
     zti(:, :, jpk) = 0._wp
     !$ACC END KERNELS
     DO jn = 1, kjpt
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zeeu = e2_e1u(ji, jj) * e3u_n(ji, jj, jk) * umask(ji, jj, jk)
@@ -76,8 +76,8 @@ MODULE traadv_ubs
             zltv(ji, jj, jk) = (ztv(ji, jj, jk) - ztv(ji, jj - 1, jk)) * zcoef
           END DO
         END DO
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
       CALL ProfileStart('tra_adv_ubs', 'r1', psy_profile1)
       CALL lbc_lnk(zltu, 'T', 1.)
       CALL lbc_lnk(zltv, 'T', 1.)
@@ -204,7 +204,7 @@ MODULE traadv_ubs
     END DO
   END SUBROUTINE tra_adv_ubs
   SUBROUTINE nonosc_z(pbef, pcc, paft, p2dt)
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: pbef
     REAL(KIND = wp), INTENT(INOUT), DIMENSION(jpi, jpj, jpk) :: paft
     REAL(KIND = wp), INTENT(INOUT), DIMENSION(jpi, jpj, jpk) :: pcc
