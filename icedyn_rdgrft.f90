@@ -291,13 +291,13 @@ MODULE icedyn_rdgrft
         END IF
       END DO
     END DO
-    !$ACC END KERNELS
+    !CC END KERNELS
     WHERE (zaksum(1 : npti) > 0._wp)
       closing_gross(1 : npti) = pclosing_net(1 : npti) / zaksum(1 : npti)
     ELSEWHERE
       closing_gross(1 : npti) = 0._wp
     END WHERE
-    !$ACC KERNELS
+    !CC KERNELS
     DO jl = 1, jpl
       DO ji = 1, npti
         zfac = apartf(ji, jl) * closing_gross(ji) * rdt_ice
