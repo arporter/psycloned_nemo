@@ -70,6 +70,7 @@ MODULE tradmp
       END DO
       !$ACC END KERNELS
     CASE (2)
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -80,6 +81,7 @@ MODULE tradmp
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END SELECT
     IF (l_trdtra) THEN
       !$ACC KERNELS

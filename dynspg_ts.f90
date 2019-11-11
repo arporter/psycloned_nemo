@@ -142,24 +142,26 @@ MODULE dynspg_ts
     IF (kt == nit000 .OR. .NOT. ln_linssh) THEN
       SELECT CASE (nvor_scheme)
       CASE (np_EEN)
-        !$ACC KERNELS
         SELECT CASE (nn_een_e3f)
         CASE (0)
+          !$ACC KERNELS
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zwz(ji, jj) = (ht_n(ji, jj + 1) + ht_n(ji + 1, jj + 1) + ht_n(ji, jj) + ht_n(ji + 1, jj)) * 0.25_wp
               IF (zwz(ji, jj) /= 0._wp) zwz(ji, jj) = ff_f(ji, jj) / zwz(ji, jj)
             END DO
           END DO
+          !$ACC END KERNELS
         CASE (1)
+          !$ACC KERNELS
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zwz(ji, jj) = (ht_n(ji, jj + 1) + ht_n(ji + 1, jj + 1) + ht_n(ji, jj) + ht_n(ji + 1, jj)) / (MAX(1._wp, ssmask(ji, jj + 1) + ssmask(ji + 1, jj + 1) + ssmask(ji, jj) + ssmask(ji + 1, jj)))
               IF (zwz(ji, jj) /= 0._wp) zwz(ji, jj) = ff_f(ji, jj) / zwz(ji, jj)
             END DO
           END DO
+          !$ACC END KERNELS
         END SELECT
-        !$ACC END KERNELS
         CALL lbc_lnk(zwz, 'F', 1._wp)
         !$ACC KERNELS
         ftne(1, :) = 0._wp

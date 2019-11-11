@@ -67,7 +67,9 @@ MODULE trdtra
         avt_evd(:, :, :) = ptrd(:, :, :) * tmask(:, :, :)
         !$ACC END KERNELS
       CASE DEFAULT
+        !$ACC KERNELS
         trdt(:, :, :) = ptrd(:, :, :) * tmask(:, :, :)
+        !$ACC END KERNELS
       END SELECT
     END IF
     IF (ctype == 'TRA' .AND. ktra == jp_sal) THEN
