@@ -164,7 +164,6 @@ MODULE icedyn_adv_umx
     CALL lbc_lnk(ptc, 'T', 1.)
   END SUBROUTINE adv_umx
   SUBROUTINE macho(k_order, kt, pdt, ptc, puc, pvc, pubox, pvbox, pt_u, pt_v)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN ) :: k_order
     INTEGER, INTENT(IN ) :: kt
     REAL(KIND = wp), INTENT(IN ) :: pdt
@@ -175,8 +174,6 @@ MODULE icedyn_adv_umx
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zc_box
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zzt
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
     IF (MOD((kt - 1) / nn_fsbc, 2) == 0) THEN
       CALL ultimate_x(k_order, pdt, ptc, puc, pt_u)
       !$ACC KERNELS
@@ -187,10 +184,8 @@ MODULE icedyn_adv_umx
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('macho', 'r0', psy_profile0)
       CALL lbc_lnk(zzt, 'T', 1.)
       CALL ultimate_y(k_order, pdt, zzt, pvc, pt_v)
-      CALL ProfileEnd(psy_profile0)
     ELSE
       CALL ultimate_y(k_order, pdt, ptc, pvc, pt_v)
       !$ACC KERNELS
@@ -201,10 +196,8 @@ MODULE icedyn_adv_umx
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('macho', 'r1', psy_profile1)
       CALL lbc_lnk(zzt, 'T', 1.)
       CALL ultimate_x(k_order, pdt, zzt, puc, pt_u)
-      CALL ProfileEnd(psy_profile1)
     END IF
   END SUBROUTINE macho
   SUBROUTINE ultimate_x(k_order, pdt, pt, puc, pt_u)
@@ -346,6 +339,7 @@ MODULE icedyn_adv_umx
       END DO
       !$ACC END KERNELS
     CASE (4)
+      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
@@ -353,7 +347,9 @@ MODULE icedyn_adv_umx
           pt_v(ji, jj) = 0.5_wp * vmask(ji, jj, 1) * ((pt(ji, jj + 1) + pt(ji, jj) - zcv * (pt(ji, jj + 1) - pt(ji, jj))) + z1_6 * zdy2 * (zcv * zcv - 1._wp) * (ztv2(ji, jj + 1) + ztv2(ji, jj) - 0.5_wp * zcv * (ztv2(ji, jj + 1) - ztv2(ji, jj))))
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (5)
+      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
@@ -362,6 +358,7 @@ MODULE icedyn_adv_umx
           pt_v(ji, jj) = 0.5_wp * vmask(ji, jj, 1) * ((pt(ji, jj + 1) + pt(ji, jj) - zcv * (pt(ji, jj + 1) - pt(ji, jj))) + z1_6 * zdy2 * (zcv * zcv - 1._wp) * (ztv2(ji, jj + 1) + ztv2(ji, jj) - 0.5_wp * zcv * (ztv2(ji, jj + 1) - ztv2(ji, jj))) + z1_120 * zdy4 * (zcv * zcv - 1._wp) * (zcv * zcv - 4._wp) * (ztv4(ji, jj + 1) + ztv4(ji, jj) - SIGN(1._wp, zcv) * (ztv4(ji, jj + 1) - ztv4(ji, jj))))
         END DO
       END DO
+      !$ACC END KERNELS
     END SELECT
   END SUBROUTINE ultimate_y
   SUBROUTINE nonosc_2d(pbef, paa, pbb, paft, pdt)
