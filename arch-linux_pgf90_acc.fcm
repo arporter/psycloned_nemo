@@ -1,0 +1,52 @@
+# generic pgf90 compiler options for linux
+# NCDF_INC    netcdf include file
+# NCDF_LIB    netcdf library
+# FC          Fortran compiler command
+# FCFLAGS     Fortran compiler flags
+# FFLAGS      Fortran 77 compiler flags
+# LD          linker
+# LDFLAGS     linker flags, e.g. -L<lib dir> if you have libraries in a
+# FPPFLAGS    pre-processing flags
+# AR          assembler
+# ARFLAGS     assembler flags
+# MK          make
+# USER_INC    additional include files for the compiler,  e.g. -I<include dir>
+# USER_LIB    additional libraries to pass to the linker, e.g. -l<library>
+
+
+# -ta=tesla:autocompare -o a.out example.c
+# PGI_COMPARE=summary,compare,abs=1 ./a.out
+
+#%NCDF_INC            -I/usr/local/netcdf/include
+%NCDF_INC            -I/proj/pgi/linux86-64-llvm/2019/netcdf/netcdf-4.6.2/openmpi-3.1.3/include
+#%NCDF_LIB            -L/usr/local/netcdf/lib -lnetcdf
+%NCDF_LIB            -L/proj/pgi/linux86-64-llvm/2019/netcdf/netcdf-4.6.2/openmpi-3.1.3/lib
+%FC	             pgf90
+#%FCFLAGS             -g -O0 -i4 -r8 -acc -ta=tesla:autocompare -Minfo=acc -Kieee -traceback
+#%FCFLAGS              -O0 -i4 -r8 -acc -ta=tesla,cc70,managed -Minfo=acc 
+#%FCFLAGS              -O1 -i4 -r8 -acc -ta=tesla,cc70,managed -Minfo=acc 
+%FCFLAGS              -O2 -i4 -r8 -acc -ta=tesla,cc70,managed -Minfo=acc -Minline
+#%FCFLAGS              -O2 -i4 -r8 -acc -ta=tesla,cc70 -Minfo=acc
+%FFLAGS              %FCFLAGS
+%LD                  pgf90
+#%LDFLAGS             -acc -ta=tesla:autocompare -Minfo=acc
+%LDFLAGS             -acc -ta=tesla,cc70,managed -Minfo=acc
+#%LDFLAGS             -acc -ta=tesla,cc70 -Minfo=acc
+#%LDFLAGS             -traceback
+#%FPPFLAGS            -P -C -traditional
+%FPPFLAGS            -P -E -traditional-cpp
+%AR                  ar
+%ARFLAGS             -rs
+%MK                  make
+#%CPP                /usr/bin/cpp
+%CPP                 cpp -traditional-cpp -std=c11
+#%CPP                 fpp
+
+%PROFILE_HOME        ${HOME}/PSyclone/lib/profiling/nvidia
+%PROFILE_LIB         -L%PROFILE_HOME -lnvtx_prof -L${CUDA_HOME}/lib64 -lnvToolsExt
+%PROFILE_INC         -I%PROFILE_HOME
+
+%USER_INC            %PROFILE_INC %NCDF_INC
+%USER_LIB            %PROFILE_LIB %NCDF_LIB
+#%USER_INC            %PROFILE_INC %XIOS_INC %OASIS_INC %NCDF_INC
+#%USER_LIB            %PROFILE_LIB %XIOS_LIB %OASIS_LIB %NCDF_LIB

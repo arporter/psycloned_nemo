@@ -76,7 +76,7 @@ MODULE icedyn_rhg_evp
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zdiag_xatrp
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zdiag_yatrp
     IF (kt == nit000 .AND. lwp) WRITE(numout, FMT = *) '-- ice_dyn_rhg_evp: EVP sea-ice rheology'
-    !$ACC KERNELS
+    !$ACC KERNELS 
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         zfmask(ji, jj) = tmask(ji, jj, 1) * tmask(ji + 1, jj, 1) * tmask(ji, jj + 1, 1) * tmask(ji + 1, jj + 1, 1)
@@ -238,7 +238,7 @@ MODULE icedyn_rhg_evp
       END DO
       !$ACC END KERNELS
       IF (MOD(jter, 2) == 0) THEN
-        !$ACC KERNELS
+        !$ACC KERNELS LOOP COLLAPSE(2) INDEPENDENT
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaV(ji, jj) * zrhoco * SQRT((v_ice(ji, jj) - v_oce(ji, jj)) * (v_ice(ji, jj) - v_oce(ji, jj)) + (u_iceV(ji, jj) - u_oceV(ji, jj)) * (u_iceV(ji, jj) - u_oceV(ji, jj)))
@@ -258,7 +258,7 @@ MODULE icedyn_rhg_evp
         !$ACC END KERNELS
         CALL lbc_lnk(v_ice, 'V', - 1.)
         IF (ln_bdy) CALL bdy_ice_dyn('V')
-        !$ACC KERNELS
+        !$ACC KERNELS LOOP COLLAPSE(2) INDEPENDENT
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaU(ji, jj) * zrhoco * SQRT((u_ice(ji, jj) - u_oce(ji, jj)) * (u_ice(ji, jj) - u_oce(ji, jj)) + (v_iceU(ji, jj) - v_oceU(ji, jj)) * (v_iceU(ji, jj) - v_oceU(ji, jj)))
@@ -279,7 +279,7 @@ MODULE icedyn_rhg_evp
         CALL lbc_lnk(u_ice, 'U', - 1.)
         IF (ln_bdy) CALL bdy_ice_dyn('U')
       ELSE
-        !$ACC KERNELS
+        !$ACC KERNELS LOOP COLLAPSE(2) INDEPENDENT
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaU(ji, jj) * zrhoco * SQRT((u_ice(ji, jj) - u_oce(ji, jj)) * (u_ice(ji, jj) - u_oce(ji, jj)) + (v_iceU(ji, jj) - v_oceU(ji, jj)) * (v_iceU(ji, jj) - v_oceU(ji, jj)))
@@ -299,7 +299,7 @@ MODULE icedyn_rhg_evp
         !$ACC END KERNELS
         CALL lbc_lnk(u_ice, 'U', - 1.)
         IF (ln_bdy) CALL bdy_ice_dyn('U')
-        !$ACC KERNELS
+        !$ACC KERNELS LOOP COLLAPSE(2) INDEPENDENT
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaV(ji, jj) * zrhoco * SQRT((v_ice(ji, jj) - v_oce(ji, jj)) * (v_ice(ji, jj) - v_oce(ji, jj)) + (u_iceV(ji, jj) - u_oceV(ji, jj)) * (u_iceV(ji, jj) - u_oceV(ji, jj)))

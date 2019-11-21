@@ -61,6 +61,7 @@ MODULE icetab
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: tab2d
     INTEGER :: jn, jid, jjd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT
     DO jn = 1, ndim1d
       jid = MOD(tab_ind(jn) - 1, jpi) + 1
       jjd = (tab_ind(jn) - 1) / jpi + 1

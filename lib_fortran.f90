@@ -286,6 +286,7 @@ MODULE lib_fortran
     IF (lk_mpp) CALL mpp_max(glob_max_3d_a, 2)
   END FUNCTION glob_max_3d_a
   SUBROUTINE DDPDD(ydda, yddb)
+!$ACC ROUTINE SEQ
     COMPLEX(KIND = wp), INTENT(IN   ) :: ydda
     COMPLEX(KIND = wp), INTENT(INOUT) :: yddb
     REAL(KIND = wp) :: zerr, zt1, zt2

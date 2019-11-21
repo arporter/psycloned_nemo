@@ -1,4 +1,4 @@
-MODULE icedyn_adv_umx
+MODULE icedyn_adv_umx 
   USE phycst
   USE dom_oce
   USE sbc_oce, ONLY: nn_fsbc
@@ -234,12 +234,14 @@ MODULE icedyn_adv_umx
     !$ACC KERNELS
     SELECT CASE (k_order)
     CASE (1)
+      !$ACC LOOP COLLAPSE(2) INDEPENDENT
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           pt_u(ji, jj) = 0.5_wp * umask(ji, jj, 1) * (pt(ji + 1, jj) + pt(ji, jj) - SIGN(1._wp, puc(ji, jj)) * (pt(ji + 1, jj) - pt(ji, jj)))
         END DO
       END DO
     CASE (2)
+      !$ACC LOOP COLLAPSE(2) INDEPENDENT
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
@@ -247,6 +249,7 @@ MODULE icedyn_adv_umx
         END DO
       END DO
     CASE (3)
+      !$ACC LOOP COLLAPSE(2) INDEPENDENT
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
@@ -255,6 +258,7 @@ MODULE icedyn_adv_umx
         END DO
       END DO
     CASE (4)
+      !$ACC LOOP COLLAPSE(2) INDEPENDENT
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
@@ -263,6 +267,7 @@ MODULE icedyn_adv_umx
         END DO
       END DO
     CASE (5)
+      !$ACC LOOP COLLAPSE(2) INDEPENDENT
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
@@ -283,12 +288,15 @@ MODULE icedyn_adv_umx
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zcv, zdy2, zdy4
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztv1, ztv2, ztv3, ztv4
+    REAL(KIND = wp), DIMENSION(jpi, jpj) :: pvc_loc
     !$ACC KERNELS
+    !$ACC LOOP COLLAPSE(2) INDEPENDENT
     DO jj = 1, jpjm1
       DO ji = 2, jpim1
         ztv1(ji, jj) = (pt(ji, jj + 1) - pt(ji, jj)) * r1_e2v(ji, jj) * vmask(ji, jj, 1)
       END DO
     END DO
+    !$ACC LOOP COLLAPSE(2) INDEPENDENT
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ztv2(ji, jj) = (ztv1(ji, jj) - ztv1(ji, jj - 1)) * r1_e2t(ji, jj)
@@ -297,11 +305,13 @@ MODULE icedyn_adv_umx
     !$ACC END KERNELS
     CALL lbc_lnk(ztv2, 'T', 1.)
     !$ACC KERNELS
+    !$ACC LOOP COLLAPSE(2) INDEPENDENT
     DO jj = 1, jpjm1
       DO ji = 2, jpim1
         ztv3(ji, jj) = (ztv2(ji, jj + 1) - ztv2(ji, jj)) * r1_e2v(ji, jj) * vmask(ji, jj, 1)
       END DO
     END DO
+    !!$ACC LOOP COLLAPSE(2) INDEPENDENT
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ztv4(ji, jj) = (ztv3(ji, jj) - ztv3(ji, jj - 1)) * r1_e2t(ji, jj)
@@ -312,6 +322,7 @@ MODULE icedyn_adv_umx
     SELECT CASE (k_order)
     CASE (1)
       !$ACC KERNELS
+      !$ACC LOOP COLLAPSE(2) INDEPENDENT
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           pt_v(ji, jj) = 0.5_wp * vmask(ji, jj, 1) * ((pt(ji, jj + 1) + pt(ji, jj)) - SIGN(1._wp, pvc(ji, jj)) * (pt(ji, jj + 1) - pt(ji, jj)))
@@ -320,6 +331,7 @@ MODULE icedyn_adv_umx
       !$ACC END KERNELS
     CASE (2)
       !$ACC KERNELS
+      !$ACC LOOP COLLAPSE(2) INDEPENDENT
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
@@ -330,9 +342,10 @@ MODULE icedyn_adv_umx
       CALL lbc_lnk(pt_v, 'V', 1.)
     CASE (3)
       !$ACC KERNELS
+      !$ACC LOOP COLLAPSE(2) INDEPENDENT
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
-          zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
+          zcv = pdt * pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
           zdy2 = e2v(ji, jj) * e2v(ji, jj)
           pt_v(ji, jj) = 0.5_wp * vmask(ji, jj, 1) * ((pt(ji, jj + 1) + pt(ji, jj) - zcv * (pt(ji, jj + 1) - pt(ji, jj))) + z1_6 * zdy2 * (zcv * zcv - 1._wp) * (ztv2(ji, jj + 1) + ztv2(ji, jj) - SIGN(1._wp, zcv) * (ztv2(ji, jj + 1) - ztv2(ji, jj))))
         END DO
@@ -340,6 +353,7 @@ MODULE icedyn_adv_umx
       !$ACC END KERNELS
     CASE (4)
       !$ACC KERNELS
+      !$ACC LOOP COLLAPSE(2) INDEPENDENT
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
@@ -350,6 +364,7 @@ MODULE icedyn_adv_umx
       !$ACC END KERNELS
     CASE (5)
       !$ACC KERNELS
+      !$ACC LOOP COLLAPSE(2) INDEPENDENT
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
