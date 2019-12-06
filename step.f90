@@ -8,7 +8,7 @@ MODULE step
   SUBROUTINE stp(kstp)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kstp
-    INTEGER :: ji, jj, jk
+    INTEGER :: ji, jj, jk, jl
     INTEGER :: indic
     INTEGER :: kcall
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -55,8 +55,20 @@ MODULE step
     IF (ln_zps .AND. ln_isfcav) CALL zps_hde_isf(kstp, jpts, tsn, gtsu, gtsv, gtui, gtvi, rhd, gru, grv, grui, grvi)
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
-    ua(:, :, :) = 0._wp
-    va(:, :, :) = 0._wp
+    DO jk=LBOUND(ua,3),UBOUND(ua,3)
+      DO jj=LBOUND(ua,2),UBOUND(ua,2)
+        DO ji=LBOUND(ua,1),UBOUND(ua,1)
+          ua(ji, jj, jk) = 0._wp
+        ENDDO
+      ENDDO
+    ENDDO
+    DO jk=LBOUND(va,3),UBOUND(va,3)
+      DO jj=LBOUND(va,2),UBOUND(va,2)
+        DO ji=LBOUND(va,1),UBOUND(va,1)
+          va(ji, jj, jk)  = 0._wp
+        ENDDO
+      ENDDO
+    ENDDO
     !$ACC END KERNELS
     CALL ProfileStart('stp', 'r1', psy_profile1)
     IF (lk_asminc .AND. ln_asmiau .AND. ln_dyninc) CALL dyn_asm_inc(kstp)
@@ -84,7 +96,15 @@ MODULE step
     IF (ln_crs) CALL crs_fld(kstp)
     CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
-    tsa(:, :, :, :) = 0._wp
+    DO jl=LBOUND(tsa,4),UBOUND(tsa,4)
+      DO jk=LBOUND(tsa,3),UBOUND(tsa,3)
+        DO jj=LBOUND(tsa,2),UBOUND(tsa,2)
+          DO ji=LBOUND(tsa,1),UBOUND(tsa,1)
+            tsa(ji, jj, jk, jl) = 0._wp
+          ENDDO
+        ENDDO
+      ENDDO
+    ENDDO
     !$ACC END KERNELS
     CALL ProfileStart('stp', 'r2', psy_profile2)
     IF (lk_asminc .AND. ln_asmiau .AND. ln_trainc) CALL tra_asm_inc(kstp)
