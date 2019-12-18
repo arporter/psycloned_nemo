@@ -105,6 +105,7 @@ MODULE iscplrst
     DO iz = 1, 10
       !$ACC KERNELS
       zdsmask(:, :) = ssmask(:, :) - zsmask0(:, :)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj - 1
         DO ji = 2, jpim1
           jip1 = ji + 1
@@ -129,6 +130,7 @@ MODULE iscplrst
     IF (.NOT. ln_linssh) THEN
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (tmask(ji, jj, 1) == 0._wp .OR. ptmask_b(ji, jj, 1) == 0._wp) THEN
@@ -192,6 +194,7 @@ MODULE iscplrst
     ub(:, :, :) = un(:, :, :)
     vb(:, :, :) = vn(:, :, :)
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           un(ji, jj, jk) = ub(ji, jj, jk) * pe3u_b(ji, jj, jk) * pumask_b(ji, jj, jk) / e3u_n(ji, jj, jk) * umask(ji, jj, jk)
@@ -219,6 +222,7 @@ MODULE iscplrst
     !$ACC KERNELS
     zucorr = 0._wp
     zvcorr = 0._wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (zbun(ji, jj) /= zbub(ji, jj) .AND. zhu1(ji, jj) /= 0._wp) THEN
@@ -246,6 +250,7 @@ MODULE iscplrst
       DO jk = 1, jpk - 1
         zdmask = tmask(:, :, jk) - ztmask0(:, :, jk)
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpj - 1
           DO ji = 2, jpim1
             jip1 = ji + 1

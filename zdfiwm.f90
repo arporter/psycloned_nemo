@@ -32,7 +32,7 @@ MODULE zdfiwm
   END FUNCTION zdf_iwm_alloc
   SUBROUTINE zdf_iwm(kt, p_avm, p_avt, p_avs)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avt, p_avs
     INTEGER :: ji, jj, jk
@@ -60,6 +60,7 @@ MODULE zdfiwm
     zav_ratio(:, :, jpk) = 0._wp
     zav_wave(:, :, 1) = 0._wp
     zav_wave(:, :, jpk) = 0._wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zhdep(ji, jj) = gdepw_0(ji, jj, mbkt(ji, jj) + 1)
@@ -76,6 +77,7 @@ MODULE zdfiwm
       DO jk = 2, jpkm1
         zfact(:, :) = zfact(:, :) + e3w_n(:, :, jk) * SQRT(MAX(0._wp, rn2(:, :, jk))) * wmask(:, :, jk)
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (zfact(ji, jj) /= 0) zfact(ji, jj) = epyc_iwm(ji, jj) / (rau0 * zfact(ji, jj))
@@ -89,6 +91,7 @@ MODULE zdfiwm
       DO jk = 2, jpkm1
         zfact(:, :) = zfact(:, :) + e3w_n(:, :, jk) * MAX(0._wp, rn2(:, :, jk)) * wmask(:, :, jk)
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (zfact(ji, jj) /= 0) zfact(ji, jj) = epyc_iwm(ji, jj) / (rau0 * zfact(ji, jj))
@@ -109,6 +112,7 @@ MODULE zdfiwm
     END DO
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (zfact(ji, jj) /= 0) zwkb(ji, jj, jk) = zhdep(ji, jj) * (zfact(ji, jj) - zwkb(ji, jj, jk)) * wmask(ji, jj, jk) / zfact(ji, jj)
@@ -124,6 +128,7 @@ MODULE zdfiwm
     DO jk = 2, jpkm1
       zfact(:, :) = zfact(:, :) + zweight(:, :, jk)
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (zfact(ji, jj) /= 0) zfact(ji, jj) = ebot_iwm(ji, jj) / (rau0 * zfact(ji, jj))
@@ -146,6 +151,7 @@ MODULE zdfiwm
     IF (ln_mevar) THEN
       !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (zReb(ji, jj, jk) > 480.00_wp) THEN
@@ -167,6 +173,7 @@ MODULE zdfiwm
       !$ACC KERNELS
       zztmp = 0._wp
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zztmp = zztmp + e3w_n(ji, jj, jk) * e1e2t(ji, jj) * MAX(0._wp, rn2(ji, jj, jk)) * zav_wave(ji, jj, jk) * wmask(ji, jj, jk) * tmask_i(ji, jj)

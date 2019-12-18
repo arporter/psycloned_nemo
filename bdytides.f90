@@ -179,12 +179,12 @@ MODULE bdytides
   END SUBROUTINE bdytide_init
   SUBROUTINE bdytide_update(kt, idx, dta, td, jit, time_offset)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    TYPE(OBC_INDEX), INTENT(IN ) :: idx
+    INTEGER, INTENT(IN   ) :: kt
+    TYPE(OBC_INDEX), INTENT(IN   ) :: idx
     TYPE(OBC_DATA), INTENT(INOUT) :: dta
     TYPE(TIDES_DATA), INTENT(INOUT) :: td
-    INTEGER, OPTIONAL, INTENT(IN ) :: jit
-    INTEGER, OPTIONAL, INTENT(IN ) :: time_offset
+    INTEGER, OPTIONAL, INTENT(IN   ) :: jit
+    INTEGER, OPTIONAL, INTENT(IN   ) :: time_offset
     INTEGER :: itide, igrd, ib
     INTEGER :: time_add
     INTEGER, DIMENSION(3) :: ilen0
@@ -327,7 +327,7 @@ MODULE bdytides
     CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_dta_tides
   SUBROUTINE tide_init_elevation(idx, td)
-    TYPE(OBC_INDEX), INTENT(IN ) :: idx
+    TYPE(OBC_INDEX), INTENT(IN   ) :: idx
     TYPE(TIDES_DATA), INTENT(INOUT) :: td
     INTEGER :: itide, igrd, ib
     INTEGER, DIMENSION(1) :: ilen0
@@ -354,7 +354,7 @@ MODULE bdytides
     DEALLOCATE(mod_tide, phi_tide)
   END SUBROUTINE tide_init_elevation
   SUBROUTINE tide_init_velocities(idx, td)
-    TYPE(OBC_INDEX), INTENT(IN ) :: idx
+    TYPE(OBC_INDEX), INTENT(IN   ) :: idx
     TYPE(TIDES_DATA), INTENT(INOUT) :: td
     INTEGER :: itide, igrd, ib
     INTEGER, DIMENSION(3) :: ilen0

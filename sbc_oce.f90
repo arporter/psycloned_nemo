@@ -100,6 +100,7 @@ MODULE sbc_oce
     INTEGER :: ji, jj
     !$ACC KERNELS
     zcoef = 0.5 / (zrhoa * zcdrag)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ztx = utau(ji - 1, jj) + utau(ji, jj)

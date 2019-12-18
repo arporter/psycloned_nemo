@@ -45,6 +45,7 @@ MODULE dynspg
     END IF
     IF (ln_apr_dyn .OR. (.NOT. ln_dynspg_ts .AND. (ln_tide_pot .AND. ln_tide)) .OR. ln_ice_embd) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           spgu(ji, jj) = 0._wp
@@ -53,6 +54,7 @@ MODULE dynspg
       END DO
       IF (ln_apr_dyn .AND. .NOT. ln_dynspg_ts) THEN
         zg_2 = grav * 0.5
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             spgu(ji, jj) = spgu(ji, jj) + zg_2 * (ssh_ib(ji + 1, jj) - ssh_ib(ji, jj) + ssh_ibb(ji + 1, jj) - ssh_ibb(ji, jj)) * r1_e1u(ji, jj)
@@ -64,6 +66,7 @@ MODULE dynspg
       IF (.NOT. ln_dynspg_ts .AND. (ln_tide_pot .AND. ln_tide)) THEN
         CALL upd_tide(kt)
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             spgu(ji, jj) = spgu(ji, jj) + grav * (pot_astro(ji + 1, jj) - pot_astro(ji, jj)) * r1_e1u(ji, jj)
@@ -74,6 +77,7 @@ MODULE dynspg
         IF (ln_scal_load) THEN
           !$ACC KERNELS
           zld = rn_scal_load * grav
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               spgu(ji, jj) = spgu(ji, jj) + zld * (sshn(ji + 1, jj) - sshn(ji, jj)) * r1_e1u(ji, jj)
@@ -89,6 +93,7 @@ MODULE dynspg
         zintp = REAL(MOD(kt - 1, nn_fsbc)) / REAL(nn_fsbc)
         zgrau0r = - grav * r1_rau0
         zpice(:, :) = (zintp * snwice_mass(:, :) + (1. - zintp) * snwice_mass_b(:, :)) * zgrau0r
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             spgu(ji, jj) = spgu(ji, jj) + (zpice(ji + 1, jj) - zpice(ji, jj)) * r1_e1u(ji, jj)
@@ -100,6 +105,7 @@ MODULE dynspg
       END IF
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ua(ji, jj, jk) = ua(ji, jj, jk) + spgu(ji, jj)

@@ -110,6 +110,7 @@ MODULE crsdomwri
     CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj_crsm1
         DO ji = 1, jpi_crsm1
           zdepu(ji, jj, jk) = MIN(gdept_crs(ji, jj, jk), gdept_crs(ji + 1, jj, jk)) * umask_crs(ji, jj, jk)
@@ -149,7 +150,7 @@ MODULE crsdomwri
   END SUBROUTINE crs_dom_wri
   SUBROUTINE dom_uniq_crs(puniq, cdgrd)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 1), INTENT(IN ) :: cdgrd
+    CHARACTER(LEN = 1), INTENT(IN   ) :: cdgrd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: puniq
     REAL(KIND = wp) :: zshift
     INTEGER :: ji

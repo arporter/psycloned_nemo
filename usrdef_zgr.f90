@@ -98,11 +98,11 @@ MODULE usrdef_zgr
     !$ACC END KERNELS
   END SUBROUTINE zgr_msk_top_bot
   SUBROUTINE zgr_zco(pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d, pdept, pdepw, pe3t, pe3u, pe3v, pe3f, pe3w, pe3uw, pe3vw)
-    REAL(KIND = wp), DIMENSION(:), INTENT(IN ) :: pdept_1d, pdepw_1d
-    REAL(KIND = wp), DIMENSION(:), INTENT(IN ) :: pe3t_1d, pe3w_1d
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: pdept, pdepw
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: pe3t, pe3u, pe3v, pe3f
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: pe3w, pe3uw, pe3vw
+    REAL(KIND = wp), DIMENSION(:), INTENT(IN   ) :: pdept_1d, pdepw_1d
+    REAL(KIND = wp), DIMENSION(:), INTENT(IN   ) :: pe3t_1d, pe3w_1d
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pdept, pdepw
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pe3t, pe3u, pe3v, pe3f
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pe3w, pe3uw, pe3vw
     INTEGER :: jk
     DO jk = 1, jpk
       !$ACC KERNELS

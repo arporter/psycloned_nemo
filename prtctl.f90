@@ -36,12 +36,9 @@ MODULE prtctl
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztab2d_1, ztab2d_2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zmask1, zmask2, ztab3d_1, ztab3d_2
     TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('prt_ctl', 'r0', psy_profile0)
+    !$ACC KERNELS
     kdir = jpkm1
     cl2 = ''
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     zsum1 = 0.E0
     zsum2 = 0.E0
     zvctl1 = 0.E0
@@ -53,7 +50,7 @@ MODULE prtctl
     zmask1(:, :, :) = 1.E0
     zmask2(:, :, :) = 1.E0
     !$ACC END KERNELS
-    CALL ProfileStart('prt_ctl', 'r1', psy_profile1)
+    CALL ProfileStart('prt_ctl', 'r0', psy_profile0)
     IF (PRESENT(clinfo2)) cl2 = clinfo2
     IF (PRESENT(kdim)) kdir = kdim
     IF (PRESENT(tab2d_1)) ztab2d_1(:, :) = tab2d_1(:, :)
@@ -127,7 +124,7 @@ MODULE prtctl
         WRITE(j_id, FMT = '(a,D23.16)') clinfo1, zsum1
       END IF
     END DO
-    CALL ProfileEnd(psy_profile1)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE prt_ctl
   SUBROUTINE prt_ctl_info(clinfo1, ivar1, clinfo2, ivar2, itime)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -308,6 +305,7 @@ MODULE prtctl
     iimpptl(:, :) = 1
     ijmpptl(:, :) = 1
     IF (isplt > 1) THEN
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jsplt
         DO ji = 2, isplt
           iimpptl(ji, jj) = iimpptl(ji - 1, jj) + ilcitl(ji - 1, jj) - nrecil
@@ -315,6 +313,7 @@ MODULE prtctl
       END DO
     END IF
     IF (jsplt > 1) THEN
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jsplt
         DO ji = 1, isplt
           ijmpptl(ji, jj) = ijmpptl(ji, jj - 1) + ilcjtl(ji, jj - 1) - nrecjl

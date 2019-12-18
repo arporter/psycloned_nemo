@@ -68,8 +68,8 @@ MODULE wet_dry
   SUBROUTINE wad_lmt(sshb1, sshemp, z2dt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: sshb1
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: sshemp
-    REAL(KIND = wp), INTENT(IN ) :: z2dt
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: sshemp
+    REAL(KIND = wp), INTENT(IN   ) :: z2dt
     INTEGER :: ji, jj, jk, jk1
     INTEGER :: jflag
     REAL(KIND = wp) :: zcoef, zdep1, zdep2
@@ -132,6 +132,7 @@ MODULE wet_dry
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     wdramp(:, :) = MIN((ht_0(:, :) + sshb1(:, :) - rn_wdmin1) / (rn_wdmin0 - rn_wdmin1), 1.0_wp)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         wdrampu(ji, jj) = MIN(wdramp(ji, jj), wdramp(ji + 1, jj))
@@ -195,7 +196,7 @@ MODULE wet_dry
   END SUBROUTINE wad_lmt
   SUBROUTINE wad_lmt_bt(zflxu, zflxv, sshn_e, zssh_frc, rdtbt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), INTENT(IN ) :: rdtbt
+    REAL(KIND = wp), INTENT(IN   ) :: rdtbt
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: zflxu, zflxv, sshn_e, zssh_frc
     INTEGER :: ji, jj, jk, jk1
     INTEGER :: jflag

@@ -102,6 +102,7 @@ MODULE obs_inter_sup
       !$ACC KERNELS
       iproc(:, :, :) = kproc(:, :, :)
       DO jobs = 1, kobs
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, kptsj
           DO ji = 1, kptsi
             nplocal(iproc(ji, jj, jobs)) = nplocal(iproc(ji, jj, jobs)) + 1
@@ -112,6 +113,7 @@ MODULE obs_inter_sup
     ELSE
       !$ACC KERNELS
       DO jobs = 1, kobs
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, kptsj
           DO ji = 1, kptsi
             iproc(ji, jj, jobs) = mppmap(kgrdi(ji, jj, jobs), kgrdj(ji, jj, jobs))
@@ -130,6 +132,7 @@ MODULE obs_inter_sup
     it = 0
     DO jp = 1, jpnij
       DO jobs = 1, kobs
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, kptsj
           DO ji = 1, kptsi
             IF (iproc(ji, jj, jobs) == jp) THEN
@@ -160,6 +163,7 @@ MODULE obs_inter_sup
     CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     DO jobs = 1, kobs
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, kptsj
         DO ji = 1, kptsi
           it = iorder(ji, jj, jobs)

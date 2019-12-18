@@ -18,14 +18,14 @@ MODULE icealb
   REAL(KIND = wp) :: rn_alb_dpnd
   CONTAINS
   SUBROUTINE ice_alb(pt_su, ph_ice, ph_snw, ld_pnd_alb, pafrac_pnd, ph_pnd, palb_cs, palb_os)
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: pt_su
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: ph_ice
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: ph_snw
-    LOGICAL, INTENT(IN ) :: ld_pnd_alb
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: pafrac_pnd
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: ph_pnd
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(:, :, :) :: palb_cs
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(:, :, :) :: palb_os
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: pt_su
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: ph_ice
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: ph_snw
+    LOGICAL, INTENT(IN   ) :: ld_pnd_alb
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: pafrac_pnd
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(:, :, :) :: ph_pnd
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(:, :, :) :: palb_cs
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(:, :, :) :: palb_os
     INTEGER :: ji, jj, jl
     REAL(KIND = wp) :: z1_c1, z1_c2, z1_c3, z1_c4
     REAL(KIND = wp) :: z1_href_pnd
@@ -40,6 +40,7 @@ MODULE icealb
     z1_c3 = 1. / 0.02
     z1_c4 = 1. / 0.03
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (ph_snw(ji, jj, jl) == 0._wp) THEN

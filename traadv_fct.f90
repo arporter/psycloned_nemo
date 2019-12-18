@@ -25,15 +25,15 @@ MODULE traadv_fct
   CONTAINS
   SUBROUTINE tra_adv_fct(kt, kit000, cdtype, p2dt, pun, pvn, pwn, ptb, ptn, pta, kjpt, kn_fct_h, kn_fct_v)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    INTEGER, INTENT(IN ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
-    INTEGER, INTENT(IN ) :: kjpt
-    INTEGER, INTENT(IN ) :: kn_fct_h
-    INTEGER, INTENT(IN ) :: kn_fct_v
-    REAL(KIND = wp), INTENT(IN ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun, pvn, pwn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb, ptn
+    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN   ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    INTEGER, INTENT(IN   ) :: kjpt
+    INTEGER, INTENT(IN   ) :: kn_fct_h
+    INTEGER, INTENT(IN   ) :: kn_fct_v
+    REAL(KIND = wp), INTENT(IN   ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun, pvn, pwn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb, ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp) :: ztra
@@ -82,6 +82,7 @@ MODULE traadv_fct
     DO jn = 1, kjpt
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zfp_ui = pun(ji, jj, jk) + ABS(pun(ji, jj, jk))
@@ -94,6 +95,7 @@ MODULE traadv_fct
         END DO
       END DO
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zfp_wk = pwn(ji, jj, jk) + ABS(pwn(ji, jj, jk))
@@ -106,6 +108,7 @@ MODULE traadv_fct
       IF (ln_linssh) THEN
         IF (ln_isfcav) THEN
           !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpj
             DO ji = 1, jpi
               zwz(ji, jj, mikt(ji, jj)) = pwn(ji, jj, mikt(ji, jj)) * ptb(ji, jj, mikt(ji, jj), jn)
@@ -120,6 +123,7 @@ MODULE traadv_fct
       END IF
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ztra = - (zwx(ji, jj, jk) - zwx(ji - 1, jj, jk) + zwy(ji, jj, jk) - zwy(ji, jj - 1, jk) + zwz(ji, jj, jk) - zwz(ji, jj, jk + 1)) * r1_e1e2t(ji, jj)
@@ -142,6 +146,7 @@ MODULE traadv_fct
       CASE (2)
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zwx(ji, jj, jk) = 0.5_wp * pun(ji, jj, jk) * (ptn(ji, jj, jk, jn) + ptn(ji + 1, jj, jk, jn)) - zwx(ji, jj, jk)
@@ -157,12 +162,14 @@ MODULE traadv_fct
         !$ACC END KERNELS
         DO jk = 1, jpkm1
           !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               ztu(ji, jj, jk) = (ptn(ji + 1, jj, jk, jn) - ptn(ji, jj, jk, jn)) * umask(ji, jj, jk)
               ztv(ji, jj, jk) = (ptn(ji, jj + 1, jk, jn) - ptn(ji, jj, jk, jn)) * vmask(ji, jj, jk)
             END DO
           END DO
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               zltu(ji, jj, jk) = (ztu(ji, jj, jk) + ztu(ji - 1, jj, jk)) * r1_6
@@ -174,6 +181,7 @@ MODULE traadv_fct
         CALL lbc_lnk_multi(zltu, 'T', 1., zltv, 'T', 1.)
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zC2t_u = ptn(ji, jj, jk, jn) + ptn(ji + 1, jj, jk, jn)
@@ -189,6 +197,7 @@ MODULE traadv_fct
         ztu(:, :, jpk) = 0._wp
         ztv(:, :, jpk) = 0._wp
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               ztu(ji, jj, jk) = (ptn(ji + 1, jj, jk, jn) - ptn(ji, jj, jk, jn)) * umask(ji, jj, jk)
@@ -200,6 +209,7 @@ MODULE traadv_fct
         CALL lbc_lnk_multi(ztu, 'U', - 1., ztv, 'V', - 1.)
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               zC2t_u = ptn(ji, jj, jk, jn) + ptn(ji + 1, jj, jk, jn)
@@ -217,6 +227,7 @@ MODULE traadv_fct
       CASE (2)
         !$ACC KERNELS
         DO jk = 2, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               zwz(ji, jj, jk) = (pwn(ji, jj, jk) * 0.5_wp * (ptn(ji, jj, jk, jn) + ptn(ji, jj, jk - 1, jn)) - zwz(ji, jj, jk)) * wmask(ji, jj, jk)
@@ -228,6 +239,7 @@ MODULE traadv_fct
         CALL interp_4th_cpt(ptn(:, :, :, jn), ztw)
         !$ACC KERNELS
         DO jk = 2, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               zwz(ji, jj, jk) = (pwn(ji, jj, jk) * ztw(ji, jj, jk) - zwz(ji, jj, jk)) * wmask(ji, jj, jk)
@@ -247,6 +259,7 @@ MODULE traadv_fct
       CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (zwx(ji, jj, jk) - zwx(ji - 1, jj, jk) + zwy(ji, jj, jk) - zwy(ji, jj - 1, jk) + zwz(ji, jj, jk) - zwz(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
@@ -286,8 +299,8 @@ MODULE traadv_fct
     CALL ProfileEnd(psy_profile3)
   END SUBROUTINE tra_adv_fct
   SUBROUTINE nonosc(pbef, paa, pbb, pcc, paft, p2dt)
-    REAL(KIND = wp), INTENT(IN ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pbef, paft
+    REAL(KIND = wp), INTENT(IN   ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pbef, paft
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: paa, pbb, pcc
     INTEGER :: ji, jj, jk
     INTEGER :: ikm1
@@ -303,6 +316,7 @@ MODULE traadv_fct
     zbdo = MIN(pbef * tmask + zbig * (1._wp - tmask), paft * tmask + zbig * (1._wp - tmask))
     DO jk = 1, jpkm1
       ikm1 = MAX(jk - 1, 1)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zup = MAX(zbup(ji, jj, jk), zbup(ji - 1, jj, jk), zbup(ji + 1, jj, jk), zbup(ji, jj - 1, jk), zbup(ji, jj + 1, jk), zbup(ji, jj, ikm1), zbup(ji, jj, jk + 1))
@@ -319,6 +333,7 @@ MODULE traadv_fct
     CALL lbc_lnk_multi(zbetup, 'T', 1., zbetdo, 'T', 1.)
     !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zau = MIN(1._wp, zbetdo(ji, jj, jk), zbetup(ji + 1, jj, jk))
@@ -341,8 +356,8 @@ MODULE traadv_fct
   END SUBROUTINE nonosc
   SUBROUTINE interp_4th_cpt_org(pt_in, pt_out)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pt_in
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: pt_out
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pt_in
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: pt_out
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwd, zwi, zws, zwrm, zwt
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -366,6 +381,7 @@ MODULE traadv_fct
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     jk = 2
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zwd(ji, jj, jk) = 1._wp
@@ -374,36 +390,42 @@ MODULE traadv_fct
         zwrm(ji, jj, jk) = 0.5 * (pt_in(ji, jj, jk - 1) + pt_in(ji, jj, jk))
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zwt(ji, jj, 2) = zwd(ji, jj, 2)
       END DO
     END DO
     DO jk = 3, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zwt(ji, jj, jk) = zwd(ji, jj, jk) - zwi(ji, jj, jk) * zws(ji, jj, jk - 1) / zwt(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         pt_out(ji, jj, 2) = zwrm(ji, jj, 2)
       END DO
     END DO
     DO jk = 3, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           pt_out(ji, jj, jk) = zwrm(ji, jj, jk) - zwi(ji, jj, jk) / zwt(ji, jj, jk - 1) * pt_out(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         pt_out(ji, jj, jpkm1) = pt_out(ji, jj, jpkm1) / zwt(ji, jj, jpkm1)
       END DO
     END DO
     DO jk = jpk - 2, 2, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           pt_out(ji, jj, jk) = (pt_out(ji, jj, jk) - zws(ji, jj, jk) * pt_out(ji, jj, jk + 1)) / zwt(ji, jj, jk)
@@ -413,13 +435,14 @@ MODULE traadv_fct
     !$ACC END KERNELS
   END SUBROUTINE interp_4th_cpt_org
   SUBROUTINE interp_4th_cpt(pt_in, pt_out)
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pt_in
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: pt_out
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pt_in
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: pt_out
     INTEGER :: ji, jj, jk
     INTEGER :: ikt, ikb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwd, zwi, zws, zwrm, zwt
     !$ACC KERNELS
     DO jk = 3, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zwd(ji, jj, jk) = 3._wp * wmask(ji, jj, jk) + 1._wp
@@ -439,6 +462,7 @@ MODULE traadv_fct
       !$ACC END KERNELS
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ikt = mikt(ji, jj) + 1
@@ -453,36 +477,42 @@ MODULE traadv_fct
         zwrm(ji, jj, ikb) = 0.5_wp * (pt_in(ji, jj, ikb - 1) + pt_in(ji, jj, ikb))
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zwt(ji, jj, 2) = zwd(ji, jj, 2)
       END DO
     END DO
     DO jk = 3, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zwt(ji, jj, jk) = zwd(ji, jj, jk) - zwi(ji, jj, jk) * zws(ji, jj, jk - 1) / zwt(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         pt_out(ji, jj, 2) = zwrm(ji, jj, 2)
       END DO
     END DO
     DO jk = 3, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           pt_out(ji, jj, jk) = zwrm(ji, jj, jk) - zwi(ji, jj, jk) / zwt(ji, jj, jk - 1) * pt_out(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         pt_out(ji, jj, jpkm1) = pt_out(ji, jj, jpkm1) / zwt(ji, jj, jpkm1)
       END DO
     END DO
     DO jk = jpk - 2, 2, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           pt_out(ji, jj, jk) = (pt_out(ji, jj, jk) - zws(ji, jj, jk) * pt_out(ji, jj, jk + 1)) / zwt(ji, jj, jk)
@@ -492,45 +522,51 @@ MODULE traadv_fct
     !$ACC END KERNELS
   END SUBROUTINE interp_4th_cpt
   SUBROUTINE tridia_solver(pD, pU, pL, pRHS, pt_out, klev)
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pD, pU, PL
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pRHS
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: pt_out
-    INTEGER, INTENT(IN ) :: klev
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pD, pU, PL
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pRHS
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pt_out
+    INTEGER, INTENT(IN   ) :: klev
     INTEGER :: ji, jj, jk
     INTEGER :: kstart
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwt
     !$ACC KERNELS
     kstart = 1 + klev
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zwt(ji, jj, kstart) = pD(ji, jj, kstart)
       END DO
     END DO
     DO jk = kstart + 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zwt(ji, jj, jk) = pD(ji, jj, jk) - pL(ji, jj, jk) * pU(ji, jj, jk - 1) / zwt(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         pt_out(ji, jj, kstart) = pRHS(ji, jj, kstart)
       END DO
     END DO
     DO jk = kstart + 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           pt_out(ji, jj, jk) = pRHS(ji, jj, jk) - pL(ji, jj, jk) / zwt(ji, jj, jk - 1) * pt_out(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         pt_out(ji, jj, jpkm1) = pt_out(ji, jj, jpkm1) / zwt(ji, jj, jpkm1)
       END DO
     END DO
     DO jk = jpk - 2, kstart, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           pt_out(ji, jj, jk) = (pt_out(ji, jj, jk) - pU(ji, jj, jk) * pt_out(ji, jj, jk + 1)) / zwt(ji, jj, jk)

@@ -68,6 +68,7 @@ MODULE sbcwave
     IF (ll_st_bv_li) THEN
       !$ACC KERNELS
       zfac = 2.0_wp * rpi / 16.0_wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           ztransp = zfac * hsw(ji, jj) * hsw(ji, jj) / MAX(wmp(ji, jj), 0.0000001_wp)
@@ -75,6 +76,7 @@ MODULE sbcwave
           zk_t(ji, jj) = ABS(tsd2d(ji, jj)) / MAX(ABS(5.97_wp * ztransp), 0.0000001_wp)
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zk_u(ji, jj) = 0.5_wp * (zk_t(ji, jj) + zk_t(ji + 1, jj))
@@ -86,11 +88,13 @@ MODULE sbcwave
       !$ACC END KERNELS
     ELSE IF (ll_st_peakfr) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zk_t(ji, jj) = (2.0_wp * rpi * wfreq(ji, jj)) * (2.0_wp * rpi * wfreq(ji, jj)) / grav
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zk_u(ji, jj) = 0.5_wp * (zk_t(ji, jj) + zk_t(ji + 1, jj))
@@ -104,6 +108,7 @@ MODULE sbcwave
     IF (ll_st_bv2014) THEN
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zdep_u = 0.5_wp * (gdept_n(ji, jj, jk) + gdept_n(ji + 1, jj, jk))
@@ -121,6 +126,7 @@ MODULE sbcwave
     ELSE IF (ll_st_li2017 .OR. ll_st_peakfr) THEN
       ALLOCATE(zstokes_psi_u_top(jpi, jpj), zstokes_psi_v_top(jpi, jpj))
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zstokes_psi_u_top(ji, jj) = 0._wp
@@ -130,6 +136,7 @@ MODULE sbcwave
       zsqrtpi = SQRT(rpi)
       z_two_thirds = 2.0_wp / 3.0_wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zbot_u = (gdepw_n(ji, jj, jk + 1) + gdepw_n(ji + 1, jj, jk + 1))
@@ -161,6 +168,7 @@ MODULE sbcwave
     CALL lbc_lnk_multi(usd, 'U', - 1., vsd, 'V', - 1.)
     !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj
         DO ji = 2, jpi
           ze3divh(ji, jj, jk) = (e2u(ji, jj) * e3u_n(ji, jj, jk) * usd(ji, jj, jk) - e2u(ji - 1, jj) * e3u_n(ji - 1, jj, jk) * usd(ji - 1, jj, jk) + e1v(ji, jj) * e3v_n(ji, jj, jk) * vsd(ji, jj, jk) - e1v(ji, jj - 1) * e3v_n(ji, jj - 1, jk) * vsd(ji, jj - 1, jk)) * r1_e1e2t(ji, jj)
@@ -213,6 +221,7 @@ MODULE sbcwave
     END IF
     IF (ln_tauw) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           utau(ji, jj) = 0.5_wp * (tauw_x(ji, jj) + tauw_x(ji + 1, jj))
@@ -226,7 +235,7 @@ MODULE sbcwave
   END SUBROUTINE sbc_wstress
   SUBROUTINE sbc_wave(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: kt
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('sbc_wave', 'r0', psy_profile0)
     IF (ln_cdgw .AND. .NOT. cpl_wdrag) THEN

@@ -56,10 +56,8 @@ MODULE iceupdate
       qemp_ice(:, :) = 0._wp
       qevap_ice(:, :, :) = 0._wp
       !$ACC END KERNELS
-   END IF
-   ! PSyclone - no support for array slices
-    !CALL ProfileStart('ice_update_flx', 'r1', psy_profile1)
-    !$ACC KERNELS
+    END IF
+    CALL ProfileStart('ice_update_flx', 'r1', psy_profile1)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zqsr = qsr_tot(ji, jj) - SUM(a_i_b(ji, jj, :) * (qsr_ice(ji, jj, :) - qtr_ice_bot(ji, jj, :)))
@@ -79,8 +77,8 @@ MODULE iceupdate
         snwice_fmass(ji, jj) = (snwice_mass(ji, jj) - snwice_mass_b(ji, jj)) * r1_rdtice
       END DO
     END DO
-    !CALL ProfileEnd(psy_profile1)
-    !CC KERNELS
+    CALL ProfileEnd(psy_profile1)
+    !$ACC KERNELS
     fr_i(:, :) = at_i(:, :)
     tn_ice(:, :, :) = t_su(:, :, :)
     !$ACC END KERNELS
@@ -185,6 +183,7 @@ MODULE iceupdate
     CALL ProfileEnd(psy_profile0)
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zu_t = u_ice(ji, jj) + u_ice(ji - 1, jj) - u_oce(ji, jj) - u_oce(ji - 1, jj)
@@ -202,6 +201,7 @@ MODULE iceupdate
       !$ACC END KERNELS
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zat_u = (at_i(ji, jj) * tmask(ji, jj, 1) + at_i(ji + 1, jj) * tmask(ji + 1, jj, 1)) / MAX(1.0_wp, tmask(ji, jj, 1) + tmask(ji + 1, jj, 1))

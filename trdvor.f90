@@ -41,8 +41,8 @@ MODULE trdvor
   SUBROUTINE trd_vor(putrd, pvtrd, ktrd, kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
-    INTEGER, INTENT(IN ) :: ktrd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: ktrd
+    INTEGER, INTENT(IN   ) :: kt
     INTEGER :: ji, jj
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztswu, ztswv
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -66,6 +66,7 @@ MODULE trdvor
       !$ACC KERNELS
       ztswu(:, :) = 0.E0
       ztswv(:, :) = 0.E0
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ztswu(ji, jj) = 0.5 * (utau_b(ji, jj) + utau(ji, jj)) / (e3u_n(ji, jj, 1) * rau0)
@@ -87,7 +88,7 @@ MODULE trdvor
   END SUBROUTINE trd_vor
   SUBROUTINE trd_vor_zint_2d(putrdvor, pvtrdvor, ktrd)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: ktrd
+    INTEGER, INTENT(IN   ) :: ktrd
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: putrdvor
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: pvtrdvor
     INTEGER :: ji, jj
@@ -102,6 +103,7 @@ MODULE trdvor
     !$ACC KERNELS
     SELECT CASE (ktrd)
     CASE (jpvor_bfr)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ikbu = mbkv(ji, jj)
@@ -132,7 +134,7 @@ MODULE trdvor
   END SUBROUTINE trd_vor_zint_2d
   SUBROUTINE trd_vor_zint_3d(putrdvor, pvtrdvor, ktrd)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: ktrd
+    INTEGER, INTENT(IN   ) :: ktrd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: putrdvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pvtrdvor
     INTEGER :: ji, jj, jk
@@ -181,7 +183,7 @@ MODULE trdvor
   END SUBROUTINE trd_vor_zint_3d
   SUBROUTINE trd_vor_iom(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: kt
     INTEGER :: ji, jj, jk, jl
     INTEGER :: it, itmod
     REAL(KIND = wp) :: zmean

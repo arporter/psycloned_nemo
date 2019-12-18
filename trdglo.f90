@@ -31,9 +31,9 @@ MODULE trdglo
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
-    INTEGER, INTENT(IN ) :: ktrd
-    CHARACTER(LEN = 3), INTENT(IN ) :: ctype
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: ktrd
+    CHARACTER(LEN = 3), INTENT(IN   ) :: ctype
+    INTEGER, INTENT(IN   ) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: ikbu, ikbv
     REAL(KIND = wp) :: zvm, zvt, zvs, z1_2rau0
@@ -44,6 +44,7 @@ MODULE trdglo
       CASE ('TRA')
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpj
             DO ji = 1, jpi
               zvm = e1e2t(ji, jj) * e3t_n(ji, jj, jk) * tmask(ji, jj, jk) * tmask_i(ji, jj)
@@ -75,6 +76,7 @@ MODULE trdglo
       CASE ('DYN')
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zvt = ptrdx(ji, jj, jk) * tmask_i(ji + 1, jj) * tmask_i(ji, jj) * umask(ji, jj, jk) * e1e2u(ji, jj) * e3u_n(ji, jj, jk)
@@ -87,6 +89,7 @@ MODULE trdglo
         END DO
         IF (ktrd == jpdyn_zdf) THEN
           z1_2rau0 = 0.5_wp / rau0
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zvt = (utau_b(ji, jj) + utau(ji, jj)) * tmask_i(ji + 1, jj) * tmask_i(ji, jj) * umask(ji, jj, jk) * z1_2rau0 * e1e2u(ji, jj)
@@ -124,6 +127,7 @@ MODULE trdglo
       END DO
       zcof = 0.5_wp / rau0
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zkx(ji, jj, jk) = zcof * e2u(ji, jj) * e3u_n(ji, jj, jk) * un(ji, jj, jk) * (rhop(ji, jj, jk) + rhop(ji + 1, jj, jk))
@@ -132,6 +136,7 @@ MODULE trdglo
         END DO
       END DO
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zkepe(ji, jj, jk) = - (zkz(ji, jj, jk) - zkz(ji, jj, jk + 1) + zkx(ji, jj, jk) - zkx(ji - 1, jj, jk) + zky(ji, jj, jk) - zky(ji, jj - 1, jk)) / (e1e2t(ji, jj) * e3t_n(ji, jj, jk)) * tmask(ji, jj, jk) * tmask_i(ji, jj)
@@ -359,6 +364,7 @@ MODULE trdglo
     tvolu = 0._wp
     tvolv = 0._wp
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           tvolu = tvolu + e1u(ji, jj) * e2u(ji, jj) * e3u_n(ji, jj, jk) * tmask_i(ji + 1, jj) * tmask_i(ji, jj) * umask(ji, jj, jk)

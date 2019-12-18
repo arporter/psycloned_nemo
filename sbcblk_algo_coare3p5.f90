@@ -20,20 +20,20 @@ MODULE sbcblk_algo_coare3p5
   CONTAINS
   SUBROUTINE turb_coare3p5(zt, zu, sst, t_zt, ssq, q_zt, U_zu, Cd, Ch, Ce, t_zu, q_zu, U_blk, Cdn, Chn, Cen)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), INTENT(IN ) :: zt
-    REAL(KIND = wp), INTENT(IN ) :: zu
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: sst
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: t_zt
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: ssq
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: q_zt
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: U_zu
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Cd
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Ch
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Ce
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: t_zu
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: q_zu
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: U_blk
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
+    REAL(KIND = wp), INTENT(IN   ) :: zt
+    REAL(KIND = wp), INTENT(IN   ) :: zu
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: sst
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: t_zt
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: ssq
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: q_zt
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: U_zu
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Cd
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Ch
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Ce
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: t_zu
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: q_zu
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: U_blk
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
     INTEGER :: j_itt
     LOGICAL :: l_zt_equal_zu = .FALSE.
     INTEGER, PARAMETER :: nb_itt = 4
@@ -136,6 +136,7 @@ MODULE sbcblk_algo_coare3p5
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zqa
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zqa = (1. + rctv0 * pqa(ji, jj))
@@ -150,6 +151,7 @@ MODULE sbcblk_algo_coare3p5
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zta, zphi_m, zphi_c, zpsi_k, zpsi_c, zf, zc, zstab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zta = pzeta(ji, jj)
@@ -172,6 +174,7 @@ MODULE sbcblk_algo_coare3p5
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zta, zphi_h, zphi_c, zpsi_k, zpsi_c, zf, zc, zstab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zta = pzeta(ji, jj)
@@ -194,6 +197,7 @@ MODULE sbcblk_algo_coare3p5
     INTEGER :: ji, jj
     REAL(KIND = wp) :: ztc, ztc2
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ztc = ptak(ji, jj) - rt0

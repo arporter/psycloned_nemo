@@ -17,8 +17,8 @@ MODULE depth_e3
   PUBLIC :: e3_to_depth
   CONTAINS
   SUBROUTINE depth_to_e3_1d(pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d)
-    REAL(KIND = wp), DIMENSION(:), INTENT(IN ) :: pdept_1d, pdepw_1d
-    REAL(KIND = wp), DIMENSION(:), INTENT( OUT) :: pe3t_1d, pe3w_1d
+    REAL(KIND = wp), DIMENSION(:), INTENT(IN   ) :: pdept_1d, pdepw_1d
+    REAL(KIND = wp), DIMENSION(:), INTENT(  OUT) :: pe3t_1d, pe3w_1d
     INTEGER :: jk
     !$ACC KERNELS
     pe3w_1d(1) = 2._wp * (pdept_1d(1) - pdepw_1d(1))
@@ -30,8 +30,8 @@ MODULE depth_e3
     !$ACC END KERNELS
   END SUBROUTINE depth_to_e3_1d
   SUBROUTINE depth_to_e3_3d(pdept_3d, pdepw_3d, pe3t_3d, pe3w_3d)
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pdept_3d, pdepw_3d
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: pe3t_3d, pe3w_3d
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdept_3d, pdepw_3d
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pe3t_3d, pe3w_3d
     INTEGER :: jk
     !$ACC KERNELS
     pe3w_3d(:, :, 1) = 2._wp * (pdept_3d(:, :, 1) - pdepw_3d(:, :, 1))
@@ -47,8 +47,8 @@ MODULE depth_e3
     !$ACC END KERNELS
   END SUBROUTINE depth_to_e3_3d
   SUBROUTINE e3_to_depth_1d(pe3t_1d, pe3w_1d, pdept_1d, pdepw_1d)
-    REAL(KIND = wp), DIMENSION(:), INTENT(IN ) :: pe3t_1d, pe3w_1d
-    REAL(KIND = wp), DIMENSION(:), INTENT( OUT) :: pdept_1d, pdepw_1d
+    REAL(KIND = wp), DIMENSION(:), INTENT(IN   ) :: pe3t_1d, pe3w_1d
+    REAL(KIND = wp), DIMENSION(:), INTENT(  OUT) :: pdept_1d, pdepw_1d
     INTEGER :: jk
     !$ACC KERNELS
     pdepw_1d(1) = 0.0_wp
@@ -60,8 +60,8 @@ MODULE depth_e3
     !$ACC END KERNELS
   END SUBROUTINE e3_to_depth_1d
   SUBROUTINE e3_to_depth_3d(pe3t_3d, pe3w_3d, pdept_3d, pdepw_3d)
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pe3t_3d, pe3w_3d
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: pdept_3d, pdepw_3d
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pe3t_3d, pe3w_3d
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pdept_3d, pdepw_3d
     INTEGER :: jk
     !$ACC KERNELS
     pdepw_3d(:, :, 1) = 0.0_wp

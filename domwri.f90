@@ -65,6 +65,7 @@ MODULE domwri
     CALL dom_uniq(zprw, 'T')
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zprt(ji, jj) = ssmask(ji, jj) * zprw(ji, jj)
@@ -76,6 +77,7 @@ MODULE domwri
     CALL dom_uniq(zprw, 'U')
     CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zprt(ji, jj) = ssumask(ji, jj) * zprw(ji, jj)
@@ -87,6 +89,7 @@ MODULE domwri
     CALL dom_uniq(zprw, 'V')
     CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zprt(ji, jj) = ssvmask(ji, jj) * zprw(ji, jj)
@@ -145,7 +148,7 @@ MODULE domwri
   END SUBROUTINE dom_wri
   SUBROUTINE dom_uniq(puniq, cdgrd)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 1), INTENT(IN ) :: cdgrd
+    CHARACTER(LEN = 1), INTENT(IN   ) :: cdgrd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: puniq
     REAL(KIND = wp) :: zshift
     INTEGER :: ji

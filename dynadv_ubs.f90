@@ -50,6 +50,7 @@ MODULE dynadv_ubs
       !$ACC KERNELS
       zfu(:, :, jk) = e2u(:, :) * e3u_n(:, :, jk) * un(:, :, jk)
       zfv(:, :, jk) = e1v(:, :) * e3v_n(:, :, jk) * vn(:, :, jk)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zlu_uu(ji, jj, jk, 1) = (ub(ji + 1, jj, jk) - 2. * ub(ji, jj, jk) + ub(ji - 1, jj, jk)) * umask(ji, jj, jk)
@@ -69,6 +70,7 @@ MODULE dynadv_ubs
       !$ACC KERNELS
       zfu(:, :, jk) = 0.25_wp * e2u(:, :) * e3u_n(:, :, jk) * un(:, :, jk)
       zfv(:, :, jk) = 0.25_wp * e1v(:, :) * e3v_n(:, :, jk) * vn(:, :, jk)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zui = (un(ji, jj, jk) + un(ji + 1, jj, jk))
@@ -101,6 +103,7 @@ MODULE dynadv_ubs
           zfu_f(ji, jj, jk) = (zfuj - gamma2 * (zlu_uv(ji, jj, jk, 2) + zlu_uv(ji, jj + 1, jk, 2))) * (vn(ji, jj, jk) + vn(ji + 1, jj, jk) - gamma1 * zl_v)
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ua(ji, jj, jk) = ua(ji, jj, jk) - (zfu_t(ji + 1, jj, jk) - zfu_t(ji, jj, jk) + zfv_f(ji, jj, jk) - zfv_f(ji, jj - 1, jk)) * r1_e1e2u(ji, jj) / e3u_n(ji, jj, jk)
@@ -121,6 +124,7 @@ MODULE dynadv_ubs
       !$ACC END KERNELS
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zfu_uw(ji, jj, jpk) = 0._wp
@@ -132,6 +136,7 @@ MODULE dynadv_ubs
     !$ACC END KERNELS
     IF (ln_linssh) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zfu_uw(ji, jj, 1) = 0.5_wp * (e1e2t(ji, jj) * wn(ji, jj, 1) + e1e2t(ji + 1, jj) * wn(ji + 1, jj, 1)) * un(ji, jj, 1)
@@ -142,11 +147,13 @@ MODULE dynadv_ubs
     END IF
     DO jk = 2, jpkm1
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj
         DO ji = 2, jpi
           zfw(ji, jj, jk) = 0.25_wp * e1e2t(ji, jj) * wn(ji, jj, jk)
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zfu_uw(ji, jj, jk) = (zfw(ji, jj, jk) + zfw(ji + 1, jj, jk)) * (un(ji, jj, jk) + un(ji, jj, jk - 1))
@@ -157,6 +164,7 @@ MODULE dynadv_ubs
     END DO
     !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ua(ji, jj, jk) = ua(ji, jj, jk) - (zfu_uw(ji, jj, jk) - zfu_uw(ji, jj, jk + 1)) * r1_e1e2u(ji, jj) / e3u_n(ji, jj, jk)

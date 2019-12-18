@@ -135,6 +135,7 @@ MODULE icevar
     DO jl = 1, jpl
       !$ACC KERNELS
       DO jk = 1, nlay_i
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (v_i(ji, jj, jl) > epsi20) THEN
@@ -208,6 +209,7 @@ MODULE icevar
       END WHERE
       z1_dS = 1._wp / (zsi1 - zsi0)
       DO jl = 1, jpl
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zalpha(ji, jj, jl) = MAX(0._wp, MIN((zsi1 - s_i(ji, jj, jl)) * z1_dS, 1._wp))
@@ -317,6 +319,7 @@ MODULE icevar
         zswitch(:, :) = 1._wp
       END WHERE
       DO jk = 1, nlay_i
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             hfx_res(ji, jj) = hfx_res(ji, jj) - (1._wp - zswitch(ji, jj)) * e_i(ji, jj, jk, jl) * r1_rdtice
@@ -326,6 +329,7 @@ MODULE icevar
         END DO
       END DO
       DO jk = 1, nlay_s
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             hfx_res(ji, jj) = hfx_res(ji, jj) - (1._wp - zswitch(ji, jj)) * e_s(ji, jj, jk, jl) * r1_rdtice
@@ -334,6 +338,7 @@ MODULE icevar
           END DO
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           sfx_res(ji, jj) = sfx_res(ji, jj) + (1._wp - zswitch(ji, jj)) * sv_i(ji, jj, jl) * rhoi * r1_rdtice
@@ -379,6 +384,7 @@ MODULE icevar
     DO jl = 1, jpl
       !$ACC KERNELS
       DO jk = 1, nlay_i
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (pe_i(ji, jj, jk, jl) < 0._wp) THEN
@@ -389,6 +395,7 @@ MODULE icevar
         END DO
       END DO
       DO jk = 1, nlay_s
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (pe_s(ji, jj, jk, jl) < 0._wp) THEN
@@ -398,6 +405,7 @@ MODULE icevar
           END DO
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (pv_i(ji, jj, jl) < 0._wp) THEN

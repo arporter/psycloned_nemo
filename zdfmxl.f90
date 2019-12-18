@@ -59,6 +59,7 @@ MODULE zdfmxl
     hmlp(:, :) = 0._wp
     zN2_c = grav * rho_c * r1_rau0
     DO jk = nlb10, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           ikt = mbkt(ji, jj)
@@ -69,12 +70,14 @@ MODULE zdfmxl
     END DO
     imld(:, :) = mbkt(:, :) + 1
     DO jk = jpkm1, nlb10, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (avt(ji, jj, jk) < avt_c * wmask(ji, jj, jk)) imld(ji, jj) = jk
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         iiki = imld(ji, jj)
@@ -206,6 +209,7 @@ MODULE zdfmxl
       CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       hmld_zint(:, :) = rn_zref
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (ll_found(ji, jj) .AND. tmask(ji, jj, 1) == 1.0) THEN
@@ -223,6 +227,7 @@ MODULE zdfmxl
     DO jk = 1, jpk
       ll_belowml(:, :, jk) = ABS(zT(:, :, jk) - zT_ref(:, :)) >= zdelta_T(:, :)
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (.NOT. ll_found(ji, jj)) hmld_zint(ji, jj) = gdept_n(ji, jj, ikmt(ji, jj))
@@ -273,6 +278,7 @@ MODULE zdfmxl
     !$ACC END KERNELS
     DO jk = 1, jpkm1
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zthick_0(ji, jj) = zthick_0(ji, jj) + e3t_n(ji, jj, jk)
@@ -301,6 +307,7 @@ MODULE zdfmxl
     CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     DO jk = 1, ikmax
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zc = e3t_n(ji, jj, jk) * REAL(MIN(MAX(0, ilevel(ji, jj) - jk + 1), 1))
@@ -310,6 +317,7 @@ MODULE zdfmxl
       END DO
     END DO
     zthick(:, :) = hmld_zint(:, :) - zthick(:, :)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         htc_mld(ji, jj) = htc_mld(ji, jj) + tsn(ji, jj, ilevel(ji, jj) + 1, jp_tem) * MIN(e3t_n(ji, jj, ilevel(ji, jj) + 1), zthick(ji, jj)) * tmask(ji, jj, ilevel(ji, jj) + 1)

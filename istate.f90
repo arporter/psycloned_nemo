@@ -66,6 +66,7 @@ MODULE istate
     ub_b(:, :) = 0._wp
     vb_b(:, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           un_b(ji, jj) = un_b(ji, jj) + e3u_n(ji, jj, jk) * un(ji, jj, jk) * umask(ji, jj, jk)

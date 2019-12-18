@@ -147,6 +147,7 @@ MODULE diaar5
       ztemp = 0._wp
       zsal = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zztmp = area(ji, jj) * e3t_n(ji, jj, jk)
@@ -194,6 +195,7 @@ MODULE diaar5
       IF (ln_zdfddm) THEN
         !$ACC KERNELS
         DO jk = 2, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpj
             DO ji = 1, jpi
               IF (rn2(ji, jj, jk) > 0._wp) THEN
@@ -244,6 +246,7 @@ MODULE diaar5
     !$ACC KERNELS
     z2d(:, :) = pua(:, :, 1)
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           z2d(ji, jj) = z2d(ji, jj) + pua(ji, jj, jk)
@@ -265,6 +268,7 @@ MODULE diaar5
     !$ACC KERNELS
     z2d(:, :) = pva(:, :, 1)
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           z2d(ji, jj) = z2d(ji, jj) + pva(ji, jj, jk)
@@ -322,6 +326,7 @@ MODULE diaar5
         !$ACC END KERNELS
         IF (ln_zps) THEN
           !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpj
             DO ji = 1, jpi
               ik = mbkt(ji, jj)

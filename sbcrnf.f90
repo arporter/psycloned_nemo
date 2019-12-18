@@ -142,6 +142,7 @@ MODULE sbcrnf
         END DO
       ELSE
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             h_rnf(ji, jj) = 0._wp
@@ -271,6 +272,7 @@ MODULE sbcrnf
         END DO
       END DO
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           h_rnf(ji, jj) = 0._wp
@@ -302,6 +304,7 @@ MODULE sbcrnf
       h_rnf(:, :) = 1.
       zacoef = rn_dep_max / rn_rnf_max
       WHERE (zrnf(:, :) > 0._wp) h_rnf(:, :) = zacoef * zrnf(:, :)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (zrnf(ji, jj) > 0._wp) THEN
@@ -327,6 +330,7 @@ MODULE sbcrnf
       END DO
       DEALLOCATE(zrnf)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           h_rnf(ji, jj) = 0._wp

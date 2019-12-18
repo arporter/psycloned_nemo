@@ -20,10 +20,10 @@ MODULE geo2ocean
   CONTAINS
   SUBROUTINE rot_rep(pxin, pyin, cd_type, cdtodo, prot)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pxin, pyin
-    CHARACTER(LEN = 1), INTENT(IN ) :: cd_type
-    CHARACTER(LEN = 5), INTENT(IN ) :: cdtodo
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: prot
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pxin, pyin
+    CHARACTER(LEN = 1), INTENT(IN   ) :: cd_type
+    CHARACTER(LEN = 5), INTENT(IN   ) :: cdtodo
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: prot
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('rot_rep', 'r0', psy_profile0)
     IF (lmust_init) THEN
@@ -144,6 +144,7 @@ MODULE geo2ocean
     IF (ierr /= 0) CALL ctl_stop('angle: unable to allocate arrays')
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpi
         zlam = glamt(ji, jj)
@@ -208,6 +209,7 @@ MODULE geo2ocean
         gcosv(ji, jj) = - (zxnpv * zyffv - zynpv * zxffv) / znffv
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpi
         IF (MOD(ABS(glamv(ji, jj) - glamv(ji, jj - 1)), 360.) < 1.E-8) THEN
@@ -233,9 +235,9 @@ MODULE geo2ocean
   END SUBROUTINE angle
   SUBROUTINE geo2oce(pxx, pyy, pzz, cgrid, pte, ptn)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pxx, pyy, pzz
-    CHARACTER(LEN = 1), INTENT(IN ) :: cgrid
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: pte, ptn
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pxx, pyy, pzz
+    CHARACTER(LEN = 1), INTENT(IN   ) :: cgrid
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: pte, ptn
     REAL(KIND = wp), PARAMETER :: rpi = 3.141592653E0
     REAL(KIND = wp), PARAMETER :: rad = rpi / 180.E0
     INTEGER :: ig
@@ -320,9 +322,9 @@ MODULE geo2ocean
   END SUBROUTINE geo2oce
   SUBROUTINE oce2geo(pte, ptn, cgrid, pxx, pyy, pzz)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( IN ) :: pte, ptn
-    CHARACTER(LEN = 1), INTENT( IN ) :: cgrid
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT ) :: pxx, pyy, pzz
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( IN    ) :: pte, ptn
+    CHARACTER(LEN = 1), INTENT( IN    ) :: cgrid
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(   OUT ) :: pxx, pyy, pzz
     REAL(KIND = wp), PARAMETER :: rpi = 3.141592653E0
     REAL(KIND = wp), PARAMETER :: rad = rpi / 180.E0
     INTEGER :: ig

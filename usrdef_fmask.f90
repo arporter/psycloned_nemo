@@ -10,8 +10,8 @@ MODULE usrdef_fmask
   CONTAINS
   SUBROUTINE usr_def_fmask(cd_cfg, kcfg, pfmsk)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = *), INTENT(IN ) :: cd_cfg
-    INTEGER, INTENT(IN ) :: kcfg
+    CHARACTER(LEN = *), INTENT(IN   ) :: cd_cfg
+    INTEGER, INTENT(IN   ) :: kcfg
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: pfmsk
     INTEGER :: iif, iil, ii0, ii1, ii
     INTEGER :: ijf, ijl, ij0, ij1

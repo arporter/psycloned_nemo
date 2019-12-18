@@ -48,6 +48,7 @@ MODULE tradmp
       DO jn = 1, jpts
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               tsa(ji, jj, jk, jn) = tsa(ji, jj, jk, jn) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jn) - tsb(ji, jj, jk, jn))
@@ -59,6 +60,7 @@ MODULE tradmp
     CASE (1)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (avt(ji, jj, jk) <= 5.E-4_wp) THEN
@@ -72,6 +74,7 @@ MODULE tradmp
     CASE (2)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (gdept_n(ji, jj, jk) >= hmlp(ji, jj)) THEN

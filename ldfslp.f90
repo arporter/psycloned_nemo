@@ -63,6 +63,7 @@ MODULE ldfslp
     zww(:, :, :) = 0._wp
     zwz(:, :, :) = 0._wp
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zgru(ji, jj, jk) = umask(ji, jj, jk) * (prd(ji + 1, jj, jk) - prd(ji, jj, jk))
@@ -73,6 +74,7 @@ MODULE ldfslp
     !$ACC END KERNELS
     IF (ln_zps) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zgru(ji, jj, mbku(ji, jj)) = gru(ji, jj)
@@ -83,6 +85,7 @@ MODULE ldfslp
     END IF
     !$ACC KERNELS
     IF (ln_zps .AND. ln_isfcav) THEN
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           IF (miku(ji, jj) > 1) zgru(ji, jj, miku(ji, jj)) = grui(ji, jj)
@@ -98,6 +101,7 @@ MODULE ldfslp
     CALL ldf_slp_mxl(prd, pn2, zgru, zgrv, zdzr)
     IF (ln_isfcav) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zslpml_hmlpu(ji, jj) = uslpml(ji, jj) / (MAX(hmlpt(ji, jj), hmlpt(ji + 1, jj), 5._wp) - MAX(risfdep(ji, jj), risfdep(ji + 1, jj)))
@@ -107,6 +111,7 @@ MODULE ldfslp
       !$ACC END KERNELS
     ELSE
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zslpml_hmlpu(ji, jj) = uslpml(ji, jj) / MAX(hmlpt(ji, jj), hmlpt(ji + 1, jj), 5._wp)
@@ -117,6 +122,7 @@ MODULE ldfslp
     END IF
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zau = zgru(ji, jj, jk) * r1_e1u(ji, jj)
@@ -138,18 +144,21 @@ MODULE ldfslp
     CALL lbc_lnk_multi(zwz, 'U', - 1., zww, 'V', - 1.)
     DO jk = 2, jpkm1
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1, MAX(1, jpj - 3)
         DO ji = 2, jpim1
           uslp(ji, jj, jk) = z1_16 * (zwz(ji - 1, jj - 1, jk) + zwz(ji + 1, jj - 1, jk) + zwz(ji - 1, jj + 1, jk) + zwz(ji + 1, jj + 1, jk) + 2. * (zwz(ji, jj - 1, jk) + zwz(ji - 1, jj, jk) + zwz(ji + 1, jj, jk) + zwz(ji, jj + 1, jk)) + 4. * zwz(ji, jj, jk))
           vslp(ji, jj, jk) = z1_16 * (zww(ji - 1, jj - 1, jk) + zww(ji + 1, jj - 1, jk) + zww(ji - 1, jj + 1, jk) + zww(ji + 1, jj + 1, jk) + 2. * (zww(ji, jj - 1, jk) + zww(ji - 1, jj, jk) + zww(ji + 1, jj, jk) + zww(ji, jj + 1, jk)) + 4. * zww(ji, jj, jk))
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 3, jpj - 2
         DO ji = 2, jpim1
           uslp(ji, jj, jk) = z1_16 * (zwz(ji - 1, jj - 1, jk) + zwz(ji + 1, jj - 1, jk) + zwz(ji - 1, jj + 1, jk) + zwz(ji + 1, jj + 1, jk) + 2. * (zwz(ji, jj - 1, jk) + zwz(ji - 1, jj, jk) + zwz(ji + 1, jj, jk) + zwz(ji, jj + 1, jk)) + 4. * zwz(ji, jj, jk))
           vslp(ji, jj, jk) = z1_16 * (zww(ji - 1, jj - 1, jk) + zww(ji + 1, jj - 1, jk) + zww(ji - 1, jj + 1, jk) + zww(ji + 1, jj + 1, jk) + 2. * (zww(ji, jj - 1, jk) + zww(ji - 1, jj, jk) + zww(ji + 1, jj, jk) + zww(ji, jj + 1, jk)) + 4. * zww(ji, jj, jk))
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           uslp(ji, jj, jk) = uslp(ji, jj, jk) * (umask(ji, jj + 1, jk) + umask(ji, jj - 1, jk)) * 0.5_wp * (umask(ji, jj, jk) + umask(ji, jj, jk + 1)) * 0.5_wp
@@ -160,6 +169,7 @@ MODULE ldfslp
     END DO
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zbw = zm1_2g * pn2(ji, jj, jk) * (prd(ji, jj, jk) + prd(ji, jj, jk - 1) + 2.)
@@ -180,6 +190,7 @@ MODULE ldfslp
     CALL lbc_lnk_multi(zwz, 'T', - 1., zww, 'T', - 1.)
     DO jk = 2, jpkm1
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1, MAX(1, jpj - 3)
         DO ji = 2, jpim1
           zcofw = wmask(ji, jj, jk) * z1_16
@@ -187,6 +198,7 @@ MODULE ldfslp
           wslpj(ji, jj, jk) = (zww(ji - 1, jj - 1, jk) + zww(ji + 1, jj - 1, jk) + zww(ji - 1, jj + 1, jk) + zww(ji + 1, jj + 1, jk) + 2. * (zww(ji, jj - 1, jk) + zww(ji - 1, jj, jk) + zww(ji + 1, jj, jk) + zww(ji, jj + 1, jk)) + 4. * zww(ji, jj, jk)) * zcofw
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 3, jpj - 2
         DO ji = 2, jpim1
           zcofw = wmask(ji, jj, jk) * z1_16
@@ -194,6 +206,7 @@ MODULE ldfslp
           wslpj(ji, jj, jk) = (zww(ji - 1, jj - 1, jk) + zww(ji + 1, jj - 1, jk) + zww(ji - 1, jj + 1, jk) + zww(ji + 1, jj + 1, jk) + 2. * (zww(ji, jj - 1, jk) + zww(ji - 1, jj, jk) + zww(ji + 1, jj, jk) + zww(ji, jj + 1, jk)) + 4. * zww(ji, jj, jk)) * zcofw
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zck = (umask(ji, jj, jk) + umask(ji - 1, jj, jk)) * (vmask(ji, jj, jk) + vmask(ji, jj - 1, jk)) * 0.25
@@ -237,6 +250,7 @@ MODULE ldfslp
       ip = jl
       jp = jl
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zdit = (tsb(ji + 1, jj, jk, jp_tem) - tsb(ji, jj, jk, jp_tem))
@@ -251,6 +265,7 @@ MODULE ldfslp
         END DO
       END DO
       IF (ln_zps .AND. l_grad_zps) THEN
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             iku = mbku(ji, jj)
@@ -271,6 +286,7 @@ MODULE ldfslp
     DO kp = 0, 1
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (jk + kp > 1) THEN
@@ -288,6 +304,7 @@ MODULE ldfslp
       !$ACC END KERNELS
     END DO
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         jk = MIN(nmln(ji, jj), mbkt(ji, jj)) + 1
@@ -305,6 +322,7 @@ MODULE ldfslp
     triadj(:, :, jpk, :, :) = 0._wp
     DO jl = 0, 1
       DO kp = 0, 1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             ip = jl
@@ -414,6 +432,7 @@ MODULE ldfslp
     wslpjml(1, :) = 0._wp
     wslpjml(jpi, :) = 0._wp
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           ik = nmln(ji, jj) - 1
@@ -425,6 +444,7 @@ MODULE ldfslp
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         iku = MIN(MAX(1, nmln(ji, jj), nmln(ji + 1, jj)), jpkm1)

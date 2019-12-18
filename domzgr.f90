@@ -173,6 +173,7 @@ MODULE domzgr
     !$ACC KERNELS
     mikt(:, :) = MAX(k_top(:, :), 1)
     mbkt(:, :) = MAX(k_bot(:, :), 1)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         miku(ji, jj) = MAX(mikt(ji + 1, jj), mikt(ji, jj))

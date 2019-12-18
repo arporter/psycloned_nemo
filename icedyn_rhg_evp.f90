@@ -19,6 +19,7 @@ MODULE icedyn_rhg_evp
   PUBLIC :: rhg_evp_rst
   CONTAINS
   SUBROUTINE ice_dyn_rhg_evp(kt, pstress1_i, pstress2_i, pstress12_i, pshear_i, pdivu_i, pdelta_i)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: pstress1_i, pstress2_i, pstress12_i
     REAL(KIND = wp), DIMENSION(:, :), INTENT(  OUT) :: pshear_i, pdivu_i, pdelta_i
@@ -75,8 +76,19 @@ MODULE icedyn_rhg_evp
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zdiag_ymtrp_snw
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zdiag_xatrp
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zdiag_yatrp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    TYPE(ProfileData), SAVE :: psy_profile8
+    TYPE(ProfileData), SAVE :: psy_profile9
     IF (kt == nit000 .AND. lwp) WRITE(numout, FMT = *) '-- ice_dyn_rhg_evp: EVP sea-ice rheology'
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         zfmask(ji, jj) = tmask(ji, jj, 1) * tmask(ji + 1, jj, 1) * tmask(ji, jj + 1, 1) * tmask(ji + 1, jj + 1, 1)
@@ -86,6 +98,8 @@ MODULE icedyn_rhg_evp
     CALL lbc_lnk(zfmask, 'F', 1._wp)
     !$ACC KERNELS
     zwf(:, :) = zfmask(:, :)
+    !$ACC END KERNELS
+    CALL ProfileStart('ice_dyn_rhg_evp', 'r0', psy_profile0)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (zfmask(ji, jj) == 0._wp) THEN
@@ -109,8 +123,8 @@ MODULE icedyn_rhg_evp
         zfmask(ji, jpj) = rn_ishlat * MIN(1._wp, MAX(zwf(ji + 1, jpj), zwf(ji - 1, jpj), zwf(ji, jpjm1)))
       END IF
     END DO
-    !$ACC END KERNELS
     CALL lbc_lnk(zfmask, 'F', 1._wp)
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zrhoco = rau0 * rn_cio
     ecc2 = rn_ecc * rn_ecc
@@ -129,25 +143,21 @@ MODULE icedyn_rhg_evp
     !$ACC END KERNELS
     CALL ice_strength
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         z1_e1t0(ji, jj) = 1._wp / (e1t(ji + 1, jj) + e1t(ji, jj))
         z1_e2t0(ji, jj) = 1._wp / (e2t(ji, jj + 1) + e2t(ji, jj))
       END DO
     END DO
-    !CC END KERNELS
     IF (ln_ice_embd) THEN
-      !CC KERNELS
       zintn = REAL(nn_fsbc - 1) / REAL(nn_fsbc) * 0.5_wp
       zintb = REAL(nn_fsbc + 1) / REAL(nn_fsbc) * 0.5_wp
       zpice(:, :) = ssh_m(:, :) + (zintn * snwice_mass(:, :) + zintb * snwice_mass_b(:, :)) * r1_rau0
-      !CC END KERNELS
     ELSE
-      !CC KERNELS
       zpice(:, :) = ssh_m(:, :)
-      !CC END KERNELS
     END IF
-    !CC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zaU(ji, jj) = 0.5_wp * (at_i(ji, jj) * e1e2t(ji, jj) + at_i(ji + 1, jj) * e1e2t(ji + 1, jj)) * r1_e1e2u(ji, jj) * umask(ji, jj, 1)
@@ -176,15 +186,15 @@ MODULE icedyn_rhg_evp
     !$ACC END KERNELS
     CALL lbc_lnk_multi(zmf, 'T', 1., zdt_m, 'T', 1.)
     DO jter = 1, nn_nevp
+      !$ACC KERNELS
       IF (ln_ctl) THEN
-        !CC KERNELS
+        !$ACC LOOP INDEPENDENT
         DO jj = 1, jpjm1
           zu_ice(:, jj) = u_ice(:, jj)
           zv_ice(:, jj) = v_ice(:, jj)
         END DO
-        !CC END KERNELS
       END IF
-      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zds(ji, jj) = ((u_ice(ji, jj + 1) * r1_e1u(ji, jj + 1) - u_ice(ji, jj) * r1_e1u(ji, jj)) * e1f(ji, jj) * e1f(ji, jj) + (v_ice(ji + 1, jj) * r1_e2v(ji + 1, jj) - v_ice(ji, jj) * r1_e2v(ji, jj)) * e2f(ji, jj) * e2f(ji, jj)) * r1_e1e2f(ji, jj) * zfmask(ji, jj)
@@ -193,7 +203,7 @@ MODULE icedyn_rhg_evp
       !$ACC END KERNELS
       CALL lbc_lnk(zds, 'F', 1.)
       !$ACC KERNELS
-      !$ACC LOOP INDEPENDENT COLLAPSE(2) private(zalph2, z1_alph2)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2) PRIVATE(zalph2, z1_alph2)
       DO jj = 2, jpj
         DO ji = 2, jpi
           zds2 = (zds(ji, jj) * zds(ji, jj) * e1e2f(ji, jj) + zds(ji - 1, jj) * zds(ji - 1, jj) * e1e2f(ji - 1, jj) + zds(ji, jj - 1) * zds(ji, jj - 1) * e1e2f(ji, jj - 1) + zds(ji - 1, jj - 1) * zds(ji - 1, jj - 1) * e1e2f(ji - 1, jj - 1)) * 0.25_wp * r1_e1e2t(ji, jj)
@@ -216,7 +226,7 @@ MODULE icedyn_rhg_evp
       !$ACC END KERNELS
       CALL lbc_lnk(zp_delt, 'T', 1.)
       !$ACC KERNELS
-      !$ACC LOOP INDEPENDENT COLLAPSE(2) private(zalph2, z1_alph2)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           IF (ln_aEVP) THEN
@@ -228,6 +238,7 @@ MODULE icedyn_rhg_evp
           zs12(ji, jj) = (zs12(ji, jj) * zalph2 + zp_delf * (zds(ji, jj) * z1_ecc2) * 0.5_wp) * z1_alph2
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zfU(ji, jj) = 0.5_wp * ((zs1(ji + 1, jj) - zs1(ji, jj)) * e2u(ji, jj) + (zs2(ji + 1, jj) * e2t(ji + 1, jj) * e2t(ji + 1, jj) - zs2(ji, jj) * e2t(ji, jj) * e2t(ji, jj)) * r1_e2u(ji, jj) + (zs12(ji, jj) * e1f(ji, jj) * e1f(ji, jj) - zs12(ji, jj - 1) * e1f(ji, jj - 1) * e1f(ji, jj - 1)) * 2._wp * r1_e1u(ji, jj)) * r1_e1e2u(ji, jj)
@@ -239,6 +250,7 @@ MODULE icedyn_rhg_evp
       !$ACC END KERNELS
       IF (MOD(jter, 2) == 0) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaV(ji, jj) * zrhoco * SQRT((v_ice(ji, jj) - v_oce(ji, jj)) * (v_ice(ji, jj) - v_oce(ji, jj)) + (u_iceV(ji, jj) - u_oceV(ji, jj)) * (u_iceV(ji, jj) - u_oceV(ji, jj)))
@@ -256,9 +268,12 @@ MODULE icedyn_rhg_evp
           END DO
         END DO
         !$ACC END KERNELS
+        CALL ProfileStart('ice_dyn_rhg_evp', 'r1', psy_profile1)
         CALL lbc_lnk(v_ice, 'V', - 1.)
         IF (ln_bdy) CALL bdy_ice_dyn('V')
+        CALL ProfileEnd(psy_profile1)
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaU(ji, jj) * zrhoco * SQRT((u_ice(ji, jj) - u_oce(ji, jj)) * (u_ice(ji, jj) - u_oce(ji, jj)) + (v_iceU(ji, jj) - v_oceU(ji, jj)) * (v_iceU(ji, jj) - v_oceU(ji, jj)))
@@ -276,10 +291,13 @@ MODULE icedyn_rhg_evp
           END DO
         END DO
         !$ACC END KERNELS
+        CALL ProfileStart('ice_dyn_rhg_evp', 'r2', psy_profile2)
         CALL lbc_lnk(u_ice, 'U', - 1.)
         IF (ln_bdy) CALL bdy_ice_dyn('U')
+        CALL ProfileEnd(psy_profile2)
       ELSE
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaU(ji, jj) * zrhoco * SQRT((u_ice(ji, jj) - u_oce(ji, jj)) * (u_ice(ji, jj) - u_oce(ji, jj)) + (v_iceU(ji, jj) - v_oceU(ji, jj)) * (v_iceU(ji, jj) - v_oceU(ji, jj)))
@@ -297,9 +315,12 @@ MODULE icedyn_rhg_evp
           END DO
         END DO
         !$ACC END KERNELS
+        CALL ProfileStart('ice_dyn_rhg_evp', 'r3', psy_profile3)
         CALL lbc_lnk(u_ice, 'U', - 1.)
         IF (ln_bdy) CALL bdy_ice_dyn('U')
+        CALL ProfileEnd(psy_profile3)
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zTauO = zaV(ji, jj) * zrhoco * SQRT((v_ice(ji, jj) - v_oce(ji, jj)) * (v_ice(ji, jj) - v_oce(ji, jj)) + (u_iceV(ji, jj) - u_oceV(ji, jj)) * (u_iceV(ji, jj) - u_oceV(ji, jj)))
@@ -317,23 +338,32 @@ MODULE icedyn_rhg_evp
           END DO
         END DO
         !$ACC END KERNELS
+        CALL ProfileStart('ice_dyn_rhg_evp', 'r4', psy_profile4)
         CALL lbc_lnk(v_ice, 'V', - 1.)
         IF (ln_bdy) CALL bdy_ice_dyn('V')
+        CALL ProfileEnd(psy_profile4)
       END IF
       IF (ln_ctl) THEN
+        !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT
         DO jj = 2, jpjm1
           zresr(:, jj) = MAX(ABS(u_ice(:, jj) - zu_ice(:, jj)), ABS(v_ice(:, jj) - zv_ice(:, jj)))
         END DO
+        !$ACC END KERNELS
+        CALL ProfileStart('ice_dyn_rhg_evp', 'r5', psy_profile5)
         zresm = MAXVAL(zresr(1 : jpi, 2 : jpjm1))
         IF (lk_mpp) CALL mpp_max(zresm)
+        CALL ProfileEnd(psy_profile5)
       END IF
     END DO
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         zds(ji, jj) = ((u_ice(ji, jj + 1) * r1_e1u(ji, jj + 1) - u_ice(ji, jj) * r1_e1u(ji, jj)) * e1f(ji, jj) * e1f(ji, jj) + (v_ice(ji + 1, jj) * r1_e2v(ji + 1, jj) - v_ice(ji, jj) * r1_e2v(ji, jj)) * e2f(ji, jj) * e2f(ji, jj)) * r1_e1e2f(ji, jj) * zfmask(ji, jj)
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zdt = ((u_ice(ji, jj) * r1_e2u(ji, jj) - u_ice(ji - 1, jj) * r1_e2u(ji - 1, jj)) * e2t(ji, jj) * e2t(ji, jj) - (v_ice(ji, jj) * r1_e1v(ji, jj) - v_ice(ji, jj - 1) * r1_e1v(ji, jj - 1)) * e1t(ji, jj) * e1t(ji, jj)) * r1_e1e2t(ji, jj)
@@ -347,24 +377,30 @@ MODULE icedyn_rhg_evp
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ice_dyn_rhg_evp', 'r6', psy_profile6)
     CALL lbc_lnk_multi(pshear_i, 'T', 1., pdivu_i, 'T', 1., pdelta_i, 'T', 1.)
     CALL lbc_lnk_multi(zs1, 'T', 1., zs2, 'T', 1., zs12, 'F', 1.)
+    CALL ProfileEnd(psy_profile6)
     !$ACC KERNELS
     pstress1_i(:, :) = zs1(:, :)
     pstress2_i(:, :) = zs2(:, :)
     pstress12_i(:, :) = zs12(:, :)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zswi(ji, jj) = MAX(0._wp, SIGN(1._wp, at_i(ji, jj) - epsi06))
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ice_dyn_rhg_evp', 'r7', psy_profile7)
     IF (iom_use('icediv')) CALL iom_put("icediv", pdivu_i(:, :) * zswi(:, :))
     IF (iom_use('iceshe')) CALL iom_put("iceshe", pshear_i(:, :) * zswi(:, :))
     IF (iom_use('icestr')) CALL iom_put("icestr", strength(:, :) * zswi(:, :))
+    CALL ProfileEnd(psy_profile7)
     IF (iom_use('isig1') .OR. iom_use('isig2') .OR. iom_use('isig3')) THEN
       ALLOCATE(zsig1(jpi, jpj), zsig2(jpi, jpj), zsig3(jpi, jpj))
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zdum1 = (zswi(ji - 1, jj) * pstress12_i(ji - 1, jj) + zswi(ji, jj - 1) * pstress12_i(ji, jj - 1) + zswi(ji, jj) * pstress12_i(ji, jj) + zswi(ji - 1, jj - 1) * pstress12_i(ji - 1, jj - 1)) / MAX(1._wp, zswi(ji - 1, jj) + zswi(ji, jj - 1) + zswi(ji, jj) + zswi(ji - 1, jj - 1))
@@ -376,15 +412,18 @@ MODULE icedyn_rhg_evp
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('ice_dyn_rhg_evp', 'r8', psy_profile8)
       CALL lbc_lnk_multi(zsig1, 'T', 1., zsig2, 'T', 1., zsig3, 'T', 1.)
       IF (iom_use('isig1')) CALL iom_put("isig1", zsig1)
       IF (iom_use('isig2')) CALL iom_put("isig2", zsig2)
       IF (iom_use('isig3')) CALL iom_put("isig3", zsig3)
       DEALLOCATE(zsig1, zsig2, zsig3)
+      CALL ProfileEnd(psy_profile8)
     END IF
     IF (iom_use('normstr') .OR. iom_use('sheastr') .OR. iom_use('dssh_dx') .OR. iom_use('dssh_dy') .OR. iom_use('corstrx') .OR. iom_use('corstry') .OR. iom_use('intstrx') .OR. iom_use('intstry') .OR. iom_use('utau_oi') .OR. iom_use('vtau_oi') .OR. iom_use('xmtrpice') .OR. iom_use('ymtrpice') .OR. iom_use('xmtrpsnw') .OR. iom_use('ymtrpsnw') .OR. iom_use('xatrp') .OR. iom_use('yatrp')) THEN
       ALLOCATE(zdiag_sig1(jpi, jpj), zdiag_sig2(jpi, jpj), zdiag_dssh_dx(jpi, jpj), zdiag_dssh_dy(jpi, jpj), zdiag_corstrx(jpi, jpj), zdiag_corstry(jpi, jpj), zdiag_intstrx(jpi, jpj), zdiag_intstry(jpi, jpj), zdiag_utau_oi(jpi, jpj), zdiag_vtau_oi(jpi, jpj), zdiag_xmtrp_ice(jpi, jpj), zdiag_ymtrp_ice(jpi, jpj), zdiag_xmtrp_snw(jpi, jpj), zdiag_ymtrp_snw(jpi, jpj), zdiag_xatrp(jpi, jpj), zdiag_yatrp(jpi, jpj))
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           rswitch = MAX(0._wp, SIGN(1._wp, at_i(ji, jj) - epsi06))
@@ -409,6 +448,7 @@ MODULE icedyn_rhg_evp
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('ice_dyn_rhg_evp', 'r9', psy_profile9)
       CALL lbc_lnk_multi(zdiag_sig1, 'T', 1., zdiag_sig2, 'T', 1., zdiag_dssh_dx, 'U', - 1., zdiag_dssh_dy, 'V', - 1., zdiag_corstrx, 'U', - 1., zdiag_corstry, 'V', - 1., zdiag_intstrx, 'U', - 1., zdiag_intstry, 'V', - 1.)
       CALL lbc_lnk_multi(zdiag_utau_oi, 'U', - 1., zdiag_vtau_oi, 'V', - 1., zdiag_xmtrp_ice, 'U', - 1., zdiag_xmtrp_snw, 'U', - 1., zdiag_xatrp, 'U', - 1., zdiag_ymtrp_ice, 'V', - 1., zdiag_ymtrp_snw, 'V', - 1., zdiag_yatrp, 'V', - 1.)
       IF (iom_use('normstr')) CALL iom_put('normstr', zdiag_sig1(:, :))
@@ -428,6 +468,7 @@ MODULE icedyn_rhg_evp
       IF (iom_use('xatrp')) CALL iom_put('xatrp', zdiag_xatrp(:, :))
       IF (iom_use('yatrp')) CALL iom_put('yatrp', zdiag_yatrp(:, :))
       DEALLOCATE(zdiag_sig1, zdiag_sig2, zdiag_dssh_dx, zdiag_dssh_dy, zdiag_corstrx, zdiag_corstry, zdiag_intstrx, zdiag_intstry, zdiag_utau_oi, zdiag_vtau_oi, zdiag_xmtrp_ice, zdiag_ymtrp_ice, zdiag_xmtrp_snw, zdiag_ymtrp_snw, zdiag_xatrp, zdiag_yatrp)
+      CALL ProfileEnd(psy_profile9)
     END IF
   END SUBROUTINE ice_dyn_rhg_evp
   SUBROUTINE rhg_evp_rst(cdrw, kt)
@@ -447,20 +488,20 @@ MODULE icedyn_rhg_evp
         ELSE
           IF (lwp) WRITE(numout, FMT = *)
           IF (lwp) WRITE(numout, FMT = *) '   ==>>>   previous run without rheology, set stresses to 0'
-          !CC KERNELS
+          !$ACC KERNELS
           stress1_i(:, :) = 0._wp
           stress2_i(:, :) = 0._wp
           stress12_i(:, :) = 0._wp
-          !CC END KERNELS
+          !$ACC END KERNELS
         END IF
       ELSE
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   start from rest: set stresses to 0'
-        !CC KERNELS
+        !$ACC KERNELS
         stress1_i(:, :) = 0._wp
         stress2_i(:, :) = 0._wp
         stress12_i(:, :) = 0._wp
-        !CC END KERNELS
+        !$ACC END KERNELS
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
       IF (lwp) WRITE(numout, FMT = *) '---- rhg-rst ----'

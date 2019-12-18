@@ -226,7 +226,7 @@ MODULE ldftra
       CASE (20)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( e1, e2 ) or F( e1^3, e2^3 ) (lap or blp case)'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ud, ' m/s   and   Ld = Max(e1,e2)'
-        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
         CALL ldf_c2d('TRA', zUfac, inn, ahtu, ahtv)
       CASE (21)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( latitude, longitude, time )'
@@ -244,7 +244,7 @@ MODULE ldftra
       CASE (30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( latitude, longitude, depth )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ud, ' m/s   and   Ld = Max(e1,e2)'
-        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
         CALL ldf_c2d('TRA', zUfac, inn, ahtu, ahtv)
         CALL ldf_c1d('TRA', ahtu(:, :, 1), ahtv(:, :, 1), ahtu, ahtv)
       CASE (31)
@@ -295,6 +295,7 @@ MODULE ldftra
       z1_f20 = 1._wp / (2._wp * omega * SIN(rad * 20._wp))
       zaht_min = 0.2_wp * aht0
       zDaht = aht0 - zaht_min
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zaht = (1._wp - MIN(1._wp, ABS(ff_t(ji, jj) * z1_f20))) * zDaht
@@ -415,7 +416,7 @@ MODULE ldftra
       CASE (20)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F( e1, e2 )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ue, ' m/s   and   Le = Max(e1,e2)'
-        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, ' m2/s   for e1=1)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, ' m2/s   for e1=1°)'
         CALL ldf_c2d('TRA', zUfac, inn, aeiu, aeiv)
       CASE (21)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F( latitude, longitude, time )'
@@ -446,7 +447,7 @@ MODULE ldftra
     END IF
   END SUBROUTINE ldf_eiv_init
   SUBROUTINE ldf_eiv(kt, paei0, paeiu, paeiv)
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), INTENT(INOUT) :: paei0
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: paeiu, paeiv
     INTEGER :: ji, jj, jk
@@ -461,6 +462,7 @@ MODULE ldftra
     IF (ln_traldf_triad) THEN
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zn2 = MAX(rn2b(ji, jj, jk), 0._wp)
@@ -475,6 +477,7 @@ MODULE ldftra
     ELSE
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zn2 = MAX(rn2b(ji, jj, jk), 0._wp)
@@ -488,6 +491,7 @@ MODULE ldftra
       !$ACC END KERNELS
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zfw = MAX(ABS(2. * omega * SIN(rad * gphit(ji, jj))), 1.E-10)
@@ -496,6 +500,7 @@ MODULE ldftra
       END DO
     END DO
     z1_f20 = 1._wp / (2._wp * omega * SIN(rad * 20._wp))
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zzaei = MIN(1._wp, ABS(ff_t(ji, jj) * z1_f20)) * zaeiw(ji, jj)
@@ -505,6 +510,7 @@ MODULE ldftra
     !$ACC END KERNELS
     CALL lbc_lnk(zaeiw(:, :), 'W', 1.)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         paeiu(ji, jj, 1) = 0.5_wp * (zaeiw(ji, jj) + zaeiw(ji + 1, jj)) * umask(ji, jj, 1)
@@ -522,9 +528,9 @@ MODULE ldftra
   END SUBROUTINE ldf_eiv
   SUBROUTINE ldf_eiv_trp(kt, kit000, pun, pvn, pwn, cdtype)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    INTEGER, INTENT(IN ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN   ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pun
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pvn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pwn
@@ -546,6 +552,7 @@ MODULE ldftra
     zpsi_uw(:, :, jpk) = 0._wp
     zpsi_vw(:, :, jpk) = 0._wp
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zpsi_uw(ji, jj, jk) = - r1_4 * e2u(ji, jj) * (wslpi(ji, jj, jk) + wslpi(ji + 1, jj, jk)) * (aeiu(ji, jj, jk - 1) + aeiu(ji, jj, jk)) * umask(ji, jj, jk)
@@ -554,6 +561,7 @@ MODULE ldftra
       END DO
     END DO
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           pun(ji, jj, jk) = pun(ji, jj, jk) - (zpsi_uw(ji, jj, jk) - zpsi_uw(ji, jj, jk + 1))
@@ -562,6 +570,7 @@ MODULE ldftra
       END DO
     END DO
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           pwn(ji, jj, jk) = pwn(ji, jj, jk) + (zpsi_uw(ji, jj, jk) - zpsi_uw(ji - 1, jj, jk) + zpsi_vw(ji, jj, jk) - zpsi_vw(ji, jj - 1, jk))
@@ -599,6 +608,7 @@ MODULE ldftra
     CALL iom_put("voce_eiv", zw3d)
     !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zw3d(ji, jj, jk) = (psi_vw(ji, jj, jk) - psi_vw(ji, jj - 1, jk) + psi_uw(ji, jj, jk) - psi_uw(ji - 1, jj, jk)) / e1e2t(ji, jj)
@@ -616,6 +626,7 @@ MODULE ldftra
       zw2d(:, :) = 0._wp
       zw3d(:, :, :) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_uw(ji, jj, jk + 1) - psi_uw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_tem) + tsn(ji + 1, jj, jk, jp_tem))
@@ -635,6 +646,7 @@ MODULE ldftra
     zw2d(:, :) = 0._wp
     zw3d(:, :, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_vw(ji, jj, jk + 1) - psi_vw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_tem) + tsn(ji, jj + 1, jk, jp_tem))
@@ -657,6 +669,7 @@ MODULE ldftra
       zw2d(:, :) = 0._wp
       zw3d(:, :, :) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zw3d(ji, jj, jk) = zw3d(ji, jj, jk) * (psi_uw(ji, jj, jk + 1) - psi_uw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_sal) + tsn(ji + 1, jj, jk, jp_sal))
@@ -676,6 +689,7 @@ MODULE ldftra
     zw2d(:, :) = 0._wp
     zw3d(:, :, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_vw(ji, jj, jk + 1) - psi_vw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_sal) + tsn(ji, jj + 1, jk, jp_sal))

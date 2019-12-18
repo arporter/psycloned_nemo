@@ -39,11 +39,13 @@ MODULE dynzad
     END IF
     DO jk = 2, jpkm1
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj
         DO ji = 2, jpi
           zww(ji, jj) = 0.25_wp * e1e2t(ji, jj) * wn(ji, jj, jk)
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zwuw(ji, jj, jk) = (zww(ji + 1, jj) + zww(ji, jj)) * (un(ji, jj, jk - 1) - un(ji, jj, jk))
@@ -53,6 +55,7 @@ MODULE dynzad
       !$ACC END KERNELS
     END DO
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zwuw(ji, jj, 1) = 0._wp
@@ -62,6 +65,7 @@ MODULE dynzad
       END DO
     END DO
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ua(ji, jj, jk) = ua(ji, jj, jk) - (zwuw(ji, jj, jk) + zwuw(ji, jj, jk + 1)) * r1_e1e2u(ji, jj) / e3u_n(ji, jj, jk)

@@ -15,8 +15,8 @@ MODULE ldfc1d_c2d
   CONTAINS
   SUBROUTINE ldf_c1d(cd_type, pahs1, pahs2, pah1, pah2)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 3), INTENT(IN ) :: cd_type
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pahs1, pahs2
+    CHARACTER(LEN = 3), INTENT(IN   ) :: cd_type
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pahs1, pahs2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pah1, pah2
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zh, zc, zdep1
@@ -71,10 +71,10 @@ MODULE ldfc1d_c2d
   END SUBROUTINE ldf_c1d
   SUBROUTINE ldf_c2d(cd_type, pUfac, knn, pah1, pah2)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 3), INTENT(IN ) :: cd_type
-    REAL(KIND = wp), INTENT(IN ) :: pUfac
-    INTEGER, INTENT(IN ) :: knn
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: pah1, pah2
+    CHARACTER(LEN = 3), INTENT(IN   ) :: cd_type
+    REAL(KIND = wp), INTENT(IN   ) :: pUfac
+    INTEGER, INTENT(IN   ) :: knn
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pah1, pah2
     INTEGER :: ji, jj, jk
     INTEGER :: inn
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -85,6 +85,7 @@ MODULE ldfc1d_c2d
     SELECT CASE (cd_type)
     CASE ('DYN')
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           pah1(ji, jj, 1) = pUfac * MAX(e1t(ji, jj), e2t(ji, jj)) ** knn
@@ -94,6 +95,7 @@ MODULE ldfc1d_c2d
       !$ACC END KERNELS
     CASE ('TRA')
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           pah1(ji, jj, 1) = pUfac * MAX(e1u(ji, jj), e2u(ji, jj)) ** knn

@@ -162,16 +162,14 @@ MODULE trdtra
     END IF
   END SUBROUTINE trd_tra
   SUBROUTINE trd_tra_adv(pf, pun, ptn, cdir, ptrd)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pf
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: ptn
-    CHARACTER(LEN = 1), INTENT(IN ) :: cdir
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: ptrd
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pf
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: ptn
+    CHARACTER(LEN = 1), INTENT(IN   ) :: cdir
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: ptrd
     INTEGER :: ji, jj, jk
     INTEGER :: ii, ij, ik
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('trd_tra_adv', 'r0', psy_profile0)
+    !$ACC KERNELS
     SELECT CASE (cdir)
     CASE ('X')
       ii = 1
@@ -186,14 +184,13 @@ MODULE trdtra
       ij = 0
       ik = - 1
     END SELECT
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     ptrd(jpi, :, :) = 0._wp
     ptrd(1, :, :) = 0._wp
     ptrd(:, jpj, :) = 0._wp
     ptrd(:, 1, :) = 0._wp
     ptrd(:, :, jpk) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ptrd(ji, jj, jk) = - (pf(ji, jj, jk) - pf(ji - ii, jj - ij, jk - ik) - (pun(ji, jj, jk) - pun(ji - ii, jj - ij, jk - ik)) * ptn(ji, jj, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk) * tmask(ji, jj, jk)
@@ -206,8 +203,8 @@ MODULE trdtra
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
-    INTEGER, INTENT(IN ) :: ktrd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: ktrd
+    INTEGER, INTENT(IN   ) :: kt
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
     TYPE(ProfileData), SAVE :: psy_profile2
@@ -267,8 +264,8 @@ MODULE trdtra
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
-    INTEGER, INTENT(IN ) :: ktrd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: ktrd
+    INTEGER, INTENT(IN   ) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: ikbu, ikbv
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: z2dx, z2dy

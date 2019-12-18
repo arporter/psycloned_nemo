@@ -21,17 +21,17 @@ MODULE obs_oper
     USE obs_profiles_def
     IMPLICIT NONE
     TYPE(obs_prof), INTENT(INOUT) :: prodatqc
-    INTEGER, INTENT(IN ) :: kt
-    INTEGER, INTENT(IN ) :: kpi, kpj, kpk
-    INTEGER, INTENT(IN ) :: kit000
-    INTEGER, INTENT(IN ) :: k1dint
-    INTEGER, INTENT(IN ) :: k2dint
-    INTEGER, INTENT(IN ) :: kdaystp
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(kpi, kpj, kpk) :: pvar1, pvar2
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(kpi, kpj, kpk) :: pmask1, pmask2
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(kpi, kpj) :: plam1, plam2
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(kpi, kpj) :: pphi1, pphi2
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(kpi, kpj, kpk) :: pgdept, pgdepw
+    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN   ) :: kpi, kpj, kpk
+    INTEGER, INTENT(IN   ) :: kit000
+    INTEGER, INTENT(IN   ) :: k1dint
+    INTEGER, INTENT(IN   ) :: k2dint
+    INTEGER, INTENT(IN   ) :: kdaystp
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(kpi, kpj, kpk) :: pvar1, pvar2
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(kpi, kpj, kpk) :: pmask1, pmask2
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(kpi, kpj) :: plam1, plam2
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(kpi, kpj) :: pphi1, pphi2
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(kpi, kpj, kpk) :: pgdept, pgdepw
     INTEGER, DIMENSION(imaxavtypes), OPTIONAL :: kdailyavtypes
     INTEGER :: ji
     INTEGER :: jj

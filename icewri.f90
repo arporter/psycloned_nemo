@@ -39,6 +39,7 @@ MODULE icewri
     CALL ice_var_bv
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zmsk00(ji, jj) = MAX(0._wp, SIGN(1._wp, at_i(ji, jj) - epsi06))
@@ -48,6 +49,7 @@ MODULE icewri
       END DO
     END DO
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zmsk00l(ji, jj, jl) = MAX(0._wp, SIGN(1._wp, a_i(ji, jj, jl) - epsi06))
@@ -102,6 +104,7 @@ MODULE icewri
     CALL ProfileEnd(psy_profile3)
     IF (iom_use('icevel')) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           z2da = (u_ice(ji, jj) + u_ice(ji - 1, jj))

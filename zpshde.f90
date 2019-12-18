@@ -14,12 +14,12 @@ MODULE zpshde
   CONTAINS
   SUBROUTINE zps_hde(kt, kjpt, pta, pgtu, pgtv, prd, pgru, pgrv)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    INTEGER, INTENT(IN ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: pta
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT( OUT) :: pgtu, pgtv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ), OPTIONAL :: prd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT), OPTIONAL :: pgru, pgrv
+    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN   ) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: pta
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(  OUT) :: pgtu, pgtv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ), OPTIONAL :: prd
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT), OPTIONAL :: pgru, pgrv
     INTEGER :: ji, jj, jn
     INTEGER :: iku, ikv, ikum1, ikvm1
     REAL(KIND = wp) :: ze3wu, ze3wv, zmaxu, zmaxv
@@ -37,6 +37,7 @@ MODULE zpshde
     !$ACC END KERNELS
     DO jn = 1, kjpt
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -72,6 +73,7 @@ MODULE zpshde
       !$ACC KERNELS
       pgru(:, :) = 0._wp
       pgrv(:, :) = 0._wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -96,6 +98,7 @@ MODULE zpshde
       CALL eos(ztj, zhj, zrj)
       CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -121,14 +124,14 @@ MODULE zpshde
   END SUBROUTINE zps_hde
   SUBROUTINE zps_hde_isf(kt, kjpt, pta, pgtu, pgtv, pgtui, pgtvi, prd, pgru, pgrv, pgrui, pgrvi)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    INTEGER, INTENT(IN ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: pta
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT( OUT) :: pgtu, pgtv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT( OUT) :: pgtui, pgtvi
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ), OPTIONAL :: prd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT), OPTIONAL :: pgru, pgrv
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT), OPTIONAL :: pgrui, pgrvi
+    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN   ) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: pta
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(  OUT) :: pgtu, pgtv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(  OUT) :: pgtui, pgtvi
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ), OPTIONAL :: prd
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT), OPTIONAL :: pgru, pgrv
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT), OPTIONAL :: pgrui, pgrvi
     INTEGER :: ji, jj, jn
     INTEGER :: iku, ikv, ikum1, ikvm1, ikup1, ikvp1
     REAL(KIND = wp) :: ze3wu, ze3wv, zmaxu, zmaxv
@@ -149,6 +152,7 @@ MODULE zpshde
     !$ACC END KERNELS
     DO jn = 1, kjpt
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -184,6 +188,7 @@ MODULE zpshde
       !$ACC KERNELS
       pgru(:, :) = 0.0_wp
       pgrv(:, :) = 0.0_wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -208,6 +213,7 @@ MODULE zpshde
       CALL eos(ztj, zhj, zrj)
       CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -231,6 +237,7 @@ MODULE zpshde
     END IF
     !$ACC KERNELS
     DO jn = 1, kjpt
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = miku(ji, jj)
@@ -266,6 +273,7 @@ MODULE zpshde
       !$ACC KERNELS
       pgrui(:, :) = 0.0_wp
       pgrvi(:, :) = 0.0_wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = miku(ji, jj)
@@ -290,6 +298,7 @@ MODULE zpshde
       CALL eos(ztj, zhj, zrj)
       CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = miku(ji, jj)

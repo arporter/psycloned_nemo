@@ -89,9 +89,9 @@ MODULE crsdom
     INTEGER :: ji, jj, jk
     INTEGER :: ijis, ijjs
     TYPE(ProfileData), SAVE :: psy_profile0
+    !$ACC KERNELS
     SELECT CASE (cd_type)
     CASE ('T')
-      !$ACC KERNELS
       DO jj = nldj_crs, nlej_crs
         ijjs = mjs_crs(jj) + mybinctr
         DO ji = 2, nlei_crs
@@ -100,9 +100,7 @@ MODULE crsdom
           p_glam_crs(ji, jj) = p_glam(ijis, ijjs)
         END DO
       END DO
-      !$ACC END KERNELS
     CASE ('U')
-      !$ACC KERNELS
       DO jj = nldj_crs, nlej_crs
         ijjs = mjs_crs(jj) + mybinctr
         DO ji = 2, nlei_crs
@@ -111,9 +109,7 @@ MODULE crsdom
           p_glam_crs(ji, jj) = p_glam(ijis, ijjs)
         END DO
       END DO
-      !$ACC END KERNELS
     CASE ('V')
-      !$ACC KERNELS
       DO jj = nldj_crs, nlej_crs
         ijjs = mjs_crs(jj)
         DO ji = 2, nlei_crs
@@ -122,9 +118,7 @@ MODULE crsdom
           p_glam_crs(ji, jj) = p_glam(ijis, ijjs)
         END DO
       END DO
-      !$ACC END KERNELS
     CASE ('F')
-      !$ACC KERNELS
       DO jj = nldj_crs, nlej_crs
         ijjs = mjs_crs(jj)
         DO ji = 2, nlei_crs
@@ -133,30 +127,28 @@ MODULE crsdom
           p_glam_crs(ji, jj) = p_glam(ijis, ijjs)
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
+    !$ACC END KERNELS
     CALL ProfileStart('crs_dom_coordinates', 'r0', psy_profile0)
     CALL crs_lbc_lnk(p_gphi_crs, cd_type, 1.0)
     CALL crs_lbc_lnk(p_glam_crs, cd_type, 1.0)
     CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     SELECT CASE (cd_type)
     CASE ('T', 'V')
-      !$ACC KERNELS
       DO ji = 2, nlei_crs
         ijis = mis_crs(ji) + mxbinctr
         p_gphi_crs(ji, 1) = p_gphi(ijis, 1)
         p_glam_crs(ji, 1) = p_glam(ijis, 1)
       END DO
-      !$ACC END KERNELS
     CASE ('U', 'F')
-      !$ACC KERNELS
       DO ji = 2, nlei_crs
         ijis = mis_crs(ji)
         p_gphi_crs(ji, 1) = p_gphi(ijis, 1)
         p_glam_crs(ji, 1) = p_glam(ijis, 1)
       END DO
-      !$ACC END KERNELS
     END SELECT
+    !$ACC END KERNELS
   END SUBROUTINE crs_dom_coordinates
   SUBROUTINE crs_dom_hgr(p_e1, p_e2, cd_type, p_e1_crs, p_e2_crs)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
@@ -168,7 +160,7 @@ MODULE crsdom
     INTEGER :: ji, jj, jk
     INTEGER :: ijie, ijje, ijrs
     TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('crs_dom_hgr', 'r0', psy_profile0)
+    !$ACC KERNELS
     DO jk = 1, jpk
       DO ji = 2, nlei_crs
         ijie = mie_crs(ji)
@@ -202,19 +194,21 @@ MODULE crsdom
         END DO
       END DO
     END DO
+    !$ACC END KERNELS
+    CALL ProfileStart('crs_dom_hgr', 'r0', psy_profile0)
     CALL crs_lbc_lnk(p_e1_crs, cd_type, 1.0, pval = 1.0)
     CALL crs_lbc_lnk(p_e2_crs, cd_type, 1.0, pval = 1.0)
     CALL ProfileEnd(psy_profile0)
   END SUBROUTINE crs_dom_hgr
   SUBROUTINE crs_dom_facvol(p_mask, cd_type, p_e1, p_e2, p_e3, p_fld1_crs, p_fld2_crs)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 1), INTENT(IN ) :: cd_type
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: p_mask
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: p_e1
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: p_e2
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: p_e3
-    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT( OUT) :: p_fld1_crs
-    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT( OUT) :: p_fld2_crs
+    CHARACTER(LEN = 1), INTENT(IN   ) :: cd_type
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: p_mask
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: p_e1
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: p_e2
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: p_e3
+    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(  OUT) :: p_fld1_crs
+    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(  OUT) :: p_fld2_crs
     INTEGER :: ji, jj, jk, ii, ij, je_2
     REAL(KIND = wp) :: zdAm
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zvol, zmask
@@ -226,21 +220,17 @@ MODULE crsdom
       zvol(:, :, jk) = p_e1(:, :) * p_e2(:, :) * p_e3(:, :, jk)
     END DO
     zmask(:, :, :) = 0._wp
-    !$ACC END KERNELS
     IF (cd_type == 'W') THEN
-      !$ACC KERNELS
       zmask(:, :, 1) = p_mask(:, :, 1)
       DO jk = 2, jpk
         zmask(:, :, jk) = p_mask(:, :, jk - 1)
       END DO
-      !$ACC END KERNELS
     ELSE
-      !$ACC KERNELS
       DO jk = 1, jpk
         zmask(:, :, jk) = p_mask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
     IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
       IF (mje_crs(2) - mjs_crs(2) == 1) THEN
         !$ACC KERNELS
@@ -270,6 +260,7 @@ MODULE crsdom
     END IF
     !$ACC KERNELS
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = njstr, njend, nn_facty
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -297,7 +288,7 @@ MODULE crsdom
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(IN), OPTIONAL :: p_surf_crs
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(IN), OPTIONAL :: p_mask_crs
     REAL(KIND = wp), INTENT(IN) :: psgn
-    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT( OUT) :: p_fld_crs
+    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(  OUT) :: p_fld_crs
     INTEGER :: ji, jj, jk
     INTEGER :: ii, ij, ijie, ijje, je_2
     REAL(KIND = wp) :: zflcrs, zsfcrs
@@ -364,6 +355,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -443,6 +435,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -472,6 +465,7 @@ MODULE crsdom
           END DO
         END DO
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -513,6 +507,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -577,6 +572,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -606,6 +602,7 @@ MODULE crsdom
           END DO
         END DO
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -647,6 +644,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -706,6 +704,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -735,6 +734,7 @@ MODULE crsdom
           END DO
         END DO
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -776,6 +776,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -849,6 +850,7 @@ MODULE crsdom
         !$ACC END KERNELS
       END IF
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = njstr, njend, nn_facty
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -896,6 +898,7 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -921,6 +924,7 @@ MODULE crsdom
           zflcrs = p_fld(ji, ijje) * zsurfmsk(ji, ijje) + p_fld(ji + 1, ijje) * zsurfmsk(ji + 1, ijje) + p_fld(ji + 2, ijje) * zsurfmsk(ji + 2, ijje)
           p_fld_crs(ii, 2) = zflcrs
         END DO
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -956,6 +960,7 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -995,6 +1000,7 @@ MODULE crsdom
           CALL ProfileEnd(psy_profile2)
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1020,6 +1026,7 @@ MODULE crsdom
           zflcrs = MAX(p_fld(ji, ijje) * p_mask(ji, ijje, 1) - (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 1, ijje) * p_mask(ji + 1, ijje, 1) - (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 2, ijje) * p_mask(ji + 2, ijje, 1) - (1. - p_mask(ji, ijje, 1)) * r_inf)
           p_fld_crs(ii, 2) = zflcrs
         END DO
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1055,6 +1062,7 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1088,6 +1096,7 @@ MODULE crsdom
           CALL ProfileEnd(psy_profile4)
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1113,6 +1122,7 @@ MODULE crsdom
           zflcrs = MIN(p_fld(ji, ijje) * p_mask(ji, ijje, 1) + (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 1, ijje) * p_mask(ji + 1, ijje, 1) + (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 2, ijje) * p_mask(ji + 2, ijje, 1) + (1. - p_mask(ji, ijje, 1)) * r_inf)
           p_fld_crs(ii, 2) = zflcrs
         END DO
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1148,6 +1158,7 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1179,23 +1190,17 @@ MODULE crsdom
     !$ACC KERNELS
     p_e3_crs(:, :, :) = 0.
     p_e3_max_crs(:, :, :) = 1.
-    !$ACC END KERNELS
     SELECT CASE (cd_type)
     CASE ('W')
-      !$ACC KERNELS
       zmask(:, :, 1) = p_mask(:, :, 1)
       DO jk = 2, jpk
         zmask(:, :, jk) = p_mask(:, :, jk - 1)
       END DO
-      !$ACC END KERNELS
     CASE DEFAULT
-      !$ACC KERNELS
       DO jk = 1, jpk
         zmask(:, :, jk) = p_mask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     DO jk = 1, jpk
       zsurf(:, :, jk) = p_e1(:, :) * p_e2(:, :) * p_e3(:, :, jk)
     END DO
@@ -1231,6 +1236,7 @@ MODULE crsdom
     END IF
     !$ACC KERNELS
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = njstr, njend, nn_facty
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1260,9 +1266,9 @@ MODULE crsdom
     INTEGER :: ii, ij, je_2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zsurf, zsurfmsk
     TYPE(ProfileData), SAVE :: psy_profile0
+    !$ACC KERNELS
     SELECT CASE (cd_type)
     CASE ('W')
-      !$ACC KERNELS
       DO jk = 1, jpk
         zsurf(:, :, jk) = p_e1(:, :) * p_e2(:, :)
       END DO
@@ -1270,35 +1276,29 @@ MODULE crsdom
       DO jk = 2, jpk
         zsurfmsk(:, :, jk) = zsurf(:, :, jk) * p_mask(:, :, jk - 1)
       END DO
-      !$ACC END KERNELS
     CASE ('V')
-      !$ACC KERNELS
       DO jk = 1, jpk
         zsurf(:, :, jk) = p_e1(:, :) * p_e3(:, :, jk)
       END DO
       DO jk = 1, jpk
         zsurfmsk(:, :, jk) = zsurf(:, :, jk) * p_mask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     CASE ('U')
-      !$ACC KERNELS
       DO jk = 1, jpk
         zsurf(:, :, jk) = p_e2(:, :) * p_e3(:, :, jk)
       END DO
       DO jk = 1, jpk
         zsurfmsk(:, :, jk) = zsurf(:, :, jk) * p_mask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     CASE DEFAULT
-      !$ACC KERNELS
       DO jk = 1, jpk
         zsurf(:, :, jk) = p_e1(:, :) * p_e2(:, :)
       END DO
       DO jk = 1, jpk
         zsurfmsk(:, :, jk) = zsurf(:, :, jk) * p_mask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     END SELECT
+    !$ACC END KERNELS
     IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
       IF (mje_crs(2) - mjs_crs(2) == 1) THEN
         !$ACC KERNELS
@@ -1326,6 +1326,7 @@ MODULE crsdom
     END IF
     !$ACC KERNELS
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = njstr, njend, nn_facty
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1711,6 +1712,7 @@ MODULE crsdom
     CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     mbkt_crs(:, :) = MAX(mbathy_crs(:, :), 1)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj_crsm1
       DO ji = 1, jpi_crsm1
         mbku_crs(ji, jj) = MIN(mbkt_crs(ji + 1, jj), mbkt_crs(ji, jj))

@@ -40,10 +40,10 @@ MODULE trdmxl
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
-    INTEGER, INTENT(IN ) :: ktrd
-    INTEGER, INTENT(IN ) :: kt
-    REAL(KIND = wp), INTENT(IN ) :: p2dt
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: kmxln
+    INTEGER, INTENT(IN   ) :: ktrd
+    INTEGER, INTENT(IN   ) :: kt
+    REAL(KIND = wp), INTENT(IN   ) :: p2dt
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: kmxln
     INTEGER :: ji, jj, jk
     TYPE(ProfileData), SAVE :: psy_profile0
     IF (kt /= nkstp) THEN
@@ -53,6 +53,7 @@ MODULE trdmxl
       smltrd(:, :, :) = 0._wp
       wkx(:, :, :) = 0._wp
       DO jk = 1, jpktrd
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (jk - kmxln(ji, jj) < 0) wkx(ji, jj, jk) = e3t_n(ji, jj, jk) * tmask(ji, jj, jk)
@@ -101,9 +102,9 @@ MODULE trdmxl
     END SELECT
   END SUBROUTINE trd_tra_mxl
   SUBROUTINE trd_mean(kt, ptrd, ptrdm)
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: ptrd
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: ptrd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdm
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: kt
     !$ACC KERNELS
     IF (kt == nn_it000) ptrdm(:, :, :) = 0._wp
     ptrdm(:, :, :) = ptrdm(:, :, :) + ptrd(:, :, :)
@@ -133,8 +134,8 @@ MODULE trdmxl
   END SUBROUTINE trd_mxl_zint
   SUBROUTINE trd_mxl(kt, p2dt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    REAL(KIND = wp), INTENT(IN ) :: p2dt
+    INTEGER, INTENT(IN   ) :: kt
+    REAL(KIND = wp), INTENT(IN   ) :: p2dt
     INTEGER :: ji, jj, jk, jl, ik, it, itmod
     LOGICAL :: lldebug = .TRUE.
     REAL(KIND = wp) :: zavt, zfn, zfn2

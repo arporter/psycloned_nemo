@@ -163,7 +163,7 @@ MODULE closea
   END SUBROUTINE dom_clo
   SUBROUTINE sbc_clo(kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: kt
     INTEGER :: ierr
     INTEGER :: jc, jcr, jce
     REAL(KIND = wp), PARAMETER :: rsmall = 1.E-20_wp

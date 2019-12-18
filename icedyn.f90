@@ -97,6 +97,7 @@ MODULE icedyn
     CALL ice_var_zapsmall
     !$ACC KERNELS
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (v_i(ji, jj, jl) > 0._wp) THEN

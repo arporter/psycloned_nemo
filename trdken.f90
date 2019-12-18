@@ -29,8 +29,8 @@ MODULE trdken
   SUBROUTINE trd_ken(putrd, pvtrd, ktrd, kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
-    INTEGER, INTENT(IN ) :: ktrd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: ktrd
+    INTEGER, INTENT(IN   ) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: ikbu, ikbv
     INTEGER :: ikbum1, ikbvm1
@@ -56,6 +56,7 @@ MODULE trdken
     zke(1, :, :) = 0._wp
     zke(:, 1, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj
         DO ji = 2, jpi
           zke(ji, jj, jk) = 0.5_wp * rau0 * (un(ji, jj, jk) * putrd(ji, jj, jk) * bu(ji, jj, jk) + un(ji - 1, jj, jk) * putrd(ji - 1, jj, jk) * bu(ji - 1, jj, jk) + vn(ji, jj, jk) * pvtrd(ji, jj, jk) * bv(ji, jj, jk) + vn(ji, jj - 1, jk) * pvtrd(ji, jj - 1, jk) * bv(ji, jj - 1, jk)) * r1_bt(ji, jj, jk)
@@ -88,6 +89,7 @@ MODULE trdken
       z2dy(:, :) = vn(:, :, 1) * (vtau_b(:, :) + vtau(:, :)) * e1e2v(:, :) * vmask(:, :, 1)
       zke2d(1, :) = 0._wp
       zke2d(:, 1) = 0._wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj
         DO ji = 2, jpi
           zke2d(ji, jj) = r1_rau0 * 0.5_wp * (z2dx(ji, jj) + z2dx(ji - 1, jj) + z2dy(ji, jj) + z2dy(ji, jj - 1)) * r1_bt(ji, jj, 1)
@@ -114,8 +116,8 @@ MODULE trdken
     END SELECT
   END SUBROUTINE trd_ken
   SUBROUTINE ken_p2k(kt, pconv)
-    INTEGER, INTENT(IN ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: pconv
+    INTEGER, INTENT(IN   ) :: kt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pconv
     INTEGER :: ji, jj, jk
     INTEGER :: iku, ikv
     REAL(KIND = wp) :: zcoef
@@ -127,6 +129,7 @@ MODULE trdken
       zconv(:, :, jk) = zcoef * (rhd(:, :, jk) + rhd(:, :, jk - 1)) * wn(:, :, jk) * e3w_n(:, :, jk)
     END DO
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zcoef = 0.5_wp / e3t_n(ji, jj, jk)

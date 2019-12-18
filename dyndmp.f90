@@ -90,6 +90,7 @@ MODULE dyndmp
     SELECT CASE (nn_zdmp)
     CASE (0)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zua = resto_uv(ji, jj, jk) * (zuv_dta(ji, jj, jk, 1) - ub(ji, jj, jk))
@@ -103,6 +104,7 @@ MODULE dyndmp
       END DO
     CASE (1)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (avt(ji, jj, jk) <= 5.E-4_wp) THEN
@@ -121,6 +123,7 @@ MODULE dyndmp
       END DO
     CASE (2)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (gdept_n(ji, jj, jk) >= hmlp(ji, jj)) THEN

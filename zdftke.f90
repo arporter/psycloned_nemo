@@ -49,8 +49,8 @@ MODULE zdftke
   END FUNCTION zdf_tke_alloc
   SUBROUTINE zdf_tke(kt, p_sh2, p_avm, p_avt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_sh2
+    INTEGER, INTENT(IN   ) :: kt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('zdf_tke', 'r0', psy_profile0)
@@ -60,10 +60,10 @@ MODULE zdftke
   END SUBROUTINE zdf_tke
   SUBROUTINE tke_tke(pdepw, p_e3t, p_e3w, p_sh2, p_avm, p_avt)
     USE zdf_oce, ONLY: en
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pdepw
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_e3t, p_e3w
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_sh2
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_avm, p_avt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdepw
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_e3t, p_e3w
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zetop, zebot, zmsku, zmskv
     REAL(KIND = wp) :: zrhoa = 1.22
@@ -82,6 +82,7 @@ MODULE zdftke
     zfact1 = - .5_wp * rdt
     zfact2 = 1.5_wp * rdt * rn_ediss
     zfact3 = 0.5_wp * rn_ediss
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         en(ji, jj, 1) = MAX(rn_emin0, zbbrau * taum(ji, jj)) * tmask(ji, jj, 1)
@@ -90,6 +91,7 @@ MODULE zdftke
     !$ACC END KERNELS
     IF (ln_isfcav) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           en(ji, jj, mikt(ji, jj)) = rn_emin * tmask(ji, jj, 1)
@@ -99,6 +101,7 @@ MODULE zdftke
     END IF
     IF (ln_drg) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zmsku = (2. - umask(ji - 1, jj, mbkt(ji, jj)) * umask(ji, jj, mbkt(ji, jj)))
@@ -110,6 +113,7 @@ MODULE zdftke
       !$ACC END KERNELS
       IF (ln_isfcav) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zmsku = (2. - umask(ji - 1, jj, mikt(ji, jj)) * umask(ji, jj, mikt(ji, jj)))
@@ -130,6 +134,7 @@ MODULE zdftke
       zcof = 0.5 * 0.016 * 0.016 / (zrhoa * zcdrag)
       imlc(:, :) = mbkt(:, :) + 1
       DO jk = jpkm1, 2, - 1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zus = zcof * taum(ji, jj)
@@ -137,6 +142,7 @@ MODULE zdftke
           END DO
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zhlc(ji, jj) = pdepw(ji, jj, imlc(ji, jj))
@@ -144,6 +150,7 @@ MODULE zdftke
       END DO
       zcof = 0.016 / SQRT(zrhoa * zcdrag)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zus = zcof * SQRT(taum(ji, jj))
@@ -158,6 +165,7 @@ MODULE zdftke
     !$ACC KERNELS
     IF (nn_pdl == 1) THEN
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zri = MAX(rn2b(ji, jj, jk), 0._wp) * p_avm(ji, jj, jk) / (p_sh2(ji, jj, jk) + rn_bshear)
@@ -167,6 +175,7 @@ MODULE zdftke
       END DO
     END IF
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zcof = zfact1 * tmask(ji, jj, jk)
@@ -180,30 +189,35 @@ MODULE zdftke
       END DO
     END DO
     DO jk = 3, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zdiag(ji, jj, jk) = zdiag(ji, jj, jk) - zd_lw(ji, jj, jk) * zd_up(ji, jj, jk - 1) / zdiag(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zd_lw(ji, jj, 2) = en(ji, jj, 2) - zd_lw(ji, jj, 2) * en(ji, jj, 1)
       END DO
     END DO
     DO jk = 3, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zd_lw(ji, jj, jk) = en(ji, jj, jk) - zd_lw(ji, jj, jk) / zdiag(ji, jj, jk - 1) * zd_lw(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         en(ji, jj, jpkm1) = zd_lw(ji, jj, jpkm1) / zdiag(ji, jj, jpkm1)
       END DO
     END DO
     DO jk = jpk - 2, 2, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           en(ji, jj, jk) = (zd_lw(ji, jj, jk) - zd_up(ji, jj, jk) * en(ji, jj, jk + 1)) / zdiag(ji, jj, jk)
@@ -211,6 +225,7 @@ MODULE zdftke
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           en(ji, jj, jk) = MAX(en(ji, jj, jk), rn_emin) * wmask(ji, jj, jk)
@@ -219,6 +234,7 @@ MODULE zdftke
     END DO
     IF (nn_etau == 1) THEN
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             en(ji, jj, jk) = en(ji, jj, jk) + rn_efr * en(ji, jj, 1) * EXP(- pdepw(ji, jj, jk) / htau(ji, jj)) * MAX(0., 1._wp - rn_eice * fr_i(ji, jj)) * wmask(ji, jj, jk) * tmask(ji, jj, 1)
@@ -226,6 +242,7 @@ MODULE zdftke
         END DO
       END DO
     ELSE IF (nn_etau == 2) THEN
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           jk = nmln(ji, jj)
@@ -234,6 +251,7 @@ MODULE zdftke
       END DO
     ELSE IF (nn_etau == 3) THEN
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ztx2 = utau(ji - 1, jj) + utau(ji, jj)
@@ -251,9 +269,9 @@ MODULE zdftke
   SUBROUTINE tke_avn(pdepw, p_e3t, p_e3w, p_avm, p_avt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE zdf_oce, ONLY: en, avtb, avmb, avtb_2d
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pdepw
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_e3t, p_e3w
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: p_avm, p_avt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdepw
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_e3t, p_e3w
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zrn2, zraug, zcoef, zav
     REAL(KIND = wp) :: zdku, zdkv, zsqen
@@ -267,6 +285,7 @@ MODULE zdftke
     IF (ln_mxl0) THEN
       !$ACC KERNELS
       zraug = vkarmn * 2.E5_wp / (rau0 * grav)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zmxlm(ji, jj, 1) = MAX(rn_mxl0, zraug * taum(ji, jj) * tmask(ji, jj, 1))
@@ -280,6 +299,7 @@ MODULE zdftke
     END IF
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zrn2 = MAX(rn2(ji, jj, jk), rsmall)
@@ -292,6 +312,7 @@ MODULE zdftke
     SELECT CASE (nn_mxl)
     CASE (0)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zemxl = MIN(pdepw(ji, jj, jk) - pdepw(ji, jj, mikt(ji, jj)), zmxlm(ji, jj, jk), pdepw(ji, jj, mbkt(ji, jj) + 1) - pdepw(ji, jj, jk))
@@ -302,6 +323,7 @@ MODULE zdftke
       END DO
     CASE (1)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zemxl = MIN(p_e3w(ji, jj, jk), zmxlm(ji, jj, jk))
@@ -312,6 +334,7 @@ MODULE zdftke
       END DO
     CASE (2)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zmxlm(ji, jj, jk) = MIN(zmxlm(ji, jj, jk - 1) + p_e3t(ji, jj, jk - 1), zmxlm(ji, jj, jk))
@@ -319,6 +342,7 @@ MODULE zdftke
         END DO
       END DO
       DO jk = jpkm1, 2, - 1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zemxl = MIN(zmxlm(ji, jj, jk + 1) + p_e3t(ji, jj, jk + 1), zmxlm(ji, jj, jk))
@@ -329,6 +353,7 @@ MODULE zdftke
       END DO
     CASE (3)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zmxld(ji, jj, jk) = MIN(zmxld(ji, jj, jk - 1) + p_e3t(ji, jj, jk - 1), zmxlm(ji, jj, jk))
@@ -336,6 +361,7 @@ MODULE zdftke
         END DO
       END DO
       DO jk = jpkm1, 2, - 1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zmxlm(ji, jj, jk) = MIN(zmxlm(ji, jj, jk + 1) + p_e3t(ji, jj, jk + 1), zmxlm(ji, jj, jk))
@@ -343,6 +369,7 @@ MODULE zdftke
         END DO
       END DO
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zemlm = MIN(zmxld(ji, jj, jk), zmxlm(ji, jj, jk))
@@ -354,6 +381,7 @@ MODULE zdftke
       END DO
     END SELECT
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zsqen = SQRT(en(ji, jj, jk))
@@ -366,6 +394,7 @@ MODULE zdftke
     END DO
     IF (nn_pdl == 1) THEN
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             p_avt(ji, jj, jk) = MAX(apdlr(ji, jj, jk) * p_avt(ji, jj, jk), avtb_2d(ji, jj) * avtb(jk)) * tmask(ji, jj, jk)
@@ -454,6 +483,7 @@ MODULE zdftke
       CASE (1)
         htau(:, :) = MAX(0.5_wp, MIN(30._wp, 45._wp * ABS(SIN(rpi / 180._wp * gphit(:, :)))))
       CASE (4)
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (gphit(ji, jj) <= 0._wp) THEN

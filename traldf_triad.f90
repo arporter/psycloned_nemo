@@ -23,16 +23,16 @@ MODULE traldf_triad
   CONTAINS
   SUBROUTINE tra_ldf_triad(kt, kit000, cdtype, pahu, pahv, pgu, pgv, pgui, pgvi, ptb, ptbb, pta, kjpt, kpass)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    INTEGER, INTENT(IN ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
-    INTEGER, INTENT(IN ) :: kjpt
-    INTEGER, INTENT(IN ) :: kpass
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pahu, pahv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN ) :: pgu, pgv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN ) :: pgui, pgvi
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptbb
+    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN   ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    INTEGER, INTENT(IN   ) :: kjpt
+    INTEGER, INTENT(IN   ) :: kpass
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pahu, pahv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgu, pgv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgui, pgvi
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptbb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     INTEGER :: ip, jp, kp
@@ -131,6 +131,7 @@ MODULE traldf_triad
         IF (ln_traldf_blp) THEN
           !$ACC KERNELS
           DO jk = 2, jpkm1
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 1, jpim1
                 akz(ji, jj, jk) = 16._wp * ah_wslp2(ji, jj, jk) * (akz(ji, jj, jk) + ah_wslp2(ji, jj, jk) / (e3w_n(ji, jj, jk) * e3w_n(ji, jj, jk)))
@@ -141,6 +142,7 @@ MODULE traldf_triad
         ELSE IF (ln_traldf_lap) THEN
           !$ACC KERNELS
           DO jk = 2, jpkm1
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 1, jpim1
                 ze3w_2 = e3w_n(ji, jj, jk) * e3w_n(ji, jj, jk)
@@ -164,6 +166,7 @@ MODULE traldf_triad
       zftu(:, :, :) = 0._wp
       zftv(:, :, :) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zdit(ji, jj, jk) = (ptb(ji + 1, jj, jk, jn) - ptb(ji, jj, jk, jn)) * umask(ji, jj, jk)
@@ -174,6 +177,7 @@ MODULE traldf_triad
       !$ACC END KERNELS
       IF (ln_zps .AND. l_grad_zps) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zdit(ji, jj, mbku(ji, jj)) = pgu(ji, jj, jn)
@@ -183,6 +187,7 @@ MODULE traldf_triad
         !$ACC END KERNELS
         IF (ln_isfcav) THEN
           !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               IF (miku(ji, jj) > 1) zdit(ji, jj, miku(ji, jj)) = pgui(ji, jj, jn)
@@ -288,6 +293,7 @@ MODULE traldf_triad
         END IF
         CALL ProfileEnd(psy_profile2)
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (zftu(ji - 1, jj, jk) - zftu(ji, jj, jk) + zftv(ji, jj - 1, jk) - zftv(ji, jj, jk)) / (e1e2t(ji, jj) * e3t_n(ji, jj, jk))
@@ -298,6 +304,7 @@ MODULE traldf_triad
       IF (ln_traldf_lap) THEN
         !$ACC KERNELS
         DO jk = 2, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 2, jpim1
               ztfw(ji, jj, jk) = ztfw(ji, jj, jk) - e1e2t(ji, jj) / e3w_n(ji, jj, jk) * tmask(ji, jj, jk) * (ah_wslp2(ji, jj, jk) - akz(ji, jj, jk)) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn))
@@ -310,6 +317,7 @@ MODULE traldf_triad
         SELECT CASE (kpass)
         CASE (1)
           DO jk = 2, jpkm1
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
                 ztfw(ji, jj, jk) = ztfw(ji, jj, jk) - e1e2t(ji, jj) / e3w_n(ji, jj, jk) * tmask(ji, jj, jk) * ah_wslp2(ji, jj, jk) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn))
@@ -318,6 +326,7 @@ MODULE traldf_triad
           END DO
         CASE (2)
           DO jk = 2, jpkm1
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
                 ztfw(ji, jj, jk) = ztfw(ji, jj, jk) - e1e2t(ji, jj) / e3w_n(ji, jj, jk) * tmask(ji, jj, jk) * (ah_wslp2(ji, jj, jk) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn)) + akz(ji, jj, jk) * (ptbb(ji, jj, jk - 1, jn) - ptbb(ji, jj, jk, jn)))
@@ -329,6 +338,7 @@ MODULE traldf_triad
       END IF
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (ztfw(ji, jj, jk + 1) - ztfw(ji, jj, jk)) / (e1e2t(ji, jj) * e3t_n(ji, jj, jk))

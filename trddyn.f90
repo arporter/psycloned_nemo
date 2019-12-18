@@ -20,8 +20,8 @@ MODULE trddyn
   SUBROUTINE trd_dyn(putrd, pvtrd, ktrd, kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
-    INTEGER, INTENT(IN ) :: ktrd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: ktrd
+    INTEGER, INTENT(IN   ) :: kt
     TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     putrd(:, :, :) = putrd(:, :, :) * umask(:, :, :)
@@ -37,8 +37,8 @@ MODULE trddyn
   SUBROUTINE trd_dyn_iom(putrd, pvtrd, ktrd, kt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
-    INTEGER, INTENT(IN ) :: ktrd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: ktrd
+    INTEGER, INTENT(IN   ) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: ikbu, ikbv
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: z2dx, z2dy
@@ -85,6 +85,7 @@ MODULE trddyn
       z3dx(:, :, :) = 0._wp
       z3dy(:, :, :) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             z3dx(ji, jj, jk) = un(ji, jj, jk) * (un(ji + 1, jj, jk) - un(ji - 1, jj, jk)) / (2._wp * e1u(ji, jj))

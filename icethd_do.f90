@@ -118,6 +118,7 @@ MODULE icethd_do
     nptidx(:) = 0
     CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (qlead(ji, jj) < 0._wp .AND. tau_icebfr(ji, jj) == 0._wp) THEN

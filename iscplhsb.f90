@@ -190,6 +190,7 @@ MODULE iscplhsb
     INTEGER :: ji, jj, jk
     !$ACC KERNELS
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           phdivn(ji, jj, jk) = phdivn(ji, jj, jk) + hdiv_iscpl(ji, jj, jk) / e3t_n(ji, jj, jk)

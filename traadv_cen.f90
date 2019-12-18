@@ -20,14 +20,14 @@ MODULE traadv_cen
   CONTAINS
   SUBROUTINE tra_adv_cen(kt, kit000, cdtype, pun, pvn, pwn, ptn, pta, kjpt, kn_cen_h, kn_cen_v)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    INTEGER, INTENT(IN ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
-    INTEGER, INTENT(IN ) :: kjpt
-    INTEGER, INTENT(IN ) :: kn_cen_h
-    INTEGER, INTENT(IN ) :: kn_cen_v
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun, pvn, pwn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptn
+    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN   ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    INTEGER, INTENT(IN   ) :: kjpt
+    INTEGER, INTENT(IN   ) :: kn_cen_h
+    INTEGER, INTENT(IN   ) :: kn_cen_v
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun, pvn, pwn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     INTEGER :: ierr
@@ -58,6 +58,7 @@ MODULE traadv_cen
       CASE (2)
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zwx(ji, jj, jk) = 0.5_wp * pun(ji, jj, jk) * (ptn(ji, jj, jk, jn) + ptn(ji + 1, jj, jk, jn))
@@ -71,6 +72,7 @@ MODULE traadv_cen
         ztu(:, :, jpk) = 0._wp
         ztv(:, :, jpk) = 0._wp
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               ztu(ji, jj, jk) = (ptn(ji + 1, jj, jk, jn) - ptn(ji, jj, jk, jn)) * umask(ji, jj, jk)
@@ -82,6 +84,7 @@ MODULE traadv_cen
         CALL lbc_lnk_multi(ztu, 'U', - 1., ztv, 'V', - 1.)
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 1, jpim1
               zC2t_u = ptn(ji, jj, jk, jn) + ptn(ji + 1, jj, jk, jn)
@@ -101,6 +104,7 @@ MODULE traadv_cen
       CASE (2)
         !$ACC KERNELS
         DO jk = 2, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               zwz(ji, jj, jk) = 0.5 * pwn(ji, jj, jk) * (ptn(ji, jj, jk, jn) + ptn(ji, jj, jk - 1, jn)) * wmask(ji, jj, jk)
@@ -112,6 +116,7 @@ MODULE traadv_cen
         CALL interp_4th_cpt(ptn(:, :, :, jn), ztw)
         !$ACC KERNELS
         DO jk = 2, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               zwz(ji, jj, jk) = pwn(ji, jj, jk) * ztw(ji, jj, jk) * wmask(ji, jj, jk)
@@ -123,6 +128,7 @@ MODULE traadv_cen
       IF (ln_linssh) THEN
         IF (ln_isfcav) THEN
           !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpj
             DO ji = 1, jpi
               zwz(ji, jj, mikt(ji, jj)) = pwn(ji, jj, mikt(ji, jj)) * ptn(ji, jj, mikt(ji, jj), jn)
@@ -137,6 +143,7 @@ MODULE traadv_cen
       END IF
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (zwx(ji, jj, jk) - zwx(ji - 1, jj, jk) + zwy(ji, jj, jk) - zwy(ji, jj - 1, jk) + zwz(ji, jj, jk) - zwz(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)

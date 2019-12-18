@@ -134,6 +134,7 @@ MODULE traqsr
       END IF
       !$ACC KERNELS
       zcoef = (1. - rn_abs) / 3._wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ze0(ji, jj, 1) = rn_abs * qsr(ji, jj)
@@ -143,10 +144,9 @@ MODULE traqsr
           zea(ji, jj, 1) = qsr(ji, jj)
         END DO
       END DO
-      !CC END KERNELS
+      !$ACC END KERNELS
       DO jk = 2, nksr + 1
-        ! PSyclone #537 (NINT support)
-        !CALL ProfileStart('tra_qsr', 'r3', psy_profile3)
+        CALL ProfileStart('tra_qsr', 'r3', psy_profile3)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zchl = MIN(10., MAX(0.03, zchl3d(ji, jj, jk)))
@@ -156,8 +156,9 @@ MODULE traqsr
             zekr(ji, jj) = rkrgb(3, irgb)
           END DO
         END DO
-        !CALL ProfileEnd(psy_profile3)
-        !CC KERNELS
+        CALL ProfileEnd(psy_profile3)
+        !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zc0 = ze0(ji, jj, jk - 1) * EXP(- e3t_n(ji, jj, jk - 1) * xsi0r)
@@ -171,10 +172,11 @@ MODULE traqsr
             zea(ji, jj, jk) = (zc0 + zc1 + zc2 + zc3) * wmask(ji, jj, jk)
           END DO
         END DO
-        !CC END KERNELS
+        !$ACC END KERNELS
       END DO
-      !CC KERNELS
+      !$ACC KERNELS
       DO jk = 1, nksr
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             qsr_hc(ji, jj, jk) = r1_rau0_rcp * (zea(ji, jj, jk) - zea(ji, jj, jk + 1))
@@ -188,6 +190,7 @@ MODULE traqsr
       zz0 = rn_abs * r1_rau0_rcp
       zz1 = (1. - rn_abs) * r1_rau0_rcp
       DO jk = 1, nksr
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zc0 = zz0 * EXP(- gdepw_n(ji, jj, jk) * xsi0r) + zz1 * EXP(- gdepw_n(ji, jj, jk) * xsi1r)
@@ -200,12 +203,14 @@ MODULE traqsr
     END SELECT
     !$ACC KERNELS
     DO jk = 1, nksr
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + z1_2 * (qsr_hc_b(ji, jj, jk) + qsr_hc(ji, jj, jk)) / e3t_n(ji, jj, jk)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (qsr(ji, jj) /= 0._wp) THEN

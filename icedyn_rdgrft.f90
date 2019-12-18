@@ -179,7 +179,7 @@ MODULE icedyn_rdgrft
     CALL ProfileStart('rdgrft_prep', 'r0', psy_profile0)
     z1_gstar = 1._wp / rn_gstar
     z1_astar = 1._wp / rn_astar
-    !CC KERNELS
+    !C KERNELS
     WHERE (pa_i(1 : npti, :) > 0._wp)
       zhi(1 : npti, :) = pv_i(1 : npti, :) / pa_i(1 : npti, :)
     ELSEWHERE
@@ -244,7 +244,7 @@ MODULE icedyn_rdgrft
       !$ACC KERNELS
       DO jl = 1, jpl
         DO ji = 1, npti
-          aridge(ji, jl) = apartf(ji, jl)
+         aridge(ji, jl) = apartf(ji, jl)
           araft(ji, jl) = 0._wp
         END DO
       END DO
@@ -291,13 +291,13 @@ MODULE icedyn_rdgrft
         END IF
       END DO
     END DO
-    !CC END KERNELS
+    !$ACC END KERNELS
     WHERE (zaksum(1 : npti) > 0._wp)
       closing_gross(1 : npti) = pclosing_net(1 : npti) / zaksum(1 : npti)
     ELSEWHERE
       closing_gross(1 : npti) = 0._wp
     END WHERE
-    !CC KERNELS
+    !$ACC KERNELS
     DO jl = 1, jpl
       DO ji = 1, npti
         zfac = apartf(ji, jl) * closing_gross(ji) * rdt_ice

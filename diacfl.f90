@@ -31,6 +31,7 @@ MODULE diacfl
       z2dt = rdt * 2._wp
     END IF
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpim1
           zCu_cfl(ji, jj, jk) = ABS(un(ji, jj, jk)) * z2dt / e1u(ji, jj)

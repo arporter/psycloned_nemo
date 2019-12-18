@@ -54,6 +54,7 @@ MODULE stopts
     DO jdof = 1, nn_sto_eos
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             pts_ran(ji, jj, jk, jp_sal, jdof) = MIN(ABS(pts_ran(ji, jj, jk, jp_sal, jdof)), MAX(pts(ji, jj, jk, jp_sal), 0._wp)) * SIGN(1._wp, pts_ran(ji, jj, jk, jp_sal, jdof))

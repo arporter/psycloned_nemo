@@ -28,12 +28,13 @@ MODULE diatmb
     END IF
   END SUBROUTINE dia_tmb_init
   SUBROUTINE dia_calctmb(pfield, ptmb)
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pfield
-    REAL(KIND = wp), DIMENSION(jpi, jpj, 3), INTENT( OUT) :: ptmb
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pfield
+    REAL(KIND = wp), DIMENSION(jpi, jpj, 3), INTENT(  OUT) :: ptmb
     INTEGER :: ji, jj
     INTEGER :: itop, imid, ibot
     REAL(KIND = wp) :: zmdi = 1.E+20_wp
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         itop = mikt(ji, jj)

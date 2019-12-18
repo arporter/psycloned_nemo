@@ -31,6 +31,7 @@ MODULE dynspg_exp
     END IF
     IF (ln_linssh) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           spgu(ji, jj) = - grav * (sshn(ji + 1, jj) - sshn(ji, jj)) * r1_e1u(ji, jj)
@@ -38,6 +39,7 @@ MODULE dynspg_exp
         END DO
       END DO
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ua(ji, jj, jk) = ua(ji, jj, jk) + spgu(ji, jj)

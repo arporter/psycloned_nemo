@@ -49,11 +49,10 @@ MODULE icecor
     DO jl = 1, jpl
       WHERE (at_i(:, :) > rn_amax_2d(:, :)) a_i(:, :, jl) = a_i(:, :, jl) * rn_amax_2d(:, :) / at_i(:, :)
     END DO
-    !$ACC END KERNELS
     IF (nn_icesal == 2) THEN
-      !$ACC KERNELS
       zzc = rhoi * r1_rdtice
       DO jl = 1, jpl
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zsal = sv_i(ji, jj, jl)
@@ -62,8 +61,8 @@ MODULE icecor
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
     CALL ProfileStart('ice_cor', 'r1', psy_profile1)
     IF (jpl > 1) CALL ice_itd_reb(kt)
     CALL ice_var_zapsmall
@@ -83,9 +82,7 @@ MODULE icecor
     CALL ProfileEnd(psy_profile1)
     SELECT CASE (kn)
     CASE (1)
-       ! TODO Psyclone #278
-       !CALL ProfileStart('ice_cor', 'r2', psy_profile2)
-       !$ACC KERNELS
+      CALL ProfileStart('ice_cor', 'r2', psy_profile2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           diag_heat(ji, jj) = - (SUM(e_i(ji, jj, 1 : nlay_i, :) - e_i_b(ji, jj, 1 : nlay_i, :)) + SUM(e_s(ji, jj, 1 : nlay_s, :) - e_s_b(ji, jj, 1 : nlay_s, :))) * r1_rdtice
@@ -94,8 +91,8 @@ MODULE icecor
           diag_vsnw(ji, jj) = SUM(v_s(ji, jj, :) - v_s_b(ji, jj, :)) * rhos * r1_rdtice
         END DO
       END DO
-      !CALL ProfileEnd(psy_profile2)
-      !CC KERNELS
+      CALL ProfileEnd(psy_profile2)
+      !$ACC KERNELS
       zafx(:, :) = SUM(a_i(:, :, :) - a_i_b(:, :, :), dim = 3) * r1_rdtice
       afx_tot(:, :) = zafx(:, :)
       !$ACC END KERNELS
@@ -103,9 +100,8 @@ MODULE icecor
     CASE (2)
       !$ACC KERNELS
       oa_i(:, :, :) = oa_i(:, :, :) + a_i(:, :, :) * rdt_ice
-      !CC END KERNELS
-      ! TODO Psyclone #278
-      !CALL ProfileStart('ice_cor', 'r3', psy_profile3)
+      !$ACC END KERNELS
+      CALL ProfileStart('ice_cor', 'r3', psy_profile3)
       DO jj = 1, jpj
         DO ji = 1, jpi
           diag_heat(ji, jj) = diag_heat(ji, jj) - (SUM(e_i(ji, jj, 1 : nlay_i, :) - e_i_b(ji, jj, 1 : nlay_i, :)) + SUM(e_s(ji, jj, 1 : nlay_s, :) - e_s_b(ji, jj, 1 : nlay_s, :))) * r1_rdtice
@@ -114,8 +110,8 @@ MODULE icecor
           diag_vsnw(ji, jj) = diag_vsnw(ji, jj) + SUM(v_s(ji, jj, :) - v_s_b(ji, jj, :)) * rhos * r1_rdtice
         END DO
       END DO
-      !CALL ProfileEnd(psy_profile3)
-      !CC KERNELS
+      CALL ProfileEnd(psy_profile3)
+      !$ACC KERNELS
       zafx(:, :) = SUM(a_i(:, :, :) - a_i_b(:, :, :), dim = 3) * r1_rdtice
       afx_tot(:, :) = afx_tot(:, :) + zafx(:, :)
       !$ACC END KERNELS

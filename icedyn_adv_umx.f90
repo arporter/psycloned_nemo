@@ -15,10 +15,10 @@ MODULE icedyn_adv_umx
   CONTAINS
   SUBROUTINE ice_dyn_adv_umx(k_order, kt, pu_ice, pv_ice, pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pe_s, pe_i)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: k_order
-    INTEGER, INTENT(IN ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: pu_ice
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: pv_ice
+    INTEGER, INTENT(IN   ) :: k_order
+    INTEGER, INTENT(IN   ) :: kt
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: pu_ice
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: pv_ice
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: pato_i
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: pv_i
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: pv_s
@@ -53,6 +53,7 @@ MODULE icedyn_adv_umx
     zdt = rdt_ice / REAL(initad)
     zudy(:, :) = pu_ice(:, :) * e2u(:, :)
     zvdx(:, :) = pv_ice(:, :) * e1v(:, :)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (pu_ice(ji, jj) * pu_ice(ji - 1, jj) <= 0._wp) THEN
@@ -97,23 +98,25 @@ MODULE icedyn_adv_umx
     CALL ProfileEnd(psy_profile1)
   END SUBROUTINE ice_dyn_adv_umx
   SUBROUTINE adv_umx(k_order, kt, pdt, puc, pvc, pubox, pvbox, ptc)
-    INTEGER, INTENT(IN ) :: k_order
-    INTEGER, INTENT(IN ) :: kt
-    REAL(KIND = wp), INTENT(IN ) :: pdt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: puc, pvc
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pubox, pvbox
+    INTEGER, INTENT(IN   ) :: k_order
+    INTEGER, INTENT(IN   ) :: kt
+    REAL(KIND = wp), INTENT(IN   ) :: pdt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: puc, pvc
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pubox, pvbox
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: ptc
     INTEGER :: ji, jj
     REAL(KIND = wp) :: ztra
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zfu_ups, zfu_ho, zt_u, zt_ups
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zfv_ups, zfv_ho, zt_v, ztrd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         zfu_ups(ji, jj) = MAX(puc(ji, jj), 0._wp) * ptc(ji, jj) + MIN(puc(ji, jj), 0._wp) * ptc(ji + 1, jj)
         zfv_ups(ji, jj) = MAX(pvc(ji, jj), 0._wp) * ptc(ji, jj) + MIN(pvc(ji, jj), 0._wp) * ptc(ji, jj + 1)
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ztra = - (zfu_ups(ji, jj) - zfu_ups(ji - 1, jj) + zfv_ups(ji, jj) - zfv_ups(ji, jj - 1)) * r1_e1e2t(ji, jj)
@@ -126,6 +129,7 @@ MODULE icedyn_adv_umx
     SELECT CASE (k_order)
     CASE (20)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zfu_ho(ji, jj) = 0.5 * puc(ji, jj) * (ptc(ji, jj) + ptc(ji + 1, jj))
@@ -136,6 +140,7 @@ MODULE icedyn_adv_umx
     CASE (1 : 5)
       CALL macho(k_order, kt, pdt, ptc, puc, pvc, pubox, pvbox, zt_u, zt_v)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zfu_ho(ji, jj) = puc(ji, jj) * zt_u(ji, jj)
@@ -145,6 +150,7 @@ MODULE icedyn_adv_umx
       !$ACC END KERNELS
     END SELECT
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         zfu_ho(ji, jj) = zfu_ho(ji, jj) - zfu_ups(ji, jj)
@@ -154,6 +160,7 @@ MODULE icedyn_adv_umx
     !$ACC END KERNELS
     CALL nonosc_2d(ptc, zfu_ho, zfv_ho, zt_ups, pdt)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ztra = ztrd(ji, jj) - (zfu_ho(ji, jj) - zfu_ho(ji - 1, jj) + zfv_ho(ji, jj) - zfv_ho(ji, jj - 1)) * r1_e1e2t(ji, jj)
@@ -164,19 +171,20 @@ MODULE icedyn_adv_umx
     CALL lbc_lnk(ptc, 'T', 1.)
   END SUBROUTINE adv_umx
   SUBROUTINE macho(k_order, kt, pdt, ptc, puc, pvc, pubox, pvbox, pt_u, pt_v)
-    INTEGER, INTENT(IN ) :: k_order
-    INTEGER, INTENT(IN ) :: kt
-    REAL(KIND = wp), INTENT(IN ) :: pdt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: ptc
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: puc, pvc
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pubox, pvbox
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: pt_u, pt_v
+    INTEGER, INTENT(IN   ) :: k_order
+    INTEGER, INTENT(IN   ) :: kt
+    REAL(KIND = wp), INTENT(IN   ) :: pdt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: ptc
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: puc, pvc
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pubox, pvbox
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: pt_u, pt_v
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zc_box
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zzt
     IF (MOD((kt - 1) / nn_fsbc, 2) == 0) THEN
       CALL ultimate_x(k_order, pdt, ptc, puc, pt_u)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zzt(ji, jj) = ptc(ji, jj) - pubox(ji, jj) * pdt * (pt_u(ji, jj) - pt_u(ji - 1, jj)) * r1_e1t(ji, jj) - ptc(ji, jj) * pdt * (puc(ji, jj) - puc(ji - 1, jj)) * r1_e1e2t(ji, jj)
@@ -189,6 +197,7 @@ MODULE icedyn_adv_umx
     ELSE
       CALL ultimate_y(k_order, pdt, ptc, pvc, pt_v)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zzt(ji, jj) = ptc(ji, jj) - pvbox(ji, jj) * pdt * (pt_v(ji, jj) - pt_v(ji, jj - 1)) * r1_e2t(ji, jj) - ptc(ji, jj) * pdt * (pvc(ji, jj) - pvc(ji, jj - 1)) * r1_e1e2t(ji, jj)
@@ -201,15 +210,16 @@ MODULE icedyn_adv_umx
     END IF
   END SUBROUTINE macho
   SUBROUTINE ultimate_x(k_order, pdt, pt, puc, pt_u)
-    INTEGER, INTENT(IN ) :: k_order
-    REAL(KIND = wp), INTENT(IN ) :: pdt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: puc
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: pt_u
+    INTEGER, INTENT(IN   ) :: k_order
+    REAL(KIND = wp), INTENT(IN   ) :: pdt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: puc
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: pt_u
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zcu, zdx2, zdx4
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztu1, ztu2, ztu3, ztu4
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT
     DO jj = 2, jpjm1
       DO ji = 1, jpim1
         ztu1(ji, jj) = (pt(ji + 1, jj) - pt(ji, jj)) * r1_e1u(ji, jj) * umask(ji, jj, 1)
@@ -221,6 +231,7 @@ MODULE icedyn_adv_umx
     !$ACC END KERNELS
     CALL lbc_lnk(ztu2, 'T', 1.)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT
     DO jj = 2, jpjm1
       DO ji = 1, jpim1
         ztu3(ji, jj) = (ztu2(ji + 1, jj) - ztu2(ji, jj)) * r1_e1u(ji, jj) * umask(ji, jj, 1)
@@ -234,12 +245,14 @@ MODULE icedyn_adv_umx
     !$ACC KERNELS
     SELECT CASE (k_order)
     CASE (1)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           pt_u(ji, jj) = 0.5_wp * umask(ji, jj, 1) * (pt(ji + 1, jj) + pt(ji, jj) - SIGN(1._wp, puc(ji, jj)) * (pt(ji + 1, jj) - pt(ji, jj)))
         END DO
       END DO
     CASE (2)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
@@ -247,6 +260,7 @@ MODULE icedyn_adv_umx
         END DO
       END DO
     CASE (3)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
@@ -255,6 +269,7 @@ MODULE icedyn_adv_umx
         END DO
       END DO
     CASE (4)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
@@ -263,6 +278,7 @@ MODULE icedyn_adv_umx
         END DO
       END DO
     CASE (5)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zcu = puc(ji, jj) * r1_e2u(ji, jj) * pdt * r1_e1u(ji, jj)
@@ -275,20 +291,22 @@ MODULE icedyn_adv_umx
     !$ACC END KERNELS
   END SUBROUTINE ultimate_x
   SUBROUTINE ultimate_y(k_order, pdt, pt, pvc, pt_v)
-    INTEGER, INTENT(IN ) :: k_order
-    REAL(KIND = wp), INTENT(IN ) :: pdt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pvc
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: pt_v
+    INTEGER, INTENT(IN   ) :: k_order
+    REAL(KIND = wp), INTENT(IN   ) :: pdt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pvc
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: pt_v
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zcv, zdy2, zdy4
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztv1, ztv2, ztv3, ztv4
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 2, jpim1
         ztv1(ji, jj) = (pt(ji, jj + 1) - pt(ji, jj)) * r1_e2v(ji, jj) * vmask(ji, jj, 1)
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ztv2(ji, jj) = (ztv1(ji, jj) - ztv1(ji, jj - 1)) * r1_e2t(ji, jj)
@@ -297,11 +315,13 @@ MODULE icedyn_adv_umx
     !$ACC END KERNELS
     CALL lbc_lnk(ztv2, 'T', 1.)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 2, jpim1
         ztv3(ji, jj) = (ztv2(ji, jj + 1) - ztv2(ji, jj)) * r1_e2v(ji, jj) * vmask(ji, jj, 1)
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ztv4(ji, jj) = (ztv3(ji, jj) - ztv3(ji, jj - 1)) * r1_e2t(ji, jj)
@@ -312,6 +332,7 @@ MODULE icedyn_adv_umx
     SELECT CASE (k_order)
     CASE (1)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           pt_v(ji, jj) = 0.5_wp * vmask(ji, jj, 1) * ((pt(ji, jj + 1) + pt(ji, jj)) - SIGN(1._wp, pvc(ji, jj)) * (pt(ji, jj + 1) - pt(ji, jj)))
@@ -320,6 +341,7 @@ MODULE icedyn_adv_umx
       !$ACC END KERNELS
     CASE (2)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
@@ -330,6 +352,7 @@ MODULE icedyn_adv_umx
       CALL lbc_lnk(pt_v, 'V', 1.)
     CASE (3)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
@@ -340,6 +363,7 @@ MODULE icedyn_adv_umx
       !$ACC END KERNELS
     CASE (4)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
@@ -350,6 +374,7 @@ MODULE icedyn_adv_umx
       !$ACC END KERNELS
     CASE (5)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 2, jpim1
           zcv = pvc(ji, jj) * r1_e1v(ji, jj) * pdt * r1_e2v(ji, jj)
@@ -362,8 +387,8 @@ MODULE icedyn_adv_umx
     END SELECT
   END SUBROUTINE ultimate_y
   SUBROUTINE nonosc_2d(pbef, paa, pbb, paft, pdt)
-    REAL(KIND = wp), INTENT(IN ) :: pdt
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pbef, paft
+    REAL(KIND = wp), INTENT(IN   ) :: pdt
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pbef, paft
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: paa, pbb
     INTEGER :: ji, jj
     INTEGER :: ikm1
@@ -373,6 +398,7 @@ MODULE icedyn_adv_umx
     !$ACC KERNELS
     zbig = 1.E+40_wp
     zsml = 1.E-15_wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zdiv(ji, jj) = - (paa(ji, jj) - paa(ji - 1, jj) + pbb(ji, jj) - pbb(ji, jj - 1))
@@ -389,6 +415,7 @@ MODULE icedyn_adv_umx
     zbup(:, :) = MAX(pbef(:, :) * zmsk(:, :) - zbig * (1.E0 - zmsk(:, :)), paft(:, :) * zmsk(:, :) - zbig * (1.E0 - zmsk(:, :)))
     zbdo(:, :) = MIN(pbef(:, :) * zmsk(:, :) + zbig * (1.E0 - zmsk(:, :)), paft(:, :) * zmsk(:, :) + zbig * (1.E0 - zmsk(:, :)))
     z1_dt = 1._wp / pdt
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zup = MAX(zbup(ji, jj), zbup(ji - 1, jj), zbup(ji + 1, jj), zbup(ji, jj - 1), zbup(ji, jj + 1))
@@ -403,6 +430,7 @@ MODULE icedyn_adv_umx
     !$ACC END KERNELS
     CALL lbc_lnk_multi(zbetup, 'T', 1., zbetdo, 'T', 1.)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 1, jpim1
         zau = MIN(1._wp, zbetdo(ji, jj), zbetup(ji + 1, jj))
@@ -411,6 +439,7 @@ MODULE icedyn_adv_umx
         paa(ji, jj) = paa(ji, jj) * (zcu * zau + (1._wp - zcu) * zbu)
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 2, jpim1
         zav = MIN(1._wp, zbetdo(ji, jj), zbetup(ji, jj + 1))

@@ -192,7 +192,7 @@ MODULE sbcblk
   END SUBROUTINE sbc_blk
   SUBROUTINE blk_oce(kt, sf, pst, pu, pv)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: kt
     TYPE(fld), INTENT(INOUT), DIMENSION(:) :: sf
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: pst
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: pu
@@ -260,6 +260,7 @@ MODULE sbcblk
     END IF
     CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zztmp = zrhoa(ji, jj) * zU_zu(ji, jj) * Cd_atm(ji, jj)
@@ -274,6 +275,7 @@ MODULE sbcblk
     CALL iom_put("taum_oce", taum)
     CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         utau(ji, jj) = 0.5 * (2. - umask(ji, jj, 1)) * (zwnd_i(ji, jj) + zwnd_i(ji + 1, jj)) * MAX(tmask(ji, jj, 1), tmask(ji + 1, jj, 1))
@@ -366,6 +368,7 @@ MODULE sbcblk
     INTEGER :: ji, jj
     REAL(KIND = wp) :: ze_sat, ztmp
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ztmp = rt0 / ptak(ji, jj)
@@ -382,6 +385,7 @@ MODULE sbcblk
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zrv, ziRT
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zrv = pqa(ji, jj) / (1. - pqa(ji, jj))
@@ -569,11 +573,11 @@ MODULE sbcblk
     CALL ProfileEnd(psy_profile4)
   END SUBROUTINE blk_ice_flx
   SUBROUTINE blk_ice_qcn(k_virtual_itd, ptsu, ptb, phs, phi)
-    INTEGER, INTENT(IN ) :: k_virtual_itd
+    INTEGER, INTENT(IN   ) :: k_virtual_itd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptsu
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: ptb
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: phs
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: phi
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: ptb
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: phs
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: phi
     INTEGER, PARAMETER :: nit = 10
     REAL(KIND = wp), PARAMETER :: zepsilon = 0.1_wp
     INTEGER :: ji, jj, jl
@@ -591,6 +595,7 @@ MODULE sbcblk
       zfac2 = EXP(1._wp) * 0.5_wp * zepsilon
       zfac3 = 2._wp / zepsilon
       DO jl = 1, jpl
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zhe = (rn_cnd_s * phi(ji, jj, jl) + rcnd_i * phs(ji, jj, jl)) * zfac
@@ -601,6 +606,7 @@ MODULE sbcblk
     END SELECT
     zfac = rcnd_i * rn_cnd_s
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zkeff_h = zfac * zgfac(ji, jj, jl) / (rcnd_i * phs(ji, jj, jl) + rn_cnd_s * MAX(0.01, phi(ji, jj, jl)))
@@ -674,6 +680,7 @@ MODULE sbcblk
     zqi_sat(:, :) = 0.98_wp * q_sat(tm_su(:, :), sf(jp_slp) % fnow(:, :, 1))
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zthetav_os = zst(ji, jj) * (1._wp + rctv0 * zqo_sat(ji, jj))

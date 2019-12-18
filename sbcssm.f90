@@ -27,6 +27,7 @@ MODULE sbcssm
     TYPE(ProfileData), SAVE :: psy_profile5
     TYPE(ProfileData), SAVE :: psy_profile6
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zts(ji, jj, jp_tem) = tsn(ji, jj, mikt(ji, jj), jp_tem)

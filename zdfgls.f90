@@ -85,8 +85,8 @@ MODULE zdfgls
   SUBROUTINE zdf_gls(kt, p_sh2, p_avm, p_avt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE zdf_oce, ONLY: en, avtb, avmb
-    INTEGER, INTENT(IN ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_sh2
+    INTEGER, INTENT(IN   ) :: kt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     INTEGER :: ibot, ibotm1
@@ -117,6 +117,7 @@ MODULE zdfgls
     ustar2_top(:, :) = 0._wp
     zwall_psi(:, :, :) = 0._wp
     ustar2_bot(:, :) = 0._wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ustar2_surf(ji, jj) = r1_rau0 * taum(ji, jj) * tmask(ji, jj, 1)
@@ -128,6 +129,7 @@ MODULE zdfgls
     !$ACC END KERNELS
     IF (ln_isfcav) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zmsku = (2. - umask(ji - 1, jj, mikt(ji, jj)) * umask(ji, jj, mikt(ji, jj)))
@@ -150,6 +152,7 @@ MODULE zdfgls
       zhsro(:, :) = rn_frac_hs * hsw(:, :)
     END SELECT
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           eps(ji, jj, jk) = rc03 * en(ji, jj, jk) * SQRT(en(ji, jj, jk)) / hmxl_n(ji, jj, jk)
@@ -160,6 +163,7 @@ MODULE zdfgls
     hmxl_b(:, :, :) = hmxl_n(:, :, :)
     IF (nn_clos == 0) THEN
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zup = hmxl_n(ji, jj, jk) * gdepw_n(ji, jj, mbkt(ji, jj) + 1)
@@ -224,6 +228,7 @@ MODULE zdfgls
     SELECT CASE (nn_bc_bot)
     CASE (0)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ibot = mbkt(ji, jj) + 1
@@ -242,6 +247,7 @@ MODULE zdfgls
       !$ACC END KERNELS
       IF (ln_isfcav) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             itop = mikt(ji, jj)
@@ -261,6 +267,7 @@ MODULE zdfgls
       END IF
     CASE (1)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ibot = mbkt(ji, jj) + 1
@@ -276,6 +283,7 @@ MODULE zdfgls
       !$ACC END KERNELS
       IF (ln_isfcav) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             itop = mikt(ji, jj)
@@ -293,6 +301,7 @@ MODULE zdfgls
     END SELECT
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zdiag(ji, jj, jk) = zdiag(ji, jj, jk) - zd_lw(ji, jj, jk) * zd_up(ji, jj, jk - 1) / zdiag(ji, jj, jk - 1)
@@ -300,6 +309,7 @@ MODULE zdfgls
       END DO
     END DO
     DO jk = 2, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zd_lw(ji, jj, jk) = en(ji, jj, jk) - zd_lw(ji, jj, jk) / zdiag(ji, jj, jk - 1) * zd_lw(ji, jj, jk - 1)
@@ -307,6 +317,7 @@ MODULE zdfgls
       END DO
     END DO
     DO jk = jpk - 1, 2, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           en(ji, jj, jk) = (zd_lw(ji, jj, jk) - zd_up(ji, jj, jk) * en(ji, jj, jk + 1)) / zdiag(ji, jj, jk)
@@ -317,6 +328,7 @@ MODULE zdfgls
     SELECT CASE (nn_clos)
     CASE (0)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             psi(ji, jj, jk) = eb(ji, jj, jk) * hmxl_b(ji, jj, jk)
@@ -325,6 +337,7 @@ MODULE zdfgls
       END DO
     CASE (1)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             psi(ji, jj, jk) = eps(ji, jj, jk)
@@ -333,6 +346,7 @@ MODULE zdfgls
       END DO
     CASE (2)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             psi(ji, jj, jk) = SQRT(eb(ji, jj, jk)) / (rc0 * hmxl_b(ji, jj, jk))
@@ -341,6 +355,7 @@ MODULE zdfgls
       END DO
     CASE (3)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             psi(ji, jj, jk) = rc02 * eb(ji, jj, jk) * hmxl_b(ji, jj, jk) ** rnn
@@ -349,6 +364,7 @@ MODULE zdfgls
       END DO
     END SELECT
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zratio = psi(ji, jj, jk) / eb(ji, jj, jk)
@@ -399,6 +415,7 @@ MODULE zdfgls
     END SELECT
     SELECT CASE (nn_bc_bot)
     CASE (0)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ibot = mbkt(ji, jj) + 1
@@ -416,6 +433,7 @@ MODULE zdfgls
         END DO
       END DO
     CASE (1)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ibot = mbkt(ji, jj) + 1
@@ -434,6 +452,7 @@ MODULE zdfgls
       END DO
     END SELECT
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zdiag(ji, jj, jk) = zdiag(ji, jj, jk) - zd_lw(ji, jj, jk) * zd_up(ji, jj, jk - 1) / zdiag(ji, jj, jk - 1)
@@ -441,6 +460,7 @@ MODULE zdfgls
       END DO
     END DO
     DO jk = 2, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zd_lw(ji, jj, jk) = psi(ji, jj, jk) - zd_lw(ji, jj, jk) / zdiag(ji, jj, jk - 1) * zd_lw(ji, jj, jk - 1)
@@ -448,6 +468,7 @@ MODULE zdfgls
       END DO
     END DO
     DO jk = jpk - 1, 2, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           psi(ji, jj, jk) = (zd_lw(ji, jj, jk) - zd_up(ji, jj, jk) * psi(ji, jj, jk + 1)) / zdiag(ji, jj, jk)
@@ -457,6 +478,7 @@ MODULE zdfgls
     SELECT CASE (nn_clos)
     CASE (0)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             eps(ji, jj, jk) = rc03 * en(ji, jj, jk) * en(ji, jj, jk) * SQRT(en(ji, jj, jk)) / MAX(psi(ji, jj, jk), rn_epsmin)
@@ -465,6 +487,7 @@ MODULE zdfgls
       END DO
     CASE (1)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             eps(ji, jj, jk) = psi(ji, jj, jk)
@@ -473,6 +496,7 @@ MODULE zdfgls
       END DO
     CASE (2)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             eps(ji, jj, jk) = rc04 * en(ji, jj, jk) * psi(ji, jj, jk)
@@ -484,6 +508,7 @@ MODULE zdfgls
       zex1 = (1.5_wp + rmm / rnn)
       zex2 = - 1._wp / rnn
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             eps(ji, jj, jk) = zcoef * en(ji, jj, jk) ** zex1 * psi(ji, jj, jk) ** zex2
@@ -508,6 +533,7 @@ MODULE zdfgls
     SELECT CASE (nn_stab_func)
     CASE (0, 1)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zcof = hmxl_b(ji, jj, jk) * hmxl_b(ji, jj, jk) / (2._wp * eb(ji, jj, jk))
@@ -523,6 +549,7 @@ MODULE zdfgls
       END DO
     CASE (2, 3)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zcof = hmxl_b(ji, jj, jk) * hmxl_b(ji, jj, jk) / (2._wp * eb(ji, jj, jk))
@@ -544,12 +571,14 @@ MODULE zdfgls
       END DO
     END SELECT
     zstm(:, :, 1) = zstm(:, :, 2)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zstm(ji, jj, mbkt(ji, jj) + 1) = zstm(ji, jj, mbkt(ji, jj))
       END DO
     END DO
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zsqen = SQRT(2._wp * en(ji, jj, jk)) * hmxl_n(ji, jj, jk)

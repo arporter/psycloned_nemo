@@ -17,20 +17,20 @@ MODULE sbcblk_algo_ncar
   CONTAINS
   SUBROUTINE turb_ncar(zt, zu, sst, t_zt, ssq, q_zt, U_zu, Cd, Ch, Ce, t_zu, q_zu, U_blk, Cdn, Chn, Cen)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), INTENT(IN ) :: zt
-    REAL(KIND = wp), INTENT(IN ) :: zu
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: sst
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: t_zt
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: ssq
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: q_zt
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: U_zu
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Cd
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Ch
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Ce
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: t_zu
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: q_zu
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: U_blk
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
+    REAL(KIND = wp), INTENT(IN   ) :: zt
+    REAL(KIND = wp), INTENT(IN   ) :: zu
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: sst
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: t_zt
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: ssq
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: q_zt
+    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: U_zu
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Cd
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Ch
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Ce
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: t_zu
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: q_zu
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: U_blk
+    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
     INTEGER :: j_itt
     LOGICAL :: l_zt_equal_zu = .FALSE.
     INTEGER, PARAMETER :: nb_itt = 4
@@ -139,6 +139,7 @@ MODULE sbcblk_algo_ncar
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zx2, zx, zstab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zx2 = SQRT(ABS(1. - 16. * pzeta(ji, jj)))
@@ -156,6 +157,7 @@ MODULE sbcblk_algo_ncar
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zx2, zstab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zx2 = SQRT(ABS(1. - 16. * pzeta(ji, jj)))

@@ -48,12 +48,12 @@ MODULE obs_readmdt
     CALL iom_open(mdtname, nummdt)
     CALL iom_get(nummdt, jpdom_data, 'sossheig', z_mdt(:, :), 1)
     CALL iom_close(nummdt)
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     zinfill = 0.0
     i_stat = nf90_open(mdtname, nf90_nowrite, nummdt)
     i_stat = nf90_inq_varid(nummdt, 'sossheig', i_var_id)
     i_stat = nf90_get_att(nummdt, i_var_id, "_FillValue", zinfill)
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     zfill = zinfill
     i_stat = nf90_close(nummdt)
     WHERE (z_mdt(:, :) /= zfill)
@@ -95,7 +95,7 @@ MODULE obs_readmdt
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kpi, kpj
     REAL(KIND = wp), DIMENSION(kpi, kpj), INTENT(INOUT) :: mdt
-    REAL(KIND = wp), INTENT(IN ) :: zfill
+    REAL(KIND = wp), INTENT(IN   ) :: zfill
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zdxdy, zarea, zeta1, zeta2, zcorr_mdt, zcorr_bcketa, zcorr
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zpromsk
@@ -112,6 +112,7 @@ MODULE obs_readmdt
     zarea = 0.0
     zeta1 = 0.0
     zeta2 = 0.0
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zdxdy = e1e2t(ji, jj) * zpromsk(ji, jj)

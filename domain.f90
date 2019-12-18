@@ -87,6 +87,7 @@ MODULE domain
     CALL dom_msk(ik_top, ik_bot)
     IF (ln_closea) CALL dom_clo
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ik = mikt(ji, jj)

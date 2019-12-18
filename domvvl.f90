@@ -84,6 +84,7 @@ MODULE domvvl
     gdept_b(:, :, 1) = 0.5_wp * e3w_b(:, :, 1)
     gdepw_b(:, :, 1) = 0.0_wp
     DO jk = 2, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zcoef = (tmask(ji, jj, jk) - wmask(ji, jj, jk))
@@ -129,6 +130,7 @@ MODULE domvvl
       END IF
       IF (ln_vvl_zstar_at_eqtor) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (ABS(gphit(ji, jj)) >= 6.) THEN
@@ -143,9 +145,7 @@ MODULE domvvl
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
         IF (cn_cfg == "orca" .OR. cn_cfg == "ORCA") THEN
-          !$ACC KERNELS
           IF (nn_cfg == 3) THEN
             ii0 = 103
             ii1 = 111
@@ -154,8 +154,8 @@ MODULE domvvl
             frq_rst_e3t(mi0(ii0) : mi1(ii1), mj0(ij0) : mj1(ij1)) = 0.0_wp
             frq_rst_hdv(mi0(ii0) : mi1(ii1), mj0(ij0) : mj1(ij1)) = 1.E0_wp / rdt
           END IF
-          !$ACC END KERNELS
         END IF
+        !$ACC END KERNELS
       END IF
     END IF
     IF (lwxios) THEN
@@ -257,6 +257,7 @@ MODULE domvvl
       zwu(:, :) = 0._wp
       zwv(:, :) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             un_td(ji, jj, jk) = rn_ahe3 * umask(ji, jj, jk) * e2_e1u(ji, jj) * (tilde_e3t_b(ji, jj, jk) - tilde_e3t_b(ji + 1, jj, jk))
@@ -266,6 +267,7 @@ MODULE domvvl
           END DO
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           un_td(ji, jj, mbku(ji, jj)) = un_td(ji, jj, mbku(ji, jj)) - zwu(ji, jj)
@@ -273,6 +275,7 @@ MODULE domvvl
         END DO
       END DO
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             tilde_e3t_a(ji, jj, jk) = tilde_e3t_a(ji, jj, jk) + (un_td(ji - 1, jj, jk) - un_td(ji, jj, jk) + vn_td(ji, jj - 1, jk) - vn_td(ji, jj, jk)) * r1_e1e2t(ji, jj)
@@ -463,6 +466,7 @@ MODULE domvvl
     gdepw_n(:, :, 1) = 0.0_wp
     gde3w_n(:, :, 1) = gdept_n(:, :, 1) - sshn(:, :)
     DO jk = 2, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zcoef = (tmask(ji, jj, jk) - wmask(ji, jj, jk))
@@ -488,9 +492,9 @@ MODULE domvvl
   END SUBROUTINE dom_vvl_sf_swp
   SUBROUTINE dom_vvl_interpol(pe3_in, pe3_out, pout)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pe3_in
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pe3_in
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pe3_out
-    CHARACTER(LEN = *), INTENT(IN ) :: pout
+    CHARACTER(LEN = *), INTENT(IN   ) :: pout
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zlnwd
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -505,6 +509,7 @@ MODULE domvvl
     CASE ('U')
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             pe3_out(ji, jj, jk) = 0.5_wp * (umask(ji, jj, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2u(ji, jj) * (e1e2t(ji, jj) * (pe3_in(ji, jj, jk) - e3t_0(ji, jj, jk)) + e1e2t(ji + 1, jj) * (pe3_in(ji + 1, jj, jk) - e3t_0(ji + 1, jj, jk)))
@@ -519,6 +524,7 @@ MODULE domvvl
     CASE ('V')
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             pe3_out(ji, jj, jk) = 0.5_wp * (vmask(ji, jj, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2v(ji, jj) * (e1e2t(ji, jj) * (pe3_in(ji, jj, jk) - e3t_0(ji, jj, jk)) + e1e2t(ji, jj + 1) * (pe3_in(ji, jj + 1, jk) - e3t_0(ji, jj + 1, jk)))
@@ -533,6 +539,7 @@ MODULE domvvl
     CASE ('F')
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             pe3_out(ji, jj, jk) = 0.5_wp * (umask(ji, jj, jk) * umask(ji, jj + 1, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2f(ji, jj) * (e1e2u(ji, jj) * (pe3_in(ji, jj, jk) - e3u_0(ji, jj, jk)) + e1e2u(ji, jj + 1) * (pe3_in(ji, jj + 1, jk) - e3u_0(ji, jj + 1, jk)))
@@ -662,6 +669,7 @@ MODULE domvvl
             !$ACC KERNELS
             sshn(:, :) = - ssh_ref
             sshb(:, :) = - ssh_ref
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpj
               DO ji = 1, jpi
                 IF (ht_0(ji, jj) - ssh_ref < rn_wdmin1) THEN

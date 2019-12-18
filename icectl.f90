@@ -98,22 +98,15 @@ MODULE icectl
     INTEGER, DIMENSION(20) :: inb_alp
     TYPE(ProfileData), SAVE :: psy_profile0
     TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
-    TYPE(ProfileData), SAVE :: psy_profile7
-    TYPE(ProfileData), SAVE :: psy_profile8
-    TYPE(ProfileData), SAVE :: psy_profile9
     CALL ProfileStart('ice_ctl', 'r0', psy_profile0)
     inb_altests = 10
     inb_alp(:) = 0
-    ialert_id = 2
-    cl_alname(ialert_id) = ' Incompat vol and con         '
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
+    ialert_id = 2
+    cl_alname(ialert_id) = ' Incompat vol and con         '
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (v_i(ji, jj, jl) /= 0._wp .AND. a_i(ji, jj, jl) == 0._wp) THEN
@@ -123,12 +116,9 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 3
-    !$ACC END KERNELS
-    CALL ProfileStart('ice_ctl', 'r1', psy_profile1)
     cl_alname(ialert_id) = ' Very thick ice               '
-    CALL ProfileEnd(psy_profile1)
-    !$ACC KERNELS
     jl = jpl
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (h_i(ji, jj, jl) > 50._wp) THEN
@@ -137,11 +127,8 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 4
-    !$ACC END KERNELS
-    CALL ProfileStart('ice_ctl', 'r2', psy_profile2)
     cl_alname(ialert_id) = ' Very fast ice               '
-    CALL ProfileEnd(psy_profile2)
-    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (MAX(ABS(u_ice(ji, jj)), ABS(v_ice(ji, jj))) > 1.5 .AND. at_i(ji, jj) > 0._wp) THEN
@@ -150,11 +137,8 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 6
-    !$ACC END KERNELS
-    CALL ProfileStart('ice_ctl', 'r3', psy_profile3)
     cl_alname(ialert_id) = ' Ice on continents           '
-    CALL ProfileEnd(psy_profile3)
-    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (tmask(ji, jj, 1) <= 0._wp .AND. at_i(ji, jj) > 0._wp) THEN
@@ -163,12 +147,9 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 7
-    !$ACC END KERNELS
-    CALL ProfileStart('ice_ctl', 'r4', psy_profile4)
     cl_alname(ialert_id) = ' Very fresh ice               '
-    CALL ProfileEnd(psy_profile4)
-    !$ACC KERNELS
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (s_i(ji, jj, jl) < 0.1 .AND. a_i(ji, jj, jl) > 0._wp) THEN
@@ -178,12 +159,9 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 9
-    !$ACC END KERNELS
-    CALL ProfileStart('ice_ctl', 'r5', psy_profile5)
     cl_alname(ialert_id) = ' Very old   ice               '
-    CALL ProfileEnd(psy_profile5)
-    !$ACC KERNELS
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (((ABS(o_i(ji, jj, jl)) > rdt_ice) .OR. (ABS(o_i(ji, jj, jl)) < 0._wp)) .AND. (a_i(ji, jj, jl) > 0._wp)) THEN
@@ -193,11 +171,8 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 5
-    !$ACC END KERNELS
-    CALL ProfileStart('ice_ctl', 'r6', psy_profile6)
     cl_alname(ialert_id) = ' High salt flux               '
-    CALL ProfileEnd(psy_profile6)
-    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (ABS(sfx(ji, jj)) > 1.0E-2) THEN
@@ -206,11 +181,8 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 8
-    !$ACC END KERNELS
-    CALL ProfileStart('ice_ctl', 'r7', psy_profile7)
     cl_alname(ialert_id) = ' fnsolar very big             '
-    CALL ProfileEnd(psy_profile7)
-    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (ABS(qns(ji, jj)) > 1500._wp .AND. at_i(ji, jj) > 0._wp) THEN
@@ -219,14 +191,13 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 10
-    !$ACC END KERNELS
-    CALL ProfileStart('ice_ctl', 'r8', psy_profile8)
     cl_alname(ialert_id) = ' Very warm ice                '
     inb_alp(ialert_id) = 0
-    CALL ProfileEnd(psy_profile8)
+    !$ACC END KERNELS
     DO jl = 1, jpl
       !$ACC KERNELS
       DO jk = 1, nlay_i
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             ztmelts = - rTmlt * sz_i(ji, jj, jk, jl) + rt0
@@ -238,7 +209,7 @@ MODULE icectl
       END DO
       !$ACC END KERNELS
     END DO
-    CALL ProfileStart('ice_ctl', 'r9', psy_profile9)
+    CALL ProfileStart('ice_ctl', 'r1', psy_profile1)
     IF (lk_mpp) THEN
       DO ialert_id = 1, inb_altests
         CALL mpp_sum(inb_alp(ialert_id))
@@ -253,7 +224,7 @@ MODULE icectl
         WRITE(numout, FMT = *) ialert_id, cl_alname(ialert_id) // ' : ', inb_alp(ialert_id), ' times ! '
       END DO
     END IF
-    CALL ProfileEnd(psy_profile9)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE ice_ctl
   SUBROUTINE ice_prt(kt, ki, kj, kn, cd1)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd

@@ -25,11 +25,11 @@ MODULE iom_nf90
   SUBROUTINE iom_nf90_open(cdname, kiomid, ldwrt, ldok, kdompar, kdlev)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = *), INTENT(INOUT) :: cdname
-    INTEGER, INTENT( OUT) :: kiomid
-    LOGICAL, INTENT(IN ) :: ldwrt
-    LOGICAL, INTENT(IN ) :: ldok
-    INTEGER, DIMENSION(2, 5), INTENT(IN ), OPTIONAL :: kdompar
-    INTEGER, INTENT(IN ), OPTIONAL :: kdlev
+    INTEGER, INTENT(  OUT) :: kiomid
+    LOGICAL, INTENT(IN   ) :: ldwrt
+    LOGICAL, INTENT(IN   ) :: ldok
+    INTEGER, DIMENSION(2, 5), INTENT(IN   ), OPTIONAL :: kdompar
+    INTEGER, INTENT(IN   ), OPTIONAL :: kdlev
     CHARACTER(LEN = 256) :: clinfo
     CHARACTER(LEN = 256) :: cltmp
     INTEGER :: iln
@@ -151,11 +151,11 @@ MODULE iom_nf90
   END SUBROUTINE iom_nf90_close
   FUNCTION iom_nf90_varid(kiomid, cdvar, kiv, kdimsz, kndims)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN ) :: cdvar
-    INTEGER, INTENT(IN ) :: kiv
-    INTEGER, DIMENSION(:), INTENT( OUT), OPTIONAL :: kdimsz
-    INTEGER, INTENT( OUT), OPTIONAL :: kndims
+    INTEGER, INTENT(IN   ) :: kiomid
+    CHARACTER(LEN = *), INTENT(IN   ) :: cdvar
+    INTEGER, INTENT(IN   ) :: kiv
+    INTEGER, DIMENSION(:), INTENT(  OUT), OPTIONAL :: kdimsz
+    INTEGER, INTENT(  OUT), OPTIONAL :: kndims
     INTEGER :: iom_nf90_varid
     INTEGER :: if90id
     INTEGER :: ji
@@ -213,10 +213,10 @@ MODULE iom_nf90
   END FUNCTION iom_nf90_varid
   SUBROUTINE iom_nf90_g0d(kiomid, kvid, pvar, kstart)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kiomid
-    INTEGER, INTENT(IN ) :: kvid
-    REAL(KIND = wp), INTENT( OUT) :: pvar
-    INTEGER, DIMENSION(1), INTENT(IN ), OPTIONAL :: kstart
+    INTEGER, INTENT(IN   ) :: kiomid
+    INTEGER, INTENT(IN   ) :: kvid
+    REAL(KIND = wp), INTENT(  OUT) :: pvar
+    INTEGER, DIMENSION(1), INTENT(IN   ), OPTIONAL :: kstart
     CHARACTER(LEN = 100) :: clinfo
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('iom_nf90_g0d', 'r0', psy_profile0)
@@ -226,15 +226,15 @@ MODULE iom_nf90
   END SUBROUTINE iom_nf90_g0d
   SUBROUTINE iom_nf90_g123d(kiomid, kvid, knbdim, kstart, kcount, kx1, kx2, ky1, ky2, pv_r1d, pv_r2d, pv_r3d)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kiomid
-    INTEGER, INTENT(IN ) :: kvid
-    INTEGER, INTENT(IN ) :: knbdim
-    INTEGER, DIMENSION(:), INTENT(IN ) :: kstart
-    INTEGER, DIMENSION(:), INTENT(IN ) :: kcount
-    INTEGER, INTENT(IN ) :: kx1, kx2, ky1, ky2
-    REAL(KIND = wp), DIMENSION(:), INTENT( OUT), OPTIONAL :: pv_r1d
-    REAL(KIND = wp), DIMENSION(:, :), INTENT( OUT), OPTIONAL :: pv_r2d
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT), OPTIONAL :: pv_r3d
+    INTEGER, INTENT(IN   ) :: kiomid
+    INTEGER, INTENT(IN   ) :: kvid
+    INTEGER, INTENT(IN   ) :: knbdim
+    INTEGER, DIMENSION(:), INTENT(IN   ) :: kstart
+    INTEGER, DIMENSION(:), INTENT(IN   ) :: kcount
+    INTEGER, INTENT(IN   ) :: kx1, kx2, ky1, ky2
+    REAL(KIND = wp), DIMENSION(:), INTENT(  OUT), OPTIONAL :: pv_r1d
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(  OUT), OPTIONAL :: pv_r2d
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT), OPTIONAL :: pv_r3d
     CHARACTER(LEN = 100) :: clinfo
     INTEGER :: if90id
     INTEGER :: ivid
@@ -254,10 +254,10 @@ MODULE iom_nf90
   END SUBROUTINE iom_nf90_g123d
   SUBROUTINE iom_nf90_giatt(kiomid, cdatt, pv_i0d, cdvar)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN ) :: cdatt
-    INTEGER, INTENT( OUT) :: pv_i0d
-    CHARACTER(LEN = *), INTENT(IN ), OPTIONAL :: cdvar
+    INTEGER, INTENT(IN   ) :: kiomid
+    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
+    INTEGER, INTENT(  OUT) :: pv_i0d
+    CHARACTER(LEN = *), INTENT(IN   ), OPTIONAL :: cdvar
     INTEGER :: if90id
     INTEGER :: ivarid
     LOGICAL :: llok
@@ -287,10 +287,10 @@ MODULE iom_nf90
   END SUBROUTINE iom_nf90_giatt
   SUBROUTINE iom_nf90_gratt(kiomid, cdatt, pv_r0d, cdvar)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN ) :: cdatt
-    REAL(KIND = wp), INTENT( OUT) :: pv_r0d
-    CHARACTER(LEN = *), OPTIONAL, INTENT(IN ) :: cdvar
+    INTEGER, INTENT(IN   ) :: kiomid
+    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
+    REAL(KIND = wp), INTENT(  OUT) :: pv_r0d
+    CHARACTER(LEN = *), OPTIONAL, INTENT(IN   ) :: cdvar
     INTEGER :: if90id
     INTEGER :: ivarid
     LOGICAL :: llok
@@ -320,10 +320,10 @@ MODULE iom_nf90
   END SUBROUTINE iom_nf90_gratt
   SUBROUTINE iom_nf90_gcatt(kiomid, cdatt, pv_c0d, cdvar)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN ) :: cdatt
-    CHARACTER(LEN = *), INTENT( OUT) :: pv_c0d
-    CHARACTER(LEN = *), OPTIONAL, INTENT(IN ) :: cdvar
+    INTEGER, INTENT(IN   ) :: kiomid
+    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
+    CHARACTER(LEN = *), INTENT(  OUT) :: pv_c0d
+    CHARACTER(LEN = *), OPTIONAL, INTENT(IN   ) :: cdvar
     INTEGER :: if90id
     INTEGER :: ivarid
     LOGICAL :: llok
@@ -353,10 +353,10 @@ MODULE iom_nf90
   END SUBROUTINE iom_nf90_gcatt
   SUBROUTINE iom_nf90_piatt(kiomid, cdatt, pv_i0d, cdvar)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN ) :: cdatt
-    INTEGER, INTENT(IN ) :: pv_i0d
-    CHARACTER(LEN = *), INTENT(IN ), OPTIONAL :: cdvar
+    INTEGER, INTENT(IN   ) :: kiomid
+    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
+    INTEGER, INTENT(IN   ) :: pv_i0d
+    CHARACTER(LEN = *), INTENT(IN   ), OPTIONAL :: cdvar
     INTEGER :: if90id
     INTEGER :: ivarid
     LOGICAL :: llok
@@ -392,10 +392,10 @@ MODULE iom_nf90
   END SUBROUTINE iom_nf90_piatt
   SUBROUTINE iom_nf90_pratt(kiomid, cdatt, pv_r0d, cdvar)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN ) :: cdatt
-    REAL(KIND = wp), INTENT(IN ) :: pv_r0d
-    CHARACTER(LEN = *), OPTIONAL, INTENT(IN ) :: cdvar
+    INTEGER, INTENT(IN   ) :: kiomid
+    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
+    REAL(KIND = wp), INTENT(IN   ) :: pv_r0d
+    CHARACTER(LEN = *), OPTIONAL, INTENT(IN   ) :: cdvar
     INTEGER :: if90id
     INTEGER :: ivarid
     LOGICAL :: llok
@@ -431,10 +431,10 @@ MODULE iom_nf90
   END SUBROUTINE iom_nf90_pratt
   SUBROUTINE iom_nf90_pcatt(kiomid, cdatt, pv_c0d, cdvar)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN ) :: cdatt
-    CHARACTER(LEN = *), INTENT(IN ) :: pv_c0d
-    CHARACTER(LEN = *), OPTIONAL, INTENT(IN ) :: cdvar
+    INTEGER, INTENT(IN   ) :: kiomid
+    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
+    CHARACTER(LEN = *), INTENT(IN   ) :: pv_c0d
+    CHARACTER(LEN = *), OPTIONAL, INTENT(IN   ) :: cdvar
     INTEGER :: if90id
     INTEGER :: ivarid
     LOGICAL :: llok
@@ -470,11 +470,11 @@ MODULE iom_nf90
   END SUBROUTINE iom_nf90_pcatt
   SUBROUTINE iom_nf90_gettime(kiomid, kvid, ptime, cdunits, cdcalendar)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kiomid
-    INTEGER, INTENT(IN ) :: kvid
-    REAL(KIND = wp), DIMENSION(:), INTENT( OUT) :: ptime
-    CHARACTER(LEN = *), OPTIONAL, INTENT( OUT) :: cdunits
-    CHARACTER(LEN = *), OPTIONAL, INTENT( OUT) :: cdcalendar
+    INTEGER, INTENT(IN   ) :: kiomid
+    INTEGER, INTENT(IN   ) :: kvid
+    REAL(KIND = wp), DIMENSION(:), INTENT(  OUT) :: ptime
+    CHARACTER(LEN = *), OPTIONAL, INTENT(  OUT) :: cdunits
+    CHARACTER(LEN = *), OPTIONAL, INTENT(  OUT) :: cdcalendar
     CHARACTER(LEN = 100) :: clinfo
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('iom_nf90_gettime', 'r0', psy_profile0)

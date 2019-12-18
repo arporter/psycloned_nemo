@@ -28,9 +28,9 @@ MODULE tramle
   CONTAINS
   SUBROUTINE tra_mle_trp(kt, kit000, pu, pv, pw, cdtype)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    INTEGER, INTENT(IN ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN   ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pu
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pw
@@ -47,6 +47,7 @@ MODULE tramle
     inml_mle(:, :) = mbkt(:, :) + 1
     IF (nla10 > 0) THEN
       DO jk = jpkm1, nlb10, - 1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (rhop(ji, jj, jk) > rhop(ji, jj, nla10) + rn_rho_c_mle) inml_mle(ji, jj) = jk
@@ -63,6 +64,7 @@ MODULE tramle
     zbm(:, :) = 0._wp
     zn2(:, :) = 0._wp
     DO jk = 1, ikmax
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zc = e3t_n(ji, jj, jk) * REAL(MIN(MAX(0, inml_mle(ji, jj) - jk), 1))
@@ -74,6 +76,7 @@ MODULE tramle
     END DO
     SELECT CASE (nn_mld_uv)
     CASE (0)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zhu(ji, jj) = MIN(zmld(ji + 1, jj), zmld(ji, jj))
@@ -81,6 +84,7 @@ MODULE tramle
         END DO
       END DO
     CASE (1)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zhu(ji, jj) = (zmld(ji + 1, jj) + zmld(ji, jj)) * 0.5_wp
@@ -88,6 +92,7 @@ MODULE tramle
         END DO
       END DO
     CASE (2)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zhu(ji, jj) = MAX(zmld(ji + 1, jj), zmld(ji, jj))
@@ -97,6 +102,7 @@ MODULE tramle
     END SELECT
     zbm(:, :) = + grav * zbm(:, :) / MAX(e3t_n(:, :, 1), zmld(:, :))
     IF (nn_mle == 0) THEN
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zpsim_u(ji, jj) = rn_ce * zhu(ji, jj) * zhu(ji, jj) * e2_e1u(ji, jj) * (zbm(ji + 1, jj) - zbm(ji, jj)) * MIN(111.E3_wp, e1u(ji, jj)) / (MAX(rn_lf * rfu(ji, jj), SQRT(rb_c * zhu(ji, jj))))
@@ -104,6 +110,7 @@ MODULE tramle
         END DO
       END DO
     ELSE IF (nn_mle == 1) THEN
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zpsim_u(ji, jj) = rc_f * zhu(ji, jj) * zhu(ji, jj) * e2_e1u(ji, jj) * (zbm(ji + 1, jj) - zbm(ji, jj)) * MIN(111.E3_wp, e1u(ji, jj))
@@ -112,6 +119,7 @@ MODULE tramle
       END DO
     END IF
     IF (nn_conv == 1) THEN
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           IF (MIN(zn2(ji, jj), zn2(ji + 1, jj)) < 0._wp) zpsim_u(ji, jj) = 0._wp
@@ -119,6 +127,7 @@ MODULE tramle
         END DO
       END DO
     END IF
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         zhu(ji, jj) = 1._wp / zhu(ji, jj)
@@ -128,6 +137,7 @@ MODULE tramle
     zpsi_uw(:, :, :) = 0._wp
     zpsi_vw(:, :, :) = 0._wp
     DO jk = 2, ikmax
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zcuw = 1._wp - (gdepw_n(ji + 1, jj, jk) + gdepw_n(ji, jj, jk)) * zhu(ji, jj)
@@ -144,12 +154,14 @@ MODULE tramle
     !$ACC END KERNELS
     DO jk = 1, ikmax
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           pu(ji, jj, jk) = pu(ji, jj, jk) + (zpsi_uw(ji, jj, jk) - zpsi_uw(ji, jj, jk + 1))
           pv(ji, jj, jk) = pv(ji, jj, jk) + (zpsi_vw(ji, jj, jk) - zpsi_vw(ji, jj, jk + 1))
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           pw(ji, jj, jk) = pw(ji, jj, jk) - (zpsi_uw(ji, jj, jk) - zpsi_uw(ji - 1, jj, jk) + zpsi_vw(ji, jj, jk) - zpsi_vw(ji, jj - 1, jk))
@@ -222,6 +234,7 @@ MODULE tramle
         IF (ierr /= 0) CALL ctl_stop('tra_adv_mle_init: failed to allocate arrays')
         !$ACC KERNELS
         z1_t2 = 1._wp / (rn_time * rn_time)
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpj
           DO ji = 2, jpi
             zfu = (ff_f(ji, jj) + ff_f(ji, jj - 1)) * 0.5_wp

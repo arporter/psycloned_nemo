@@ -59,6 +59,7 @@ MODULE usrdef_sbc
     zcos_sais2 = COS((ztime - ztimemax2) / (ztimemax2 - ztimemin2) * rpi)
     ztrp = - 40.E0
     zconv = 3.16E-5
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         t_star = zTstar * (1. + 1. / 50. * zcos_sais2) * COS(rpi * (gphit(ji, jj) - 5.) / (53.5 * (1 + 11 / 53.5 * zcos_sais2) * 2.))
@@ -95,6 +96,7 @@ MODULE usrdef_sbc
     ztau = 0.105 / SQRT(2.)
     ztau_sais = 0.015
     ztaun = ztau - ztau_sais * COS((ztime - ztimemax) / (ztimemin - ztimemax) * rpi)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         utau(ji, jj) = - ztaun * SIN(rpi * (gphiu(ji, jj) - 15.) / (29. - 15.))
@@ -102,6 +104,7 @@ MODULE usrdef_sbc
       END DO
     END DO
     zcoef = 1. / (zrhoa * zcdrag)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ztx = utau(ji - 1, jj) + utau(ji, jj)

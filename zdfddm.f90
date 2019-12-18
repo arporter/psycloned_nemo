@@ -13,10 +13,10 @@ MODULE zdfddm
   CONTAINS
   SUBROUTINE zdf_ddm(kt, p_avm, p_avt, p_avs)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN   ) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: p_avs
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: p_avs
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zaw, zbw, zrw
     REAL(KIND = wp) :: zdt, zds
@@ -27,6 +27,7 @@ MODULE zdfddm
     TYPE(ProfileData), SAVE :: psy_profile0
     DO jk = 2, jpkm1
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zrw = (gdepw_n(ji, jj, jk) - gdept_n(ji, jj, jk)) / (gdept_n(ji, jj, jk - 1) - gdept_n(ji, jj, jk))
@@ -38,6 +39,7 @@ MODULE zdfddm
           zrau(ji, jj) = MAX(1.E-20, zdt / zds)
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (rn2(ji, jj, jk) + 1.E-12 <= 0.) THEN
@@ -68,6 +70,7 @@ MODULE zdfddm
         END DO
       END DO
       zmsks(:, :) = zmsks(:, :) * wmask(:, :, jk)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zinr = 1._wp / zrau(ji, jj)

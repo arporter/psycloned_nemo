@@ -88,6 +88,7 @@ MODULE crsfld
     zt_crs(:, :, :) = 0._wp
     zs_crs(:, :, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zt(ji, jj, jk) = un(ji, jj, jk) * 0.5 * (tsn(ji, jj, jk, jp_tem) + tsn(ji + 1, jj, jk, jp_tem))
@@ -110,6 +111,7 @@ MODULE crsfld
     zt_crs(:, :, :) = 0._wp
     zs_crs(:, :, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zt(ji, jj, jk) = vn(ji, jj, jk) * 0.5 * (tsn(ji, jj, jk, jp_tem) + tsn(ji, jj + 1, jk, jp_tem))
@@ -129,6 +131,7 @@ MODULE crsfld
       !$ACC KERNELS
       z3d(:, :, jk) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zztmp = r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)

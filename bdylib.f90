@@ -73,12 +73,12 @@ MODULE bdylib
   END SUBROUTINE bdy_orl
   SUBROUTINE bdy_orlanski_2d(idx, igrd, phib, phia, phi_ext, ll_npo)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    TYPE(OBC_INDEX), INTENT(IN ) :: idx
-    INTEGER, INTENT(IN ) :: igrd
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: phib
+    TYPE(OBC_INDEX), INTENT(IN   ) :: idx
+    INTEGER, INTENT(IN   ) :: igrd
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: phib
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: phia
-    REAL(KIND = wp), DIMENSION(:), INTENT(IN ) :: phi_ext
-    LOGICAL, INTENT(IN ) :: ll_npo
+    REAL(KIND = wp), DIMENSION(:), INTENT(IN   ) :: phi_ext
+    LOGICAL, INTENT(IN   ) :: ll_npo
     INTEGER :: jb
     INTEGER :: ii, ij, iibm1, iibm2, ijbm1, ijbm2
     INTEGER :: iijm1, iijp1, ijjm1, ijjp1
@@ -185,12 +185,12 @@ MODULE bdylib
   END SUBROUTINE bdy_orlanski_2d
   SUBROUTINE bdy_orlanski_3d(idx, igrd, phib, phia, phi_ext, ll_npo)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    TYPE(OBC_INDEX), INTENT(IN ) :: idx
-    INTEGER, INTENT(IN ) :: igrd
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: phib
+    TYPE(OBC_INDEX), INTENT(IN   ) :: idx
+    INTEGER, INTENT(IN   ) :: igrd
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: phib
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: phia
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: phi_ext
-    LOGICAL, INTENT(IN ) :: ll_npo
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: phi_ext
+    LOGICAL, INTENT(IN   ) :: ll_npo
     INTEGER :: jb, jk
     INTEGER :: ii, ij, iibm1, iibm2, ijbm1, ijbm2
     INTEGER :: iijm1, iijp1, ijjm1, ijjp1

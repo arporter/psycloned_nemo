@@ -177,6 +177,7 @@ MODULE dynhpg
       CALL eos(zts_top, risfdep, zrhdtop_isf)
       !$ACC KERNELS
       ziceload = 0._wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           ikt = mikt(ji, jj)
@@ -208,6 +209,7 @@ MODULE dynhpg
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zcoef0 = - grav * 0.5_wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zcoef1 = zcoef0 * e3w_n(ji, jj, 1)
@@ -218,6 +220,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zcoef1 = zcoef0 * e3w_n(ji, jj, jk)
@@ -247,6 +250,7 @@ MODULE dynhpg
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zcoef0 = - grav * 0.5_wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zcoef1 = zcoef0 * e3w_n(ji, jj, 1)
@@ -257,6 +261,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zcoef1 = zcoef0 * e3w_n(ji, jj, jk)
@@ -267,6 +272,7 @@ MODULE dynhpg
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         iku = mbku(ji, jj)
@@ -312,6 +318,7 @@ MODULE dynhpg
     CALL ProfileEnd(psy_profile0)
     IF (ln_wd_il) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ll_tmp1 = MIN(sshn(ji, jj), sshn(ji + 1, jj)) > MAX(- ht_0(ji, jj), - ht_0(ji + 1, jj)) .AND. MAX(sshn(ji, jj) + ht_0(ji, jj), sshn(ji + 1, jj) + ht_0(ji + 1, jj)) > rn_wdmin1 + rn_wdmin2
@@ -338,6 +345,7 @@ MODULE dynhpg
       CALL lbc_lnk_multi(zcpx, 'U', 1., zcpy, 'V', 1.)
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zhpi(ji, jj, 1) = zcoef0 * (e3w_n(ji + 1, jj, 1) * (znad + rhd(ji + 1, jj, 1)) - e3w_n(ji, jj, 1) * (znad + rhd(ji, jj, 1))) * r1_e1u(ji, jj)
@@ -355,6 +363,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zhpi(ji, jj, jk) = zhpi(ji, jj, jk - 1) + zcoef0 * r1_e1u(ji, jj) * (e3w_n(ji + 1, jj, jk) * (rhd(ji + 1, jj, jk) + rhd(ji + 1, jj, jk - 1) + 2 * znad) - e3w_n(ji, jj, jk) * (rhd(ji, jj, jk) + rhd(ji, jj, jk - 1) + 2 * znad))
@@ -397,6 +406,7 @@ MODULE dynhpg
     !$ACC END KERNELS
     CALL eos(zts_top, risfdep, zrhdtop_oce)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ikt = mikt(ji, jj)
@@ -411,6 +421,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zhpi(ji, jj, jk) = zhpi(ji, jj, jk - 1) + zcoef0 / e1u(ji, jj) * (e3w_n(ji + 1, jj, jk) * (rhd(ji + 1, jj, jk) + rhd(ji + 1, jj, jk - 1) + 2 * znad) * wmask(ji + 1, jj, jk) - e3w_n(ji, jj, jk) * (rhd(ji, jj, jk) + rhd(ji, jj, jk - 1) + 2 * znad) * wmask(ji, jj, jk))
@@ -477,6 +488,7 @@ MODULE dynhpg
     z1_10 = 1._wp / 10._wp
     z1_12 = 1._wp / 12._wp
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           drhoz(ji, jj, jk) = rhd(ji, jj, jk) - rhd(ji, jj, jk - 1)
@@ -490,6 +502,7 @@ MODULE dynhpg
     END DO
     zep = 1.E-15
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           cffw = 2._wp * drhoz(ji, jj, jk) * drhoz(ji, jj, jk - 1)
@@ -532,12 +545,14 @@ MODULE dynhpg
     drhow(:, :, jpk) = 1.5_wp * (drhoz(:, :, jpk) - drhoz(:, :, jpkm1)) - 0.5_wp * drhow(:, :, jpkm1)
     drhou(:, :, jpk) = 1.5_wp * (drhox(:, :, jpk) - drhox(:, :, jpkm1)) - 0.5_wp * drhou(:, :, jpkm1)
     drhov(:, :, jpk) = 1.5_wp * (drhoy(:, :, jpk) - drhoy(:, :, jpkm1)) - 0.5_wp * drhov(:, :, jpkm1)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         rho_k(ji, jj, 1) = - grav * (e3w_n(ji, jj, 1) - gde3w_n(ji, jj, 1)) * (rhd(ji, jj, 1) + 0.5_wp * (rhd(ji, jj, 2) - rhd(ji, jj, 1)) * (e3w_n(ji, jj, 1) - gde3w_n(ji, jj, 1)) / (gde3w_n(ji, jj, 2) - gde3w_n(ji, jj, 1)))
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           rho_k(ji, jj, jk) = zcoef0 * (rhd(ji, jj, jk) + rhd(ji, jj, jk - 1)) * (gde3w_n(ji, jj, jk) - gde3w_n(ji, jj, jk - 1)) - grav * z1_10 * ((drhow(ji, jj, jk) - drhow(ji, jj, jk - 1)) * (gde3w_n(ji, jj, jk) - gde3w_n(ji, jj, jk - 1) - z1_12 * (dzw(ji, jj, jk) + dzw(ji, jj, jk - 1))) - (dzw(ji, jj, jk) - dzw(ji, jj, jk - 1)) * (rhd(ji, jj, jk) - rhd(ji, jj, jk - 1) - z1_12 * (drhow(ji, jj, jk) + drhow(ji, jj, jk - 1))))
@@ -636,6 +651,7 @@ MODULE dynhpg
     !$ACC KERNELS
     zhpi(:, :, :) = 0._wp
     zrhh(:, :, :) = rhd(:, :, :)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         jk = mbkt(ji, jj) + 1
@@ -650,12 +666,14 @@ MODULE dynhpg
         END IF
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zdept(ji, jj, 1) = 0.5_wp * e3w_n(ji, jj, 1) - sshn(ji, jj) * znad
       END DO
     END DO
     DO jk = 2, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zdept(ji, jj, jk) = zdept(ji, jj, jk - 1) + e3w_n(ji, jj, jk)
@@ -667,6 +685,7 @@ MODULE dynhpg
     !$ACC END KERNELS
     CALL cspline(fsp, xsp, asp, bsp, csp, dsp, polynomial_type)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpj
       DO ji = 2, jpi
         zrhdt1 = zrhh(ji, jj, 1) - interp3(zdept(ji, jj, 1), asp(ji, jj, 1), bsp(ji, jj, 1), csp(ji, jj, 1), dsp(ji, jj, 1)) * 0.25_wp * e3w_n(ji, jj, 1)
@@ -674,12 +693,14 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj
         DO ji = 2, jpi
           zhpi(ji, jj, jk) = zhpi(ji, jj, jk - 1) + integ_spline(zdept(ji, jj, jk - 1), zdept(ji, jj, jk), asp(ji, jj, jk - 1), bsp(ji, jj, jk - 1), csp(ji, jj, jk - 1), dsp(ji, jj, jk - 1))
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zsshu_n(ji, jj) = (e1e2u(ji, jj) * sshn(ji, jj) + e1e2u(ji + 1, jj) * sshn(ji + 1, jj)) * r1_e1e2u(ji, jj) * umask(ji, jj, 1) * 0.5_wp
@@ -689,6 +710,7 @@ MODULE dynhpg
     !$ACC END KERNELS
     CALL lbc_lnk_multi(zsshu_n, 'U', 1., zsshv_n, 'V', 1.)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zu(ji, jj, 1) = - (e3u_n(ji, jj, 1) - zsshu_n(ji, jj) * znad)
@@ -696,6 +718,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zu(ji, jj, jk) = zu(ji, jj, jk - 1) - e3u_n(ji, jj, jk)
@@ -704,6 +727,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zu(ji, jj, jk) = zu(ji, jj, jk) + 0.5_wp * e3u_n(ji, jj, jk)
@@ -712,6 +736,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zu(ji, jj, jk) = MIN(zu(ji, jj, jk), MAX(- zdept(ji, jj, jk), - zdept(ji + 1, jj, jk)))
@@ -824,9 +849,9 @@ MODULE dynhpg
   END SUBROUTINE hpg_prj
   SUBROUTINE cspline(fsp, xsp, asp, bsp, csp, dsp, polynomial_type)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: fsp, xsp
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: asp, bsp, csp, dsp
-    INTEGER, INTENT(IN ) :: polynomial_type
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: fsp, xsp
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: asp, bsp, csp, dsp
+    INTEGER, INTENT(IN   ) :: polynomial_type
     INTEGER :: ji, jj, jk
     INTEGER :: jpi, jpj, jpkm1
     REAL(KIND = wp) :: zdf1, zdf2, zddf1, zddf2, ztmp1, ztmp2, zdxtmp

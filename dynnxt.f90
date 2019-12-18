@@ -124,6 +124,7 @@ MODULE dynnxt
       IF (ln_linssh) THEN
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpj
             DO ji = 1, jpi
               zuf = un(ji, jj, jk) + atfp * (ub(ji, jj, jk) - 2._wp * un(ji, jj, jk) + ua(ji, jj, jk))
@@ -148,6 +149,7 @@ MODULE dynnxt
           IF (ln_rnf_depth) THEN
             !$ACC KERNELS
             DO jk = 1, jpkm1
+              !$ACC LOOP INDEPENDENT COLLAPSE(2)
               DO jj = 1, jpj
                 DO ji = 1, jpi
                   IF (jk <= nk_rnf(ji, jj)) THEN
@@ -166,6 +168,7 @@ MODULE dynnxt
         IF (ln_isf) THEN
           !$ACC KERNELS
           DO jk = 1, jpkm1
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpj
               DO ji = 1, jpi
                 IF (misfkt(ji, jj) <= jk .AND. jk <= misfkb(ji, jj)) THEN
@@ -183,6 +186,7 @@ MODULE dynnxt
           CALL ProfileEnd(psy_profile4)
           !$ACC KERNELS
           DO jk = 1, jpkm1
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpj
               DO ji = 1, jpi
                 zuf = un(ji, jj, jk) + atfp * (ub(ji, jj, jk) - 2._wp * un(ji, jj, jk) + ua(ji, jj, jk))
@@ -203,6 +207,7 @@ MODULE dynnxt
           CALL ProfileEnd(psy_profile5)
           !$ACC KERNELS
           DO jk = 1, jpkm1
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpj
               DO ji = 1, jpi
                 zue3a = e3u_a(ji, jj, jk) * ua(ji, jj, jk)

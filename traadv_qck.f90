@@ -18,13 +18,13 @@ MODULE traadv_qck
   CONTAINS
   SUBROUTINE tra_adv_qck(kt, kit000, cdtype, p2dt, pun, pvn, pwn, ptb, ptn, pta, kjpt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    INTEGER, INTENT(IN ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
-    INTEGER, INTENT(IN ) :: kjpt
-    REAL(KIND = wp), INTENT(IN ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun, pvn, pwn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb, ptn
+    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN   ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    INTEGER, INTENT(IN   ) :: kjpt
+    REAL(KIND = wp), INTENT(IN   ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun, pvn, pwn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb, ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     TYPE(ProfileData), SAVE :: psy_profile0
     CALL ProfileStart('tra_adv_qck', 'r0', psy_profile0)
@@ -45,12 +45,12 @@ MODULE traadv_qck
   END SUBROUTINE tra_adv_qck
   SUBROUTINE tra_adv_qck_i(kt, cdtype, p2dt, pun, ptb, ptn, pta, kjpt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
-    INTEGER, INTENT(IN ) :: kjpt
-    REAL(KIND = wp), INTENT(IN ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb, ptn
+    INTEGER, INTENT(IN   ) :: kt
+    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    INTEGER, INTENT(IN   ) :: kjpt
+    REAL(KIND = wp), INTENT(IN   ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb, ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp) :: ztra, zbtr, zdir, zdx, zmsk
@@ -63,6 +63,7 @@ MODULE traadv_qck
       zfd(:, :, :) = 0._wp
       zwx(:, :, :) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zfc(ji, jj, jk) = ptb(ji - 1, jj, jk, jn)
@@ -74,6 +75,7 @@ MODULE traadv_qck
       CALL lbc_lnk_multi(zfc(:, :, :), 'T', 1., zfd(:, :, :), 'T', 1.)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zdir = 0.5 + SIGN(0.5, pun(ji, jj, jk))
@@ -82,6 +84,7 @@ MODULE traadv_qck
         END DO
       END DO
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zdir = 0.5 + SIGN(0.5, pun(ji, jj, jk))
@@ -99,6 +102,7 @@ MODULE traadv_qck
       CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zfu(ji, jj, jk) = tmask(ji - 1, jj, jk) + tmask(ji, jj, jk) + tmask(ji + 1, jj, jk) - 2.
@@ -109,6 +113,7 @@ MODULE traadv_qck
       CALL lbc_lnk(zfu(:, :, :), 'T', 1.)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zdir = 0.5 + SIGN(0.5, pun(ji, jj, jk))
@@ -122,6 +127,7 @@ MODULE traadv_qck
       CALL lbc_lnk(zwx(:, :, :), 'T', 1.)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zbtr = r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
@@ -136,12 +142,12 @@ MODULE traadv_qck
   END SUBROUTINE tra_adv_qck_i
   SUBROUTINE tra_adv_qck_j(kt, cdtype, p2dt, pvn, ptb, ptn, pta, kjpt)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
-    INTEGER, INTENT(IN ) :: kjpt
-    REAL(KIND = wp), INTENT(IN ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pvn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb, ptn
+    INTEGER, INTENT(IN   ) :: kt
+    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    INTEGER, INTENT(IN   ) :: kjpt
+    REAL(KIND = wp), INTENT(IN   ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pvn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb, ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp) :: ztra, zbtr, zdir, zdx, zmsk
@@ -155,6 +161,7 @@ MODULE traadv_qck
       zfd(:, :, :) = 0.0
       zwy(:, :, :) = 0.0
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zfc(ji, jj, jk) = ptb(ji, jj - 1, jk, jn)
@@ -166,6 +173,7 @@ MODULE traadv_qck
       CALL lbc_lnk_multi(zfc(:, :, :), 'T', 1., zfd(:, :, :), 'T', 1.)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zdir = 0.5 + SIGN(0.5, pvn(ji, jj, jk))
@@ -174,6 +182,7 @@ MODULE traadv_qck
         END DO
       END DO
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zdir = 0.5 + SIGN(0.5, pvn(ji, jj, jk))
@@ -191,6 +200,7 @@ MODULE traadv_qck
       CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zfu(ji, jj, jk) = tmask(ji, jj - 1, jk) + tmask(ji, jj, jk) + tmask(ji, jj + 1, jk) - 2.
@@ -201,6 +211,7 @@ MODULE traadv_qck
       CALL lbc_lnk(zfu(:, :, :), 'T', 1.)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zdir = 0.5 + SIGN(0.5, pvn(ji, jj, jk))
@@ -214,6 +225,7 @@ MODULE traadv_qck
       CALL lbc_lnk(zwy(:, :, :), 'T', 1.)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zbtr = r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
@@ -230,11 +242,11 @@ MODULE traadv_qck
     END DO
   END SUBROUTINE tra_adv_qck_j
   SUBROUTINE tra_adv_cen2_k(kt, cdtype, pwn, ptn, pta, kjpt)
-    INTEGER, INTENT(IN ) :: kt
-    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
-    INTEGER, INTENT(IN ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pwn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptn
+    INTEGER, INTENT(IN   ) :: kt
+    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    INTEGER, INTENT(IN   ) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pwn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwz
@@ -245,6 +257,7 @@ MODULE traadv_qck
     DO jn = 1, kjpt
       !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zwz(ji, jj, jk) = 0.5 * pwn(ji, jj, jk) * (ptn(ji, jj, jk - 1, jn) + ptn(ji, jj, jk, jn)) * wmask(ji, jj, jk)
@@ -255,6 +268,7 @@ MODULE traadv_qck
       IF (ln_linssh) THEN
         IF (ln_isfcav) THEN
           !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpj
             DO ji = 1, jpi
               zwz(ji, jj, mikt(ji, jj)) = pwn(ji, jj, mikt(ji, jj)) * ptn(ji, jj, mikt(ji, jj), jn)
@@ -269,6 +283,7 @@ MODULE traadv_qck
       END IF
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (zwz(ji, jj, jk) - zwz(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
@@ -280,15 +295,16 @@ MODULE traadv_qck
     END DO
   END SUBROUTINE tra_adv_cen2_k
   SUBROUTINE quickest(pfu, pfd, pfc, puc)
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pfu
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pfd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pfc
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pfu
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pfd
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pfc
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: puc
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcoef1, zcoef2, zcoef3
     REAL(KIND = wp) :: zc, zcurv, zfho
     !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zc = puc(ji, jj, jk)

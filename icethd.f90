@@ -56,6 +56,7 @@ MODULE icethd
       !$ACC KERNELS
       zu_io(:, :) = u_ice(:, :) - ssu_m(:, :)
       zv_io(:, :) = v_ice(:, :) - ssv_m(:, :)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zfric(ji, jj) = rn_cio * (0.5_wp * (zu_io(ji, jj) * zu_io(ji, jj) + zu_io(ji - 1, jj) * zu_io(ji - 1, jj) + zv_io(ji, jj) * zv_io(ji, jj) + zv_io(ji, jj - 1) * zv_io(ji, jj - 1))) * tmask(ji, jj, 1)
@@ -64,6 +65,7 @@ MODULE icethd
       !$ACC END KERNELS
     ELSE
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zfric(ji, jj) = r1_rau0 * SQRT(0.5_wp * (utau(ji, jj) * utau(ji, jj) + utau(ji - 1, jj) * utau(ji - 1, jj) + vtau(ji, jj) * vtau(ji, jj) + vtau(ji, jj - 1) * vtau(ji, jj - 1))) * tmask(ji, jj, 1)
@@ -73,6 +75,7 @@ MODULE icethd
     END IF
     CALL lbc_lnk(zfric, 'T', 1.)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         rswitch = tmask(ji, jj, 1) * MAX(0._wp, SIGN(1._wp, at_i(ji, jj) - epsi10))
@@ -110,6 +113,7 @@ MODULE icethd
       nptidx(:) = 0
       CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (a_i(ji, jj, jl) > epsi10) THEN

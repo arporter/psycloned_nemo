@@ -201,7 +201,7 @@ MODULE ldfdyn
       CASE (20)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( e1, e2 ) or F( e1^3, e2^3 ) (lap. or blp. case)'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed viscous velocity = ', rn_Uv, ' m/s   and   Lv = Max(e1,e2)'
-        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
         CALL ldf_c2d('DYN', zUfac, inn, ahmt, ahmf)
       CASE (- 30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F(i,j,k) read in eddy_viscosity_3D.nc file'
@@ -212,7 +212,7 @@ MODULE ldfdyn
       CASE (30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( latitude, longitude, depth )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed viscous velocity = ', rn_Uv, ' m/s   and   Ld = Max(e1,e2)'
-        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
         CALL ldf_c2d('DYN', zUfac, inn, ahmt, ahmf)
         CALL ldf_c1d('DYN', ahmt(:, :, 1), ahmf(:, :, 1), ahmt, ahmf)
       CASE (31)
@@ -226,6 +226,7 @@ MODULE ldfdyn
         ALLOCATE(dtensq(jpi, jpj), dshesq(jpi, jpj), esqt(jpi, jpj), esqf(jpi, jpj), STAT = ierr)
         IF (ierr /= 0) CALL ctl_stop('STOP', 'ldf_dyn_init: failed to allocate Smagorinsky arrays')
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             esqt(ji, jj) = (e1e2t(ji, jj) / (e1t(ji, jj) + e2t(ji, jj))) ** 2
@@ -265,6 +266,7 @@ MODULE ldfdyn
       IF (ln_dynldf_lap) THEN
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               zu2pv2_ij_p1 = ub(ji, jj + 1, jk) * ub(ji, jj + 1, jk) + vb(ji + 1, jj, jk) * vb(ji + 1, jj, jk)
@@ -281,6 +283,7 @@ MODULE ldfdyn
       ELSE IF (ln_dynldf_blp) THEN
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               zu2pv2_ij_p1 = ub(ji, jj + 1, jk) * ub(ji, jj + 1, jk) + vb(ji + 1, jj, jk) * vb(ji + 1, jj, jk)
@@ -306,18 +309,21 @@ MODULE ldfdyn
         CALL ProfileEnd(psy_profile0)
         DO jk = 1, jpkm1
           !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpj
             DO ji = 2, jpi
               zdb = ((ub(ji, jj, jk) * r1_e2u(ji, jj) - ub(ji - 1, jj, jk) * r1_e2u(ji - 1, jj)) * r1_e1t(ji, jj) * e2t(ji, jj) - (vb(ji, jj, jk) * r1_e1v(ji, jj) - vb(ji, jj - 1, jk) * r1_e1v(ji, jj - 1)) * r1_e2t(ji, jj) * e1t(ji, jj)) * tmask(ji, jj, jk)
               dtensq(ji, jj) = zdb * zdb
             END DO
           END DO
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zdb = ((ub(ji, jj + 1, jk) * r1_e1u(ji, jj + 1) - ub(ji, jj, jk) * r1_e1u(ji, jj)) * r1_e2f(ji, jj) * e1f(ji, jj) + (vb(ji + 1, jj, jk) * r1_e2v(ji + 1, jj) - vb(ji, jj, jk) * r1_e2v(ji, jj)) * r1_e1f(ji, jj) * e2f(ji, jj)) * fmask(ji, jj, jk)
               dshesq(ji, jj) = zdb * zdb
             END DO
           END DO
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               zu2pv2_ij_p1 = ub(ji, jj + 1, jk) * ub(ji, jj + 1, jk) + vb(ji + 1, jj, jk) * vb(ji + 1, jj, jk)
@@ -339,6 +345,7 @@ MODULE ldfdyn
       IF (ln_dynldf_blp) THEN
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               ahmt(ji, jj, jk) = SQRT(r1_8 * esqt(ji, jj) * ahmt(ji, jj, jk))

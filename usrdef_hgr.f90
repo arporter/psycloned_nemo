@@ -45,6 +45,7 @@ MODULE usrdef_hgr
     END IF
     CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zim1 = REAL(ji + nimpp - 1) - 1.

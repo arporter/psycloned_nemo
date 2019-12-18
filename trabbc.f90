@@ -36,6 +36,7 @@ MODULE trabbc
       !$ACC END KERNELS
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         tsa(ji, jj, mbkt(ji, jj), jp_tem) = tsa(ji, jj, mbkt(ji, jj), jp_tem) + qgh_trd0(ji, jj) / e3t_n(ji, jj, mbkt(ji, jj))

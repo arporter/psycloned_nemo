@@ -89,6 +89,7 @@ MODULE sbcflx
       qns(:, :) = qns(:, :) * tmask(:, :, 1)
       emp(:, :) = emp(:, :) * tmask(:, :, 1)
       zcoef = 1. / (zrhoa * zcdrag)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ztx = utau(ji - 1, jj) + utau(ji, jj)

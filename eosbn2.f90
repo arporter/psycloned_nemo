@@ -113,9 +113,9 @@ MODULE eosbn2
   CONTAINS
   SUBROUTINE eos_insitu(pts, prd, pdep)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN ) :: pts
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: prd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pdep
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pts
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: prd
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pdep
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zt, zh, zs, ztm
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
@@ -125,6 +125,7 @@ MODULE eosbn2
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zh = pdep(ji, jj, jk) * r1_Z0
@@ -142,6 +143,7 @@ MODULE eosbn2
       END DO
     CASE (np_seos)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zt = pts(ji, jj, jk, jp_tem) - 10._wp
@@ -162,10 +164,10 @@ MODULE eosbn2
   END SUBROUTINE eos_insitu
   SUBROUTINE eos_insitu_pot(pts, prd, prhop, pdep)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN ) :: pts
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: prd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: prhop
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pdep
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pts
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: prd
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: prhop
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pdep
     INTEGER :: ji, jj, jk, jsmp
     INTEGER :: jdof
     REAL(KIND = wp) :: zt, zh, zstemp, zs, ztm
@@ -188,6 +190,7 @@ MODULE eosbn2
           zsign(jsmp + 1) = - 1._wp
         END DO
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpj
             DO ji = 1, jpi
               DO jsmp = 1, nn_sto_eos * 2
@@ -219,6 +222,7 @@ MODULE eosbn2
       ELSE
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpj
             DO ji = 1, jpi
               zh = pdep(ji, jj, jk) * r1_Z0
@@ -240,6 +244,7 @@ MODULE eosbn2
     CASE (np_seos)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zt = pts(ji, jj, jk, jp_tem) - 10._wp
@@ -262,9 +267,9 @@ MODULE eosbn2
   END SUBROUTINE eos_insitu_pot
   SUBROUTINE eos_insitu_2d(pts, pdep, prd)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpts), INTENT(IN ) :: pts
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pdep
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: prd
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpts), INTENT(IN   ) :: pts
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pdep
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT) :: prd
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zt, zh, zs
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
@@ -276,6 +281,7 @@ MODULE eosbn2
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zh = pdep(ji, jj) * r1_Z0
@@ -293,6 +299,7 @@ MODULE eosbn2
       CALL lbc_lnk(prd, 'T', 1.)
     CASE (np_seos)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zt = pts(ji, jj, jp_tem) - 10._wp
@@ -312,8 +319,8 @@ MODULE eosbn2
   END SUBROUTINE eos_insitu_2d
   SUBROUTINE rab_3d(pts, pab)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN ) :: pts
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT( OUT) :: pab
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pts
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(  OUT) :: pab
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zt, zh, zs, ztm
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
@@ -324,6 +331,7 @@ MODULE eosbn2
     CASE (np_teos10, np_eos80)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zh = gdept_n(ji, jj, jk) * r1_Z0
@@ -349,6 +357,7 @@ MODULE eosbn2
     CASE (np_seos)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zt = pts(ji, jj, jk, jp_tem) - 10._wp
@@ -377,9 +386,9 @@ MODULE eosbn2
   END SUBROUTINE rab_3d
   SUBROUTINE rab_2d(pts, pdep, pab)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpts), INTENT(IN ) :: pts
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pdep
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpts), INTENT( OUT) :: pab
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpts), INTENT(IN   ) :: pts
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pdep
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpts), INTENT(  OUT) :: pab
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zt, zh, zs
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
@@ -392,6 +401,7 @@ MODULE eosbn2
     SELECT CASE (neos)
     CASE (np_teos10, np_eos80)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zh = pdep(ji, jj) * r1_Z0
@@ -415,6 +425,7 @@ MODULE eosbn2
       CALL lbc_lnk_multi(pab(:, :, jp_tem), 'T', 1., pab(:, :, jp_sal), 'T', 1.)
     CASE (np_seos)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zt = pts(ji, jj, jp_tem) - 10._wp
@@ -442,9 +453,9 @@ MODULE eosbn2
   END SUBROUTINE rab_2d
   SUBROUTINE rab_0d(pts, pdep, pab)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpts), INTENT(IN ) :: pts
-    REAL(KIND = wp), INTENT(IN ) :: pdep
-    REAL(KIND = wp), DIMENSION(jpts), INTENT( OUT) :: pab
+    REAL(KIND = wp), DIMENSION(jpts), INTENT(IN   ) :: pts
+    REAL(KIND = wp), INTENT(IN   ) :: pdep
+    REAL(KIND = wp), DIMENSION(jpts), INTENT(  OUT) :: pab
     REAL(KIND = wp) :: zt, zh, zs
     REAL(KIND = wp) :: zn, zn0, zn1, zn2, zn3
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -486,15 +497,16 @@ MODULE eosbn2
   END SUBROUTINE rab_0d
   SUBROUTINE bn2(pts, pab, pn2)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN ) :: pts
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN ) :: pab
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: pn2
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pts
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pab
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: pn2
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zaw, zbw, zrw
     TYPE(ProfileData), SAVE :: psy_profile0
     IF (ln_timing) CALL timing_start('bn2')
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zrw = (gdepw_n(ji, jj, jk) - gdept_n(ji, jj, jk)) / (gdept_n(ji, jj, jk - 1) - gdept_n(ji, jj, jk))
@@ -511,8 +523,8 @@ MODULE eosbn2
     CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bn2
   FUNCTION eos_pt_from_ct(ctmp, psal) RESULT(ptmp)
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: ctmp
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: psal
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: ctmp
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: psal
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ptmp
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zt, zs, ztm
@@ -523,6 +535,7 @@ MODULE eosbn2
     zdeltaS = 5._wp
     z1_S0 = 0.875_wp / 35.16504_wp
     z1_T0 = 1._wp / 40._wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zt = ctmp(ji, jj) * z1_T0
@@ -538,9 +551,9 @@ MODULE eosbn2
   END FUNCTION eos_pt_from_ct
   SUBROUTINE eos_fzp_2d(psal, ptf, pdep)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: psal
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ), OPTIONAL :: pdep
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT ) :: ptf
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: psal
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ), OPTIONAL :: pdep
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT  ) :: ptf
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zt, zs, z1_S0
     TYPE(ProfileData), SAVE :: psy_profile0
@@ -550,6 +563,7 @@ MODULE eosbn2
     CASE (np_teos10, np_seos)
       !$ACC KERNELS
       z1_S0 = 1._wp / 35.16504_wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zs = SQRT(ABS(psal(ji, jj)) * z1_S0)
@@ -602,9 +616,9 @@ MODULE eosbn2
   END SUBROUTINE eos_fzp_0d
   SUBROUTINE eos_pen(pts, pab_pe, ppen)
     USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN ) :: pts
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT( OUT) :: pab_pe
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: ppen
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(IN   ) :: pts
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(  OUT) :: pab_pe
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: ppen
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zt, zh, zs, ztm
     REAL(KIND = wp) :: zn, zn0, zn1, zn2
@@ -614,6 +628,7 @@ MODULE eosbn2
     CASE (np_teos10, np_eos80)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zh = gdept_n(ji, jj, jk) * r1_Z0
@@ -642,6 +657,7 @@ MODULE eosbn2
     CASE (np_seos)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zt = pts(ji, jj, jk, jp_tem) - 10._wp
