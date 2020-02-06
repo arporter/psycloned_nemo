@@ -27,9 +27,10 @@ MODULE tramle
   REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :) :: r1_ft
   CONTAINS
   SUBROUTINE tra_mle_trp(kt, kit000, pu, pv, pw, cdtype)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pu
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pw
@@ -40,11 +41,11 @@ MODULE tramle
     INTEGER, DIMENSION(jpi, jpj) :: inml_mle
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zpsim_u, zpsim_v, zmld, zbm, zhu, zhv, zn2, zLf_NH, zLf_MH
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zpsi_uw, zpsi_vw
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     !$ACC KERNELS
     inml_mle(:, :) = mbkt(:, :) + 1
-    !$ACC END KERNELS
     IF (nla10 > 0) THEN
-      !$ACC KERNELS
       DO jk = jpkm1, nlb10, - 1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -52,9 +53,11 @@ MODULE tramle
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
+    CALL ProfileStart('tra_mle_trp', 'r0', psy_profile0)
     ikmax = MIN(MAXVAL(inml_mle(:, :)), jpkm1)
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zmld(:, :) = 0._wp
     zbm(:, :) = 0._wp
@@ -69,69 +72,53 @@ MODULE tramle
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
     SELECT CASE (nn_mld_uv)
     CASE (0)
-      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zhu(ji, jj) = MIN(zmld(ji + 1, jj), zmld(ji, jj))
           zhv(ji, jj) = MIN(zmld(ji, jj + 1), zmld(ji, jj))
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (1)
-      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zhu(ji, jj) = (zmld(ji + 1, jj) + zmld(ji, jj)) * 0.5_wp
           zhv(ji, jj) = (zmld(ji, jj + 1) + zmld(ji, jj)) * 0.5_wp
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (2)
-      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zhu(ji, jj) = MAX(zmld(ji + 1, jj), zmld(ji, jj))
           zhv(ji, jj) = MAX(zmld(ji, jj + 1), zmld(ji, jj))
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     zbm(:, :) = + grav * zbm(:, :) / MAX(e3t_n(:, :, 1), zmld(:, :))
-    !$ACC END KERNELS
     IF (nn_mle == 0) THEN
-      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zpsim_u(ji, jj) = rn_ce * zhu(ji, jj) * zhu(ji, jj) * e2_e1u(ji, jj) * (zbm(ji + 1, jj) - zbm(ji, jj)) * MIN(111.E3_wp, e1u(ji, jj)) / (MAX(rn_lf * rfu(ji, jj), SQRT(rb_c * zhu(ji, jj))))
           zpsim_v(ji, jj) = rn_ce * zhv(ji, jj) * zhv(ji, jj) * e1_e2v(ji, jj) * (zbm(ji, jj + 1) - zbm(ji, jj)) * MIN(111.E3_wp, e2v(ji, jj)) / (MAX(rn_lf * rfv(ji, jj), SQRT(rb_c * zhv(ji, jj))))
         END DO
       END DO
-      !$ACC END KERNELS
     ELSE IF (nn_mle == 1) THEN
-      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zpsim_u(ji, jj) = rc_f * zhu(ji, jj) * zhu(ji, jj) * e2_e1u(ji, jj) * (zbm(ji + 1, jj) - zbm(ji, jj)) * MIN(111.E3_wp, e1u(ji, jj))
           zpsim_v(ji, jj) = rc_f * zhv(ji, jj) * zhv(ji, jj) * e1_e2v(ji, jj) * (zbm(ji, jj + 1) - zbm(ji, jj)) * MIN(111.E3_wp, e2v(ji, jj))
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
     IF (nn_conv == 1) THEN
-      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           IF (MIN(zn2(ji, jj), zn2(ji + 1, jj)) < 0._wp) zpsim_u(ji, jj) = 0._wp
           IF (MIN(zn2(ji, jj), zn2(ji, jj + 1)) < 0._wp) zpsim_v(ji, jj) = 0._wp
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         zhu(ji, jj) = 1._wp / zhu(ji, jj)
@@ -154,7 +141,9 @@ MODULE tramle
         END DO
       END DO
     END DO
+    !$ACC END KERNELS
     DO jk = 1, ikmax
+      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           pu(ji, jj, jk) = pu(ji, jj, jk) + (zpsi_uw(ji, jj, jk) - zpsi_uw(ji, jj, jk + 1))
@@ -166,21 +155,23 @@ MODULE tramle
           pw(ji, jj, jk) = pw(ji, jj, jk) - (zpsi_uw(ji, jj, jk) - zpsi_uw(ji - 1, jj, jk) + zpsi_vw(ji, jj, jk) - zpsi_vw(ji, jj - 1, jk))
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     IF (cdtype == 'TRA') THEN
       !$ACC KERNELS
       zLf_NH(:, :) = SQRT(rb_c * zmld(:, :)) * r1_ft(:, :)
       !$ACC END KERNELS
       CALL iom_put("Lf_NHpf", zLf_NH)
-      !$ACC KERNELS
       DO jk = 1, ikmax + 1
+        !$ACC KERNELS
         zpsi_uw(:, :, jk) = zpsi_uw(:, :, jk) * r1_e2u(:, :)
         zpsi_vw(:, :, jk) = zpsi_vw(:, :, jk) * r1_e1v(:, :)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
+      CALL ProfileStart('tra_mle_trp', 'r1', psy_profile1)
       CALL iom_put("psiu_mle", zpsi_uw)
       CALL iom_put("psiv_mle", zpsi_vw)
+      CALL ProfileEnd(psy_profile1)
     END IF
   END SUBROUTINE tra_mle_trp
   SUBROUTINE tra_mle_init

@@ -19,6 +19,7 @@ MODULE icewri
   PUBLIC :: ice_wri_state
   CONTAINS
   SUBROUTINE ice_wri(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jl
     REAL(KIND = wp) :: z2da, z2db, zrho1, zrho2
@@ -27,8 +28,16 @@ MODULE icewri
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: zmsk00l, zmsksnl
     REAL(KIND = wp) :: zdiag_area_nh, zdiag_extt_nh, zdiag_volu_nh
     REAL(KIND = wp) :: zdiag_area_sh, zdiag_extt_sh, zdiag_volu_sh
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    CALL ProfileStart('ice_wri', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('icewri')
     CALL ice_var_bv
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -49,6 +58,7 @@ MODULE icewri
     zrho1 = (rau0 - rhoi) * r1_rau0
     zrho2 = rhos * r1_rau0
     !$ACC END KERNELS
+    CALL ProfileStart('ice_wri', 'r1', psy_profile1)
     IF (iom_use('icemask')) CALL iom_put("icemask", zmsk00)
     IF (iom_use('icemask05')) CALL iom_put("icemask05", zmsk05)
     IF (iom_use('icemask15')) CALL iom_put("icemask15", zmsk15)
@@ -63,13 +73,17 @@ MODULE icewri
     IF (iom_use('iceage')) CALL iom_put("iceage", om_i * zmsk00 / rday)
     IF (iom_use('icehnew')) CALL iom_put("icehnew", ht_i_new)
     IF (iom_use('snwvolu')) CALL iom_put("snwvolu", vt_s * zmsksn)
+    CALL ProfileEnd(psy_profile1)
     IF (iom_use('icefrb')) THEN
       !$ACC KERNELS
       z2d(:, :) = (zrho1 * hm_i(:, :) - zrho2 * hm_s(:, :))
       !$ACC END KERNELS
+      CALL ProfileStart('ice_wri', 'r2', psy_profile2)
       WHERE (z2d < 0._wp) z2d = 0._wp
       CALL iom_put("icefrb", z2d * zmsk00)
+      CALL ProfileEnd(psy_profile2)
     END IF
+    CALL ProfileStart('ice_wri', 'r3', psy_profile3)
     IF (iom_use('iceapnd')) CALL iom_put("iceapnd", at_ip * zmsk00)
     IF (iom_use('icevpnd')) CALL iom_put("icevpnd", vt_ip * zmsk00)
     IF (iom_use('icesalt')) CALL iom_put("icesalt", sm_i * zmsk00)
@@ -85,6 +99,7 @@ MODULE icewri
     IF (iom_use('vice')) CALL iom_put("vice", v_ice)
     IF (iom_use('utau_ai')) CALL iom_put("utau_ai", utau_ice * zmsk00)
     IF (iom_use('vtau_ai')) CALL iom_put("vtau_ai", vtau_ice * zmsk00)
+    CALL ProfileEnd(psy_profile3)
     IF (iom_use('icevel')) THEN
       !$ACC KERNELS
       DO jj = 2, jpjm1
@@ -95,9 +110,12 @@ MODULE icewri
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('ice_wri', 'r4', psy_profile4)
       CALL lbc_lnk(z2d, 'T', 1.)
       IF (iom_use('icevel')) CALL iom_put("icevel", z2d)
+      CALL ProfileEnd(psy_profile4)
     END IF
+    CALL ProfileStart('ice_wri', 'r5', psy_profile5)
     IF (iom_use('icemask_cat')) CALL iom_put("icemask_cat", zmsk00l)
     IF (iom_use('iceconc_cat')) CALL iom_put("iceconc_cat", a_i * zmsk00l)
     IF (iom_use('icethic_cat')) CALL iom_put("icethic_cat", h_i * zmsk00l)
@@ -162,17 +180,21 @@ MODULE icewri
       IF (iom_use('SH_iceextt')) CALL iom_put("SH_iceextt", zdiag_extt_sh)
     END IF
     IF (ln_timing) CALL timing_stop('icewri')
+    CALL ProfileEnd(psy_profile5)
   END SUBROUTINE ice_wri
   SUBROUTINE ice_wri_state(kt, kid, kh_i)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
     INTEGER, INTENT( IN ) :: kid, kh_i
     INTEGER :: nz_i, jl
     REAL(KIND = wp), DIMENSION(jpl) :: jcat
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     DO jl = 1, jpl
       jcat(jl) = REAL(jl)
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ice_wri_state', 'r0', psy_profile0)
     CALL histvert(kid, "ncatice", "Ice Categories", "", jpl, jcat, nz_i, "up")
     CALL histdef(kid, "sithic", "Ice thickness", "m", jpi, jpj, kh_i, 1, 1, 1, - 99, 32, "inst(x)", rdt, rdt)
     CALL histdef(kid, "siconc", "Ice concentration", "%", jpi, jpj, kh_i, 1, 1, 1, - 99, 32, "inst(x)", rdt, rdt)
@@ -213,5 +235,6 @@ MODULE icewri
     CALL histwrite(kid, "siconcat", kt, a_i, jpi * jpj * jpl, (/1/))
     CALL histwrite(kid, "sisalcat", kt, s_i, jpi * jpj * jpl, (/1/))
     CALL histwrite(kid, "snthicat", kt, h_s, jpi * jpj * jpl, (/1/))
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_wri_state
 END MODULE icewri

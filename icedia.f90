@@ -23,12 +23,15 @@ MODULE icedia
     IF (ice_dia_alloc /= 0) CALL ctl_warn('ice_dia_alloc: failed to allocate arrays')
   END FUNCTION ice_dia_alloc
   SUBROUTINE ice_dia(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp) :: zbg_ivol, zbg_item, zbg_area, zbg_isal
     REAL(KIND = wp) :: zbg_svol, zbg_stem
     REAL(KIND = wp) :: z_frc_voltop, z_frc_temtop, z_frc_sal
     REAL(KIND = wp) :: z_frc_volbot, z_frc_tembot
     REAL(KIND = wp) :: zdiff_vol, zdiff_sal, zdiff_tem
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice_dia', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('ice_dia')
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
@@ -76,6 +79,7 @@ MODULE icedia
     IF (iom_use('sbgheat_tot')) CALL iom_put('sbgheat_tot', zbg_stem)
     IF (lrst_ice) CALL ice_dia_rst('WRITE', kt_ice)
     IF (ln_timing) CALL timing_stop('ice_dia')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_dia
   SUBROUTINE ice_dia_init
     INTEGER :: ios, ierror

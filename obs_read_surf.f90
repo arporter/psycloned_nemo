@@ -16,6 +16,7 @@ MODULE obs_read_surf
   PUBLIC :: obs_rea_surf
   CONTAINS
   SUBROUTINE obs_rea_surf(surfdata, knumfiles, cdfilenames, kvars, kextr, kstp, ddobsini, ddobsend, ldignmis, ldmod, ldnightav)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(obs_surf), INTENT(INOUT) :: surfdata
     INTEGER, INTENT(IN) :: knumfiles
     CHARACTER(LEN = 128), INTENT(IN) :: cdfilenames(knumfiles)
@@ -58,6 +59,8 @@ MODULE obs_read_surf
     REAL(KIND = wp), DIMENSION(knumfiles) :: djulini, djulend
     LOGICAL :: llvalprof
     TYPE(obfbdata), POINTER, DIMENSION(:) :: inpfiles
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('obs_rea_surf', 'r0', psy_profile0)
     iobs = 0
     inobf = knumfiles
     ALLOCATE(inpfiles(inobf))
@@ -272,5 +275,6 @@ MODULE obs_read_surf
       END IF
     END DO
     DEALLOCATE(inpfiles)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE obs_rea_surf
 END MODULE obs_read_surf

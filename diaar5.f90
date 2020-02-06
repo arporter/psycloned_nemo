@@ -29,6 +29,7 @@ MODULE diaar5
     IF (dia_ar5_alloc /= 0) CALL ctl_warn('dia_ar5_alloc: failed to allocate arrays')
   END FUNCTION dia_ar5_alloc
   SUBROUTINE dia_ar5(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zvolssh, zvol, zssh_steric, zztmp, zarho, ztemp, zsal, zmass
@@ -37,16 +38,30 @@ MODULE diaar5
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zpe
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: zrhd, zrhop
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :, :) :: ztsn
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    TYPE(ProfileData), SAVE :: psy_profile8
+    CALL ProfileStart('dia_ar5', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dia_ar5')
     IF (kt == nit000) CALL dia_ar5_init
+    CALL ProfileEnd(psy_profile0)
     IF (l_ar5) THEN
+      CALL ProfileStart('dia_ar5', 'r1', psy_profile1)
       ALLOCATE(zarea_ssh(jpi, jpj), zbotpres(jpi, jpj))
       ALLOCATE(zrhd(jpi, jpj, jpk), zrhop(jpi, jpj, jpk))
       ALLOCATE(ztsn(jpi, jpj, jpk, jpts))
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       zarea_ssh(:, :) = area(:, :) * sshn(:, :)
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('dia_ar5', 'r2', psy_profile2)
     IF (iom_use('voltot') .OR. iom_use('sshtot') .OR. iom_use('sshdyn')) THEN
       zvolssh = SUM(zarea_ssh(:, :))
       IF (lk_mpp) CALL mpp_sum(zvolssh)
@@ -55,6 +70,7 @@ MODULE diaar5
       CALL iom_put('sshtot', zvolssh / area_tot)
       CALL iom_put('sshdyn', sshn(:, :) - (zvolssh / area_tot))
     END IF
+    CALL ProfileEnd(psy_profile2)
     IF (iom_use('botpres') .OR. iom_use('sshthster') .OR. iom_use('sshsteric')) THEN
       !$ACC KERNELS
       ztsn(:, :, :, jp_tem) = tsn(:, :, :, jp_tem)
@@ -82,11 +98,13 @@ MODULE diaar5
           !$ACC END KERNELS
         END IF
       END IF
+      CALL ProfileStart('dia_ar5', 'r3', psy_profile3)
       zarho = SUM(area(:, :) * zbotpres(:, :))
       IF (lk_mpp) CALL mpp_sum(zarho)
       zssh_steric = - zarho / area_tot
       CALL iom_put('sshthster', zssh_steric)
       CALL eos(tsn, zrhd, zrhop, gdept_n(:, :, :))
+      CALL ProfileEnd(psy_profile3)
       !$ACC KERNELS
       zrhop(:, :, jpk) = 0._wp
       !$ACC END KERNELS
@@ -112,10 +130,12 @@ MODULE diaar5
           !$ACC END KERNELS
         END IF
       END IF
+      CALL ProfileStart('dia_ar5', 'r4', psy_profile4)
       zarho = SUM(area(:, :) * zbotpres(:, :))
       IF (lk_mpp) CALL mpp_sum(zarho)
       zssh_steric = - zarho / area_tot
       CALL iom_put('sshsteric', zssh_steric)
+      CALL ProfileEnd(psy_profile4)
       !$ACC KERNELS
       zztmp = rau0 * grav * 1.E-4_wp
       zbotpres(:, :) = zztmp * (zbotpres(:, :) + sshn(:, :) + thick0(:, :))
@@ -147,10 +167,13 @@ MODULE diaar5
           END DO
           !$ACC END KERNELS
         ELSE
+          CALL ProfileStart('dia_ar5', 'r5', psy_profile5)
           ztemp = ztemp + SUM(zarea_ssh(:, :) * tsn(:, :, 1, jp_tem))
           zsal = zsal + SUM(zarea_ssh(:, :) * tsn(:, :, 1, jp_sal))
+          CALL ProfileEnd(psy_profile5)
         END IF
       END IF
+      CALL ProfileStart('dia_ar5', 'r6', psy_profile6)
       IF (lk_mpp) THEN
         CALL mpp_sum(ztemp)
         CALL mpp_sum(zsal)
@@ -161,6 +184,7 @@ MODULE diaar5
       CALL iom_put('masstot', zmass)
       CALL iom_put('temptot', ztemp)
       CALL iom_put('saltot', zsal)
+      CALL ProfileEnd(psy_profile6)
     END IF
     IF (iom_use('tnpeo')) THEN
       ALLOCATE(zpe(jpi, jpj))
@@ -193,23 +217,30 @@ MODULE diaar5
         END DO
         !$ACC END KERNELS
       END IF
+      CALL ProfileStart('dia_ar5', 'r7', psy_profile7)
       CALL iom_put('tnpeo', zpe)
       DEALLOCATE(zpe)
+      CALL ProfileEnd(psy_profile7)
     END IF
+    CALL ProfileStart('dia_ar5', 'r8', psy_profile8)
     IF (l_ar5) THEN
       DEALLOCATE(zarea_ssh, zbotpres)
       DEALLOCATE(zrhd, zrhop)
       DEALLOCATE(ztsn)
     END IF
     IF (ln_timing) CALL timing_stop('dia_ar5')
+    CALL ProfileEnd(psy_profile8)
   END SUBROUTINE dia_ar5
   SUBROUTINE dia_ar5_hst(ktra, cptr, pua, pva)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN ) :: ktra
     CHARACTER(LEN = 3), INTENT(IN) :: cptr
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: pua
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: pva
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z2d
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     !$ACC KERNELS
     z2d(:, :) = pua(:, :, 1)
     DO jk = 1, jpkm1
@@ -220,6 +251,7 @@ MODULE diaar5
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('dia_ar5_hst', 'r0', psy_profile0)
     CALL lbc_lnk(z2d, 'U', - 1.)
     IF (cptr == 'adv') THEN
       IF (ktra == jp_tem) CALL iom_put("uadv_heattr", rau0_rcp * z2d)
@@ -229,6 +261,7 @@ MODULE diaar5
       IF (ktra == jp_tem) CALL iom_put("udiff_heattr", rau0_rcp * z2d)
       IF (ktra == jp_sal) CALL iom_put("udiff_salttr", rau0 * z2d)
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     z2d(:, :) = pva(:, :, 1)
     DO jk = 1, jpkm1
@@ -239,6 +272,7 @@ MODULE diaar5
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('dia_ar5_hst', 'r1', psy_profile1)
     CALL lbc_lnk(z2d, 'V', - 1.)
     IF (cptr == 'adv') THEN
       IF (ktra == jp_tem) CALL iom_put("vadv_heattr", rau0_rcp * z2d)
@@ -248,6 +282,7 @@ MODULE diaar5
       IF (ktra == jp_tem) CALL iom_put("vdiff_heattr", rau0_rcp * z2d)
       IF (ktra == jp_sal) CALL iom_put("vdiff_salttr", rau0 * z2d)
     END IF
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE dia_ar5_hst
   SUBROUTINE dia_ar5_init
     INTEGER :: inum

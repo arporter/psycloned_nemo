@@ -12,14 +12,17 @@ MODULE dynldf_lap_blp
   PUBLIC :: dyn_ldf_blp
   CONTAINS
   SUBROUTINE dyn_ldf_lap(kt, pub, pvb, pua, pva, kpass)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kpass
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pub, pvb
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kpass
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pub, pvb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zsign
     REAL(KIND = wp) :: zua, zva
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zcur, zdiv
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dyn_ldf_lap', 'r0', psy_profile0)
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dyn_ldf : iso-level harmonic (laplacian) operator, pass=', kpass
@@ -30,8 +33,9 @@ MODULE dynldf_lap_blp
     ELSE
       zsign = - 1._wp
     END IF
-    !$ACC KERNELS
+    CALL ProfileEnd(psy_profile0)
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       DO jj = 2, jpj
         DO ji = 2, jpi
           zcur(ji - 1, jj - 1) = ahmf(ji - 1, jj - 1, jk) * e3f_n(ji - 1, jj - 1, jk) * r1_e1e2f(ji - 1, jj - 1) * (e2v(ji, jj - 1) * pvb(ji, jj - 1, jk) - e2v(ji - 1, jj - 1) * pvb(ji - 1, jj - 1, jk) - e1u(ji - 1, jj) * pub(ji - 1, jj, jk) + e1u(ji - 1, jj - 1) * pub(ji - 1, jj - 1, jk))
@@ -44,25 +48,32 @@ MODULE dynldf_lap_blp
           pva(ji, jj, jk) = pva(ji, jj, jk) + zsign * ((zcur(ji, jj) - zcur(ji - 1, jj)) * r1_e1v(ji, jj) / e3v_n(ji, jj, jk) + (zdiv(ji, jj + 1) - zdiv(ji, jj)) * r1_e2v(ji, jj))
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
   END SUBROUTINE dyn_ldf_lap
   SUBROUTINE dyn_ldf_blp(kt, pub, pvb, pua, pva)
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pub, pvb
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pub, pvb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zulap, zvlap
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('dyn_ldf_blp', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn_ldf_blp : bilaplacian operator momentum '
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zulap(:, :, :) = 0._wp
     zvlap(:, :, :) = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('dyn_ldf_blp', 'r1', psy_profile1)
     CALL dyn_ldf_lap(kt, pub, pvb, zulap, zvlap, 1)
     CALL lbc_lnk_multi(zulap, 'U', - 1., zvlap, 'V', - 1.)
     CALL dyn_ldf_lap(kt, zulap, zvlap, pua, pva, 2)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE dyn_ldf_blp
 END MODULE dynldf_lap_blp

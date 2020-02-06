@@ -27,7 +27,8 @@ MODULE sbcssr
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_sss
   CONTAINS
   SUBROUTINE sbc_ssr(kt)
-    INTEGER, INTENT(IN   ) :: kt
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zerp
     REAL(KIND = wp) :: zqrp
@@ -36,6 +37,8 @@ MODULE sbcssr
     INTEGER :: ierror
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N) :: sn_sst, sn_sss
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('sbc_ssr', 'r0', psy_profile0)
     IF (nn_sstr + nn_sssr /= 0) THEN
       IF (nn_sstr == 1) CALL fld_read(kt, nn_fsbc, sf_sst)
       IF (nn_sssr >= 1) CALL fld_read(kt, nn_fsbc, sf_sss)
@@ -76,6 +79,7 @@ MODULE sbcssr
         END IF
       END IF
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE sbc_ssr
   SUBROUTINE sbc_ssr_init
     INTEGER :: ji, jj
@@ -130,7 +134,9 @@ MODULE sbcssr
       IF (sf_sss(1) % ln_tint) ALLOCATE(sf_sss(1) % fdta(jpi, jpj, 1, 2), STAT = ierror)
       IF (ierror > 0) CALL ctl_stop('STOP', 'sbc_ssr: unable to allocate sf_sss data array')
     END IF
+    !$ACC KERNELS
     IF (nn_sstr /= 1) qrp(:, :) = 0._wp
     IF (nn_sssr /= 1 .OR. nn_sssr /= 2) erp(:, :) = 0._wp
+    !$ACC END KERNELS
   END SUBROUTINE sbc_ssr_init
 END MODULE sbcssr

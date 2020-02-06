@@ -14,12 +14,18 @@ MODULE crsdomwri
   PUBLIC :: crs_dom_wri
   CONTAINS
   SUBROUTINE crs_dom_wri
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: ji, jj, jk
     INTEGER :: inum
     INTEGER :: iif, iil, ijf, ijl
     CHARACTER(LEN = 21) :: clnam
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs) :: zprt, zprw
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk) :: zdepu, zdepv
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    CALL ProfileStart('crs_dom_wri', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'crs_dom_wri : create NetCDF mesh and mask file'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
@@ -29,6 +35,7 @@ MODULE crsdomwri
     CALL iom_rstput(0, 0, inum, 'umask', umask_crs, ktype = jp_i1)
     CALL iom_rstput(0, 0, inum, 'vmask', vmask_crs, ktype = jp_i1)
     CALL iom_rstput(0, 0, inum, 'fmask', fmask_crs, ktype = jp_i1)
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     tmask_i_crs(:, :) = tmask_crs(:, :, 1)
     iif = nn_hls
@@ -55,12 +62,13 @@ MODULE crsdomwri
         !$ACC END KERNELS
       END IF
     END IF
+    !$ACC KERNELS
     IF (jperio == 5 .OR. jperio == 6) THEN
-      !$ACC KERNELS
       tpol_crs(1 : jpiglo_crs, :) = 0._wp
       fpol_crs(jpiglo_crs / 2 + 1 : jpiglo_crs, :) = 0._wp
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
+    CALL ProfileStart('crs_dom_wri', 'r1', psy_profile1)
     CALL iom_rstput(0, 0, inum, 'tmaskutil', tmask_i_crs, ktype = jp_i1)
     CALL dom_uniq_crs(zprw, 'U')
     zprt = umask_crs(:, :, 1) * zprw
@@ -88,15 +96,18 @@ MODULE crsdomwri
     CALL iom_rstput(0, 0, inum, 'e2v', e2v_crs, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'e2f', e2f_crs, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'ff', ff_crs, ktype = jp_r8)
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     zprt(:, :) = tmask_crs(:, :, 1) * REAL(mbkt_crs(:, :), wp)
     !$ACC END KERNELS
+    CALL ProfileStart('crs_dom_wri', 'r2', psy_profile2)
     CALL iom_rstput(0, 0, inum, 'mbathy', zprt, ktype = jp_i2)
     CALL iom_rstput(0, 0, inum, 'e3t', e3t_crs)
     CALL iom_rstput(0, 0, inum, 'e3w', e3w_crs)
     CALL iom_rstput(0, 0, inum, 'e3u', e3u_crs)
     CALL iom_rstput(0, 0, inum, 'e3v', e3v_crs)
     CALL iom_rstput(0, 0, inum, 'gdept', gdept_crs, ktype = jp_r4)
+    CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     DO jk = 1, jpk
       DO jj = 1, jpj_crsm1
@@ -107,6 +118,7 @@ MODULE crsdomwri
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('crs_dom_wri', 'r3', psy_profile3)
     CALL crs_lbc_lnk(zdepu, 'U', 1.)
     CALL crs_lbc_lnk(zdepv, 'V', 1.)
     CALL iom_rstput(0, 0, inum, 'gdepu', zdepu, ktype = jp_r4)
@@ -133,19 +145,24 @@ MODULE crsdomwri
     CALL iom_rstput(0, 0, inum, 'crs_surfv_wgt', crs_surfv_wgt)
     CALL iom_rstput(0, 0, inum, 'crs_volt_wgt', crs_volt_wgt)
     CALL iom_close(inum)
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE crs_dom_wri
   SUBROUTINE dom_uniq_crs(puniq, cdgrd)
-    CHARACTER(LEN = 1), INTENT(IN   ) :: cdgrd
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    CHARACTER(LEN = 1), INTENT(IN ) :: cdgrd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: puniq
     REAL(KIND = wp) :: zshift
     INTEGER :: ji
     LOGICAL, DIMENSION(SIZE(puniq, 1), SIZE(puniq, 2), 1) :: lldbl
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs) :: ztstref
-    !!$ACC KERNELS
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dom_uniq_crs', 'r0', psy_profile0)
     zshift = jpi_crs * jpj_crs * (narea - 1)
     ztstref(:, :) = RESHAPE((/(zshift + REAL(ji, wp), ji = 1, jpi_crs * jpj_crs)/), (/jpi_crs, jpj_crs/))
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     puniq(:, :) = ztstref(:, :)
-    !!$ACC END KERNELS
+    !$ACC END KERNELS
     CALL crs_lbc_lnk(puniq, cdgrd, 1.)
     !$ACC KERNELS
     lldbl(:, :, 1) = puniq(:, :) == ztstref(:, :)

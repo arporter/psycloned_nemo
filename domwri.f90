@@ -12,12 +12,19 @@ MODULE domwri
   PUBLIC :: dom_stiff
   CONTAINS
   SUBROUTINE dom_wri
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: inum
     CHARACTER(LEN = 21) :: clnam
     INTEGER :: ji, jj, jk
     INTEGER :: izco, izps, isco, icav
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zprt, zprw
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdepu, zdepv
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    CALL ProfileStart('dom_wri', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'dom_wri : create NetCDF mesh and mask information file(s)'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~'
@@ -56,6 +63,7 @@ MODULE domwri
     CALL iom_rstput(0, 0, inum, 'vmask', vmask, ktype = jp_i1)
     CALL iom_rstput(0, 0, inum, 'fmask', fmask, ktype = jp_i1)
     CALL dom_uniq(zprw, 'T')
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -63,8 +71,10 @@ MODULE domwri
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('dom_wri', 'r1', psy_profile1)
     CALL iom_rstput(0, 0, inum, 'tmaskutil', zprt, ktype = jp_i1)
     CALL dom_uniq(zprw, 'U')
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -72,8 +82,10 @@ MODULE domwri
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('dom_wri', 'r2', psy_profile2)
     CALL iom_rstput(0, 0, inum, 'umaskutil', zprt, ktype = jp_i1)
     CALL dom_uniq(zprw, 'V')
+    CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -81,6 +93,7 @@ MODULE domwri
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('dom_wri', 'r3', psy_profile3)
     CALL iom_rstput(0, 0, inum, 'vmaskutil', zprt, ktype = jp_i1)
     CALL iom_rstput(0, 0, inum, 'glamt', glamt, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'glamu', glamu, ktype = jp_r8)
@@ -100,6 +113,7 @@ MODULE domwri
     CALL iom_rstput(0, 0, inum, 'e2f', e2f, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'ff_f', ff_f, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'ff_t', ff_t, ktype = jp_r8)
+    CALL ProfileEnd(psy_profile3)
     !$ACC KERNELS
     zprt(:, :) = ssmask(:, :) * REAL(mbkt(:, :), wp)
     !$ACC END KERNELS
@@ -111,6 +125,7 @@ MODULE domwri
     !$ACC KERNELS
     zprt(:, :) = ssmask(:, :) * REAL(risfdep(:, :), wp)
     !$ACC END KERNELS
+    CALL ProfileStart('dom_wri', 'r4', psy_profile4)
     CALL iom_rstput(0, 0, inum, 'isfdraft', zprt, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'e3t_0', e3t_0, ktype = jp_r8)
     CALL iom_rstput(0, 0, inum, 'e3u_0', e3u_0, ktype = jp_r8)
@@ -126,19 +141,24 @@ MODULE domwri
     END IF
     IF (ll_wd) CALL iom_rstput(0, 0, inum, 'ht_0', ht_0, ktype = jp_r8)
     CALL iom_close(inum)
+    CALL ProfileEnd(psy_profile4)
   END SUBROUTINE dom_wri
   SUBROUTINE dom_uniq(puniq, cdgrd)
-    CHARACTER(LEN = 1), INTENT(IN   ) :: cdgrd
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    CHARACTER(LEN = 1), INTENT(IN ) :: cdgrd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: puniq
     REAL(KIND = wp) :: zshift
     INTEGER :: ji
     LOGICAL, DIMENSION(SIZE(puniq, 1), SIZE(puniq, 2), 1) :: lldbl
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztstref
-    !!$ACC KERNELS
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dom_uniq', 'r0', psy_profile0)
     zshift = jpi * jpj * (narea - 1)
     ztstref(:, :) = RESHAPE((/(zshift + REAL(ji, wp), ji = 1, jpi * jpj)/), (/jpi, jpj/))
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     puniq(:, :) = ztstref(:, :)
-    !!$ACC END KERNELS
+    !$ACC END KERNELS
     CALL lbc_lnk(puniq, cdgrd, 1.)
     !$ACC KERNELS
     lldbl(:, :, 1) = puniq(:, :) == ztstref(:, :)
@@ -147,15 +167,18 @@ MODULE domwri
     !$ACC END KERNELS
   END SUBROUTINE dom_uniq
   SUBROUTINE dom_stiff(px1)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT), OPTIONAL :: px1
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zrxmax
     REAL(KIND = wp), DIMENSION(4) :: zr1
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zx1
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     zx1(:, :) = 0._wp
     zrxmax = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('dom_stiff', 'r0', psy_profile0)
     zr1(:) = 0._wp
     DO ji = 2, jpim1
       DO jj = 2, jpjm1
@@ -178,5 +201,6 @@ MODULE domwri
       WRITE(numout, FMT = *) 'dom_stiff : maximum grid stiffness ratio: ', zrxmax
       WRITE(numout, FMT = *) '~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE dom_stiff
 END MODULE domwri

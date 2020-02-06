@@ -49,16 +49,28 @@ MODULE sbcrnf
     IF (sbc_rnf_alloc > 0) CALL ctl_warn('sbc_rnf_alloc: allocation of arrays failed')
   END FUNCTION sbc_rnf_alloc
   SUBROUTINE sbc_rnf(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj
     INTEGER :: z_err = 0
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztfrz
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    CALL ProfileStart('sbc_rnf', 'r0', psy_profile0)
     IF (.NOT. l_rnfcpl) CALL fld_read(kt, nn_fsbc, sf_rnf)
     IF (ln_rnf_tem) CALL fld_read(kt, nn_fsbc, sf_t_rnf)
     IF (ln_rnf_sal) CALL fld_read(kt, nn_fsbc, sf_s_rnf)
+    CALL ProfileEnd(psy_profile0)
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
+      CALL ProfileStart('sbc_rnf', 'r1', psy_profile1)
       IF (.NOT. l_rnfcpl) rnf(:, :) = rn_rfact * (sf_rnf(1) % fnow(:, :, 1)) * tmask(:, :, 1)
+      CALL ProfileEnd(psy_profile1)
       IF (ln_rnf_tem) THEN
+        CALL ProfileStart('sbc_rnf', 'r2', psy_profile2)
         rnf_tsc(:, :, jp_tem) = (sf_t_rnf(1) % fnow(:, :, 1)) * rnf(:, :) * r1_rau0
         CALL eos_fzp(sss_m(:, :), ztfrz(:, :))
         WHERE (sf_t_rnf(1) % fnow(:, :, 1) == - 999._wp)
@@ -67,21 +79,26 @@ MODULE sbcrnf
         WHERE (sf_t_rnf(1) % fnow(:, :, 1) == - 222._wp)
           rnf_tsc(:, :, jp_tem) = ztfrz(:, :) * rnf(:, :) * r1_rau0 - rnf(:, :) * rLfusisf * r1_rau0_rcp
         END WHERE
+        CALL ProfileEnd(psy_profile2)
       ELSE
         !$ACC KERNELS
         rnf_tsc(:, :, jp_tem) = MAX(sst_m(:, :), 0.0_wp) * rnf(:, :) * r1_rau0
         !$ACC END KERNELS
       END IF
+      CALL ProfileStart('sbc_rnf', 'r3', psy_profile3)
       IF (ln_rnf_sal) rnf_tsc(:, :, jp_sal) = (sf_s_rnf(1) % fnow(:, :, 1)) * rnf(:, :) * r1_rau0
       IF (iom_use('runoffs')) CALL iom_put('runoffs', rnf(:, :))
       IF (iom_use('hflx_rnf_cea')) CALL iom_put('hflx_rnf_cea', rnf_tsc(:, :, jp_tem) * rau0 * rcp)
+      CALL ProfileEnd(psy_profile3)
     END IF
     IF (kt == nit000) THEN
       IF (ln_rstart .AND. iom_varid(numror, 'rnf_b', ldstop = .FALSE.) > 0) THEN
+        CALL ProfileStart('sbc_rnf', 'r4', psy_profile4)
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 runoff forcing fields red in the restart file', lrxios
         CALL iom_get(numror, jpdom_autoglo, 'rnf_b', rnf_b, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'rnf_hc_b', rnf_tsc_b(:, :, jp_tem), ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'rnf_sc_b', rnf_tsc_b(:, :, jp_sal), ldxios = lrxios)
+        CALL ProfileEnd(psy_profile4)
       ELSE
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 runoff forcing fields set to nit000'
         !$ACC KERNELS
@@ -90,6 +107,7 @@ MODULE sbcrnf
         !$ACC END KERNELS
       END IF
     END IF
+    CALL ProfileStart('sbc_rnf', 'r5', psy_profile5)
     IF (lrst_oce) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'sbcrnf : runoff forcing fields written in ocean restart file ', 'at it= ', kt, ' date= ', ndastp
@@ -100,23 +118,28 @@ MODULE sbcrnf
       CALL iom_rstput(kt, nitrst, numrow, 'rnf_sc_b', rnf_tsc(:, :, jp_sal), ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
+    CALL ProfileEnd(psy_profile5)
   END SUBROUTINE sbc_rnf
   SUBROUTINE sbc_rnf_div(phdivn)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: phdivn
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zfact
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('sbc_rnf_div', 'r0', psy_profile0)
     zfact = 0.5_wp
+    CALL ProfileEnd(psy_profile0)
     IF (ln_rnf_depth .OR. ln_rnf_depth_ini) THEN
       IF (ln_linssh) THEN
-        !$ACC KERNELS
         DO jj = 1, jpj
           DO ji = 1, jpi
+            !$ACC KERNELS
             DO jk = 1, nk_rnf(ji, jj)
               phdivn(ji, jj, jk) = phdivn(ji, jj, jk) - (rnf(ji, jj) + rnf_b(ji, jj)) * zfact * r1_rau0 / h_rnf(ji, jj)
             END DO
+            !$ACC END KERNELS
           END DO
         END DO
-        !$ACC END KERNELS
       ELSE
         !$ACC KERNELS
         DO jj = 1, jpj
@@ -278,9 +301,7 @@ MODULE sbcrnf
       !$ACC KERNELS
       h_rnf(:, :) = 1.
       zacoef = rn_dep_max / rn_rnf_max
-      !$ACC END KERNELS
       WHERE (zrnf(:, :) > 0._wp) h_rnf(:, :) = zacoef * zrnf(:, :)
-      !$ACC KERNELS
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (zrnf(ji, jj) > 0._wp) THEN
@@ -364,8 +385,11 @@ MODULE sbcrnf
     END IF
   END SUBROUTINE sbc_rnf_init
   SUBROUTINE rnf_mouth
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: inum
     CHARACTER(LEN = 140) :: cl_rnfile
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('rnf_mouth', 'r0', psy_profile0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) '   rnf_mouth : river mouth mask'
     IF (lwp) WRITE(numout, FMT = *) '   ~~~~~~~~~ '
@@ -384,5 +408,6 @@ MODULE sbcrnf
     rnfmsk_z(3) = 0.5
     rnfmsk_z(4) = 0.25
     rnfmsk_z(5) = 0.125
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE rnf_mouth
 END MODULE sbcrnf

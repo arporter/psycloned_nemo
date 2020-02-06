@@ -26,6 +26,7 @@ MODULE dynnxt
   PUBLIC :: dyn_nxt
   CONTAINS
   SUBROUTINE dyn_nxt(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: ikt
@@ -33,6 +34,15 @@ MODULE dynnxt
     REAL(KIND = wp) :: zve3a, zve3n, zve3b, zvf, z1_2dt
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zue, zve
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ze3u_f, ze3v_f, zua, zva
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    CALL ProfileStart('dyn_nxt', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dyn_nxt')
     IF (ln_dynspg_ts) ALLOCATE(zue(jpi, jpj), zve(jpi, jpj))
     IF (l_trddyn) ALLOCATE(zua(jpi, jpj, jpk), zva(jpi, jpj, jpk))
@@ -41,42 +51,53 @@ MODULE dynnxt
       IF (lwp) WRITE(numout, FMT = *) 'dyn_nxt : time stepping'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (ln_dynspg_ts) THEN
       !$ACC KERNELS
       zue(:, :) = e3u_a(:, :, 1) * ua(:, :, 1) * umask(:, :, 1)
       zve(:, :) = e3v_a(:, :, 1) * va(:, :, 1) * vmask(:, :, 1)
+      !$ACC END KERNELS
       DO jk = 2, jpkm1
+        !$ACC KERNELS
         zue(:, :) = zue(:, :) + e3u_a(:, :, jk) * ua(:, :, jk) * umask(:, :, jk)
         zve(:, :) = zve(:, :) + e3v_a(:, :, jk) * va(:, :, jk) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ua(:, :, jk) = (ua(:, :, jk) - zue(:, :) * r1_hu_a(:, :) + ua_b(:, :)) * umask(:, :, jk)
         va(:, :, jk) = (va(:, :, jk) - zve(:, :) * r1_hv_a(:, :) + va_b(:, :)) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
       IF (.NOT. ln_bt_fw) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           un(:, :, jk) = (un(:, :, jk) - un_adv(:, :) * r1_hu_n(:, :) + un_b(:, :)) * umask(:, :, jk)
           vn(:, :, jk) = (vn(:, :, jk) - vn_adv(:, :) * r1_hv_n(:, :) + vn_b(:, :)) * vmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
     END IF
+    CALL ProfileStart('dyn_nxt', 'r1', psy_profile1)
     CALL lbc_lnk_multi(ua, 'U', - 1., va, 'V', - 1.)
     IF (ln_bdy .AND. ln_dynspg_exp) CALL bdy_dyn(kt)
     IF (ln_bdy .AND. ln_dynspg_ts) CALL bdy_dyn(kt, dyn3d_only = .TRUE.)
+    CALL ProfileEnd(psy_profile1)
     IF (l_trddyn) THEN
+      CALL ProfileStart('dyn_nxt', 'r2', psy_profile2)
       z1_2dt = 1._wp / (2. * rdt)
       IF (neuler == 0 .AND. kt == nit000) z1_2dt = 1._wp / rdt
       IF (ln_KE_trd) CALL trd_dyn(ua, va, jpdyn_ken, kt)
+      CALL ProfileEnd(psy_profile2)
       IF (ln_dyn_trd) THEN
         !$ACC KERNELS
         zua(:, :, :) = (ua(:, :, :) - ub(:, :, :)) * z1_2dt
         zva(:, :, :) = (va(:, :, :) - vb(:, :, :)) * z1_2dt
         !$ACC END KERNELS
+        CALL ProfileStart('dyn_nxt', 'r3', psy_profile3)
         CALL iom_put("utrd_tot", zua)
         CALL iom_put("vtrd_tot", zva)
+        CALL ProfileEnd(psy_profile3)
       END IF
       !$ACC KERNELS
       zua(:, :, :) = un(:, :, :)
@@ -84,20 +105,20 @@ MODULE dynnxt
       !$ACC END KERNELS
     END IF
     IF (neuler == 0 .AND. kt == nit000) THEN
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         un(:, :, jk) = ua(:, :, jk)
         vn(:, :, jk) = va(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
       IF (.NOT. ln_linssh) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           e3t_n(:, :, jk) = e3t_a(:, :, jk)
           e3u_n(:, :, jk) = e3u_a(:, :, jk)
           e3v_n(:, :, jk) = e3v_a(:, :, jk)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
     ELSE
       IF (ln_linssh) THEN
@@ -156,8 +177,10 @@ MODULE dynnxt
           !$ACC END KERNELS
         END IF
         IF (ln_dynadv_vec) THEN
+          CALL ProfileStart('dyn_nxt', 'r4', psy_profile4)
           CALL dom_vvl_interpol(e3t_b(:, :, :), e3u_b(:, :, :), 'U')
           CALL dom_vvl_interpol(e3t_b(:, :, :), e3v_b(:, :, :), 'V')
+          CALL ProfileEnd(psy_profile4)
           !$ACC KERNELS
           DO jk = 1, jpkm1
             DO jj = 1, jpj
@@ -173,9 +196,11 @@ MODULE dynnxt
           END DO
           !$ACC END KERNELS
         ELSE
+          CALL ProfileStart('dyn_nxt', 'r5', psy_profile5)
           ALLOCATE(ze3u_f(jpi, jpj, jpk), ze3v_f(jpi, jpj, jpk))
           CALL dom_vvl_interpol(e3t_b(:, :, :), ze3u_f, 'U')
           CALL dom_vvl_interpol(e3t_b(:, :, :), ze3v_f, 'V')
+          CALL ProfileEnd(psy_profile5)
           !$ACC KERNELS
           DO jk = 1, jpkm1
             DO jj = 1, jpj
@@ -205,25 +230,33 @@ MODULE dynnxt
         !$ACC KERNELS
         zue(:, :) = e3u_b(:, :, 1) * ub(:, :, 1) * umask(:, :, 1)
         zve(:, :) = e3v_b(:, :, 1) * vb(:, :, 1) * vmask(:, :, 1)
+        !$ACC END KERNELS
         DO jk = 2, jpkm1
+          !$ACC KERNELS
           zue(:, :) = zue(:, :) + e3u_b(:, :, jk) * ub(:, :, jk) * umask(:, :, jk)
           zve(:, :) = zve(:, :) + e3v_b(:, :, jk) * vb(:, :, jk) * vmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           ub(:, :, jk) = ub(:, :, jk) - (zue(:, :) * r1_hu_n(:, :) - un_b(:, :)) * umask(:, :, jk)
           vb(:, :, jk) = vb(:, :, jk) - (zve(:, :) * r1_hv_n(:, :) - vn_b(:, :)) * vmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
     END IF
     IF (.NOT. ln_linssh) THEN
       !$ACC KERNELS
       hu_b(:, :) = e3u_b(:, :, 1) * umask(:, :, 1)
       hv_b(:, :) = e3v_b(:, :, 1) * vmask(:, :, 1)
+      !$ACC END KERNELS
       DO jk = 2, jpkm1
+        !$ACC KERNELS
         hu_b(:, :) = hu_b(:, :) + e3u_b(:, :, jk) * umask(:, :, jk)
         hv_b(:, :) = hv_b(:, :) + e3v_b(:, :, jk) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
+      !$ACC KERNELS
       r1_hu_b(:, :) = ssumask(:, :) / (hu_b(:, :) + 1._wp - ssumask(:, :))
       r1_hv_b(:, :) = ssvmask(:, :) / (hv_b(:, :) + 1._wp - ssvmask(:, :))
       !$ACC END KERNELS
@@ -233,21 +266,27 @@ MODULE dynnxt
     ub_b(:, :) = e3u_b(:, :, 1) * ub(:, :, 1) * umask(:, :, 1)
     vn_b(:, :) = e3v_a(:, :, 1) * vn(:, :, 1) * vmask(:, :, 1)
     vb_b(:, :) = e3v_b(:, :, 1) * vb(:, :, 1) * vmask(:, :, 1)
+    !$ACC END KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       un_b(:, :) = un_b(:, :) + e3u_a(:, :, jk) * un(:, :, jk) * umask(:, :, jk)
       ub_b(:, :) = ub_b(:, :) + e3u_b(:, :, jk) * ub(:, :, jk) * umask(:, :, jk)
       vn_b(:, :) = vn_b(:, :) + e3v_a(:, :, jk) * vn(:, :, jk) * vmask(:, :, jk)
       vb_b(:, :) = vb_b(:, :) + e3v_b(:, :, jk) * vb(:, :, jk) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     un_b(:, :) = un_b(:, :) * r1_hu_a(:, :)
     vn_b(:, :) = vn_b(:, :) * r1_hv_a(:, :)
     ub_b(:, :) = ub_b(:, :) * r1_hu_b(:, :)
     vb_b(:, :) = vb_b(:, :) * r1_hv_b(:, :)
     !$ACC END KERNELS
+    CALL ProfileStart('dyn_nxt', 'r6', psy_profile6)
     IF (.NOT. ln_dynspg_ts) THEN
       CALL iom_put("ubar", un_b(:, :))
       CALL iom_put("vbar", vn_b(:, :))
     END IF
+    CALL ProfileEnd(psy_profile6)
     IF (l_trddyn) THEN
       !$ACC KERNELS
       zua(:, :, :) = (ub(:, :, :) - zua(:, :, :)) * z1_2dt
@@ -255,9 +294,11 @@ MODULE dynnxt
       !$ACC END KERNELS
       CALL trd_dyn(zua, zva, jpdyn_atf, kt)
     END IF
+    CALL ProfileStart('dyn_nxt', 'r7', psy_profile7)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = un, clinfo1 = ' nxt  - Un: ', mask1 = umask, tab3d_2 = vn, clinfo2 = ' Vn: ', mask2 = vmask)
     IF (ln_dynspg_ts) DEALLOCATE(zue, zve)
     IF (l_trddyn) DEALLOCATE(zua, zva)
     IF (ln_timing) CALL timing_stop('dyn_nxt')
+    CALL ProfileEnd(psy_profile7)
   END SUBROUTINE dyn_nxt
 END MODULE dynnxt

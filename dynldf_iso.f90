@@ -22,6 +22,7 @@ MODULE dynldf_iso
     IF (dyn_ldf_iso_alloc /= 0) CALL ctl_warn('dyn_ldf_iso_alloc: array allocate failed.')
   END FUNCTION dyn_ldf_iso_alloc
   SUBROUTINE dyn_ldf_iso(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zabe1, zmskt, zmkt, zuav, zuwslpi, zuwslpj
@@ -29,12 +30,16 @@ MODULE dynldf_iso
     REAL(KIND = wp) :: zcof0, zcof1, zcof2, zcof3, zcof4, zaht_0
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ziut, zivf, zdku, zdk1u
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zjuf, zjvt, zdkv, zdk1v
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('dyn_ldf_iso', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn_ldf_iso : iso-neutral laplacian diffusive operator or '
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~   s-coordinate horizontal diffusive operator'
       IF (dyn_ldf_iso_alloc() /= 0) CALL ctl_stop('STOP', 'dyn_ldf_iso: failed to allocate arrays')
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (ln_dynldf_hor .AND. ln_traldf_iso) THEN
       !$ACC KERNELS
       DO jk = 1, jpk
@@ -50,23 +55,21 @@ MODULE dynldf_iso
       !$ACC END KERNELS
       CALL lbc_lnk_multi(uslp, 'U', - 1., vslp, 'V', - 1., wslpi, 'W', - 1., wslpj, 'W', - 1.)
     END IF
+    CALL ProfileStart('dyn_ldf_iso', 'r1', psy_profile1)
     zaht_0 = 0.5_wp * rn_Ud * rn_Ld
+    CALL ProfileEnd(psy_profile1)
     DO jk = 1, jpkm1
       !$ACC KERNELS
       zdk1u(:, :) = (ub(:, :, jk) - ub(:, :, jk + 1)) * umask(:, :, jk + 1)
       zdk1v(:, :) = (vb(:, :, jk) - vb(:, :, jk + 1)) * vmask(:, :, jk + 1)
-      !$ACC END KERNELS
       IF (jk == 1) THEN
-        !$ACC KERNELS
         zdku(:, :) = zdk1u(:, :)
         zdkv(:, :) = zdk1v(:, :)
-        !$ACC END KERNELS
       ELSE
-        !$ACC KERNELS
         zdku(:, :) = (ub(:, :, jk - 1) - ub(:, :, jk)) * umask(:, :, jk)
         zdkv(:, :) = (vb(:, :, jk - 1) - vb(:, :, jk)) * vmask(:, :, jk)
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
       IF (ln_zps) THEN
         !$ACC KERNELS
         DO jj = 2, jpjm1
@@ -141,8 +144,8 @@ MODULE dynldf_iso
       !$ACC END KERNELS
     END DO
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' ldfh - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
-    !$ACC KERNELS
     DO jj = 2, jpjm1
+      !$ACC KERNELS
       DO jk = 1, jpk
         DO ji = 2, jpi
           zdiu(ji, jk) = tmask(ji, jj, jk) * (ub(ji, jj, jk) - ub(ji - 1, jj, jk))
@@ -195,7 +198,7 @@ MODULE dynldf_iso
           va(ji, jj, jk) = va(ji, jj, jk) + (zfvw(ji, jk) - zfvw(ji, jk + 1)) * r1_e1e2v(ji, jj) / e3v_n(ji, jj, jk)
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
   END SUBROUTINE dyn_ldf_iso
 END MODULE dynldf_iso

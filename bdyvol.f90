@@ -13,11 +13,14 @@ MODULE bdyvol
   PUBLIC :: bdy_vol
   CONTAINS
   SUBROUTINE bdy_vol(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jb, jgrd
     INTEGER :: ib_bdy, ii, ij
     REAL(KIND = wp) :: zubtpecor, z_cflxemp, ztranst
     TYPE(OBC_INDEX), POINTER :: idx
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_vol', 'r0', psy_profile0)
     IF (ln_vol) THEN
       IF (kt == nit000) THEN
         IF (lwp) WRITE(numout, FMT = *)
@@ -85,5 +88,6 @@ MODULE bdyvol
         IF (lwp) WRITE(numout, FMT = *) '          cumulated transport ztranst   =', ztranst, '(m3/s)'
       END IF
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_vol
 END MODULE bdyvol

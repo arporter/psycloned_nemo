@@ -23,7 +23,10 @@ MODULE dynadv
   INTEGER, PUBLIC, PARAMETER :: np_FLX_ubs = 3
   CONTAINS
   SUBROUTINE dyn_adv(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dyn_adv', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('dyn_adv')
     SELECT CASE (n_dynadv)
     CASE (np_VEC_c2)
@@ -35,6 +38,7 @@ MODULE dynadv
       CALL dyn_adv_ubs(kt)
     END SELECT
     IF (ln_timing) CALL timing_stop('dyn_adv')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE dyn_adv
   SUBROUTINE dyn_adv_init
     INTEGER :: ioptio, ios

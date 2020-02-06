@@ -66,9 +66,10 @@ MODULE wet_dry
     END IF
   END SUBROUTINE wad_init
   SUBROUTINE wad_lmt(sshb1, sshemp, z2dt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: sshb1
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: sshemp
-    REAL(KIND = wp), INTENT(IN   ) :: z2dt
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: sshemp
+    REAL(KIND = wp), INTENT(IN ) :: z2dt
     INTEGER :: ji, jj, jk, jk1
     INTEGER :: jflag
     REAL(KIND = wp) :: zcoef, zdep1, zdep2
@@ -79,12 +80,17 @@ MODULE wet_dry
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zflxp, zflxn
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zflxu, zflxv
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zflxu1, zflxv1
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
     IF (ln_timing) CALL timing_start('wad_lmt')
-    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       un(:, :, jk) = un(:, :, jk) * zwdlmtu(:, :)
       vn(:, :, jk) = vn(:, :, jk) * zwdlmtv(:, :)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     jflag = 0
     zdepwd = 50._wp
     zflxp(:, :) = 0._wp
@@ -93,14 +99,19 @@ MODULE wet_dry
     zflxv(:, :) = 0._wp
     zwdlmtu(:, :) = 1._wp
     zwdlmtv(:, :) = 1._wp
+    !$ACC END KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       zflxu(:, :) = zflxu(:, :) + e3u_n(:, :, jk) * un(:, :, jk) * umask(:, :, jk)
       zflxv(:, :) = zflxv(:, :) + e3v_n(:, :, jk) * vn(:, :, jk) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     zflxu(:, :) = zflxu(:, :) * e2u(:, :)
     zflxv(:, :) = zflxv(:, :) * e1v(:, :)
     wdmask(:, :) = 1._wp
     !$ACC END KERNELS
+    CALL ProfileStart('wad_lmt', 'r0', psy_profile0)
     DO jj = 2, jpj
       DO ji = 2, jpi
         IF (tmask(ji, jj, 1) < 0.5_wp) CYCLE
@@ -118,6 +129,7 @@ MODULE wet_dry
         END IF
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     wdramp(:, :) = MIN((ht_0(:, :) + sshb1(:, :) - rn_wdmin1) / (rn_wdmin0 - rn_wdmin1), 1.0_wp)
     DO jj = 1, jpjm1
@@ -133,6 +145,7 @@ MODULE wet_dry
       zflxv1(:, :) = zflxv(:, :) * zwdlmtv(:, :)
       jflag = 0
       !$ACC END KERNELS
+      CALL ProfileStart('wad_lmt', 'r1', psy_profile1)
       DO jj = 2, jpj
         DO ji = 2, jpi
           IF (tmask(ji, jj, 1) < 0.5_wp) CYCLE
@@ -161,22 +174,28 @@ MODULE wet_dry
       CALL lbc_lnk_multi(zwdlmtu, 'U', 1., zwdlmtv, 'V', 1.)
       IF (lk_mpp) CALL mpp_max(jflag)
       IF (jflag == 0) EXIT
+      CALL ProfileEnd(psy_profile1)
     END DO
-    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       un(:, :, jk) = un(:, :, jk) * zwdlmtu(:, :)
       vn(:, :, jk) = vn(:, :, jk) * zwdlmtv(:, :)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     un_b(:, :) = un_b(:, :) * zwdlmtu(:, :)
     vn_b(:, :) = vn_b(:, :) * zwdlmtv(:, :)
     !$ACC END KERNELS
+    CALL ProfileStart('wad_lmt', 'r2', psy_profile2)
     CALL lbc_lnk_multi(un, 'U', - 1., vn, 'V', - 1.)
     CALL lbc_lnk_multi(un_b, 'U', - 1., vn_b, 'V', - 1.)
     IF (jflag == 1 .AND. lwp) WRITE(numout, FMT = *) 'Need more iterations in wad_lmt!!!'
     IF (ln_timing) CALL timing_stop('wad_lmt')
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE wad_lmt
   SUBROUTINE wad_lmt_bt(zflxu, zflxv, sshn_e, zssh_frc, rdtbt)
-    REAL(KIND = wp), INTENT(IN   ) :: rdtbt
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    REAL(KIND = wp), INTENT(IN ) :: rdtbt
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: zflxu, zflxv, sshn_e, zssh_frc
     INTEGER :: ji, jj, jk, jk1
     INTEGER :: jflag
@@ -188,6 +207,9 @@ MODULE wet_dry
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zwdlmtu, zwdlmtv
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zflxp, zflxn
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zflxu1, zflxv1
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
     IF (ln_timing) CALL timing_start('wad_lmt_bt')
     !$ACC KERNELS
     jflag = 0
@@ -198,6 +220,7 @@ MODULE wet_dry
     zwdlmtu(:, :) = 1._wp
     zwdlmtv(:, :) = 1._wp
     !$ACC END KERNELS
+    CALL ProfileStart('wad_lmt_bt', 'r0', psy_profile0)
     DO jj = 2, jpj
       DO ji = 2, jpi
         IF (tmask(ji, jj, 1) < 0.5_wp) CYCLE
@@ -214,12 +237,14 @@ MODULE wet_dry
         END IF
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
     DO jk1 = 1, nn_wdit + 1
       !$ACC KERNELS
       zflxu1(:, :) = zflxu(:, :) * zwdlmtu(:, :)
       zflxv1(:, :) = zflxv(:, :) * zwdlmtv(:, :)
       jflag = 0
       !$ACC END KERNELS
+      CALL ProfileStart('wad_lmt_bt', 'r1', psy_profile1)
       DO jj = 2, jpj
         DO ji = 2, jpi
           IF (tmask(ji, jj, 1) < 0.5_wp) CYCLE
@@ -247,13 +272,16 @@ MODULE wet_dry
       CALL lbc_lnk_multi(zwdlmtu, 'U', 1., zwdlmtv, 'V', 1.)
       IF (lk_mpp) CALL mpp_max(jflag)
       IF (jflag == 0) EXIT
+      CALL ProfileEnd(psy_profile1)
     END DO
     !$ACC KERNELS
     zflxu(:, :) = zflxu(:, :) * zwdlmtu(:, :)
     zflxv(:, :) = zflxv(:, :) * zwdlmtv(:, :)
     !$ACC END KERNELS
+    CALL ProfileStart('wad_lmt_bt', 'r2', psy_profile2)
     CALL lbc_lnk_multi(zflxu, 'U', - 1., zflxv, 'V', - 1.)
     IF (jflag == 1 .AND. lwp) WRITE(numout, FMT = *) 'Need more iterations in wad_lmt_bt!!!'
     IF (ln_timing) CALL timing_stop('wad_lmt_bt')
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE wad_lmt_bt
 END MODULE wet_dry

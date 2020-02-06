@@ -33,28 +33,35 @@ MODULE lib_fortran
     COMPLEX(KIND = wp) :: ctmp
     REAL(KIND = wp) :: ztmp
     INTEGER :: ji
-    ztmp = 0.E0
+
     ctmp = CMPLX(0.E0, 0.E0, wp)
+    !$ACC LOOP SEQ
     DO ji = 1, kdim
       ztmp = ptab(ji)
       CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
     END DO
+    !$ACC END LOOP
     IF (lk_mpp) CALL mpp_sum(ctmp)
     glob_sum_1d = REAL(ctmp, wp)
   END FUNCTION glob_sum_1d
+
   FUNCTION glob_sum_c1d(ptab, kdim)
     INTEGER, INTENT(IN) :: kdim
     COMPLEX(KIND = wp), INTENT(IN), DIMENSION(kdim) :: ptab
     REAL(KIND = wp) :: glob_sum_c1d
     COMPLEX(KIND = wp) :: ctmp
     INTEGER :: ji
+
     ctmp = CMPLX(0.E0, 0.E0, wp)
+    !$ACC LOOP SEQ
     DO ji = 1, kdim
       CALL DDPDD(ptab(ji), ctmp)
     END DO
+    !$ACC END LOOP
     IF (lk_mpp) CALL mpp_sum(ctmp)
     glob_sum_c1d = REAL(ctmp, wp)
   END FUNCTION glob_sum_c1d
+
   FUNCTION glob_sum_2d(ptab)
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: ptab
     REAL(KIND = wp) :: glob_sum_2d
@@ -62,6 +69,8 @@ MODULE lib_fortran
     REAL(KIND = wp) :: ztmp
     INTEGER :: ji, jj
     COMPLEX(KIND = wp) :: hsum(jpj)
+    
+    !$ACC KERNELS
     DO jj = 1, jpj
       ctmp = CMPLX(0.E0, 0.E0, wp)
       DO ji = 1, jpi
@@ -70,7 +79,8 @@ MODULE lib_fortran
       END DO
       hsum(jj) = ctmp
     END DO
-    glob_sum_2d = glob_sum_c1d(hsum, jpj)
+    !$ACC END KERNELS
+    glob_sum_2d =  glob_sum_c1d(hsum, jpj)
   END FUNCTION glob_sum_2d
   FUNCTION glob_sum_3d(ptab)
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: ptab
@@ -79,9 +89,12 @@ MODULE lib_fortran
     REAL(KIND = wp) :: ztmp
     INTEGER :: ji, jj, jk
     INTEGER :: ijpk
-    COMPLEX(KIND = wp), ALLOCATABLE :: hsum(:)
+    COMPLEX(KIND = wp), allocatable :: hsum(:)
+
     ijpk = SIZE(ptab, 3)
-    ALLOCATE(hsum(ijpk))
+    allocate(hsum(ijpk))
+
+    !$ACC KERNELS
     DO jk = 1, ijpk
       ctmp = CMPLX(0.E0, 0.E0, wp)
       DO jj = 1, jpj
@@ -92,8 +105,9 @@ MODULE lib_fortran
       END DO
       hsum(jk) = ctmp
     END DO
+    !$ACC END KERNELS
     glob_sum_3d = glob_sum_c1d(hsum, ijpk)
-    DEALLOCATE(hsum)
+    deallocate(hsum)
   END FUNCTION glob_sum_3d
   FUNCTION glob_sum_2d_a(ptab1, ptab2)
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: ptab1, ptab2
@@ -102,6 +116,8 @@ MODULE lib_fortran
     REAL(KIND = wp) :: ztmp
     INTEGER :: ji, jj
     COMPLEX(KIND = wp) :: hsum(jpj)
+
+    !$ACC KERNELS
     DO jj = 1, jpj
       ctmp = CMPLX(0.E0, 0.E0, wp)
       DO ji = 1, jpi
@@ -112,6 +128,7 @@ MODULE lib_fortran
       END DO
       hsum(jj) = ctmp
     END DO
+    !$ACC END KERNELS
     glob_sum_2d_a = glob_sum_c1d(hsum, jpj)
   END FUNCTION glob_sum_2d_a
   FUNCTION glob_sum_3d_a(ptab1, ptab2)
@@ -121,9 +138,12 @@ MODULE lib_fortran
     REAL(KIND = wp) :: ztmp
     INTEGER :: ji, jj, jk
     INTEGER :: ijpk
-    COMPLEX(KIND = wp), ALLOCATABLE :: hsum(:)
+    COMPLEX(KIND = wp), allocatable :: hsum(:)
+
     ijpk = SIZE(ptab1, 3)
-    ALLOCATE(hsum(ijpk))
+    allocate(hsum(ijpk))
+    ztmp = 0.E0
+    !$ACC KERNELS
     DO jk = 1, ijpk
       ctmp = CMPLX(0.E0, 0.E0, wp)
       DO jj = 1, jpj
@@ -136,8 +156,10 @@ MODULE lib_fortran
       END DO
       hsum(jk) = ctmp
     END DO
+    !$ACC END KERNELS
+
     glob_sum_3d_a = glob_sum_c1d(hsum, ijpk)
-    DEALLOCATE(hsum)
+    deallocate(hsum)
   END FUNCTION glob_sum_3d_a
   FUNCTION glob_sum_full_2d(ptab)
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: ptab
@@ -146,6 +168,8 @@ MODULE lib_fortran
     REAL(KIND = wp) :: ztmp
     INTEGER :: ji, jj
     COMPLEX(KIND = wp) :: hsum(jpj)
+
+    !$ACC KERNELS
     DO jj = 1, jpj
       ctmp = CMPLX(0.E0, 0.E0, wp)
       DO ji = 1, jpi
@@ -154,6 +178,7 @@ MODULE lib_fortran
       END DO
       hsum(jj) = ctmp
     END DO
+    !$ACC END KERNELS
     glob_sum_full_2d = glob_sum_c1d(hsum, jpj)
   END FUNCTION glob_sum_full_2d
   FUNCTION glob_sum_full_3d(ptab)
@@ -163,9 +188,11 @@ MODULE lib_fortran
     REAL(KIND = wp) :: ztmp
     INTEGER :: ji, jj, jk
     INTEGER :: ijpk
-    COMPLEX(KIND = wp), ALLOCATABLE :: hsum(:)
+    COMPLEX(KIND = wp), allocatable :: hsum(:)
+
     ijpk = SIZE(ptab, 3)
-    ALLOCATE(hsum(ijpk))
+    allocate(hsum(ijpk))
+    !$ACC KERNELS
     DO jk = 1, ijpk
       ctmp = CMPLX(0.E0, 0.E0, wp)
       DO jj = 1, jpj
@@ -176,8 +203,9 @@ MODULE lib_fortran
       END DO
       hsum(jk) = ctmp
     END DO
+    !$ACC END KERNELS
     glob_sum_full_3d = glob_sum_c1d(hsum, ijpk)
-    DEALLOCATE(hsum)
+    deallocate(hsum)
   END FUNCTION glob_sum_full_3d
   FUNCTION glob_min_2d(ptab)
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: ptab
@@ -258,6 +286,7 @@ MODULE lib_fortran
     IF (lk_mpp) CALL mpp_max(glob_max_3d_a, 2)
   END FUNCTION glob_max_3d_a
   SUBROUTINE DDPDD(ydda, yddb)
+!$ACC ROUTINE SEQ
     COMPLEX(KIND = wp), INTENT(IN   ) :: ydda
     COMPLEX(KIND = wp), INTENT(INOUT) :: yddb
     REAL(KIND = wp) :: zerr, zt1, zt2
@@ -268,8 +297,8 @@ MODULE lib_fortran
   END SUBROUTINE DDPDD
   FUNCTION SIGN_SCALAR(pa, pb)
     REAL(KIND = wp) :: pa, pb
+    !$ACC routine
     REAL(KIND = wp) :: SIGN_SCALAR
-    !$ACC ROUTINE
     IF (pb >= 0.E0) THEN
       sign_scalar = abs(pa)
     ELSE
@@ -279,7 +308,7 @@ MODULE lib_fortran
   FUNCTION SIGN_ARRAY_1D(pa, pb)
     REAL(KIND = wp) :: pa, pb(:)
     REAL(KIND = wp) :: SIGN_ARRAY_1D(SIZE(pb, 1))
-    !$ACC ROUTINE
+    !$ACC routine
     WHERE (pb >= 0.E0)
       sign_array_1d = abs(pa)
     ELSEWHERE
@@ -289,7 +318,7 @@ MODULE lib_fortran
   FUNCTION SIGN_ARRAY_2D(pa, pb)
     REAL(KIND = wp) :: pa, pb(:, :)
     REAL(KIND = wp) :: SIGN_ARRAY_2D(SIZE(pb, 1), SIZE(pb, 2))
-    !$ACC ROUTINE
+    !$ACC routine
     WHERE (pb >= 0.E0)
       sign_array_2d = abs(pa)
     ELSEWHERE
@@ -299,7 +328,7 @@ MODULE lib_fortran
   FUNCTION SIGN_ARRAY_3D(pa, pb)
     REAL(KIND = wp) :: pa, pb(:, :, :)
     REAL(KIND = wp) :: SIGN_ARRAY_3D(SIZE(pb, 1), SIZE(pb, 2), SIZE(pb, 3))
-    !$ACC ROUTINE
+    !$ACC routine
     WHERE (pb >= 0.E0)
       sign_array_3d = abs(pa)
     ELSEWHERE
@@ -309,7 +338,6 @@ MODULE lib_fortran
   FUNCTION SIGN_ARRAY_1D_A(pa, pb)
     REAL(KIND = wp) :: pa(:), pb(:)
     REAL(KIND = wp) :: SIGN_ARRAY_1D_A(SIZE(pb, 1))
-    !$ACC ROUTINE
     WHERE (pb >= 0.E0)
       sign_array_1d_a = abs(pa)
     ELSEWHERE
@@ -319,7 +347,6 @@ MODULE lib_fortran
   FUNCTION SIGN_ARRAY_2D_A(pa, pb)
     REAL(KIND = wp) :: pa(:, :), pb(:, :)
     REAL(KIND = wp) :: SIGN_ARRAY_2D_A(SIZE(pb, 1), SIZE(pb, 2))
-    !$ACC ROUTINE
     WHERE (pb >= 0.E0)
       sign_array_2d_a = abs(pa)
     ELSEWHERE
@@ -329,7 +356,6 @@ MODULE lib_fortran
   FUNCTION SIGN_ARRAY_3D_A(pa, pb)
     REAL(KIND = wp) :: pa(:, :, :), pb(:, :, :)
     REAL(KIND = wp) :: SIGN_ARRAY_3D_A(SIZE(pb, 1), SIZE(pb, 2), SIZE(pb, 3))
-    !$ACC ROUTINE
     WHERE (pb >= 0.E0)
       sign_array_3d_a = abs(pa)
     ELSEWHERE
@@ -339,7 +365,6 @@ MODULE lib_fortran
   FUNCTION SIGN_ARRAY_1D_B(pa, pb)
     REAL(KIND = wp) :: pa(:), pb
     REAL(KIND = wp) :: SIGN_ARRAY_1D_B(SIZE(pa, 1))
-    !$ACC ROUTINE
     IF (pb >= 0.E0) THEN
       sign_array_1d_b = abs(pa)
     ELSE
@@ -349,7 +374,6 @@ MODULE lib_fortran
   FUNCTION SIGN_ARRAY_2D_B(pa, pb)
     REAL(KIND = wp) :: pa(:, :), pb
     REAL(KIND = wp) :: SIGN_ARRAY_2D_B(SIZE(pa, 1), SIZE(pa, 2))
-    !$ACC ROUTINE
     IF (pb >= 0.E0) THEN
       sign_array_2d_b = abs(pa)
     ELSE
@@ -359,7 +383,6 @@ MODULE lib_fortran
   FUNCTION SIGN_ARRAY_3D_B(pa, pb)
     REAL(KIND = wp) :: pa(:, :, :), pb
     REAL(KIND = wp) :: SIGN_ARRAY_3D_B(SIZE(pa, 1), SIZE(pa, 2), SIZE(pa, 3))
-    !$ACC ROUTINE
     IF (pb >= 0.E0) THEN
       sign_array_3d_b = abs(pa)
     ELSE

@@ -48,18 +48,22 @@ MODULE zdftke
     IF (zdf_tke_alloc /= 0) CALL ctl_warn('zdf_tke_alloc: failed to allocate arrays')
   END FUNCTION zdf_tke_alloc
   SUBROUTINE zdf_tke(kt, p_sh2, p_avm, p_avt)
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_sh2
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('zdf_tke', 'r0', psy_profile0)
     CALL tke_tke(gdepw_n, e3t_n, e3w_n, p_sh2, p_avm, p_avt)
     CALL tke_avn(gdepw_n, e3t_n, e3w_n, p_avm, p_avt)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE zdf_tke
   SUBROUTINE tke_tke(pdepw, p_e3t, p_e3w, p_sh2, p_avm, p_avt)
     USE zdf_oce, ONLY: en
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdepw
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_e3t, p_e3w
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_avm, p_avt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pdepw
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_e3t, p_e3w
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_sh2
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zetop, zebot, zmsku, zmskv
     REAL(KIND = wp) :: zrhoa = 1.22
@@ -151,8 +155,8 @@ MODULE zdftke
       END DO
       !$ACC END KERNELS
     END IF
+    !$ACC KERNELS
     IF (nn_pdl == 1) THEN
-      !$ACC KERNELS
       DO jk = 2, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -161,9 +165,7 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jk = 2, jpkm1
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -215,9 +217,7 @@ MODULE zdftke
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
     IF (nn_etau == 1) THEN
-      !$ACC KERNELS
       DO jk = 2, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -225,18 +225,14 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     ELSE IF (nn_etau == 2) THEN
-      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           jk = nmln(ji, jj)
           en(ji, jj, jk) = en(ji, jj, jk) + rn_efr * en(ji, jj, 1) * EXP(- pdepw(ji, jj, jk) / htau(ji, jj)) * MAX(0., 1._wp - rn_eice * fr_i(ji, jj)) * wmask(ji, jj, jk) * tmask(ji, jj, 1)
         END DO
       END DO
-      !$ACC END KERNELS
     ELSE IF (nn_etau == 3) THEN
-      !$ACC KERNELS
       DO jk = 2, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -249,19 +245,21 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
   END SUBROUTINE tke_tke
   SUBROUTINE tke_avn(pdepw, p_e3t, p_e3w, p_avm, p_avt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE zdf_oce, ONLY: en, avtb, avmb, avtb_2d
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdepw
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_e3t, p_e3w
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: p_avm, p_avt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pdepw
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_e3t, p_e3w
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zrn2, zraug, zcoef, zav
     REAL(KIND = wp) :: zdku, zdkv, zsqen
     REAL(KIND = wp) :: zemxl, zemlm, zemlp
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zmxlm, zmxld
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     zmxlm(:, :, :) = rmxl_min
     zmxld(:, :, :) = rmxl_min
@@ -291,10 +289,8 @@ MODULE zdftke
     END DO
     zmxld(:, :, 1) = zmxlm(:, :, 1)
     zmxld(:, :, jpk) = rmxl_min
-    !$ACC END KERNELS
     SELECT CASE (nn_mxl)
     CASE (0)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -304,9 +300,7 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (1)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -316,9 +310,7 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (2)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -335,9 +327,7 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (3)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -362,9 +352,7 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     DO jk = 1, jpkm1
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -376,9 +364,7 @@ MODULE zdftke
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
     IF (nn_pdl == 1) THEN
-      !$ACC KERNELS
       DO jk = 2, jpkm1
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -386,12 +372,14 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
+    CALL ProfileStart('tke_avn', 'r0', psy_profile0)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab3d_1 = en, clinfo1 = ' tke  - e: ', tab3d_2 = p_avt, clinfo2 = ' t: ', kdim = jpk)
       CALL prt_ctl(tab3d_1 = p_avm, clinfo1 = ' tke  - m: ', kdim = jpk)
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE tke_avn
   SUBROUTINE zdf_tke_init
     USE zdf_oce, ONLY: ln_zdfiwm
@@ -458,18 +446,14 @@ MODULE zdftke
       rn_mxl0 = rmxl_min
     END IF
     IF (nn_etau == 2) CALL zdf_mxl(nit000)
+    !$ACC KERNELS
     IF (nn_etau /= 0) THEN
       SELECT CASE (nn_htau)
       CASE (0)
-        !$ACC KERNELS
         htau(:, :) = 10._wp
-        !$ACC END KERNELS
       CASE (1)
-        !$ACC KERNELS
         htau(:, :) = MAX(0.5_wp, MIN(30._wp, 45._wp * ABS(SIN(rpi / 180._wp * gphit(:, :)))))
-        !$ACC END KERNELS
       CASE (4)
-        !$ACC KERNELS
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (gphit(ji, jj) <= 0._wp) THEN
@@ -479,9 +463,9 @@ MODULE zdftke
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
       END SELECT
     END IF
+    !$ACC END KERNELS
     CALL tke_rst(nit000, 'READ')
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('en')

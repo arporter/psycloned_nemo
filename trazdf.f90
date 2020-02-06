@@ -20,9 +20,14 @@ MODULE trazdf
   PUBLIC :: tra_zdf_imp
   CONTAINS
   SUBROUTINE tra_zdf(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: jk
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: ztrdt, ztrds
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    CALL ProfileStart('tra_zdf', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('tra_zdf')
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -34,6 +39,7 @@ MODULE trazdf
     ELSE IF (kt <= nit000 + 1) THEN
       r2dt = 2. * rdt
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (l_trdtra) THEN
       ALLOCATE(ztrdt(jpi, jpj, jpk), ztrds(jpi, jpj, jpk))
       !$ACC KERNELS
@@ -42,29 +48,35 @@ MODULE trazdf
       !$ACC END KERNELS
     END IF
     CALL tra_zdf_imp(kt, nit000, 'TRA', r2dt, tsb, tsa, jpts)
+    !$ACC KERNELS
     WHERE (tsa(:, :, :, jp_sal) < 0._wp) tsa(:, :, :, jp_sal) = 0.1_wp
+    !$ACC END KERNELS
     IF (l_trdtra) THEN
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ztrdt(:, :, jk) = ((tsa(:, :, jk, jp_tem) * e3t_a(:, :, jk) - tsb(:, :, jk, jp_tem) * e3t_b(:, :, jk)) / (e3t_n(:, :, jk) * r2dt)) - ztrdt(:, :, jk)
         ztrds(:, :, jk) = ((tsa(:, :, jk, jp_sal) * e3t_a(:, :, jk) - tsb(:, :, jk, jp_sal) * e3t_b(:, :, jk)) / (e3t_n(:, :, jk) * r2dt)) - ztrds(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
+      CALL ProfileStart('tra_zdf', 'r1', psy_profile1)
       CALL lbc_lnk_multi(ztrdt, 'T', 1., ztrds, 'T', 1.)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_zdf, ztrdt)
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_zdf, ztrds)
       DEALLOCATE(ztrdt, ztrds)
+      CALL ProfileEnd(psy_profile1)
     END IF
+    CALL ProfileStart('tra_zdf', 'r2', psy_profile2)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' zdf  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_zdf')
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE tra_zdf
   SUBROUTINE tra_zdf_imp(kt, kit000, cdtype, p2dt, ptb, pta, kjpt)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp) :: zrhs

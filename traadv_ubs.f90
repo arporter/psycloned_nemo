@@ -20,20 +20,25 @@ MODULE traadv_ubs
   LOGICAL :: l_hst
   CONTAINS
   SUBROUTINE tra_adv_ubs(kt, kit000, cdtype, p2dt, pun, pvn, pwn, ptb, ptn, pta, kjpt, kn_ubs_v)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    INTEGER, INTENT(IN   ) :: kn_ubs_v
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun, pvn, pwn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb, ptn
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    INTEGER, INTENT(IN ) :: kn_ubs_v
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun, pvn, pwn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb, ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp) :: ztra, zbtr, zcoef
     REAL(KIND = wp) :: zfp_ui, zfm_ui, zcenut, ztak, zfp_wk, zfm_wk
     REAL(KIND = wp) :: zfp_vj, zfm_vj, zcenvt, zeeu, zeev, z_hdivn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ztu, ztv, zltu, zltv, zti, ztw
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    CALL ProfileStart('tra_adv_ubs', 'r0', psy_profile0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'tra_adv_ubs :  horizontal UBS advection scheme on ', cdtype
@@ -45,6 +50,7 @@ MODULE traadv_ubs
     IF ((cdtype == 'TRA' .AND. l_trdtra) .OR. (cdtype == 'TRC' .AND. l_trdtrc)) l_trd = .TRUE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
     IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     ztw(:, :, 1) = 0._wp
     zltu(:, :, jpk) = 0._wp
@@ -53,8 +59,8 @@ MODULE traadv_ubs
     zti(:, :, jpk) = 0._wp
     !$ACC END KERNELS
     DO jn = 1, kjpt
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zeeu = e2_e1u(ji, jj) * e3u_n(ji, jj, jk) * umask(ji, jj, jk)
@@ -70,10 +76,12 @@ MODULE traadv_ubs
             zltv(ji, jj, jk) = (ztv(ji, jj, jk) - ztv(ji, jj - 1, jk)) * zcoef
           END DO
         END DO
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
+      CALL ProfileStart('tra_adv_ubs', 'r1', psy_profile1)
       CALL lbc_lnk(zltu, 'T', 1.)
       CALL lbc_lnk(zltv, 'T', 1.)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpjm1
@@ -99,16 +107,18 @@ MODULE traadv_ubs
       END DO
       zltu(:, :, :) = pta(:, :, :, jn) - zltu(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('tra_adv_ubs', 'r2', psy_profile2)
       IF (l_trd) THEN
         CALL trd_tra(kt, cdtype, jn, jptra_xad, ztu, pun, ptn(:, :, :, jn))
         CALL trd_tra(kt, cdtype, jn, jptra_yad, ztv, pvn, ptn(:, :, :, jn))
       END IF
       IF (l_ptr) CALL dia_ptr_hst(jn, 'adv', ztv(:, :, :))
       IF (l_hst) CALL dia_ar5_hst(jn, 'adv', ztu(:, :, :), ztv(:, :, :))
+      CALL ProfileEnd(psy_profile2)
       SELECT CASE (kn_ubs_v)
       CASE (2)
-        IF (l_trd) zltv(:, :, :) = pta(:, :, :, jn)
         !$ACC KERNELS
+        IF (l_trd) zltv(:, :, :) = pta(:, :, :, jn)
         DO jk = 2, jpkm1
           DO jj = 1, jpj
             DO ji = 1, jpi
@@ -154,8 +164,8 @@ MODULE traadv_ubs
             END DO
           END DO
         END DO
-        !$ACC END KERNELS
         IF (ln_linssh) ztw(:, :, 1) = 0._wp
+        !$ACC END KERNELS
         CALL nonosc_z(ptb(:, :, :, jn), ztw, zti, p2dt)
       CASE (4)
         CALL interp_4th_cpt(ptn(:, :, :, jn), ztw)
@@ -167,8 +177,8 @@ MODULE traadv_ubs
             END DO
           END DO
         END DO
-        !$ACC END KERNELS
         IF (ln_linssh) ztw(:, :, 1) = pwn(:, :, 1) * ptn(:, :, 1, jn)
+        !$ACC END KERNELS
       END SELECT
       !$ACC KERNELS
       DO jk = 1, jpkm1
@@ -194,7 +204,7 @@ MODULE traadv_ubs
     END DO
   END SUBROUTINE tra_adv_ubs
   SUBROUTINE nonosc_z(pbef, pcc, paft, p2dt)
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: pbef
     REAL(KIND = wp), INTENT(INOUT), DIMENSION(jpi, jpj, jpk) :: paft
     REAL(KIND = wp), INTENT(INOUT), DIMENSION(jpi, jpj, jpk) :: pcc

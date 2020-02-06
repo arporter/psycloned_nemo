@@ -37,6 +37,7 @@ MODULE ldfslp
   REAL(KIND = wp) :: repsln = 1.E-25_wp
   CONTAINS
   SUBROUTINE ldf_slp(kt, prd, pn2)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: prd
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: pn2
@@ -51,6 +52,7 @@ MODULE ldfslp
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zslpml_hmlpu, zslpml_hmlpv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zgru, zwz, zdzr
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zgrv, zww
+    TYPE(ProfileData), SAVE :: psy_profile0
     IF (ln_timing) CALL timing_start('ldf_slp')
     !$ACC KERNELS
     zeps = 1.E-20_wp
@@ -79,17 +81,15 @@ MODULE ldfslp
       END DO
       !$ACC END KERNELS
     END IF
+    !$ACC KERNELS
     IF (ln_zps .AND. ln_isfcav) THEN
-      !$ACC KERNELS
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           IF (miku(ji, jj) > 1) zgru(ji, jj, miku(ji, jj)) = grui(ji, jj)
           IF (mikv(ji, jj) > 1) zgrv(ji, jj, mikv(ji, jj)) = grvi(ji, jj)
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     zdzr(:, :, 1) = 0._wp
     DO jk = 2, jpkm1
       zdzr(:, :, jk) = zm1_g * (prd(:, :, jk) + 1._wp) * (pn2(:, :, jk) + pn2(:, :, jk + 1)) * (1._wp - 0.5_wp * tmask(:, :, jk + 1))
@@ -136,8 +136,8 @@ MODULE ldfslp
     END DO
     !$ACC END KERNELS
     CALL lbc_lnk_multi(zwz, 'U', - 1., zww, 'V', - 1.)
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       DO jj = 2, jpjm1, MAX(1, jpj - 3)
         DO ji = 2, jpim1
           uslp(ji, jj, jk) = z1_16 * (zwz(ji - 1, jj - 1, jk) + zwz(ji + 1, jj - 1, jk) + zwz(ji - 1, jj + 1, jk) + zwz(ji + 1, jj + 1, jk) + 2. * (zwz(ji, jj - 1, jk) + zwz(ji - 1, jj, jk) + zwz(ji + 1, jj, jk) + zwz(ji, jj + 1, jk)) + 4. * zwz(ji, jj, jk))
@@ -156,7 +156,9 @@ MODULE ldfslp
           vslp(ji, jj, jk) = vslp(ji, jj, jk) * (vmask(ji + 1, jj, jk) + vmask(ji - 1, jj, jk)) * 0.5_wp * (vmask(ji, jj, jk) + vmask(ji, jj, jk + 1)) * 0.5_wp
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jk = 2, jpkm1
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -176,8 +178,8 @@ MODULE ldfslp
     END DO
     !$ACC END KERNELS
     CALL lbc_lnk_multi(zwz, 'T', - 1., zww, 'T', - 1.)
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       DO jj = 2, jpjm1, MAX(1, jpj - 3)
         DO ji = 2, jpim1
           zcofw = wmask(ji, jj, jk) * z1_16
@@ -199,16 +201,19 @@ MODULE ldfslp
           wslpj(ji, jj, jk) = wslpj(ji, jj, jk) * zck
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
+    CALL ProfileStart('ldf_slp', 'r0', psy_profile0)
     CALL lbc_lnk_multi(uslp, 'U', - 1., vslp, 'V', - 1., wslpi, 'W', - 1., wslpj, 'W', - 1.)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab3d_1 = uslp, clinfo1 = ' slp  - u : ', tab3d_2 = vslp, clinfo2 = ' v : ', kdim = jpk)
       CALL prt_ctl(tab3d_1 = wslpi, clinfo1 = ' slp  - wi: ', tab3d_2 = wslpj, clinfo2 = ' wj: ', kdim = jpk)
     END IF
     IF (ln_timing) CALL timing_stop('ldf_slp')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ldf_slp
   SUBROUTINE ldf_slp_triad(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
     INTEGER :: ji, jj, jk, jl, ip, jp, kp
     INTEGER :: iku, ikv
@@ -224,9 +229,11 @@ MODULE ldfslp
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zalbet
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 0 : 1) :: zdxrho, zdyrho, zdzrho
     REAL(KIND = wp), DIMENSION(jpi, jpj, 0 : 1, 0 : 1) :: zti_mlb, ztj_mlb
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     IF (ln_timing) CALL timing_start('ldf_slp_triad')
+    !$ACC KERNELS
     DO jl = 0, 1
-      !$ACC KERNELS
       ip = jl
       jp = jl
       DO jk = 1, jpkm1
@@ -243,9 +250,7 @@ MODULE ldfslp
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
       IF (ln_zps .AND. l_grad_zps) THEN
-        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             iku = mbku(ji, jj)
@@ -260,11 +265,11 @@ MODULE ldfslp
             zdyrho(ji, jj + jp, ikv, 1 - jp) = SIGN(MAX(repsln, ABS(zdyrho_raw)), zdyrho_raw)
           END DO
         END DO
-        !$ACC END KERNELS
       END IF
     END DO
-    !$ACC KERNELS
+    !$ACC END KERNELS
     DO kp = 0, 1
+      !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -280,7 +285,9 @@ MODULE ldfslp
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
         jk = MIN(nmln(ji, jj), mbkt(ji, jj)) + 1
@@ -323,6 +330,7 @@ MODULE ldfslp
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('ldf_slp_triad', 'r0', psy_profile0)
     DO kp = 0, 1
       DO jl = 0, 1
         ip = jl
@@ -372,11 +380,14 @@ MODULE ldfslp
         END DO
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     wslp2(:, :, 1) = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('ldf_slp_triad', 'r1', psy_profile1)
     CALL lbc_lnk(wslp2, 'W', 1.)
     IF (ln_timing) CALL timing_stop('ldf_slp_triad')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE ldf_slp_triad
   SUBROUTINE ldf_slp_mxl(prd, pn2, p_gru, p_grv, p_dzr)
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: prd

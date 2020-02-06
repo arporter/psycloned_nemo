@@ -13,12 +13,15 @@ MODULE bdydyn2d
   PUBLIC :: bdy_ssh
   CONTAINS
   SUBROUTINE bdy_dyn2d(kt, pua2d, pva2d, pub2d, pvb2d, phur, phvr, pssh)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: pua2d, pva2d
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pub2d, pvb2d
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: phur, phvr
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN   ) :: pssh
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pub2d, pvb2d
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: phur, phvr
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pssh
     INTEGER :: ib_bdy
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_dyn2d', 'r0', psy_profile0)
     DO ib_bdy = 1, nb_bdy
       SELECT CASE (cn_dyn2d(ib_bdy))
       CASE ('none')
@@ -35,8 +38,10 @@ MODULE bdydyn2d
         CALL ctl_stop('bdy_dyn2d : unrecognised option for open boundaries for barotropic variables')
       END SELECT
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_dyn2d
   SUBROUTINE bdy_dyn2d_frs(idx, dta, ib_bdy, pua2d, pva2d)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(OBC_DATA), INTENT(IN) :: dta
     INTEGER, INTENT(IN) :: ib_bdy
@@ -44,6 +49,8 @@ MODULE bdydyn2d
     INTEGER :: jb, jk
     INTEGER :: ii, ij, igrd
     REAL(KIND = wp) :: zwgt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_dyn2d_frs', 'r0', psy_profile0)
     igrd = 2
     DO jb = 1, idx % nblen(igrd)
       ii = idx % nbi(jb, igrd)
@@ -60,8 +67,10 @@ MODULE bdydyn2d
     END DO
     CALL lbc_bdy_lnk(pua2d, 'U', - 1., ib_bdy)
     CALL lbc_bdy_lnk(pva2d, 'V', - 1., ib_bdy)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_dyn2d_frs
   SUBROUTINE bdy_dyn2d_fla(idx, dta, ib_bdy, pua2d, pva2d, pssh, phur, phvr)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(OBC_DATA), INTENT(IN) :: dta
     INTEGER, INTENT(IN) :: ib_bdy
@@ -73,11 +82,13 @@ MODULE bdydyn2d
     REAL(KIND = wp) :: zcorr
     REAL(KIND = wp) :: zforc
     REAL(KIND = wp) :: zflag, z1_2
+    TYPE(ProfileData), SAVE :: psy_profile0
     !$ACC KERNELS
     z1_2 = 0.5_wp
     igrd = 1
     spgu(:, :) = 0.0
     !$ACC END KERNELS
+    CALL ProfileStart('bdy_dyn2d_fla', 'r0', psy_profile0)
     DO jb = 1, idx % nblenrim(igrd)
       ii = idx % nbi(jb, igrd)
       ij = idx % nbj(jb, igrd)
@@ -114,8 +125,10 @@ MODULE bdydyn2d
     END DO
     CALL lbc_bdy_lnk(pua2d, 'U', - 1., ib_bdy)
     CALL lbc_bdy_lnk(pva2d, 'V', - 1., ib_bdy)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_dyn2d_fla
   SUBROUTINE bdy_dyn2d_orlanski(idx, dta, ib_bdy, pua2d, pva2d, pub2d, pvb2d, ll_npo)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(OBC_DATA), INTENT(IN) :: dta
     INTEGER, INTENT(IN) :: ib_bdy
@@ -124,17 +137,23 @@ MODULE bdydyn2d
     LOGICAL, INTENT(IN) :: ll_npo
     INTEGER :: ib, igrd
     INTEGER :: ii, ij, iibm1, ijbm1
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_dyn2d_orlanski', 'r0', psy_profile0)
     igrd = 2
     CALL bdy_orlanski_2d(idx, igrd, pub2d, pua2d, dta % u2d, ll_npo)
     igrd = 3
     CALL bdy_orlanski_2d(idx, igrd, pvb2d, pva2d, dta % v2d, ll_npo)
     CALL lbc_bdy_lnk(pua2d, 'U', - 1., ib_bdy)
     CALL lbc_bdy_lnk(pva2d, 'V', - 1., ib_bdy)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_dyn2d_orlanski
   SUBROUTINE bdy_ssh(zssh)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: zssh
     INTEGER :: ib_bdy, ib, igrd
     INTEGER :: ii, ij, zcoef, zcoef1, zcoef2, ip, jp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('bdy_ssh', 'r0', psy_profile0)
     igrd = 1
     DO ib_bdy = 1, nb_bdy
       DO ib = 1, idx_bdy(ib_bdy) % nblenrim(igrd)
@@ -154,5 +173,6 @@ MODULE bdydyn2d
       END DO
       CALL lbc_bdy_lnk(zssh(:, :), 'T', 1., ib_bdy)
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE bdy_ssh
 END MODULE bdydyn2d

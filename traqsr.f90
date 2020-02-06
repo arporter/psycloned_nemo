@@ -38,6 +38,7 @@ MODULE traqsr
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_chl
   CONTAINS
   SUBROUTINE tra_qsr(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: irgb
@@ -50,12 +51,22 @@ MODULE traqsr
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zekb, zekg, zekr
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ze0, ze1, ze2, ze3, zea, ztrdt
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: zetot, zchl3d
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    CALL ProfileStart('tra_qsr', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('tra_qsr')
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'tra_qsr : penetration of the surface solar radiation'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (l_trdtra) THEN
       ALLOCATE(ztrdt(jpi, jpj, jpk))
       !$ACC KERNELS
@@ -64,9 +75,11 @@ MODULE traqsr
     END IF
     IF (kt == nit000) THEN
       IF (ln_rstart .AND. iom_varid(numror, 'qsr_hc_b', ldstop = .FALSE.) > 0) THEN
+        CALL ProfileStart('tra_qsr', 'r1', psy_profile1)
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 qsr tracer content forcing field read in the restart file'
         z1_2 = 0.5_wp
         CALL iom_get(numror, jpdom_autoglo, 'qsr_hc_b', qsr_hc_b, ldxios = lrxios)
+        CALL ProfileEnd(psy_profile1)
       ELSE
         !$ACC KERNELS
         z1_2 = 1._wp
@@ -81,12 +94,15 @@ MODULE traqsr
     END IF
     SELECT CASE (nqsr)
     CASE (np_BIO)
+      !$ACC KERNELS
       DO jk = 1, nksr
         qsr_hc(:, :, jk) = r1_rau0_rcp * (etot3(:, :, jk) - etot3(:, :, jk + 1))
       END DO
+      !$ACC END KERNELS
     CASE (np_RGB, np_RGBc)
       ALLOCATE(zekb(jpi, jpj), zekg(jpi, jpj), zekr(jpi, jpj), ze0(jpi, jpj, jpk), ze1(jpi, jpj, jpk), ze2(jpi, jpj, jpk), ze3(jpi, jpj, jpk), zea(jpi, jpj, jpk), zchl3d(jpi, jpj, jpk))
       IF (nqsr == np_RGBc) THEN
+        CALL ProfileStart('tra_qsr', 'r2', psy_profile2)
         CALL fld_read(kt, 1, sf_chl)
         DO jk = 1, nksr + 1
           DO jj = 2, jpjm1
@@ -108,11 +124,15 @@ MODULE traqsr
             END DO
           END DO
         END DO
+        CALL ProfileEnd(psy_profile2)
       ELSE
+        !$ACC KERNELS
         DO jk = 1, nksr + 1
           zchl3d(:, :, jk) = 0.05
         END DO
+        !$ACC END KERNELS
       END IF
+      !$ACC KERNELS
       zcoef = (1. - rn_abs) / 3._wp
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -123,7 +143,10 @@ MODULE traqsr
           zea(ji, jj, 1) = qsr(ji, jj)
         END DO
       END DO
+      !CC END KERNELS
       DO jk = 2, nksr + 1
+        ! PSyclone #537 (NINT support)
+        !CALL ProfileStart('tra_qsr', 'r3', psy_profile3)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zchl = MIN(10., MAX(0.03, zchl3d(ji, jj, jk)))
@@ -133,6 +156,8 @@ MODULE traqsr
             zekr(ji, jj) = rkrgb(3, irgb)
           END DO
         END DO
+        !CALL ProfileEnd(psy_profile3)
+        !CC KERNELS
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zc0 = ze0(ji, jj, jk - 1) * EXP(- e3t_n(ji, jj, jk - 1) * xsi0r)
@@ -146,7 +171,9 @@ MODULE traqsr
             zea(ji, jj, jk) = (zc0 + zc1 + zc2 + zc3) * wmask(ji, jj, jk)
           END DO
         END DO
+        !CC END KERNELS
       END DO
+      !CC KERNELS
       DO jk = 1, nksr
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -154,8 +181,10 @@ MODULE traqsr
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
       DEALLOCATE(zekb, zekg, zekr, ze0, ze1, ze2, ze3, zea, zchl3d)
     CASE (np_2BD)
+      !$ACC KERNELS
       zz0 = rn_abs * r1_rau0_rcp
       zz1 = (1. - rn_abs) * r1_rau0_rcp
       DO jk = 1, nksr
@@ -167,6 +196,7 @@ MODULE traqsr
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END SELECT
     !$ACC KERNELS
     DO jk = 1, nksr
@@ -195,24 +225,32 @@ MODULE traqsr
         zetot(:, :, jk) = zetot(:, :, jk + 1) + qsr_hc(:, :, jk) * rau0_rcp
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_qsr', 'r4', psy_profile4)
       CALL iom_put('qsr3d', zetot)
       DEALLOCATE(zetot)
+      CALL ProfileEnd(psy_profile4)
     END IF
+    CALL ProfileStart('tra_qsr', 'r5', psy_profile5)
     IF (lrst_oce) THEN
       IF (lwxios) CALL iom_swap(cwxios_context)
       CALL iom_rstput(kt, nitrst, numrow, 'qsr_hc_b', qsr_hc, ldxios = lwxios)
       CALL iom_rstput(kt, nitrst, numrow, 'fraqsr_1lev', fraqsr_1lev, ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
+    CALL ProfileEnd(psy_profile5)
     IF (l_trdtra) THEN
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem) - ztrdt(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('tra_qsr', 'r6', psy_profile6)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_qsr, ztrdt)
       DEALLOCATE(ztrdt)
+      CALL ProfileEnd(psy_profile6)
     END IF
+    CALL ProfileStart('tra_qsr', 'r7', psy_profile7)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' qsr  - Ta: ', mask1 = tmask, clinfo3 = 'tra-ta')
     IF (ln_timing) CALL timing_stop('tra_qsr')
+    CALL ProfileEnd(psy_profile7)
   END SUBROUTINE tra_qsr
   SUBROUTINE tra_qsr_init
     INTEGER :: ji, jj, jk

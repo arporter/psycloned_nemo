@@ -25,9 +25,12 @@ MODULE icedyn_adv
   INTEGER :: nn_UMx
   CONTAINS
   SUBROUTINE ice_dyn_adv(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
-    INTEGER :: jl,ji,jj
+    INTEGER :: jl
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zmask
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice_dyn_adv', 'r0', psy_profile0)
     IF (ln_timing) CALL timing_start('icedyn_adv')
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
@@ -41,9 +44,7 @@ MODULE icedyn_adv
     CASE (np_advPRA)
       CALL ice_dyn_adv_pra(kt, u_ice, v_ice, ato_i, v_i, v_s, sv_i, oa_i, a_i, a_ip, v_ip, e_s, e_i)
     END SELECT
-    !$ACC KERNELS
     zmask(:, :) = 0._wp
-    !$ACC END KERNELS
     DO jl = 1, jpl
       WHERE (v_i(:, :, jl) < 0._wp) zmask(:, :) = 1._wp
     END DO
@@ -53,15 +54,9 @@ MODULE icedyn_adv
     CALL ice_var_zapneg(ato_i, v_i, v_s, sv_i, oa_i, a_i, a_ip, v_ip, e_s, e_i)
     diag_trp_ei(:, :) = SUM(SUM(e_i(:, :, 1 : nlay_i, :) - e_i_b(:, :, 1 : nlay_i, :), dim = 4), dim = 3) * r1_rdtice
     diag_trp_es(:, :) = SUM(SUM(e_s(:, :, 1 : nlay_s, :) - e_s_b(:, :, 1 : nlay_s, :), dim = 4), dim = 3) * r1_rdtice
-    !$ACC KERNELS
-    DO jj = 1, jpj
-      DO ji = 1, jpi
-        diag_trp_sv(ji,jj) = SUM(sv_i(ji,jj,:) - sv_i_b(ji,jj,:)) * r1_rdtice
-        diag_trp_vi(ji,jj) = SUM( v_i(ji,jj,:) -  v_i_b(ji,jj,:)) * r1_rdtice
-        diag_trp_vs(ji,jj) = SUM( v_s(ji,jj,:) -  v_s_b(ji,jj,:)) * r1_rdtice
-      ENDDO
-    ENDDO
-    !$ACC END KERNELS
+    diag_trp_sv(:, :) = SUM(sv_i(:, :, :) - sv_i_b(:, :, :), dim = 3) * r1_rdtice
+    diag_trp_vi(:, :) = SUM(v_i(:, :, :) - v_i_b(:, :, :), dim = 3) * r1_rdtice
+    diag_trp_vs(:, :) = SUM(v_s(:, :, :) - v_s_b(:, :, :), dim = 3) * r1_rdtice
     IF (iom_use('icemtrp')) CALL iom_put("icemtrp", diag_trp_vi * rhoi)
     IF (iom_use('snwmtrp')) CALL iom_put("snwmtrp", diag_trp_vs * rhos)
     IF (iom_use('salmtrp')) CALL iom_put("salmtrp", diag_trp_sv * rhoi * 1.E-03)
@@ -70,6 +65,7 @@ MODULE icedyn_adv
     IF (ln_icediachk) CALL ice_cons_hsm(1, 'icedyn_adv', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (ln_icectl) CALL ice_prt(kt, iiceprt, jiceprt, - 1, ' - ice dyn & trp - ')
     IF (ln_timing) CALL timing_stop('icedyn_adv')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_dyn_adv
   SUBROUTINE ice_dyn_adv_init
     INTEGER :: ios, ioptio

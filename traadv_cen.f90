@@ -19,20 +19,24 @@ MODULE traadv_cen
   LOGICAL :: l_hst
   CONTAINS
   SUBROUTINE tra_adv_cen(kt, kit000, cdtype, pun, pvn, pwn, ptn, pta, kjpt, kn_cen_h, kn_cen_v)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    INTEGER, INTENT(IN   ) :: kn_cen_h
-    INTEGER, INTENT(IN   ) :: kn_cen_v
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun, pvn, pwn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptn
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    INTEGER, INTENT(IN ) :: kn_cen_h
+    INTEGER, INTENT(IN ) :: kn_cen_v
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun, pvn, pwn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     INTEGER :: ierr
     REAL(KIND = wp) :: zC2t_u, zC4t_u
     REAL(KIND = wp) :: zC2t_v, zC4t_v
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwx, zwy, zwz, ztu, ztv, ztw
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('tra_adv_cen', 'r0', psy_profile0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'tra_adv_cen : centered advection scheme on ', cdtype, ' order h/v =', kn_cen_h, '/', kn_cen_v
@@ -44,6 +48,7 @@ MODULE traadv_cen
     IF ((cdtype == 'TRA' .AND. l_trdtra) .OR. (cdtype == 'TRC' .AND. l_trdtrc)) l_trd = .TRUE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
     IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zwz(:, :, 1) = 0._wp
     zwz(:, :, jpk) = 0._wp
@@ -139,6 +144,7 @@ MODULE traadv_cen
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_adv_cen', 'r1', psy_profile1)
       IF (l_trd) THEN
         CALL trd_tra(kt, cdtype, jn, jptra_xad, zwx, pun, ptn(:, :, :, jn))
         CALL trd_tra(kt, cdtype, jn, jptra_yad, zwy, pvn, ptn(:, :, :, jn))
@@ -146,6 +152,7 @@ MODULE traadv_cen
       END IF
       IF (l_ptr) CALL dia_ptr_hst(jn, 'adv', zwy(:, :, :))
       IF (l_hst) CALL dia_ar5_hst(jn, 'adv', zwx(:, :, :), zwy(:, :, :))
+      CALL ProfileEnd(psy_profile1)
     END DO
   END SUBROUTINE tra_adv_cen
 END MODULE traadv_cen

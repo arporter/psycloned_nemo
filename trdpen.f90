@@ -24,6 +24,7 @@ MODULE trdpen
     IF (trd_pen_alloc /= 0) CALL ctl_warn('trd_pen_alloc: failed to allocate arrays')
   END FUNCTION trd_pen_alloc
   SUBROUTINE trd_pen(ptrdx, ptrdy, ktrd, kt, pdt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: ptrdx, ptrdy
     INTEGER, INTENT(IN) :: ktrd
     INTEGER, INTENT(IN) :: kt
@@ -31,9 +32,13 @@ MODULE trdpen
     INTEGER :: jk
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: z2d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zpe
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
     !$ACC KERNELS
     zpe(:, :, :) = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('trd_pen', 'r0', psy_profile0)
     IF (kt /= nkstp) THEN
       nkstp = kt
       CALL eos_pen(tsn, rab_PE, zpe)
@@ -41,6 +46,7 @@ MODULE trdpen
       CALL iom_put("betaPE", rab_pe(:, :, :, jp_sal))
       CALL iom_put("PEanom", zpe)
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zpe(:, :, jpk) = 0._wp
     DO jk = 1, jpkm1
@@ -59,11 +65,15 @@ MODULE trdpen
         !$ACC KERNELS
         z2d(:, :) = wn(:, :, 1) * (- (rab_n(:, :, 1, jp_tem) + rab_pe(:, :, 1, jp_tem)) * tsn(:, :, 1, jp_tem) + (rab_n(:, :, 1, jp_sal) + rab_pe(:, :, 1, jp_sal)) * tsn(:, :, 1, jp_sal)) / e3t_n(:, :, 1)
         !$ACC END KERNELS
+        CALL ProfileStart('trd_pen', 'r1', psy_profile1)
         CALL iom_put("petrd_sad", z2d)
         DEALLOCATE(z2d)
+        CALL ProfileEnd(psy_profile1)
       END IF
     CASE (jptra_ldf)
+      CALL ProfileStart('trd_pen', 'r2', psy_profile2)
       CALL iom_put("petrd_ldf", zpe)
+      CALL ProfileEnd(psy_profile2)
     CASE (jptra_zdf)
       CALL iom_put("petrd_zdf", zpe)
     CASE (jptra_zdfp)

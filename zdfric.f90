@@ -55,9 +55,9 @@ MODULE zdfric
     END IF
   END SUBROUTINE zdf_ric_init
   SUBROUTINE zdf_ric(kt, pdept, p_sh2, p_avm, p_avt)
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdept
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
+    INTEGER, INTENT(IN ) :: kt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pdept
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: p_sh2
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcfRi, zav, zustar, zhek

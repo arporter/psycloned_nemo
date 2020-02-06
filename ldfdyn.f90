@@ -192,15 +192,16 @@ MODULE ldfdyn
         CALL iom_get(inum, jpdom_data, 'ahmt_2d', ahmt(:, :, 1))
         CALL iom_get(inum, jpdom_data, 'ahmf_2d', ahmf(:, :, 1))
         CALL iom_close(inum)
-        !$ACC KERNELS
         DO jk = 2, jpkm1
+          !$ACC KERNELS
           ahmt(:, :, jk) = ahmt(:, :, 1)
           ahmf(:, :, jk) = ahmf(:, :, 1)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       CASE (20)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( e1, e2 ) or F( e1^3, e2^3 ) (lap. or blp. case)'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed viscous velocity = ', rn_Uv, ' m/s   and   Lv = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1)'
         CALL ldf_c2d('DYN', zUfac, inn, ahmt, ahmf)
       CASE (- 30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F(i,j,k) read in eddy_viscosity_3D.nc file'
@@ -211,6 +212,7 @@ MODULE ldfdyn
       CASE (30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( latitude, longitude, depth )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed viscous velocity = ', rn_Uv, ' m/s   and   Ld = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1)'
         CALL ldf_c2d('DYN', zUfac, inn, ahmt, ahmf)
         CALL ldf_c1d('DYN', ahmt(:, :, 1), ahmf(:, :, 1), ahmt, ahmf)
       CASE (31)
@@ -250,10 +252,13 @@ MODULE ldfdyn
     END IF
   END SUBROUTINE ldf_dyn_init
   SUBROUTINE ldf_dyn(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zu2pv2_ij_p1, zu2pv2_ij, zu2pv2_ij_m1, zetmax, zefmax
     REAL(KIND = wp) :: zcmsmag, zstabf_lo, zstabf_up, zdelta, zdb
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     IF (ln_timing) CALL timing_start('ldf_dyn')
     SELECT CASE (nn_ahm_ijk_t)
     CASE (31)
@@ -293,12 +298,14 @@ MODULE ldfdyn
       CALL lbc_lnk_multi(ahmt, 'T', 1., ahmf, 'F', 1.)
     CASE (32)
       IF (ln_dynldf_lap .OR. ln_dynldf_blp) THEN
+        CALL ProfileStart('ldf_dyn', 'r0', psy_profile0)
         zcmsmag = (rn_csmc / rpi) ** 2
         zstabf_lo = rn_minfac * rn_minfac / (2._wp * 4._wp * zcmsmag)
         zstabf_up = rn_maxfac / (4._wp * zcmsmag * 2._wp * rdt)
         IF (ln_dynldf_blp) zstabf_lo = (16._wp / 9._wp) * zstabf_lo
-        !$ACC KERNELS
+        CALL ProfileEnd(psy_profile0)
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           DO jj = 2, jpj
             DO ji = 2, jpi
               zdb = ((ub(ji, jj, jk) * r1_e2u(ji, jj) - ub(ji - 1, jj, jk) * r1_e2u(ji - 1, jj)) * r1_e1t(ji, jj) * e2t(ji, jj) - (vb(ji, jj, jk) * r1_e1v(ji, jj) - vb(ji, jj - 1, jk) * r1_e1v(ji, jj - 1)) * r1_e2t(ji, jj) * e1t(ji, jj)) * tmask(ji, jj, jk)
@@ -326,8 +333,8 @@ MODULE ldfdyn
               ahmf(ji, jj, jk) = MIN(ahmf(ji, jj, jk), zdelta * zstabf_up)
             END DO
           END DO
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
       IF (ln_dynldf_blp) THEN
         !$ACC KERNELS
@@ -343,10 +350,12 @@ MODULE ldfdyn
       END IF
       CALL lbc_lnk_multi(ahmt, 'T', 1., ahmf, 'F', 1.)
     END SELECT
+    CALL ProfileStart('ldf_dyn', 'r1', psy_profile1)
     CALL iom_put("ahmt_2d", ahmt(:, :, 1))
     CALL iom_put("ahmf_2d", ahmf(:, :, 1))
     CALL iom_put("ahmt_3d", ahmt(:, :, :))
     CALL iom_put("ahmf_3d", ahmf(:, :, :))
     IF (ln_timing) CALL timing_stop('ldf_dyn')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE ldf_dyn
 END MODULE ldfdyn

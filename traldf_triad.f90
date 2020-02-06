@@ -22,16 +22,17 @@ MODULE traldf_triad
   LOGICAL :: l_hst
   CONTAINS
   SUBROUTINE tra_ldf_triad(kt, kit000, cdtype, pahu, pahv, pgu, pgv, pgui, pgvi, ptb, ptbb, pta, kjpt, kpass)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    INTEGER, INTENT(IN   ) :: kpass
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pahu, pahv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgu, pgv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgui, pgvi
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptbb
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    INTEGER, INTENT(IN ) :: kpass
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pahu, pahv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN ) :: pgu, pgv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN ) :: pgui, pgvi
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptbb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     INTEGER :: ip, jp, kp
@@ -44,6 +45,11 @@ MODULE traldf_triad
     REAL(KIND = wp) :: zah, zah_slp, zaei_slp
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z2d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdit, zdjt, zftu, zftv, ztfw, zpsi_uw, zpsi_vw
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    CALL ProfileStart('tra_ldf_triad', 'r0', psy_profile0)
     IF (.NOT. ALLOCATED(zdkt3d)) THEN
       ALLOCATE(zdkt3d(jpi, jpj, 0 : 1), STAT = ierr)
       IF (lk_mpp) CALL mpp_sum(ierr)
@@ -69,6 +75,7 @@ MODULE traldf_triad
     ELSE
       zsign = - 1._wp
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (kpass == 1) THEN
       !$ACC KERNELS
       akz(:, :, :) = 0._wp
@@ -80,7 +87,7 @@ MODULE traldf_triad
         zpsi_vw(:, :, :) = 0._wp
         !$ACC END KERNELS
       END IF
-      !$ACC KERNELS
+      CALL ProfileStart('tra_ldf_triad', 'r1', psy_profile1)
       DO ip = 0, 1
         DO kp = 0, 1
           DO jk = 1, jpkm1
@@ -119,7 +126,7 @@ MODULE traldf_triad
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
+      CALL ProfileEnd(psy_profile1)
       IF (ln_traldf_msc) THEN
         IF (ln_traldf_blp) THEN
           !$ACC KERNELS
@@ -188,19 +195,15 @@ MODULE traldf_triad
       DO jk = 1, jpkm1
         !$ACC KERNELS
         zdkt3d(:, :, 1) = (ptb(:, :, jk, jn) - ptb(:, :, jk + 1, jn)) * tmask(:, :, jk + 1)
-        !$ACC END KERNELS
         IF (jk == 1) THEN
-          !$ACC KERNELS
           zdkt3d(:, :, 0) = zdkt3d(:, :, 1)
-          !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
           zdkt3d(:, :, 0) = (ptb(:, :, jk - 1, jn) - ptb(:, :, jk, jn)) * tmask(:, :, jk)
-          !$ACC END KERNELS
         END IF
         zaei_slp = 0._wp
+        !$ACC END KERNELS
+        CALL ProfileStart('tra_ldf_triad', 'r2', psy_profile2)
         IF (ln_botmix_triad) THEN
-          !$ACC KERNELS
           DO ip = 0, 1
             DO kp = 0, 1
               DO jj = 1, jpjm1
@@ -241,9 +244,7 @@ MODULE traldf_triad
               END DO
             END DO
           END DO
-          !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
           DO ip = 0, 1
             DO kp = 0, 1
               DO jj = 1, jpjm1
@@ -284,8 +285,8 @@ MODULE traldf_triad
               END DO
             END DO
           END DO
-          !$ACC END KERNELS
         END IF
+        CALL ProfileEnd(psy_profile2)
         !$ACC KERNELS
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -305,9 +306,9 @@ MODULE traldf_triad
         END DO
         !$ACC END KERNELS
       ELSE
+        !$ACC KERNELS
         SELECT CASE (kpass)
         CASE (1)
-          !$ACC KERNELS
           DO jk = 2, jpkm1
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
@@ -315,9 +316,7 @@ MODULE traldf_triad
               END DO
             END DO
           END DO
-          !$ACC END KERNELS
         CASE (2)
-          !$ACC KERNELS
           DO jk = 2, jpkm1
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
@@ -325,8 +324,8 @@ MODULE traldf_triad
               END DO
             END DO
           END DO
-          !$ACC END KERNELS
         END SELECT
+        !$ACC END KERNELS
       END IF
       !$ACC KERNELS
       DO jk = 1, jpkm1
@@ -337,10 +336,12 @@ MODULE traldf_triad
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_ldf_triad', 'r3', psy_profile3)
       IF ((kpass == 1 .AND. ln_traldf_lap) .OR. (kpass == 2 .AND. ln_traldf_blp)) THEN
         IF (l_ptr) CALL dia_ptr_hst(jn, 'ldf', zftv(:, :, :))
         IF (l_hst) CALL dia_ar5_hst(jn, 'ldf', zftu(:, :, :), zftv(:, :, :))
       END IF
+      CALL ProfileEnd(psy_profile3)
     END DO
   END SUBROUTINE tra_ldf_triad
 END MODULE traldf_triad

@@ -18,16 +18,17 @@ MODULE traldf_iso
   LOGICAL :: l_hst
   CONTAINS
   SUBROUTINE tra_ldf_iso(kt, kit000, cdtype, pahu, pahv, pgu, pgv, pgui, pgvi, ptb, ptbb, pta, kjpt, kpass)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    INTEGER, INTENT(IN   ) :: kpass
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pahu, pahv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgu, pgv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgui, pgvi
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptbb
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    INTEGER, INTENT(IN ) :: kpass
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pahu, pahv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN ) :: pgu, pgv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN ) :: pgui, pgvi
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptbb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     INTEGER :: ikt
@@ -37,15 +38,21 @@ MODULE traldf_iso
     REAL(KIND = wp) :: zcoef0, ze3w_2, zsign, z2dt, z1_2dt
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zdkt, zdk1t, z2d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdit, zdjt, zftu, zftv, ztfw
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
     IF (kpass == 1 .AND. kt == kit000) THEN
+      CALL ProfileStart('tra_ldf_iso', 'r0', psy_profile0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'tra_ldf_iso : rotated laplacian diffusion operator on ', cdtype
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
+      CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       akz(:, :, :) = 0._wp
       ah_wslp2(:, :, :) = 0._wp
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('tra_ldf_iso', 'r1', psy_profile1)
     l_hst = .FALSE.
     l_ptr = .FALSE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
@@ -61,6 +68,7 @@ MODULE traldf_iso
     ELSE
       zsign = - 1._wp
     END IF
+    CALL ProfileEnd(psy_profile1)
     IF (kpass == 1) THEN
       !$ACC KERNELS
       DO jk = 2, jpkm1
@@ -152,17 +160,11 @@ MODULE traldf_iso
       DO jk = 1, jpkm1
         !$ACC KERNELS
         zdk1t(:, :) = (ptb(:, :, jk, jn) - ptb(:, :, jk + 1, jn)) * wmask(:, :, jk + 1)
-        !$ACC END KERNELS
         IF (jk == 1) THEN
-          !$ACC KERNELS
           zdkt(:, :) = zdk1t(:, :)
-          !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
           zdkt(:, :) = (ptb(:, :, jk - 1, jn) - ptb(:, :, jk, jn)) * wmask(:, :, jk)
-          !$ACC END KERNELS
         END IF
-        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * e3u_n(ji, jj, jk)
@@ -212,9 +214,9 @@ MODULE traldf_iso
         END DO
         !$ACC END KERNELS
       ELSE
+        !$ACC KERNELS
         SELECT CASE (kpass)
         CASE (1)
-          !$ACC KERNELS
           DO jk = 2, jpkm1
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
@@ -222,9 +224,7 @@ MODULE traldf_iso
               END DO
             END DO
           END DO
-          !$ACC END KERNELS
         CASE (2)
-          !$ACC KERNELS
           DO jk = 2, jpkm1
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
@@ -232,8 +232,8 @@ MODULE traldf_iso
               END DO
             END DO
           END DO
-          !$ACC END KERNELS
         END SELECT
+        !$ACC END KERNELS
       END IF
       !$ACC KERNELS
       DO jk = 1, jpkm1
@@ -244,10 +244,12 @@ MODULE traldf_iso
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_ldf_iso', 'r2', psy_profile2)
       IF ((kpass == 1 .AND. ln_traldf_lap) .OR. (kpass == 2 .AND. ln_traldf_blp)) THEN
         IF (l_ptr) CALL dia_ptr_hst(jn, 'ldf', - zftv(:, :, :))
         IF (l_hst) CALL dia_ar5_hst(jn, 'ldf', - zftu(:, :, :), - zftv(:, :, :))
       END IF
+      CALL ProfileEnd(psy_profile2)
     END DO
   END SUBROUTINE tra_ldf_iso
 END MODULE traldf_iso

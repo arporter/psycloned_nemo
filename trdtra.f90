@@ -27,6 +27,7 @@ MODULE trdtra
     IF (trd_tra_alloc /= 0) CALL ctl_warn('trd_tra_alloc: failed to allocate arrays')
   END FUNCTION trd_tra_alloc
   SUBROUTINE trd_tra(kt, ctype, ktra, ktrd, ptrd, pun, ptra)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = 3), INTENT(IN) :: ctype
     INTEGER, INTENT(IN) :: ktra
@@ -37,9 +38,16 @@ MODULE trdtra
     INTEGER :: jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ztrds
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: zwt, zws, ztrdt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    CALL ProfileStart('trd_tra', 'r0', psy_profile0)
     IF (.NOT. ALLOCATED(trdtx)) THEN
       IF (trd_tra_alloc() /= 0) CALL ctl_stop('STOP', 'trd_tra : unable to allocate arrays')
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (ctype == 'TRA' .AND. ktra == jp_tem) THEN
       SELECT CASE (ktrd)
       CASE (jptra_xad)
@@ -49,26 +57,38 @@ MODULE trdtra
       CASE (jptra_zad)
         CALL trd_tra_adv(ptrd, pun, ptra, 'Z', trdt)
       CASE (jptra_bbc, jptra_qsr)
+        !$ACC KERNELS
         trdt(:, :, :) = ptrd(:, :, :) * tmask(:, :, :)
         ztrds(:, :, :) = 0._wp
+        !$ACC END KERNELS
         CALL trd_tra_mng(trdt, ztrds, ktrd, kt)
       CASE (jptra_evd)
+        !$ACC KERNELS
         avt_evd(:, :, :) = ptrd(:, :, :) * tmask(:, :, :)
+        !$ACC END KERNELS
       CASE DEFAULT
+        !$ACC KERNELS
         trdt(:, :, :) = ptrd(:, :, :) * tmask(:, :, :)
+        !$ACC END KERNELS
       END SELECT
     END IF
     IF (ctype == 'TRA' .AND. ktra == jp_sal) THEN
       SELECT CASE (ktrd)
       CASE (jptra_xad)
+        CALL ProfileStart('trd_tra', 'r1', psy_profile1)
         CALL trd_tra_adv(ptrd, pun, ptra, 'X', ztrds)
         CALL trd_tra_mng(trdtx, ztrds, ktrd, kt)
+        CALL ProfileEnd(psy_profile1)
       CASE (jptra_yad)
+        CALL ProfileStart('trd_tra', 'r2', psy_profile2)
         CALL trd_tra_adv(ptrd, pun, ptra, 'Y', ztrds)
         CALL trd_tra_mng(trdty, ztrds, ktrd, kt)
+        CALL ProfileEnd(psy_profile2)
       CASE (jptra_zad)
+        CALL ProfileStart('trd_tra', 'r3', psy_profile3)
         CALL trd_tra_adv(ptrd, pun, ptra, 'Z', ztrds)
         CALL trd_tra_mng(trdt, ztrds, ktrd, kt)
+        CALL ProfileEnd(psy_profile3)
       CASE (jptra_zdfp)
         ALLOCATE(zwt(jpi, jpj, jpk), zws(jpi, jpj, jpk), ztrdt(jpi, jpj, jpk))
         !$ACC KERNELS
@@ -76,34 +96,48 @@ MODULE trdtra
         zws(:, :, 1) = 0._wp
         zwt(:, :, jpk) = 0._wp
         zws(:, :, jpk) = 0._wp
+        !$ACC END KERNELS
         DO jk = 2, jpk
+          !$ACC KERNELS
           zwt(:, :, jk) = avt(:, :, jk) * (tsa(:, :, jk - 1, jp_tem) - tsa(:, :, jk, jp_tem)) / e3w_n(:, :, jk) * tmask(:, :, jk)
           zws(:, :, jk) = avs(:, :, jk) * (tsa(:, :, jk - 1, jp_sal) - tsa(:, :, jk, jp_sal)) / e3w_n(:, :, jk) * tmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
+        !$ACC KERNELS
         ztrdt(:, :, jpk) = 0._wp
         ztrds(:, :, jpk) = 0._wp
+        !$ACC END KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           ztrdt(:, :, jk) = (zwt(:, :, jk) - zwt(:, :, jk + 1)) / e3t_n(:, :, jk)
           ztrds(:, :, jk) = (zws(:, :, jk) - zws(:, :, jk + 1)) / e3t_n(:, :, jk)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
         CALL trd_tra_mng(ztrdt, ztrds, jptra_zdfp, kt)
         !$ACC KERNELS
         zwt(:, :, :) = 0._wp
         zws(:, :, :) = 0._wp
+        !$ACC END KERNELS
         DO jk = 2, jpk
+          !$ACC KERNELS
           zwt(:, :, jk) = avt_evd(:, :, jk) * (tsa(:, :, jk - 1, jp_tem) - tsa(:, :, jk, jp_tem)) / e3w_n(:, :, jk) * tmask(:, :, jk)
           zws(:, :, jk) = avt_evd(:, :, jk) * (tsa(:, :, jk - 1, jp_sal) - tsa(:, :, jk, jp_sal)) / e3w_n(:, :, jk) * tmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
+        !$ACC KERNELS
         ztrdt(:, :, jpk) = 0._wp
         ztrds(:, :, jpk) = 0._wp
+        !$ACC END KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           ztrdt(:, :, jk) = (zwt(:, :, jk) - zwt(:, :, jk + 1)) / e3t_n(:, :, jk)
           ztrds(:, :, jk) = (zws(:, :, jk) - zws(:, :, jk + 1)) / e3t_n(:, :, jk)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
+        CALL ProfileStart('trd_tra', 'r4', psy_profile4)
         CALL trd_tra_mng(ztrdt, ztrds, jptra_evd, kt)
         DEALLOCATE(zwt, zws, ztrdt)
+        CALL ProfileEnd(psy_profile4)
       CASE DEFAULT
         !$ACC KERNELS
         ztrds(:, :, :) = ptrd(:, :, :) * tmask(:, :, :)
@@ -128,13 +162,16 @@ MODULE trdtra
     END IF
   END SUBROUTINE trd_tra
   SUBROUTINE trd_tra_adv(pf, pun, ptn, cdir, ptrd)
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pf
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: ptn
-    CHARACTER(LEN = 1), INTENT(IN   ) :: cdir
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: ptrd
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pf
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: ptn
+    CHARACTER(LEN = 1), INTENT(IN ) :: cdir
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: ptrd
     INTEGER :: ji, jj, jk
     INTEGER :: ii, ij, ik
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('trd_tra_adv', 'r0', psy_profile0)
     SELECT CASE (cdir)
     CASE ('X')
       ii = 1
@@ -149,6 +186,7 @@ MODULE trdtra
       ij = 0
       ik = - 1
     END SELECT
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     ptrd(jpi, :, :) = 0._wp
     ptrd(1, :, :) = 0._wp
@@ -165,10 +203,15 @@ MODULE trdtra
     !$ACC END KERNELS
   END SUBROUTINE trd_tra_adv
   SUBROUTINE trd_tra_mng(ptrdx, ptrdy, ktrd, kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
-    INTEGER, INTENT(IN   ) :: ktrd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: ktrd
+    INTEGER, INTENT(IN ) :: kt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    CALL ProfileStart('trd_tra_mng', 'r0', psy_profile0)
     IF (neuler == 0 .AND. kt == nit000) THEN
       r2dt = rdt
     ELSE IF (kt <= nit000 + 1) THEN
@@ -177,6 +220,7 @@ MODULE trdtra
     IF (ln_tra_trd) CALL trd_tra_iom(ptrdx, ptrdy, ktrd, kt)
     IF (ln_glo_trd) CALL trd_glo(ptrdx, ptrdy, ktrd, 'TRA', kt)
     IF (ln_PE_trd) CALL trd_pen(ptrdx, ptrdy, ktrd, kt, r2dt)
+    CALL ProfileEnd(psy_profile0)
     IF (ln_tra_mxl) THEN
       SELECT CASE (ktrd)
       CASE (jptra_xad)
@@ -190,11 +234,13 @@ MODULE trdtra
       CASE (jptra_bbl)
         CALL trd_mxl_zint(ptrdx, ptrdy, jpmxl_bbl, '3D')
       CASE (jptra_zdf)
+        CALL ProfileStart('trd_tra_mng', 'r1', psy_profile1)
         IF (ln_traldf_iso) THEN
           CALL trd_mxl_zint(ptrdx, ptrdy, jpmxl_ldf, '3D')
         ELSE
           CALL trd_mxl_zint(ptrdx, ptrdy, jpmxl_zdf, '3D')
         END IF
+        CALL ProfileEnd(psy_profile1)
       CASE (jptra_dmp)
         CALL trd_mxl_zint(ptrdx, ptrdy, jpmxl_dmp, '3D')
       CASE (jptra_qsr)
@@ -206,7 +252,9 @@ MODULE trdtra
         !$ACC END KERNELS
         CALL trd_mxl_zint(ptrdx, ptrdy, jpmxl_for, '2D')
       CASE (jptra_bbc)
+        CALL ProfileStart('trd_tra_mng', 'r2', psy_profile2)
         CALL trd_mxl_zint(ptrdx, ptrdy, jpmxl_bbc, '3D')
+        CALL ProfileEnd(psy_profile2)
       CASE (jptra_npc)
         CALL trd_mxl_zint(ptrdx, ptrdy, jpmxl_npc, '3D')
       CASE (jptra_atf)
@@ -216,42 +264,62 @@ MODULE trdtra
     END IF
   END SUBROUTINE trd_tra_mng
   SUBROUTINE trd_tra_iom(ptrdx, ptrdy, ktrd, kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
-    INTEGER, INTENT(IN   ) :: ktrd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: ktrd
+    INTEGER, INTENT(IN ) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: ikbu, ikbv
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: z2dx, z2dy
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    CALL ProfileStart('trd_tra_iom', 'r0', psy_profile0)
     SELECT CASE (ktrd)
     CASE (jptra_tot)
       CALL iom_put("ttrd_tot", ptrdx)
       CALL iom_put("strd_tot", ptrdy)
     END SELECT
+    CALL ProfileEnd(psy_profile0)
     IF (MOD(kt, 2) == 0) THEN
       SELECT CASE (ktrd)
       CASE (jptra_xad)
+        CALL ProfileStart('trd_tra_iom', 'r1', psy_profile1)
         CALL iom_put("ttrd_xad", ptrdx)
         CALL iom_put("strd_xad", ptrdy)
+        CALL ProfileEnd(psy_profile1)
       CASE (jptra_yad)
+        CALL ProfileStart('trd_tra_iom', 'r2', psy_profile2)
         CALL iom_put("ttrd_yad", ptrdx)
         CALL iom_put("strd_yad", ptrdy)
+        CALL ProfileEnd(psy_profile2)
       CASE (jptra_zad)
+        CALL ProfileStart('trd_tra_iom', 'r3', psy_profile3)
         CALL iom_put("ttrd_zad", ptrdx)
         CALL iom_put("strd_zad", ptrdy)
+        CALL ProfileEnd(psy_profile3)
         IF (ln_linssh) THEN
           ALLOCATE(z2dx(jpi, jpj), z2dy(jpi, jpj))
           !$ACC KERNELS
           z2dx(:, :) = wn(:, :, 1) * tsn(:, :, 1, jp_tem) / e3t_n(:, :, 1)
           z2dy(:, :) = wn(:, :, 1) * tsn(:, :, 1, jp_sal) / e3t_n(:, :, 1)
           !$ACC END KERNELS
+          CALL ProfileStart('trd_tra_iom', 'r4', psy_profile4)
           CALL iom_put("ttrd_sad", z2dx)
           CALL iom_put("strd_sad", z2dy)
           DEALLOCATE(z2dx, z2dy)
+          CALL ProfileEnd(psy_profile4)
         END IF
       CASE (jptra_totad)
+        CALL ProfileStart('trd_tra_iom', 'r5', psy_profile5)
         CALL iom_put("ttrd_totad", ptrdx)
         CALL iom_put("strd_totad", ptrdy)
+        CALL ProfileEnd(psy_profile5)
       CASE (jptra_ldf)
         CALL iom_put("ttrd_ldf", ptrdx)
         CALL iom_put("strd_ldf", ptrdy)
@@ -282,11 +350,13 @@ MODULE trdtra
         CALL iom_put("ttrd_qsr", ptrdx)
       END SELECT
     ELSE IF (MOD(kt, 2) == 1) THEN
+      CALL ProfileStart('trd_tra_iom', 'r6', psy_profile6)
       SELECT CASE (ktrd)
       CASE (jptra_atf)
         CALL iom_put("ttrd_atf", ptrdx)
         CALL iom_put("strd_atf", ptrdy)
       END SELECT
+      CALL ProfileEnd(psy_profile6)
     END IF
   END SUBROUTINE trd_tra_iom
 END MODULE trdtra

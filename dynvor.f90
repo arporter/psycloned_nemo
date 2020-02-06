@@ -46,8 +46,13 @@ MODULE dynvor
   REAL(KIND = wp) :: r1_12 = 1._wp / 12._wp
   CONTAINS
   SUBROUTINE dyn_vor(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ztrdu, ztrdv
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
     IF (ln_timing) CALL timing_start('dyn_vor')
     IF (l_trddyn) THEN
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
@@ -55,6 +60,7 @@ MODULE dynvor
       ztrdu(:, :, :) = ua(:, :, :)
       ztrdv(:, :, :) = va(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('dyn_vor', 'r0', psy_profile0)
       SELECT CASE (nvor_scheme)
       CASE (np_ens)
         CALL vor_ens(kt, ncor, un, vn, ua, va)
@@ -72,6 +78,7 @@ MODULE dynvor
         CALL vor_een(kt, ncor, un, vn, ua, va)
         IF (ln_stcor) CALL vor_een(kt, ncor, usd, vsd, ua, va)
       END SELECT
+      CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :) - ztrdu(:, :, :)
       ztrdv(:, :, :) = va(:, :, :) - ztrdv(:, :, :)
@@ -82,6 +89,7 @@ MODULE dynvor
         ztrdu(:, :, :) = ua(:, :, :)
         ztrdv(:, :, :) = va(:, :, :)
         !$ACC END KERNELS
+        CALL ProfileStart('dyn_vor', 'r1', psy_profile1)
         SELECT CASE (nvor_scheme)
         CASE (np_ent)
           CALL vor_ent(kt, nrvm, un, vn, ua, va)
@@ -94,6 +102,7 @@ MODULE dynvor
         CASE (np_een)
           CALL vor_een(kt, nrvm, un, vn, ua, va)
         END SELECT
+        CALL ProfileEnd(psy_profile1)
         !$ACC KERNELS
         ztrdu(:, :, :) = ua(:, :, :) - ztrdu(:, :, :)
         ztrdv(:, :, :) = va(:, :, :) - ztrdv(:, :, :)
@@ -102,6 +111,7 @@ MODULE dynvor
       END IF
       DEALLOCATE(ztrdu, ztrdv)
     ELSE
+      CALL ProfileStart('dyn_vor', 'r2', psy_profile2)
       SELECT CASE (nvor_scheme)
       CASE (np_ENT)
         CALL vor_enT(kt, ntot, un, vn, ua, va)
@@ -123,23 +133,30 @@ MODULE dynvor
         CALL vor_een(kt, ntot, un, vn, ua, va)
         IF (ln_stcor) CALL vor_een(kt, ncor, usd, vsd, ua, va)
       END SELECT
+      CALL ProfileEnd(psy_profile2)
     END IF
+    CALL ProfileStart('dyn_vor', 'r3', psy_profile3)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' vor  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_vor')
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE dyn_vor
   SUBROUTINE vor_enT(kt, kvor, pu, pv, pu_rhs, pv_rhs)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kvor
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pu, pv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pu_rhs, pv_rhs
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zx1, zy1, zx2, zy2
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zwx, zwy, zwz, zwt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('vor_ent', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn:vor_enT : vorticity term: t-point energy conserving scheme'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     DO jk = 1, jpkm1
       SELECT CASE (kvor)
       CASE (np_COR)
@@ -226,18 +243,22 @@ MODULE dynvor
     END DO
   END SUBROUTINE vor_enT
   SUBROUTINE vor_ene(kt, kvor, pun, pvn, pua, pva)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kvor
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pun, pvn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zx1, zy1, zx2, zy2
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zwx, zwy, zwz
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('vor_ene', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn:vor_ene : vorticity term: energy conserving scheme'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     DO jk = 1, jpkm1
       SELECT CASE (kvor)
       CASE (np_COR)
@@ -315,18 +336,22 @@ MODULE dynvor
     END DO
   END SUBROUTINE vor_ene
   SUBROUTINE vor_ens(kt, kvor, pun, pvn, pua, pva)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kvor
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pun, pvn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zuav, zvau
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zwx, zwy, zwz, zww
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('vor_ens', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn:vor_ens : vorticity term: enstrophy conserving scheme'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     DO jk = 1, jpkm1
       SELECT CASE (kvor)
       CASE (np_COR)
@@ -402,8 +427,9 @@ MODULE dynvor
     END DO
   END SUBROUTINE vor_ens
   SUBROUTINE vor_een(kt, kvor, pun, pvn, pua, pva)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kvor
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pun, pvn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj, jk
@@ -412,15 +438,18 @@ MODULE dynvor
     REAL(KIND = wp) :: zmsk, ze3f
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zwx, zwy, zwz, z1_e3f
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztnw, ztne, ztsw, ztse
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('vor_een', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn:vor_een : vorticity term: energy and enstrophy conserving scheme'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       SELECT CASE (nn_een_e3f)
       CASE (0)
-        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             ze3f = (e3t_n(ji, jj + 1, jk) * tmask(ji, jj + 1, jk) + e3t_n(ji + 1, jj + 1, jk) * tmask(ji + 1, jj + 1, jk) + e3t_n(ji, jj, jk) * tmask(ji, jj, jk) + e3t_n(ji + 1, jj, jk) * tmask(ji + 1, jj, jk))
@@ -431,9 +460,7 @@ MODULE dynvor
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
       CASE (1)
-        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             ze3f = (e3t_n(ji, jj + 1, jk) * tmask(ji, jj + 1, jk) + e3t_n(ji + 1, jj + 1, jk) * tmask(ji + 1, jj + 1, jk) + e3t_n(ji, jj, jk) * tmask(ji, jj, jk) + e3t_n(ji + 1, jj, jk) * tmask(ji + 1, jj, jk))
@@ -445,8 +472,8 @@ MODULE dynvor
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
       END SELECT
+      !$ACC END KERNELS
       SELECT CASE (kvor)
       CASE (np_COR)
         !$ACC KERNELS
@@ -535,8 +562,9 @@ MODULE dynvor
     END DO
   END SUBROUTINE vor_een
   SUBROUTINE vor_eeT(kt, kvor, pun, pvn, pua, pva)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kvor
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pun, pvn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj, jk
@@ -545,11 +573,14 @@ MODULE dynvor
     REAL(KIND = wp) :: zmsk, z1_e3t
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zwx, zwy, zwz
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztnw, ztne, ztsw, ztse
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('vor_eet', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn:vor_een : vorticity term: energy and enstrophy conserving scheme'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     DO jk = 1, jpkm1
       SELECT CASE (kvor)
       CASE (np_COR)
@@ -671,7 +702,6 @@ MODULE dynvor
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) '      change fmask value in the angles (T)           ln_vorlat = ', ln_vorlat
     IF (ln_vorlat .AND. (ln_dynvor_ene .OR. ln_dynvor_ens .OR. ln_dynvor_mix)) THEN
-      !$ACC KERNELS
       DO jk = 1, jpk
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
@@ -679,7 +709,6 @@ MODULE dynvor
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
       CALL lbc_lnk(fmask, 'F', 1._wp)
     END IF
     ioptio = 0
@@ -726,21 +755,25 @@ MODULE dynvor
       SELECT CASE (nvor_scheme)
       CASE (np_ENT)
         ALLOCATE(di_e2u_2(jpi, jpj), dj_e1v_2(jpi, jpj))
+        !$ACC KERNELS
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             di_e2u_2(ji, jj) = (e2u(ji, jj) - e2u(ji - 1, jj)) * 0.5_wp
             dj_e1v_2(ji, jj) = (e1v(ji, jj) - e1v(ji, jj - 1)) * 0.5_wp
           END DO
         END DO
+        !$ACC END KERNELS
         CALL lbc_lnk_multi(di_e2u_2, 'T', - 1., dj_e1v_2, 'T', - 1.)
       CASE DEFAULT
         ALLOCATE(di_e2v_2e1e2f(jpi, jpj), dj_e1u_2e1e2f(jpi, jpj))
+        !$ACC KERNELS
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             di_e2v_2e1e2f(ji, jj) = (e2v(ji + 1, jj) - e2v(ji, jj)) * 0.5 * r1_e1e2f(ji, jj)
             dj_e1u_2e1e2f(ji, jj) = (e1u(ji, jj + 1) - e1u(ji, jj)) * 0.5 * r1_e1e2f(ji, jj)
           END DO
         END DO
+        !$ACC END KERNELS
         CALL lbc_lnk_multi(di_e2v_2e1e2f, 'F', - 1., dj_e1u_2e1e2f, 'F', - 1.)
       END SELECT
     END SELECT

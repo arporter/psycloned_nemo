@@ -11,23 +11,27 @@ MODULE dynadv_cen2
   PUBLIC :: dyn_adv_cen2
   CONTAINS
   SUBROUTINE dyn_adv_cen2(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT( IN ) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zfu_t, zfu_f, zfu_uw, zfu
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zfv_t, zfv_f, zfv_vw, zfv, zfw
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('dyn_adv_cen2', 'r0', psy_profile0)
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dyn_adv_cen2 : 2nd order flux form momentum advection'
       WRITE(numout, FMT = *) '~~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
       !$ACC KERNELS
       zfu_uw(:, :, :) = ua(:, :, :)
       zfv_vw(:, :, :) = va(:, :, :)
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       zfu(:, :, jk) = 0.25_wp * e2u(:, :) * e3u_n(:, :, jk) * un(:, :, jk)
       zfv(:, :, jk) = 0.25_wp * e1v(:, :) * e3v_n(:, :, jk) * vn(:, :, jk)
       DO jj = 1, jpjm1
@@ -44,8 +48,8 @@ MODULE dynadv_cen2
           va(ji, jj, jk) = va(ji, jj, jk) - (zfu_f(ji, jj, jk) - zfu_f(ji - 1, jj, jk) + zfv_t(ji, jj + 1, jk) - zfv_t(ji, jj, jk)) * r1_e1e2v(ji, jj) / e3v_n(ji, jj, jk)
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     IF (l_trddyn) THEN
       !$ACC KERNELS
       zfu_uw(:, :, :) = ua(:, :, :) - zfu_uw(:, :, :)
@@ -77,8 +81,8 @@ MODULE dynadv_cen2
       END DO
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       DO jj = 2, jpj
         DO ji = 2, jpi
           zfw(ji, jj, jk) = 0.25_wp * e1e2t(ji, jj) * wn(ji, jj, jk)
@@ -90,7 +94,9 @@ MODULE dynadv_cen2
           zfv_vw(ji, jj, jk) = (zfw(ji, jj, jk) + zfw(ji, jj + 1, jk)) * (vn(ji, jj, jk) + vn(ji, jj, jk - 1))
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jk = 1, jpkm1
       DO jj = 2, jpjm1
         DO ji = 2, jpim1

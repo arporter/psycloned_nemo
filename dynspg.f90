@@ -26,11 +26,15 @@ MODULE dynspg
   INTEGER, PARAMETER :: np_NO = - 1
   CONTAINS
   SUBROUTINE dyn_spg(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: z2dt, zg_2, zintp, zgrau0r, zld
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zpice
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ztrdu, ztrdv
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
     IF (ln_timing) CALL timing_start('dyn_spg')
     IF (l_trddyn) THEN
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
@@ -47,9 +51,7 @@ MODULE dynspg
           spgv(ji, jj) = 0._wp
         END DO
       END DO
-      !$ACC END KERNELS
       IF (ln_apr_dyn .AND. .NOT. ln_dynspg_ts) THEN
-        !$ACC KERNELS
         zg_2 = grav * 0.5
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
@@ -57,8 +59,8 @@ MODULE dynspg
             spgv(ji, jj) = spgv(ji, jj) + zg_2 * (ssh_ib(ji, jj + 1) - ssh_ib(ji, jj) + ssh_ibb(ji, jj + 1) - ssh_ibb(ji, jj)) * r1_e2v(ji, jj)
           END DO
         END DO
-        !$ACC END KERNELS
       END IF
+      !$ACC END KERNELS
       IF (.NOT. ln_dynspg_ts .AND. (ln_tide_pot .AND. ln_tide)) THEN
         CALL upd_tide(kt)
         !$ACC KERNELS
@@ -107,22 +109,28 @@ MODULE dynspg
       END DO
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('dyn_spg', 'r0', psy_profile0)
     SELECT CASE (nspg)
     CASE (np_exp)
       CALL dyn_spg_exp(kt)
     CASE (np_ts)
       CALL dyn_spg_ts(kt)
     END SELECT
+    CALL ProfileEnd(psy_profile0)
     IF (l_trddyn) THEN
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :) - ztrdu(:, :, :)
       ztrdv(:, :, :) = va(:, :, :) - ztrdv(:, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('dyn_spg', 'r1', psy_profile1)
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_spg, kt)
       DEALLOCATE(ztrdu, ztrdv)
+      CALL ProfileEnd(psy_profile1)
     END IF
+    CALL ProfileStart('dyn_spg', 'r2', psy_profile2)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' spg  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_spg')
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE dyn_spg
   SUBROUTINE dyn_spg_init
     INTEGER :: ioptio, ios

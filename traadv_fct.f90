@@ -24,15 +24,16 @@ MODULE traadv_fct
   INTEGER, PARAMETER :: np_CEN2 = 1
   CONTAINS
   SUBROUTINE tra_adv_fct(kt, kit000, cdtype, p2dt, pun, pvn, pwn, ptb, ptn, pta, kjpt, kn_fct_h, kn_fct_v)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    INTEGER, INTENT(IN   ) :: kn_fct_h
-    INTEGER, INTENT(IN   ) :: kn_fct_v
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun, pvn, pwn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb, ptn
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    INTEGER, INTENT(IN ) :: kn_fct_h
+    INTEGER, INTENT(IN ) :: kn_fct_v
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun, pvn, pwn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb, ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp) :: ztra
@@ -40,6 +41,11 @@ MODULE traadv_fct
     REAL(KIND = wp) :: zfm_ui, zfm_vj, zfm_wk, zC2t_v, zC4t_v
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwi, zwx, zwy, zwz, ztu, ztv, zltu, zltv, ztw
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: ztrdx, ztrdy, ztrdz, zptry
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    CALL ProfileStart('tra_adv_fct', 'r0', psy_profile0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'tra_adv_fct : FCT advection scheme on ', cdtype
@@ -51,6 +57,7 @@ MODULE traadv_fct
     IF ((cdtype == 'TRA' .AND. l_trdtra) .OR. (cdtype == 'TRC' .AND. l_trdtrc)) l_trd = .TRUE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
     IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    CALL ProfileEnd(psy_profile0)
     IF (l_trd .OR. l_hst) THEN
       ALLOCATE(ztrdx(jpi, jpj, jpk), ztrdy(jpi, jpj, jpk), ztrdz(jpi, jpj, jpk))
       !$ACC KERNELS
@@ -123,14 +130,14 @@ MODULE traadv_fct
       END DO
       !$ACC END KERNELS
       CALL lbc_lnk(zwi, 'T', 1.)
+      !$ACC KERNELS
       IF (l_trd .OR. l_hst) THEN
-        !$ACC KERNELS
         ztrdx(:, :, :) = zwx(:, :, :)
         ztrdy(:, :, :) = zwy(:, :, :)
         ztrdz(:, :, :) = zwz(:, :, :)
-        !$ACC END KERNELS
       END IF
       IF (l_ptr) zptry(:, :, :) = zwy(:, :, :)
+      !$ACC END KERNELS
       SELECT CASE (kn_fct_h)
       CASE (2)
         !$ACC KERNELS
@@ -147,7 +154,9 @@ MODULE traadv_fct
         !$ACC KERNELS
         zltu(:, :, jpk) = 0._wp
         zltv(:, :, jpk) = 0._wp
+        !$ACC END KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               ztu(ji, jj, jk) = (ptn(ji + 1, jj, jk, jn) - ptn(ji, jj, jk, jn)) * umask(ji, jj, jk)
@@ -160,8 +169,8 @@ MODULE traadv_fct
               zltv(ji, jj, jk) = (ztv(ji, jj, jk) + ztv(ji, jj - 1, jk)) * r1_6
             END DO
           END DO
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
         CALL lbc_lnk_multi(zltu, 'T', 1., zltv, 'T', 1.)
         !$ACC KERNELS
         DO jk = 1, jpkm1
@@ -232,8 +241,10 @@ MODULE traadv_fct
         zwz(:, :, 1) = 0._wp
         !$ACC END KERNELS
       END IF
+      CALL ProfileStart('tra_adv_fct', 'r1', psy_profile1)
       CALL lbc_lnk_multi(zwx, 'U', - 1., zwy, 'V', - 1., zwz, 'W', 1.)
       CALL nonosc(ptb(:, :, :, jn), zwx, zwy, zwz, zwi, p2dt)
+      CALL ProfileEnd(psy_profile1)
       !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
@@ -249,12 +260,14 @@ MODULE traadv_fct
         ztrdy(:, :, :) = ztrdy(:, :, :) + zwy(:, :, :)
         ztrdz(:, :, :) = ztrdz(:, :, :) + zwz(:, :, :)
         !$ACC END KERNELS
+        CALL ProfileStart('tra_adv_fct', 'r2', psy_profile2)
         IF (l_trd) THEN
           CALL trd_tra(kt, cdtype, jn, jptra_xad, ztrdx, pun, ptn(:, :, :, jn))
           CALL trd_tra(kt, cdtype, jn, jptra_yad, ztrdy, pvn, ptn(:, :, :, jn))
           CALL trd_tra(kt, cdtype, jn, jptra_zad, ztrdz, pwn, ptn(:, :, :, jn))
         END IF
         IF (l_hst) CALL dia_ar5_hst(jn, 'adv', ztrdx(:, :, :), ztrdy(:, :, :))
+        CALL ProfileEnd(psy_profile2)
       END IF
       IF (l_ptr) THEN
         !$ACC KERNELS
@@ -263,16 +276,18 @@ MODULE traadv_fct
         CALL dia_ptr_hst(jn, 'adv', zptry(:, :, :))
       END IF
     END DO
+    CALL ProfileStart('tra_adv_fct', 'r3', psy_profile3)
     IF (l_trd .OR. l_hst) THEN
       DEALLOCATE(ztrdx, ztrdy, ztrdz)
     END IF
     IF (l_ptr) THEN
       DEALLOCATE(zptry)
     END IF
+    CALL ProfileEnd(psy_profile3)
   END SUBROUTINE tra_adv_fct
   SUBROUTINE nonosc(pbef, paa, pbb, pcc, paft, p2dt)
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pbef, paft
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pbef, paft
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: paa, pbb, pcc
     INTEGER :: ji, jj, jk
     INTEGER :: ikm1
@@ -325,11 +340,13 @@ MODULE traadv_fct
     CALL lbc_lnk_multi(paa, 'U', - 1., pbb, 'V', - 1.)
   END SUBROUTINE nonosc
   SUBROUTINE interp_4th_cpt_org(pt_in, pt_out)
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pt_in
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: pt_out
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pt_in
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: pt_out
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwd, zwi, zws, zwrm, zwt
-    !$ACC KERNELS
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('interp_4th_cpt_org', 'r0', psy_profile0)
     DO jk = 3, jpkm1
       DO jj = 1, jpj
         DO ji = 1, jpi
@@ -346,6 +363,8 @@ MODULE traadv_fct
         END DO
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     jk = 2
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -394,8 +413,8 @@ MODULE traadv_fct
     !$ACC END KERNELS
   END SUBROUTINE interp_4th_cpt_org
   SUBROUTINE interp_4th_cpt(pt_in, pt_out)
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pt_in
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(  OUT) :: pt_out
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pt_in
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: pt_out
     INTEGER :: ji, jj, jk
     INTEGER :: ikt, ikb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwd, zwi, zws, zwrm, zwt
@@ -473,10 +492,10 @@ MODULE traadv_fct
     !$ACC END KERNELS
   END SUBROUTINE interp_4th_cpt
   SUBROUTINE tridia_solver(pD, pU, pL, pRHS, pt_out, klev)
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pD, pU, PL
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pRHS
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: pt_out
-    INTEGER, INTENT(IN   ) :: klev
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pD, pU, PL
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pRHS
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: pt_out
+    INTEGER, INTENT(IN ) :: klev
     INTEGER :: ji, jj, jk
     INTEGER :: kstart
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwt

@@ -799,14 +799,13 @@ MODULE sbccpl
       xcplmask(:, :, :) = 1.
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     xcplmask(:, :, 0) = 1. - SUM(xcplmask(:, :, 1 : nn_cplmodel), dim = 3)
-    !$ACC END KERNELS
     ncpl_qsr_freq = cpl_freq('O_QsrOce') + cpl_freq('O_QsrMix') + cpl_freq('I_QsrOce') + cpl_freq('I_QsrMix')
     IF (ln_dm2dc .AND. ln_cpl .AND. ncpl_qsr_freq /= 86400) CALL ctl_stop('sbc_cpl_init: diurnal cycle reconstruction (ln_dm2dc) needs daily couping for solar radiation')
     IF (ln_dm2dc .AND. ln_cpl) ncpl_qsr_freq = 86400 / ncpl_qsr_freq
   END SUBROUTINE sbc_cpl_init
   SUBROUTINE sbc_cpl_rcv(kt, k_fsbc, k_ice)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     USE zdf_oce, ONLY: ln_zdfswm
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN) :: k_fsbc
@@ -820,7 +819,27 @@ MODULE sbccpl
     REAL(KIND = wp) :: zcdrag = 1.5E-3
     REAL(KIND = wp) :: zzx, zzy
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztx, zty, zmsk, zemp, zqns, zqsr
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    TYPE(ProfileData), SAVE :: psy_profile8
+    TYPE(ProfileData), SAVE :: psy_profile9
+    TYPE(ProfileData), SAVE :: psy_profile10
+    TYPE(ProfileData), SAVE :: psy_profile11
+    TYPE(ProfileData), SAVE :: psy_profile12
+    TYPE(ProfileData), SAVE :: psy_profile13
+    TYPE(ProfileData), SAVE :: psy_profile14
+    TYPE(ProfileData), SAVE :: psy_profile15
+    TYPE(ProfileData), SAVE :: psy_profile16
+    !$ACC KERNELS
     IF (ln_mixcpl) zmsk(:, :) = 1. - xcplmask(:, :, 0)
+    !$ACC END KERNELS
+    CALL ProfileStart('sbc_cpl_rcv', 'r0', psy_profile0)
     isec = (kt - nit000) * NINT(rdt)
     DO jn = 1, jprcv
       IF (srcv(jn) % laction) CALL cpl_rcv(jn, isec, frcv(jn) % z3, xcplmask(:, :, 1 : nn_cplmodel), nrcvinfo(jn))
@@ -919,13 +938,21 @@ MODULE sbccpl
         tsfc_ice(:, :, :) = frcv(jpr_ts_ice) % z3(:, :, :)
       END WHERE
     END IF
+    CALL ProfileEnd(psy_profile0)
     IF (srcv(jpr_mslp) % laction) THEN
+      !$ACC KERNELS
       IF (kt /= nit000) ssh_ibb(:, :) = ssh_ib(:, :)
       r1_grau = 1.E0 / (grav * rau0)
+      !$ACC END KERNELS
+      CALL ProfileStart('sbc_cpl_rcv', 'r1', psy_profile1)
       ssh_ib(:, :) = - (frcv(jpr_mslp) % z3(:, :, 1) - rpref) * r1_grau
       apr(:, :) = frcv(jpr_mslp) % z3(:, :, 1)
+      CALL ProfileEnd(psy_profile1)
+      !$ACC KERNELS
       IF (kt == nit000) ssh_ibb(:, :) = ssh_ib(:, :)
+      !$ACC END KERNELS
     END IF
+    CALL ProfileStart('sbc_cpl_rcv', 'r2', psy_profile2)
     IF (ln_sdw) THEN
       IF (srcv(jpr_sdrftx) % laction) ut0sd(:, :) = frcv(jpr_sdrftx) % z3(:, :, 1)
       IF (srcv(jpr_sdrfty) % laction) vt0sd(:, :) = frcv(jpr_sdrfty) % z3(:, :, 1)
@@ -957,8 +984,11 @@ MODULE sbccpl
       ssh_m(:, :) = frcv(jpr_ssh) % z3(:, :, 1)
       CALL iom_put('ssh_m', ssh_m)
     END IF
+    CALL ProfileEnd(psy_profile2)
     IF (srcv(jpr_ocx1) % laction) THEN
+      CALL ProfileStart('sbc_cpl_rcv', 'r3', psy_profile3)
       ssu_m(:, :) = frcv(jpr_ocx1) % z3(:, :, 1)
+      CALL ProfileEnd(psy_profile3)
       !$ACC KERNELS
       ub(:, :, 1) = ssu_m(:, :)
       un(:, :, 1) = ssu_m(:, :)
@@ -966,13 +996,16 @@ MODULE sbccpl
       CALL iom_put('ssu_m', ssu_m)
     END IF
     IF (srcv(jpr_ocy1) % laction) THEN
+      CALL ProfileStart('sbc_cpl_rcv', 'r4', psy_profile4)
       ssv_m(:, :) = frcv(jpr_ocy1) % z3(:, :, 1)
+      CALL ProfileEnd(psy_profile4)
       !$ACC KERNELS
       vb(:, :, 1) = ssv_m(:, :)
       vn(:, :, 1) = ssv_m(:, :)
       !$ACC END KERNELS
       CALL iom_put('ssv_m', ssv_m)
     END IF
+    CALL ProfileStart('sbc_cpl_rcv', 'r5', psy_profile5)
     IF (srcv(jpr_e3t1st) % laction) THEN
       e3t_m(:, :) = frcv(jpr_e3t1st) % z3(:, :, 1)
       CALL iom_put('e3t_m', e3t_m(:, :))
@@ -981,8 +1014,10 @@ MODULE sbccpl
       frq_m(:, :) = frcv(jpr_fraqsr) % z3(:, :, 1)
       CALL iom_put('frq_m', frq_m)
     END IF
+    CALL ProfileEnd(psy_profile5)
     IF (k_ice <= 1 .AND. MOD(kt - 1, k_fsbc) == 0) THEN
       IF (srcv(jpr_oemp) % laction .OR. srcv(jpr_rain) % laction) THEN
+        CALL ProfileStart('sbc_cpl_rcv', 'r6', psy_profile6)
         SELECT CASE (TRIM(sn_rcv_emp % cldes))
         CASE ('conservative')
           zemp(:, :) = frcv(jpr_tevp) % z3(:, :, 1) - (frcv(jpr_rain) % z3(:, :, 1) + frcv(jpr_snow) % z3(:, :, 1))
@@ -991,20 +1026,27 @@ MODULE sbccpl
         CASE DEFAULT
           CALL ctl_stop('sbc_cpl_rcv: wrong definition of sn_rcv_emp%cldes')
         END SELECT
+        CALL ProfileEnd(psy_profile6)
       ELSE
         !$ACC KERNELS
         zemp(:, :) = 0._wp
         !$ACC END KERNELS
       END IF
+      CALL ProfileStart('sbc_cpl_rcv', 'r7', psy_profile7)
       IF (srcv(jpr_rnf) % laction) rnf(:, :) = frcv(jpr_rnf) % z3(:, :, 1)
       IF (srcv(jpr_cal) % laction) zemp(:, :) = zemp(:, :) - frcv(jpr_cal) % z3(:, :, 1)
+      CALL ProfileEnd(psy_profile7)
       IF (srcv(jpr_icb) % laction) THEN
+        CALL ProfileStart('sbc_cpl_rcv', 'r8', psy_profile8)
         fwficb(:, :) = frcv(jpr_icb) % z3(:, :, 1)
+        CALL ProfileEnd(psy_profile8)
         !$ACC KERNELS
         rnf(:, :) = rnf(:, :) + fwficb(:, :)
         !$ACC END KERNELS
       END IF
+      CALL ProfileStart('sbc_cpl_rcv', 'r9', psy_profile9)
       IF (srcv(jpr_isf) % laction) fwfisf(:, :) = - frcv(jpr_isf) % z3(:, :, 1)
+      CALL ProfileEnd(psy_profile9)
       IF (ln_mixcpl) THEN
         !$ACC KERNELS
         emp(:, :) = emp(:, :) * xcplmask(:, :, 0) + zemp(:, :) * zmsk(:, :)
@@ -1015,9 +1057,13 @@ MODULE sbccpl
         !$ACC END KERNELS
       END IF
       IF (srcv(jpr_qnsoce) % laction) THEN
+        CALL ProfileStart('sbc_cpl_rcv', 'r10', psy_profile10)
         zqns(:, :) = frcv(jpr_qnsoce) % z3(:, :, 1)
+        CALL ProfileEnd(psy_profile10)
       ELSE IF (srcv(jpr_qnsmix) % laction) THEN
+        CALL ProfileStart('sbc_cpl_rcv', 'r11', psy_profile11)
         zqns(:, :) = frcv(jpr_qnsmix) % z3(:, :, 1)
+        CALL ProfileEnd(psy_profile11)
       ELSE
         !$ACC KERNELS
         zqns(:, :) = 0._wp
@@ -1027,11 +1073,15 @@ MODULE sbccpl
         !$ACC KERNELS
         zqns(:, :) = zqns(:, :) - zemp(:, :) * sst_m(:, :) * rcp
         !$ACC END KERNELS
+        CALL ProfileStart('sbc_cpl_rcv', 'r12', psy_profile12)
         IF (srcv(jpr_snow) % laction) THEN
           zqns(:, :) = zqns(:, :) - frcv(jpr_snow) % z3(:, :, 1) * rLfus
         END IF
+        CALL ProfileEnd(psy_profile12)
       END IF
+      CALL ProfileStart('sbc_cpl_rcv', 'r13', psy_profile13)
       IF (srcv(jpr_icb) % laction) zqns(:, :) = zqns(:, :) - frcv(jpr_icb) % z3(:, :, 1) * rLfus
+      CALL ProfileEnd(psy_profile13)
       IF (ln_mixcpl) THEN
         !$ACC KERNELS
         qns(:, :) = qns(:, :) * xcplmask(:, :, 0) + zqns(:, :) * zmsk(:, :)
@@ -1042,15 +1092,21 @@ MODULE sbccpl
         !$ACC END KERNELS
       END IF
       IF (srcv(jpr_qsroce) % laction) THEN
+        CALL ProfileStart('sbc_cpl_rcv', 'r14', psy_profile14)
         zqsr(:, :) = frcv(jpr_qsroce) % z3(:, :, 1)
+        CALL ProfileEnd(psy_profile14)
       ELSE IF (srcv(jpr_qsrmix) % laction) THEN
+        CALL ProfileStart('sbc_cpl_rcv', 'r15', psy_profile15)
         zqsr(:, :) = frcv(jpr_qsrmix) % z3(:, :, 1)
+        CALL ProfileEnd(psy_profile15)
       ELSE
         !$ACC KERNELS
         zqsr(:, :) = 0._wp
         !$ACC END KERNELS
       END IF
+
       IF (ln_dm2dc .AND. ln_cpl) zqsr(:, :) = sbc_dcy(zqsr)
+
       IF (ln_mixcpl) THEN
         !$ACC KERNELS
         qsr(:, :) = qsr(:, :) * xcplmask(:, :, 0) + zqsr(:, :) * zmsk(:, :)
@@ -1060,16 +1116,21 @@ MODULE sbccpl
         qsr(:, :) = zqsr(:, :)
         !$ACC END KERNELS
       END IF
+      CALL ProfileStart('sbc_cpl_rcv', 'r16', psy_profile16)
       IF (srcv(jpr_sflx) % laction) sfx(:, :) = frcv(jpr_sflx) % z3(:, :, 1)
       IF (srcv(jpr_fice) % laction) fr_i(:, :) = frcv(jpr_fice) % z3(:, :, 1)
+      CALL ProfileEnd(psy_profile16)
     END IF
   END SUBROUTINE sbc_cpl_rcv
   SUBROUTINE sbc_cpl_ice_tau(p_taui, p_tauj)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), INTENT(OUT), DIMENSION(:, :) :: p_taui
     REAL(KIND = wp), INTENT(OUT), DIMENSION(:, :) :: p_tauj
     INTEGER :: ji, jj
     INTEGER :: itx
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztx, zty
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('sbc_cpl_ice_tau', 'r0', psy_profile0)
     IF (srcv(jpr_itx1) % laction) THEN
       itx = jpr_itx1
     ELSE
@@ -1131,8 +1192,10 @@ MODULE sbccpl
         CALL lbc_lnk_multi(p_taui, 'U', - 1., p_tauj, 'V', - 1.)
       END IF
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE sbc_cpl_ice_tau
   SUBROUTINE sbc_cpl_ice_flx(picefr, palbi, psst, pist, phs, phi)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: picefr
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :), OPTIONAL :: palbi
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :), OPTIONAL :: psst
@@ -1145,11 +1208,23 @@ MODULE sbccpl
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zemp_tot, zemp_ice, zemp_oce, ztprecip, zsprecip, zevap_oce, zdevap_ice
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zqns_tot, zqns_oce, zqsr_tot, zqsr_oce, zqprec_ice, zqemp_oce, zqemp_ice
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: zqns_ice, zqsr_ice, zdqns_ice, zqevap_ice, zevap_ice
-    IF (ln_mixcpl) zmsk(:, :) = 1. - xcplmask(:, :, 0)
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    TYPE(ProfileData), SAVE :: psy_profile8
+    TYPE(ProfileData), SAVE :: psy_profile9
+    TYPE(ProfileData), SAVE :: psy_profile10
     !$ACC KERNELS
+    IF (ln_mixcpl) zmsk(:, :) = 1. - xcplmask(:, :, 0)
     ziceld(:, :) = 1._wp - picefr(:, :)
     zcptn(:, :) = rcp * sst_m(:, :)
     !$ACC END KERNELS
+    CALL ProfileStart('sbc_cpl_ice_flx', 'r0', psy_profile0)
     SELECT CASE (TRIM(sn_rcv_emp % cldes))
     CASE ('conservative')
       zsprecip(:, :) = frcv(jpr_snow) % z3(:, :, 1)
@@ -1162,6 +1237,7 @@ MODULE sbccpl
       zsprecip(:, :) = frcv(jpr_ievp) % z3(:, :, 1) - frcv(jpr_semp) % z3(:, :, 1)
       ztprecip(:, :) = frcv(jpr_semp) % z3(:, :, 1) - frcv(jpr_sbpr) % z3(:, :, 1) + zsprecip(:, :)
     END SELECT
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zsnw(:, :) = 0._wp
     !$ACC END KERNELS
@@ -1170,6 +1246,7 @@ MODULE sbccpl
     zemp_ice(:, :) = zemp_ice(:, :) + zsprecip(:, :) * (picefr(:, :) - zsnw(:, :))
     zemp_oce(:, :) = zemp_tot(:, :) - zemp_ice(:, :)
     !$ACC END KERNELS
+    CALL ProfileStart('sbc_cpl_ice_flx', 'r1', psy_profile1)
     zevap_oce(:, :) = frcv(jpr_tevp) % z3(:, :, 1) - frcv(jpr_ievp) % z3(:, :, 1) * picefr(:, :)
     DO jl = 1, jpl
       IF (sn_rcv_emp % clcat == 'yes') THEN
@@ -1178,9 +1255,11 @@ MODULE sbccpl
         zevap_ice(:, :, jl) = frcv(jpr_ievp) % z3(:, :, 1)
       END IF
     END DO
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     zdevap_ice(:, :) = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('sbc_cpl_ice_flx', 'r2', psy_profile2)
     IF (srcv(jpr_rnf) % laction) THEN
       rnf(:, :) = frcv(jpr_rnf) % z3(:, :, 1)
     END IF
@@ -1188,15 +1267,20 @@ MODULE sbccpl
       zemp_tot(:, :) = zemp_tot(:, :) - frcv(jpr_cal) % z3(:, :, 1)
       zemp_oce(:, :) = zemp_oce(:, :) - frcv(jpr_cal) % z3(:, :, 1)
     END IF
+    CALL ProfileEnd(psy_profile2)
     IF (srcv(jpr_icb) % laction) THEN
+      CALL ProfileStart('sbc_cpl_ice_flx', 'r3', psy_profile3)
       fwficb(:, :) = frcv(jpr_icb) % z3(:, :, 1)
+      CALL ProfileEnd(psy_profile3)
       !$ACC KERNELS
       rnf(:, :) = rnf(:, :) + fwficb(:, :)
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('sbc_cpl_ice_flx', 'r4', psy_profile4)
     IF (srcv(jpr_isf) % laction) THEN
       fwfisf(:, :) = - frcv(jpr_isf) % z3(:, :, 1)
     END IF
+    CALL ProfileEnd(psy_profile4)
     IF (ln_mixcpl) THEN
       !$ACC KERNELS
       emp_tot(:, :) = emp_tot(:, :) * xcplmask(:, :, 0) + zemp_tot(:, :) * zmsk(:, :)
@@ -1222,6 +1306,7 @@ MODULE sbccpl
       END DO
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('sbc_cpl_ice_flx', 'r5', psy_profile5)
     IF (srcv(jpr_cal) % laction) CALL iom_put('calving_cea', frcv(jpr_cal) % z3(:, :, 1) * tmask(:, :, 1))
     IF (srcv(jpr_icb) % laction) CALL iom_put('iceberg_cea', frcv(jpr_icb) % z3(:, :, 1) * tmask(:, :, 1))
     IF (iom_use('snowpre')) CALL iom_put('snowpre', sprecip(:, :))
@@ -1270,8 +1355,9 @@ MODULE sbccpl
     ELSEWHERE
       zcptsnw(:, :) = zcptn(:, :)
     END WHERE
-    !$ACC KERNELS
     zcptrain(:, :) = rcp * (SUM((tn_ice(:, :, :) - rt0) * a_i(:, :, :), dim = 3) + sst_m(:, :) * ziceld(:, :))
+    CALL ProfileEnd(psy_profile5)
+    !$ACC KERNELS
     zqprec_ice(:, :) = rhos * (zcptsnw(:, :) - rLfus)
     DO jl = 1, jpl
       zqevap_ice(:, :, jl) = 0._wp
@@ -1303,6 +1389,7 @@ MODULE sbccpl
       qemp_ice(:, :) = zqemp_ice(:, :)
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('sbc_cpl_ice_flx', 'r6', psy_profile6)
     IF (srcv(jpr_cal) % laction) CALL iom_put('hflx_cal_cea', - frcv(jpr_cal) % z3(:, :, 1) * rLfus)
     IF (srcv(jpr_icb) % laction) CALL iom_put('hflx_icb_cea', - frcv(jpr_icb) % z3(:, :, 1) * rLfus)
     IF (iom_use('hflx_rain_cea')) CALL iom_put('hflx_rain_cea', (tprecip(:, :) - sprecip(:, :)) * zcptrain(:, :))
@@ -1350,6 +1437,7 @@ MODULE sbccpl
     END IF
     zqsr_oce = 0._wp
     WHERE (ziceld /= 0._wp) zqsr_oce(:, :) = (zqsr_tot(:, :) - SUM(a_i * zqsr_ice, dim = 3)) / ziceld(:, :)
+    CALL ProfileEnd(psy_profile6)
     IF (ln_mixcpl) THEN
       !$ACC KERNELS
       qsr_oce(:, :) = qsr_oce(:, :) * xcplmask(:, :, 0) + zqsr_oce(:, :) * zmsk(:, :)
@@ -1360,8 +1448,10 @@ MODULE sbccpl
       !$ACC END KERNELS
     END IF
     IF (ln_mixcpl) THEN
-      !$ACC KERNELS
+      CALL ProfileStart('sbc_cpl_ice_flx', 'r7', psy_profile7)
       qsr_tot(:, :) = qsr(:, :) * ziceld(:, :) + SUM(qsr_ice(:, :, :) * a_i(:, :, :), dim = 3)
+      CALL ProfileEnd(psy_profile7)
+      !$ACC KERNELS
       qsr_tot(:, :) = qsr_tot(:, :) * xcplmask(:, :, 0) + zqsr_tot(:, :) * zmsk(:, :)
       DO jl = 1, jpl
         qsr_ice(:, :, jl) = qsr_ice(:, :, jl) * xcplmask(:, :, 0) + zqsr_ice(:, :, jl) * zmsk(:, :)
@@ -1373,6 +1463,7 @@ MODULE sbccpl
       qsr_ice(:, :, :) = zqsr_ice(:, :, :)
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('sbc_cpl_ice_flx', 'r8', psy_profile8)
     SELECT CASE (TRIM(sn_rcv_dqnsdt % cldes))
     CASE ('coupled')
       IF (TRIM(sn_rcv_dqnsdt % clcat) == 'yes') THEN
@@ -1383,6 +1474,7 @@ MODULE sbccpl
         END DO
       END IF
     END SELECT
+    CALL ProfileEnd(psy_profile8)
     IF (ln_mixcpl) THEN
       !$ACC KERNELS
       DO jl = 1, jpl
@@ -1394,19 +1486,21 @@ MODULE sbccpl
       dqns_ice(:, :, :) = zdqns_ice(:, :, :)
       !$ACC END KERNELS
     END IF
+    CALL ProfileStart('sbc_cpl_ice_flx', 'r9', psy_profile9)
     SELECT CASE (TRIM(sn_rcv_iceflx % cldes))
     CASE ('coupled')
       qml_ice(:, :, :) = frcv(jpr_topm) % z3(:, :, :)
       qcn_ice(:, :, :) = frcv(jpr_botm) % z3(:, :, :)
     END SELECT
+    CALL ProfileEnd(psy_profile9)
     SELECT CASE (nice_jules)
     CASE (np_jules_OFF)
-      !$ACC KERNELS
+      CALL ProfileStart('sbc_cpl_ice_flx', 'r10', psy_profile10)
       ztri = 0.18 * (1.0 - cldf_ice) + 0.35 * cldf_ice
       qtr_ice_top(:, :, :) = ztri * qsr_ice(:, :, :)
-      !$ACC END KERNELS
       WHERE (phs(:, :, :) >= 0.0_wp) qtr_ice_top(:, :, :) = 0._wp
       WHERE (phi(:, :, :) <= 0.1_wp) qtr_ice_top(:, :, :) = qsr_ice(:, :, :)
+      CALL ProfileEnd(psy_profile10)
     CASE (np_jules_ACTIVE)
       !$ACC KERNELS
       qtr_ice_top(:, :, :) = 0._wp
@@ -1414,13 +1508,30 @@ MODULE sbccpl
     END SELECT
   END SUBROUTINE sbc_cpl_ice_flx
   SUBROUTINE sbc_cpl_snd(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jl
     INTEGER :: isec, info
     REAL(KIND = wp) :: zumax, zvmax
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zfr_l, ztmp1, ztmp2, zotx1, zoty1, zotz1, zitx1, zity1, zitz1
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: ztmp3, ztmp4
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    TYPE(ProfileData), SAVE :: psy_profile8
+    TYPE(ProfileData), SAVE :: psy_profile9
+    TYPE(ProfileData), SAVE :: psy_profile10
+    TYPE(ProfileData), SAVE :: psy_profile11
+    TYPE(ProfileData), SAVE :: psy_profile12
+    TYPE(ProfileData), SAVE :: psy_profile13
+    CALL ProfileStart('sbc_cpl_snd', 'r0', psy_profile0)
     isec = (kt - nit000) * NINT(rdt)
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zfr_l(:, :) = 1. - fr_i(:, :)
     !$ACC END KERNELS
@@ -1431,7 +1542,9 @@ MODULE sbccpl
         !$ACC END KERNELS
       ELSE
         IF (l_usect) THEN
+          CALL ProfileStart('sbc_cpl_snd', 'r1', psy_profile1)
           ztmp1(:, :) = eos_pt_from_ct(tsn(:, :, 1, jp_tem), tsn(:, :, 1, jp_sal))
+          CALL ProfileEnd(psy_profile1)
         ELSE
           !$ACC KERNELS
           ztmp1(:, :) = tsn(:, :, 1, jp_tem)
@@ -1452,11 +1565,13 @@ MODULE sbccpl
             ztmp3(:, :, 1 : jpl) = tn_ice(:, :, 1 : jpl)
             !$ACC END KERNELS
           CASE ('no')
+            CALL ProfileStart('sbc_cpl_snd', 'r2', psy_profile2)
             WHERE (SUM(a_i, dim = 3) /= 0.)
               ztmp3(:, :, 1) = SUM(tn_ice * a_i, dim = 3) / SUM(a_i, dim = 3)
             ELSEWHERE
               ztmp3(:, :, 1) = rt0
             END WHERE
+            CALL ProfileEnd(psy_profile2)
           CASE DEFAULT
             CALL ctl_stop('sbc_cpl_snd: wrong definition of sn_snd_temp%clcat')
           END SELECT
@@ -1509,9 +1624,11 @@ MODULE sbccpl
           CALL ctl_stop('sbc_cpl_snd: wrong definition of sn_snd_temp%cldes')
         END SELECT
       END IF
+      CALL ProfileStart('sbc_cpl_snd', 'r3', psy_profile3)
       IF (ssnd(jps_toce) % laction) CALL cpl_snd(jps_toce, isec, RESHAPE(ztmp1, (/jpi, jpj, 1/)), info)
       IF (ssnd(jps_tice) % laction) CALL cpl_snd(jps_tice, isec, ztmp3, info)
       IF (ssnd(jps_tmix) % laction) CALL cpl_snd(jps_tmix, isec, RESHAPE(ztmp1, (/jpi, jpj, 1/)), info)
+      CALL ProfileEnd(psy_profile3)
     END IF
     IF (ssnd(jps_ttilyr) % laction) THEN
       SELECT CASE (sn_snd_ttilyr % cldes)
@@ -1533,11 +1650,13 @@ MODULE sbccpl
           ztmp3(:, :, 1 : jpl) = alb_ice(:, :, 1 : jpl)
           !$ACC END KERNELS
         CASE ('no')
+          CALL ProfileStart('sbc_cpl_snd', 'r4', psy_profile4)
           WHERE (SUM(a_i, dim = 3) /= 0.)
             ztmp1(:, :) = SUM(alb_ice(:, :, 1 : jpl) * a_i(:, :, 1 : jpl), dim = 3) / SUM(a_i(:, :, 1 : jpl), dim = 3)
           ELSEWHERE
             ztmp1(:, :) = alb_oce_mix(:, :)
           END WHERE
+          CALL ProfileEnd(psy_profile4)
         CASE DEFAULT
           CALL ctl_stop('sbc_cpl_snd: wrong definition of sn_snd_alb%clcat')
         END SELECT
@@ -1548,23 +1667,27 @@ MODULE sbccpl
           ztmp3(:, :, 1 : jpl) = alb_ice(:, :, 1 : jpl) * a_i(:, :, 1 : jpl)
           !$ACC END KERNELS
         CASE ('no')
+          CALL ProfileStart('sbc_cpl_snd', 'r5', psy_profile5)
           WHERE (fr_i(:, :) > 0.)
             ztmp1(:, :) = SUM(alb_ice(:, :, 1 : jpl) * a_i(:, :, 1 : jpl), dim = 3)
           ELSEWHERE
             ztmp1(:, :) = 0.
           END WHERE
+          CALL ProfileEnd(psy_profile5)
         CASE DEFAULT
           CALL ctl_stop('sbc_cpl_snd: wrong definition of sn_snd_ice%clcat')
         END SELECT
       CASE DEFAULT
         CALL ctl_stop('sbc_cpl_snd: wrong definition of sn_snd_alb%cldes')
       END SELECT
+      CALL ProfileStart('sbc_cpl_snd', 'r6', psy_profile6)
       SELECT CASE (sn_snd_alb % clcat)
       CASE ('yes')
         CALL cpl_snd(jps_albice, isec, ztmp3, info)
       CASE ('no')
         CALL cpl_snd(jps_albice, isec, RESHAPE(ztmp1, (/jpi, jpj, 1/)), info)
       END SELECT
+      CALL ProfileEnd(psy_profile6)
     END IF
     IF (ssnd(jps_albmix) % laction) THEN
       !$ACC KERNELS
@@ -1641,6 +1764,7 @@ MODULE sbccpl
           ztmp4(:, :, 1 : jpl) = h_s(:, :, 1 : jpl)
           !$ACC END KERNELS
         CASE ('no')
+          CALL ProfileStart('sbc_cpl_snd', 'r7', psy_profile7)
           WHERE (SUM(a_i, dim = 3) /= 0.)
             ztmp3(:, :, 1) = SUM(h_i * a_i, dim = 3) / SUM(a_i, dim = 3)
             ztmp4(:, :, 1) = SUM(h_s * a_i, dim = 3) / SUM(a_i, dim = 3)
@@ -1648,14 +1772,17 @@ MODULE sbccpl
             ztmp3(:, :, 1) = 0.
             ztmp4(:, :, 1) = 0.
           END WHERE
+          CALL ProfileEnd(psy_profile7)
         CASE DEFAULT
           CALL ctl_stop('sbc_cpl_snd: wrong definition of sn_snd_thick%clcat')
         END SELECT
       CASE DEFAULT
         CALL ctl_stop('sbc_cpl_snd: wrong definition of sn_snd_thick%cldes')
       END SELECT
+      CALL ProfileStart('sbc_cpl_snd', 'r8', psy_profile8)
       IF (ssnd(jps_hice) % laction) CALL cpl_snd(jps_hice, isec, ztmp3, info)
       IF (ssnd(jps_hsnw) % laction) CALL cpl_snd(jps_hsnw, isec, ztmp4, info)
+      CALL ProfileEnd(psy_profile8)
     END IF
     IF (ssnd(jps_a_p) % laction .OR. ssnd(jps_ht_p) % laction) THEN
       SELECT CASE (sn_snd_mpnd % cldes)
@@ -1681,8 +1808,10 @@ MODULE sbccpl
       CASE DEFAULT
         CALL ctl_stop('sbc_cpl_snd: wrong definition of sn_snd_mpnd%cldes')
       END SELECT
+      CALL ProfileStart('sbc_cpl_snd', 'r9', psy_profile9)
       IF (ssnd(jps_a_p) % laction) CALL cpl_snd(jps_a_p, isec, ztmp3, info)
       IF (ssnd(jps_ht_p) % laction) CALL cpl_snd(jps_ht_p, isec, ztmp4, info)
+      CALL ProfileEnd(psy_profile9)
     END IF
     IF (ssnd(jps_kice) % laction) THEN
       SELECT CASE (sn_snd_cond % cldes)
@@ -1783,12 +1912,14 @@ MODULE sbccpl
           CALL oce2geo(ztmp1, ztmp2, 'T', zitx1, zity1, zitz1)
         END IF
       END IF
+      CALL ProfileStart('sbc_cpl_snd', 'r10', psy_profile10)
       IF (ssnd(jps_ocx1) % laction) CALL cpl_snd(jps_ocx1, isec, RESHAPE(zotx1, (/jpi, jpj, 1/)), info)
       IF (ssnd(jps_ocy1) % laction) CALL cpl_snd(jps_ocy1, isec, RESHAPE(zoty1, (/jpi, jpj, 1/)), info)
       IF (ssnd(jps_ocz1) % laction) CALL cpl_snd(jps_ocz1, isec, RESHAPE(zotz1, (/jpi, jpj, 1/)), info)
       IF (ssnd(jps_ivx1) % laction) CALL cpl_snd(jps_ivx1, isec, RESHAPE(zitx1, (/jpi, jpj, 1/)), info)
       IF (ssnd(jps_ivy1) % laction) CALL cpl_snd(jps_ivy1, isec, RESHAPE(zity1, (/jpi, jpj, 1/)), info)
       IF (ssnd(jps_ivz1) % laction) CALL cpl_snd(jps_ivz1, isec, RESHAPE(zitz1, (/jpi, jpj, 1/)), info)
+      CALL ProfileEnd(psy_profile10)
     END IF
     IF (ssnd(jps_ocxw) % laction .OR. ssnd(jps_ocyw) % laction) THEN
       SELECT CASE (TRIM(sn_snd_crtw % cldes))
@@ -1840,12 +1971,16 @@ MODULE sbccpl
           !$ACC END KERNELS
         END IF
       END IF
+      CALL ProfileStart('sbc_cpl_snd', 'r11', psy_profile11)
       IF (ssnd(jps_ocxw) % laction) CALL cpl_snd(jps_ocxw, isec, RESHAPE(zotx1, (/jpi, jpj, 1/)), info)
       IF (ssnd(jps_ocyw) % laction) CALL cpl_snd(jps_ocyw, isec, RESHAPE(zoty1, (/jpi, jpj, 1/)), info)
+      CALL ProfileEnd(psy_profile11)
     END IF
+    CALL ProfileStart('sbc_cpl_snd', 'r12', psy_profile12)
     IF (ssnd(jps_ficet) % laction) THEN
       CALL cpl_snd(jps_ficet, isec, RESHAPE(fr_i, (/jpi, jpj, 1/)), info)
     END IF
+    CALL ProfileEnd(psy_profile12)
     IF (ssnd(jps_wlev) % laction) THEN
       IF (ln_apr_dyn) THEN
         IF (kt /= nit000) THEN
@@ -1876,6 +2011,7 @@ MODULE sbccpl
       END IF
       CALL cpl_snd(jps_ssh, isec, RESHAPE(ztmp1, (/jpi, jpj, 1/)), info)
     END IF
+    CALL ProfileStart('sbc_cpl_snd', 'r13', psy_profile13)
     IF (ssnd(jps_soce) % laction) THEN
       CALL cpl_snd(jps_soce, isec, RESHAPE(tsn(:, :, 1, jp_sal), (/jpi, jpj, 1/)), info)
     END IF
@@ -1894,6 +2030,7 @@ MODULE sbccpl
     IF (ssnd(jps_rnf) % laction) CALL cpl_snd(jps_rnf, isec, RESHAPE(rnf, (/jpi, jpj, 1/)), info)
     IF (ssnd(jps_taum) % laction) CALL cpl_snd(jps_taum, isec, RESHAPE(taum, (/jpi, jpj, 1/)), info)
     CALL eos_fzp(tsn(:, :, 1, jp_sal), sstfrz)
+    CALL ProfileEnd(psy_profile13)
     !$ACC KERNELS
     ztmp1(:, :) = sstfrz(:, :) + rt0
     !$ACC END KERNELS

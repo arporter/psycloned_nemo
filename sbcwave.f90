@@ -47,6 +47,7 @@ MODULE sbcwave
   REAL(KIND = wp), PUBLIC, ALLOCATABLE, DIMENSION(:, :, :) :: usd, vsd, wsd
   CONTAINS
   SUBROUTINE sbc_stokes
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER :: jj, ji, jk
     INTEGER :: ik
     REAL(KIND = wp) :: ztransp, zfac, zsp0
@@ -57,8 +58,13 @@ MODULE sbcwave
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zk_t, zk_u, zk_v, zu0_sd, zv0_sd
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zstokes_psi_u_top, zstokes_psi_v_top
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: ze3divh
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    CALL ProfileStart('sbc_stokes', 'r0', psy_profile0)
     ALLOCATE(ze3divh(jpi, jpj, jpk))
     ALLOCATE(zk_t(jpi, jpj), zk_u(jpi, jpj), zk_v(jpi, jpj), zu0_sd(jpi, jpj), zv0_sd(jpi, jpj))
+    CALL ProfileEnd(psy_profile0)
     IF (ll_st_bv_li) THEN
       !$ACC KERNELS
       zfac = 2.0_wp * rpi / 16.0_wp
@@ -162,12 +168,14 @@ MODULE sbcwave
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('sbc_stokes', 'r1', psy_profile1)
     CALL lbc_lnk(ze3divh, 'T', 1.)
     IF (ln_linssh) THEN
       ik = 1
     ELSE
       ik = 2
     END IF
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     DO jk = jpkm1, ik, - 1
       wsd(:, :, jk) = wsd(:, :, jk + 1) - ze3divh(:, :, jk)
@@ -186,11 +194,13 @@ MODULE sbcwave
       div_sd(:, :) = div_sd(:, :) + ze3divh(:, :, jk)
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('sbc_stokes', 'r2', psy_profile2)
     CALL iom_put("ustokes", usd)
     CALL iom_put("vstokes", vsd)
     CALL iom_put("wstokes", wsd)
     DEALLOCATE(ze3divh)
     DEALLOCATE(zk_t, zk_u, zk_v, zu0_sd, zv0_sd)
+    CALL ProfileEnd(psy_profile2)
   END SUBROUTINE sbc_stokes
   SUBROUTINE sbc_wstress
     INTEGER :: jj, ji
@@ -215,7 +225,10 @@ MODULE sbcwave
     END IF
   END SUBROUTINE sbc_wstress
   SUBROUTINE sbc_wave(kt)
-    INTEGER, INTENT(IN   ) :: kt
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('sbc_wave', 'r0', psy_profile0)
     IF (ln_cdgw .AND. .NOT. cpl_wdrag) THEN
       CALL fld_read(kt, nn_fsbc, sf_cd)
       cdn_wave(:, :) = sf_cd(1) % fnow(:, :, 1) * tmask(:, :, 1)
@@ -244,6 +257,7 @@ MODULE sbcwave
       END IF
       IF ((ll_st_bv_li .AND. jp_hsw > 0 .AND. jp_wmp > 0 .AND. jp_usd > 0 .AND. jp_vsd > 0) .OR. (ll_st_peakfr .AND. jp_wfr > 0 .AND. jp_usd > 0 .AND. jp_vsd > 0)) CALL sbc_stokes
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE sbc_wave
   SUBROUTINE sbc_wave_init
     INTEGER :: ierror, ios

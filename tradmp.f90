@@ -28,10 +28,13 @@ MODULE tradmp
     IF (tra_dmp_alloc > 0) CALL ctl_warn('tra_dmp_alloc: allocation of arrays failed')
   END FUNCTION tra_dmp_alloc
   SUBROUTINE tra_dmp(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts) :: zts_dta
     REAL(KIND = wp), DIMENSION(:, :, :, :), ALLOCATABLE :: ztrdts
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     IF (ln_timing) CALL timing_start('tra_dmp')
     IF (l_trdtra) THEN
       ALLOCATE(ztrdts(jpi, jpj, jpk, jpts))
@@ -42,8 +45,8 @@ MODULE tradmp
     CALL dta_tsd(kt, zts_dta)
     SELECT CASE (nn_zdmp)
     CASE (0)
-      !$ACC KERNELS
       DO jn = 1, jpts
+        !$ACC KERNELS
         DO jk = 1, jpkm1
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
@@ -51,8 +54,8 @@ MODULE tradmp
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
     CASE (1)
       !$ACC KERNELS
       DO jk = 1, jpkm1
@@ -84,12 +87,16 @@ MODULE tradmp
       !$ACC KERNELS
       ztrdts(:, :, :, :) = tsa(:, :, :, :) - ztrdts(:, :, :, :)
       !$ACC END KERNELS
+      CALL ProfileStart('tra_dmp', 'r0', psy_profile0)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_dmp, ztrdts(:, :, :, jp_tem))
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_dmp, ztrdts(:, :, :, jp_sal))
       DEALLOCATE(ztrdts)
+      CALL ProfileEnd(psy_profile0)
     END IF
+    CALL ProfileStart('tra_dmp', 'r1', psy_profile1)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' dmp  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_dmp')
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE tra_dmp
   SUBROUTINE tra_dmp_init
     INTEGER :: ios, imask

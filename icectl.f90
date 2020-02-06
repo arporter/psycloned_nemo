@@ -20,6 +20,7 @@ MODULE icectl
   PUBLIC :: ice_prt3D
   CONTAINS
   SUBROUTINE ice_cons_hsm(icount, cd_routine, pdiag_v, pdiag_s, pdiag_t, pdiag_fv, pdiag_fs, pdiag_ft)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: icount
     CHARACTER(LEN = *), INTENT(IN) :: cd_routine
     REAL(KIND = wp), INTENT(INOUT) :: pdiag_v, pdiag_s, pdiag_t, pdiag_fv, pdiag_fs, pdiag_ft
@@ -28,6 +29,8 @@ MODULE icectl
     REAL(KIND = wp) :: zvtrp, zetrp
     REAL(KIND = wp) :: zarea, zv_sill, zs_sill, zt_sill
     REAL(KIND = wp), PARAMETER :: zconv = 1.E-9
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice_cons_hsm', 'r0', psy_profile0)
     IF (icount == 0) THEN
       pdiag_fv = glob_sum(- (wfx_bog(:, :) + wfx_bom(:, :) + wfx_sum(:, :) + wfx_sni(:, :) + wfx_opw(:, :) + wfx_res(:, :) + wfx_dyn(:, :) + wfx_lam(:, :) + wfx_pnd(:, :) + wfx_snw_sni(:, :) + wfx_snw_sum(:, :) + wfx_snw_dyn(:, :) + wfx_snw_sub(:, :) + wfx_ice_sub(:, :) + wfx_spr(:, :)) * e1e2t(:, :)) * zconv
       pdiag_fs = glob_sum((sfx_bri(:, :) + sfx_bog(:, :) + sfx_bom(:, :) + sfx_sum(:, :) + sfx_sni(:, :) + sfx_opw(:, :) + sfx_res(:, :) + sfx_dyn(:, :) + sfx_sub(:, :) + sfx_lam(:, :)) * e1e2t(:, :)) * zconv
@@ -60,12 +63,16 @@ MODULE icectl
         IF (zamin < - epsi10) WRITE(numout, FMT = *) 'violation a_i<0               (', cd_routine, ') = ', zamin
       END IF
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_cons_hsm
   SUBROUTINE ice_cons_final(cd_routine)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = *), INTENT(IN) :: cd_routine
     REAL(KIND = wp) :: zhfx, zsfx, zvfx
     REAL(KIND = wp) :: zarea, zv_sill, zs_sill, zt_sill
     REAL(KIND = wp), PARAMETER :: zconv = 1.E-9
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice_cons_final', 'r0', psy_profile0)
     zvfx = glob_sum((wfx_ice + wfx_snw + wfx_spr + wfx_sub + diag_vice + diag_vsnw) * e1e2t) * zconv * rday
     zsfx = glob_sum((sfx + diag_sice) * e1e2t) * zconv * rday
     zhfx = glob_sum((qt_atm_oi - qt_oce_ai - diag_heat - diag_trp_ei - diag_trp_es) * e1e2t) * zconv
@@ -78,8 +85,10 @@ MODULE icectl
       IF (ABS(zsfx) > zs_sill) WRITE(numout, FMT = *) 'violation sfx  [psu*Mt/day]   (', cd_routine, ') = ', zsfx
       IF (ABS(zhfx) > zt_sill) WRITE(numout, FMT = *) 'violation hfx  [GW]           (', cd_routine, ') = ', zhfx
     END IF
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_cons_final
   SUBROUTINE ice_ctl(kt)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jl
     INTEGER :: inb_altests
@@ -87,10 +96,22 @@ MODULE icectl
     REAL(KIND = wp) :: ztmelts
     CHARACTER(LEN = 30), DIMENSION(20) :: cl_alname
     INTEGER, DIMENSION(20) :: inb_alp
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(ProfileData), SAVE :: psy_profile4
+    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(ProfileData), SAVE :: psy_profile7
+    TYPE(ProfileData), SAVE :: psy_profile8
+    TYPE(ProfileData), SAVE :: psy_profile9
+    CALL ProfileStart('ice_ctl', 'r0', psy_profile0)
     inb_altests = 10
     inb_alp(:) = 0
     ialert_id = 2
     cl_alname(ialert_id) = ' Incompat vol and con         '
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     DO jl = 1, jpl
       DO jj = 1, jpj
@@ -103,7 +124,9 @@ MODULE icectl
     END DO
     ialert_id = 3
     !$ACC END KERNELS
+    CALL ProfileStart('ice_ctl', 'r1', psy_profile1)
     cl_alname(ialert_id) = ' Very thick ice               '
+    CALL ProfileEnd(psy_profile1)
     !$ACC KERNELS
     jl = jpl
     DO jj = 1, jpj
@@ -115,7 +138,9 @@ MODULE icectl
     END DO
     ialert_id = 4
     !$ACC END KERNELS
+    CALL ProfileStart('ice_ctl', 'r2', psy_profile2)
     cl_alname(ialert_id) = ' Very fast ice               '
+    CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -126,7 +151,9 @@ MODULE icectl
     END DO
     ialert_id = 6
     !$ACC END KERNELS
+    CALL ProfileStart('ice_ctl', 'r3', psy_profile3)
     cl_alname(ialert_id) = ' Ice on continents           '
+    CALL ProfileEnd(psy_profile3)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -137,7 +164,9 @@ MODULE icectl
     END DO
     ialert_id = 7
     !$ACC END KERNELS
+    CALL ProfileStart('ice_ctl', 'r4', psy_profile4)
     cl_alname(ialert_id) = ' Very fresh ice               '
+    CALL ProfileEnd(psy_profile4)
     !$ACC KERNELS
     DO jl = 1, jpl
       DO jj = 1, jpj
@@ -150,7 +179,9 @@ MODULE icectl
     END DO
     ialert_id = 9
     !$ACC END KERNELS
+    CALL ProfileStart('ice_ctl', 'r5', psy_profile5)
     cl_alname(ialert_id) = ' Very old   ice               '
+    CALL ProfileEnd(psy_profile5)
     !$ACC KERNELS
     DO jl = 1, jpl
       DO jj = 1, jpj
@@ -163,7 +194,9 @@ MODULE icectl
     END DO
     ialert_id = 5
     !$ACC END KERNELS
+    CALL ProfileStart('ice_ctl', 'r6', psy_profile6)
     cl_alname(ialert_id) = ' High salt flux               '
+    CALL ProfileEnd(psy_profile6)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -174,7 +207,9 @@ MODULE icectl
     END DO
     ialert_id = 8
     !$ACC END KERNELS
+    CALL ProfileStart('ice_ctl', 'r7', psy_profile7)
     cl_alname(ialert_id) = ' fnsolar very big             '
+    CALL ProfileEnd(psy_profile7)
     !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
@@ -185,10 +220,12 @@ MODULE icectl
     END DO
     ialert_id = 10
     !$ACC END KERNELS
+    CALL ProfileStart('ice_ctl', 'r8', psy_profile8)
     cl_alname(ialert_id) = ' Very warm ice                '
-    !$ACC KERNELS
     inb_alp(ialert_id) = 0
+    CALL ProfileEnd(psy_profile8)
     DO jl = 1, jpl
+      !$ACC KERNELS
       DO jk = 1, nlay_i
         DO jj = 1, jpj
           DO ji = 1, jpi
@@ -199,8 +236,9 @@ MODULE icectl
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
+    CALL ProfileStart('ice_ctl', 'r9', psy_profile9)
     IF (lk_mpp) THEN
       DO ialert_id = 1, inb_altests
         CALL mpp_sum(inb_alp(ialert_id))
@@ -215,12 +253,16 @@ MODULE icectl
         WRITE(numout, FMT = *) ialert_id, cl_alname(ialert_id) // ' : ', inb_alp(ialert_id), ' times ! '
       END DO
     END IF
+    CALL ProfileEnd(psy_profile9)
   END SUBROUTINE ice_ctl
   SUBROUTINE ice_prt(kt, ki, kj, kn, cd1)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN) :: ki, kj, kn
     CHARACTER(LEN = *), INTENT(IN) :: cd1
     INTEGER :: jl, ji, jj
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice_prt', 'r0', psy_profile0)
     DO ji = mi0(ki), mi1(ki)
       DO jj = mj0(kj), mj1(kj)
         WRITE(numout, FMT = *) ' time step ', kt, ' ', cd1
@@ -358,10 +400,14 @@ MODULE icectl
         WRITE(numout, FMT = *) ' '
       END DO
     END DO
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_prt
   SUBROUTINE ice_prt3D(cd_routine)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     CHARACTER(LEN = *), INTENT(IN) :: cd_routine
     INTEGER :: jk, jl
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('ice_prt3d', 'r0', psy_profile0)
     CALL prt_ctl_info(' ========== ')
     CALL prt_ctl_info(cd_routine)
     CALL prt_ctl_info(' ========== ')
@@ -413,5 +459,6 @@ MODULE icectl
     CALL prt_ctl_info('   ~~~~~~~~~~ ')
     CALL prt_ctl(tab2d_1 = utau, clinfo1 = ' utau      : ', tab2d_2 = vtau, clinfo2 = ' vtau      : ')
     CALL prt_ctl(tab2d_1 = utau_ice, clinfo1 = ' utau_ice  : ', tab2d_2 = vtau_ice, clinfo2 = ' vtau_ice  : ')
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE ice_prt3D
 END MODULE icectl

@@ -33,6 +33,7 @@ MODULE zdftmx
     IF (zdf_tmx_alloc /= 0) CALL ctl_warn('zdf_tmx_alloc: failed to allocate arrays')
   END FUNCTION zdf_tmx_alloc
   SUBROUTINE zdf_tmx(kt, p_avm, p_avt, p_avs)
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avt, p_avs
@@ -40,6 +41,8 @@ MODULE zdftmx
     REAL(KIND = wp) :: ztpc
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zkz
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zav_tide
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     !$ACC KERNELS
     zav_tide(:, :, :) = MIN(60.E-4, az_tmx(:, :, :) / MAX(rn_n2min, rn2(:, :, :)))
     zkz(:, :) = 0.E0
@@ -71,8 +74,10 @@ MODULE zdftmx
       END DO
       ztpc = rau0 / (rn_tfe * rn_me) * ztpc
       !$ACC END KERNELS
+      CALL ProfileStart('zdf_tmx', 'r0', psy_profile0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '          N Total power consumption by av_tide    : ztpc = ', ztpc * 1.E-12, 'TW'
+      CALL ProfileEnd(psy_profile0)
     END IF
     IF (ln_tmx_itf) CALL tmx_itf(kt, zav_tide)
     !$ACC KERNELS
@@ -86,11 +91,13 @@ MODULE zdftmx
       END DO
     END DO
     !$ACC END KERNELS
+    CALL ProfileStart('zdf_tmx', 'r1', psy_profile1)
     CALL iom_put("av_tmx", zav_tide)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = zav_tide, clinfo1 = ' tmx - av_tide: ', tab3d_2 = p_avt, clinfo2 = ' p_avt: ', kdim = jpk)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE zdf_tmx
   SUBROUTINE tmx_itf(kt, pav)
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN ) :: kt
     REAL(KIND = wp), INTENT(INOUT), DIMENSION(jpi, jpj, jpk) :: pav
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcoef, ztpc
@@ -103,18 +110,26 @@ MODULE zdftmx
     zdn2dz(:, :, jpk) = 0.E0
     zempba_3d_1(:, :, jpk) = 0.E0
     zempba_3d_2(:, :, jpk) = 0.E0
+    !$ACC END KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       zdn2dz(:, :, jk) = rn2(:, :, jk) - rn2(:, :, jk + 1)
       zempba_3d_1(:, :, jk) = SQRT(MAX(0.E0, rn2(:, :, jk)))
       zempba_3d_2(:, :, jk) = MAX(0.E0, rn2(:, :, jk))
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     zsum(:, :) = 0.E0
     zsum1(:, :) = 0.E0
     zsum2(:, :) = 0.E0
+    !$ACC END KERNELS
     DO jk = 2, jpk
+      !$ACC KERNELS
       zsum1(:, :) = zsum1(:, :) + zempba_3d_1(:, :, jk) * e3w_n(:, :, jk) * tmask(:, :, jk) * tmask(:, :, jk - 1)
       zsum2(:, :) = zsum2(:, :) + zempba_3d_2(:, :, jk) * e3w_n(:, :, jk) * tmask(:, :, jk) * tmask(:, :, jk - 1)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (zsum1(ji, jj) /= 0.E0) zsum1(ji, jj) = 1.E0 / zsum1(ji, jj)

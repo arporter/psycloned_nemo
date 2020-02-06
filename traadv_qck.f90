@@ -17,14 +17,17 @@ MODULE traadv_qck
   LOGICAL :: l_ptr
   CONTAINS
   SUBROUTINE tra_adv_qck(kt, kit000, cdtype, p2dt, pun, pvn, pwn, ptb, ptn, pta, kjpt)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun, pvn, pwn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb, ptn
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun, pvn, pwn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb, ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
+    TYPE(ProfileData), SAVE :: psy_profile0
+    CALL ProfileStart('tra_adv_qck', 'r0', psy_profile0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'tra_adv_qck : 3rd order quickest advection scheme on ', cdtype
@@ -38,18 +41,21 @@ MODULE traadv_qck
     CALL tra_adv_qck_i(kt, cdtype, p2dt, pun, ptb, ptn, pta, kjpt)
     CALL tra_adv_qck_j(kt, cdtype, p2dt, pvn, ptb, ptn, pta, kjpt)
     CALL tra_adv_cen2_k(kt, cdtype, pwn, ptn, pta, kjpt)
+    CALL ProfileEnd(psy_profile0)
   END SUBROUTINE tra_adv_qck
   SUBROUTINE tra_adv_qck_i(kt, cdtype, p2dt, pun, ptb, ptn, pta, kjpt)
-    INTEGER, INTENT(IN   ) :: kt
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pun
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb, ptn
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pun
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb, ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp) :: ztra, zbtr, zdir, zdx, zmsk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwx, zfu, zfc, zfd
+    TYPE(ProfileData), SAVE :: psy_profile0
     DO jn = 1, kjpt
       !$ACC KERNELS
       zfu(:, :, :) = 0._wp
@@ -87,8 +93,10 @@ MODULE traadv_qck
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_adv_qck_i', 'r0', psy_profile0)
       CALL lbc_lnk_multi(zfu(:, :, :), 'T', 1., zfd(:, :, :), 'T', 1., zfc(:, :, :), 'T', 1., zwx(:, :, :), 'T', 1.)
       CALL quickest(zfu, zfd, zfc, zwx)
+      CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
@@ -127,16 +135,19 @@ MODULE traadv_qck
     END DO
   END SUBROUTINE tra_adv_qck_i
   SUBROUTINE tra_adv_qck_j(kt, cdtype, p2dt, pvn, ptb, ptn, pta, kjpt)
-    INTEGER, INTENT(IN   ) :: kt
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    REAL(KIND = wp), INTENT(IN   ) :: p2dt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pvn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb, ptn
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    REAL(KIND = wp), INTENT(IN ) :: p2dt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pvn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb, ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp) :: ztra, zbtr, zdir, zdx, zmsk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwy, zfu, zfc, zfd
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
     DO jn = 1, kjpt
       !$ACC KERNELS
       zfu(:, :, :) = 0.0
@@ -174,8 +185,10 @@ MODULE traadv_qck
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_adv_qck_j', 'r0', psy_profile0)
       CALL lbc_lnk_multi(zfu(:, :, :), 'T', 1., zfd(:, :, :), 'T', 1., zfc(:, :, :), 'T', 1., zwy(:, :, :), 'T', 1.)
       CALL quickest(zfu, zfd, zfc, zwy)
+      CALL ProfileEnd(psy_profile0)
       !$ACC KERNELS
       DO jk = 1, jpkm1
         DO jj = 2, jpjm1
@@ -210,16 +223,18 @@ MODULE traadv_qck
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_adv_qck_j', 'r1', psy_profile1)
       IF (l_trd) CALL trd_tra(kt, cdtype, jn, jptra_yad, zwy, pvn, ptn(:, :, :, jn))
       IF (l_ptr) CALL dia_ptr_hst(jn, 'adv', zwy(:, :, :))
+      CALL ProfileEnd(psy_profile1)
     END DO
   END SUBROUTINE tra_adv_qck_j
   SUBROUTINE tra_adv_cen2_k(kt, cdtype, pwn, ptn, pta, kjpt)
-    INTEGER, INTENT(IN   ) :: kt
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pwn
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptn
+    INTEGER, INTENT(IN ) :: kt
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pwn
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwz
@@ -265,9 +280,9 @@ MODULE traadv_qck
     END DO
   END SUBROUTINE tra_adv_cen2_k
   SUBROUTINE quickest(pfu, pfd, pfc, puc)
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pfu
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pfd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pfc
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pfu
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pfd
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pfc
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: puc
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcoef1, zcoef2, zcoef3

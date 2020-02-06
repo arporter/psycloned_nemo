@@ -21,19 +21,23 @@ MODULE traldf_lap_blp
   LOGICAL :: l_hst
   CONTAINS
   SUBROUTINE tra_ldf_lap(kt, kit000, cdtype, pahu, pahv, pgu, pgv, pgui, pgvi, ptb, pta, kjpt, kpass)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    INTEGER, INTENT(IN   ) :: kpass
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pahu, pahv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgu, pgv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgui, pgvi
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    INTEGER, INTENT(IN ) :: kpass
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pahu, pahv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN ) :: pgu, pgv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN ) :: pgui, pgvi
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp) :: zsign
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ztu, ztv, zaheeu, zaheev
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('tra_ldf_lap', 'r0', psy_profile0)
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'tra_ldf_lap : iso-level laplacian diffusion on ', cdtype, ', pass=', kpass
@@ -43,12 +47,13 @@ MODULE traldf_lap_blp
     l_ptr = .FALSE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
     IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    CALL ProfileEnd(psy_profile0)
+    !$ACC KERNELS
     IF (kpass == 1) THEN
       zsign = 1._wp
     ELSE
       zsign = - 1._wp
     END IF
-    !$ACC KERNELS
     DO jk = 1, jpkm1
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
@@ -98,27 +103,33 @@ MODULE traldf_lap_blp
         END DO
       END DO
       !$ACC END KERNELS
+      CALL ProfileStart('tra_ldf_lap', 'r1', psy_profile1)
       IF ((kpass == 1 .AND. .NOT. ln_traldf_blp) .OR. (kpass == 2 .AND. ln_traldf_blp)) THEN
         IF (l_ptr) CALL dia_ptr_hst(jn, 'ldf', - ztv(:, :, :))
         IF (l_hst) CALL dia_ar5_hst(jn, 'ldf', - ztu(:, :, :), - ztv(:, :, :))
       END IF
+      CALL ProfileEnd(psy_profile1)
     END DO
   END SUBROUTINE tra_ldf_lap
   SUBROUTINE tra_ldf_blp(kt, kit000, cdtype, pahu, pahv, pgu, pgv, pgui, pgvi, ptb, pta, kjpt, kldf)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    INTEGER, INTENT(IN   ) :: kldf
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pahu, pahv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgu, pgv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgui, pgvi
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN ) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    INTEGER, INTENT(IN ) :: kjpt
+    INTEGER, INTENT(IN ) :: kldf
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pahu, pahv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN ) :: pgu, pgv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN ) :: pgui, pgvi
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt) :: zlap
     REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt) :: zglu, zglv
     REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt) :: zgui, zgvi
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('tra_ldf_blp', 'r0', psy_profile0)
     IF (kt == kit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       SELECT CASE (kldf)
@@ -131,9 +142,11 @@ MODULE traldf_lap_blp
       END SELECT
       WRITE(numout, FMT = *) '~~~~~~~~~~~'
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zlap(:, :, :, :) = 0._wp
     !$ACC END KERNELS
+    CALL ProfileStart('tra_ldf_blp', 'r1', psy_profile1)
     SELECT CASE (kldf)
     CASE (np_blp)
       CALL tra_ldf_lap(kt, kit000, cdtype, pahu, pahv, pgu, pgv, pgui, pgvi, ptb, zlap, kjpt, 1)
@@ -156,5 +169,6 @@ MODULE traldf_lap_blp
     CASE (np_blp_it)
       CALL tra_ldf_triad(kt, kit000, cdtype, pahu, pahv, zglu, zglv, zgui, zgvi, zlap, ptb, pta, kjpt, 2)
     END SELECT
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE tra_ldf_blp
 END MODULE traldf_lap_blp

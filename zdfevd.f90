@@ -13,16 +13,21 @@ MODULE zdfevd
   PUBLIC :: zdf_evd
   CONTAINS
   SUBROUTINE zdf_evd(kt, p_avm, p_avt)
-    INTEGER, INTENT(IN   ) :: kt
+    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    INTEGER, INTENT(IN ) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zavt_evd, zavm_evd
+    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(ProfileData), SAVE :: psy_profile1
+    CALL ProfileStart('zdf_evd', 'r0', psy_profile0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'zdf_evd : Enhanced Vertical Diffusion (evd)'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~ '
       IF (lwp) WRITE(numout, FMT = *)
     END IF
+    CALL ProfileEnd(psy_profile0)
     !$ACC KERNELS
     zavt_evd(:, :, :) = p_avt(:, :, :)
     !$ACC END KERNELS
@@ -57,7 +62,9 @@ MODULE zdfevd
     !$ACC KERNELS
     zavt_evd(:, :, :) = p_avt(:, :, :) - zavt_evd(:, :, :)
     !$ACC END KERNELS
+    CALL ProfileStart('zdf_evd', 'r1', psy_profile1)
     CALL iom_put("avt_evd", zavt_evd)
     IF (l_trdtra) CALL trd_tra(kt, 'TRA', jp_tem, jptra_evd, zavt_evd)
+    CALL ProfileEnd(psy_profile1)
   END SUBROUTINE zdf_evd
 END MODULE zdfevd

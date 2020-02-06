@@ -91,7 +91,6 @@ MODULE crsini
     CALL crs_dom_e3(e1u, e2u, ze3u, e2e3u_crs, 'U', umask, e3u_crs, e3u_max_crs)
     CALL crs_dom_e3(e1v, e2v, ze3v, e1e3v_crs, 'V', vmask, e3v_crs, e3v_max_crs)
     CALL crs_dom_e3(e1t, e2t, ze3w, e1e2w_crs, 'W', tmask, e3w_crs, e3w_max_crs)
-    !$ACC KERNELS
     DO jk = 1, jpk
       DO ji = 1, jpi_crs
         DO jj = 1, jpj_crs
@@ -102,7 +101,6 @@ MODULE crsini
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
     CALL crs_dom_ope(gdept_0, 'MAX', 'T', tmask, gdept_crs, p_e3 = ze3t, psgn = 1.0)
     CALL crs_dom_ope(gdepw_0, 'MAX', 'W', tmask, gdepw_crs, p_e3 = ze3w, psgn = 1.0)
     CALL crs_dom_facvol(tmask, 'T', e1t, e2t, ze3t, ocean_volume_crs_t, facvol_t)
