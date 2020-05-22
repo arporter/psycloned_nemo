@@ -28,6 +28,7 @@ MODULE obs_surf_def
   END TYPE obs_surf
   CONTAINS
   SUBROUTINE obs_surf_alloc(surf, ksurf, kvar, kextra, kstp, kpi, kpj)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obs_surf), INTENT(INOUT) :: surf
     INTEGER, INTENT(IN) :: ksurf
     INTEGER, INTENT(IN) :: kvar
@@ -37,6 +38,8 @@ MODULE obs_surf_def
     INTEGER, INTENT(IN) :: kpj
     INTEGER :: ji
     INTEGER :: jvar
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_surf_alloc', 'r0', 0, 0)
     surf % nsurf = ksurf
     surf % nsurfmpp = 0
     surf % nextra = kextra
@@ -62,17 +65,23 @@ MODULE obs_surf_def
     surf % nsstpmpp(:) = 0
     surf % nsurfup = 0
     surf % lgrid = .FALSE.
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_surf_alloc
   SUBROUTINE obs_surf_dealloc(surf)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obs_surf), INTENT(INOUT) :: surf
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_surf_dealloc', 'r0', 0, 0)
     DEALLOCATE(surf % mi, surf % mj, surf % mt, surf % nsidx, surf % nsfil, surf % nyea, surf % nmon, surf % nday, surf % nhou, surf % nmin, surf % mstp, surf % nqc, surf % ntyp, surf % cwmo, surf % rlam, surf % rphi, surf % nsind)
     DEALLOCATE(surf % robs, surf % rmod)
     DEALLOCATE(surf % rext)
     DEALLOCATE(surf % vdmean)
     DEALLOCATE(surf % nsstp, surf % nsstpmpp)
     DEALLOCATE(surf % cvars)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_surf_dealloc
   SUBROUTINE obs_surf_compress(surf, newsurf, lallocate, kumout, lvalid)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obs_surf), INTENT(IN) :: surf
     TYPE(obs_surf), INTENT(INOUT) :: newsurf
     LOGICAL :: lallocate
@@ -82,15 +91,16 @@ MODULE obs_surf_def
     INTEGER :: ji
     INTEGER :: jk
     LOGICAL, DIMENSION(:), ALLOCATABLE :: llvalid
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('obs_surf_compress', 'r0', 0, 0)
     IF (PRESENT(lvalid)) THEN
-      !$ACC KERNELS
       insurf = 0
       DO ji = 1, surf % nsurf
         IF (lvalid(ji)) THEN
           insurf = insurf + 1
         END IF
       END DO
-      !$ACC END KERNELS
     ELSE
       insurf = surf % nsurf
     END IF
@@ -98,11 +108,17 @@ MODULE obs_surf_def
       CALL obs_surf_alloc(newsurf, insurf, surf % nvar, surf % nextra, surf % nstp, surf % npi, surf % npj)
     END IF
     ALLOCATE(llvalid(surf % nsurf))
+    CALL profile_psy_data0 % PostEnd
     IF (PRESENT(lvalid)) THEN
+      !$ACC KERNELS
       llvalid(:) = lvalid(:)
+      !$ACC END KERNELS
     ELSE
+      !$ACC KERNELS
       llvalid(:) = .TRUE.
+      !$ACC END KERNELS
     END IF
+    CALL profile_psy_data1 % PreStart('obs_surf_compress', 'r1', 0, 0)
     insurf = 0
     DO ji = 1, surf % nsurf
       IF (llvalid(ji)) THEN
@@ -139,8 +155,10 @@ MODULE obs_surf_def
     newsurf % cvars(:) = surf % cvars(:)
     newsurf % mt(insurf) = surf % mt(ji)
     DEALLOCATE(llvalid)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE obs_surf_compress
   SUBROUTINE obs_surf_decompress(surf, oldsurf, ldeallocate, kumout)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obs_surf), INTENT(INOUT) :: surf
     TYPE(obs_surf), INTENT(INOUT) :: oldsurf
     LOGICAL :: ldeallocate
@@ -148,6 +166,8 @@ MODULE obs_surf_def
     INTEGER :: ji
     INTEGER :: jj
     INTEGER :: jk
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_surf_decompress', 'r0', 0, 0)
     DO ji = 1, surf % nsurf
       jj = surf % nsind(ji)
       oldsurf % mi(jj) = surf % mi(ji)
@@ -181,5 +201,6 @@ MODULE obs_surf_def
       END DO
     END DO
     IF (ldeallocate) CALL obs_surf_dealloc(surf)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_surf_decompress
 END MODULE obs_surf_def

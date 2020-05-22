@@ -35,9 +35,14 @@ MODULE zdfphy
   LOGICAL :: l_zdfsh2
   CONTAINS
   SUBROUTINE zdf_phy_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jk
     INTEGER :: ioptio, ios
     NAMELIST /namzdf/ ln_zdfcst, ln_zdfric, ln_zdftke, ln_zdfgls, ln_zdfosm, ln_zdfevd, nn_evdm, rn_evd, ln_zdfnpc, nn_npc, nn_npcp, ln_zdfddm, rn_avts, rn_hsbfr, ln_zdfswm, ln_zdfiwm, ln_zdftmx, rn_avm0, rn_avt0, nn_avb, nn_havtb
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('zdf_phy_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'zdf_phy_init: ocean vertical physics'
@@ -77,31 +82,41 @@ MODULE zdfphy
       WRITE(numout, FMT = *) '         constant background or profile          nn_avb    = ', nn_avb
       WRITE(numout, FMT = *) '         horizontal variation for avtb           nn_havtb  = ', nn_havtb
     END IF
+    CALL profile_psy_data0 % PostEnd
     IF (nn_avb == 0) THEN
+      !$ACC KERNELS
       avmb(:) = rn_avm0
       avtb(:) = rn_avt0
+      !$ACC END KERNELS
     ELSE
+      !$ACC KERNELS
       avmb(:) = rn_avm0
       avtb(:) = rn_avt0 + (3.E-4_wp - 2._wp * rn_avt0) * 1.E-4_wp * gdepw_1d(:)
+      !$ACC END KERNELS
       IF (ln_sco .AND. lwp) CALL ctl_warn('avtb profile not valid in sco')
     END IF
     !$ACC KERNELS
     avtb_2d(:, :) = 1._wp
     !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('zdf_phy_init', 'r1', 0, 0)
     IF (nn_havtb == 1) THEN
       WHERE (- 15. <= gphit .AND. gphit < - 5) avtb_2d = (1. - 0.09 * (gphit + 15.))
       WHERE (- 5. <= gphit .AND. gphit < 5) avtb_2d = 0.1
       WHERE (5. <= gphit .AND. gphit < 15) avtb_2d = (0.1 + 0.09 * (gphit - 5.))
     END IF
-    !$ACC KERNELS
+    CALL profile_psy_data1 % PostEnd
     DO jk = 1, jpk
+      !$ACC KERNELS
       avt_k(:, :, jk) = avtb_2d(:, :) * avtb(jk) * wmask(:, :, jk)
       avm_k(:, :, jk) = avmb(jk) * wmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     avt(:, :, :) = 0._wp
     avs(:, :, :) = 0._wp
     avm(:, :, :) = 0._wp
     !$ACC END KERNELS
+    CALL profile_psy_data2 % PreStart('zdf_phy_init', 'r2', 0, 0)
     IF (ln_zdfnpc .AND. ln_zdfevd) CALL ctl_stop('zdf_phy_init: chose between ln_zdfnpc and ln_zdfevd')
     IF (ln_zdfosm .AND. ln_zdfevd) CALL ctl_stop('zdf_phy_init: chose between ln_zdfosm and ln_zdfevd')
     IF (lk_top .AND. ln_zdfnpc) CALL ctl_stop('zdf_phy_init: npc scheme is not working with key_top')
@@ -162,11 +177,16 @@ MODULE zdfphy
     IF (ln_zdftmx) CALL zdf_tmx_init
     IF (ln_zdfswm) CALL zdf_swm_init
     CALL zdf_drg_init
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE zdf_phy_init
   SUBROUTINE zdf_phy(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zsh2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('zdf_phy', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('zdf_phy')
     IF (l_zdfdrg) THEN
       CALL zdf_drg(kt, mbkt, r_Cdmin_bot, r_Cdmax_bot, r_z0_bot, r_ke0_bot, rCd0_bot, rCdU_bot)
@@ -185,6 +205,7 @@ MODULE zdfphy
     CASE (np_osm)
       CALL zdf_osm(kt, avm_k, avt_k)
     END SELECT
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     avt(:, :, 2 : jpkm1) = avt_k(:, :, 2 : jpkm1)
     avm(:, :, 2 : jpkm1) = avm_k(:, :, 2 : jpkm1)
@@ -204,6 +225,7 @@ MODULE zdfphy
       avs(2 : jpim1, 2 : jpjm1, 1 : jpkm1) = avt(2 : jpim1, 2 : jpjm1, 1 : jpkm1)
       !$ACC END KERNELS
     END IF
+    CALL profile_psy_data1 % PreStart('zdf_phy', 'r1', 0, 0)
     IF (ln_zdfswm) CALL zdf_swm(kt, avm, avt, avs)
     IF (ln_zdfiwm) CALL zdf_iwm(kt, avm, avt, avs)
     IF (ln_zdftmx) CALL zdf_tmx(kt, avm, avt, avs)
@@ -226,5 +248,6 @@ MODULE zdfphy
       IF (ln_zdfric) CALL ric_rst(kt, 'WRITE')
     END IF
     IF (ln_timing) CALL timing_stop('zdf_phy')
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE zdf_phy
 END MODULE zdfphy

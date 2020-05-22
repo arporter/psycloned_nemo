@@ -33,10 +33,15 @@ MODULE trdmxl_oce
   REAL(KIND = wp), PUBLIC, ALLOCATABLE, DIMENSION(:, :, :) :: tmltrd, smltrd, tmltrd_sum, tmltrd_csum_ln, tmltrd_csum_ub, smltrd_sum, smltrd_csum_ln, smltrd_csum_ub
   CONTAINS
   INTEGER FUNCTION trdmxl_oce_alloc()
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE lib_mpp
     INTEGER :: ierr(5)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    !$ACC KERNELS
     jpktrd = jpk
     ierr(:) = 0
+    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('trdmxl_oce_alloc', 'r0', 0, 0)
     ALLOCATE(nmxl(jpi, jpj), nbol(jpi, jpj), wkx(jpi, jpj, jpk), hmxl(jpi, jpj), tml(jpi, jpj), sml(jpi, jpj), tmlb(jpi, jpj), smlb(jpi, jpj), tmlbb(jpi, jpj), smlbb(jpi, jpj), STAT = ierr(1))
     ALLOCATE(tmlbn(jpi, jpj), smlbn(jpi, jpj), tmltrdm(jpi, jpj), smltrdm(jpi, jpj), tml_sum(jpi, jpj), tml_sumb(jpi, jpj), tmltrd_atf_sumb(jpi, jpj), STAT = ierr(2))
     ALLOCATE(sml_sum(jpi, jpj), sml_sumb(jpi, jpj), smltrd_atf_sumb(jpi, jpj), hmxl_sum(jpi, jpj), hmxlbn(jpi, jpj), tmlatfb(jpi, jpj), tmlatfn(jpi, jpj), STAT = ierr(3))
@@ -45,5 +50,6 @@ MODULE trdmxl_oce
     trdmxl_oce_alloc = MAXVAL(ierr)
     IF (lk_mpp) CALL mpp_sum(trdmxl_oce_alloc)
     IF (trdmxl_oce_alloc /= 0) CALL ctl_warn('trdmxl_oce_alloc: failed to allocate arrays')
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION trdmxl_oce_alloc
 END MODULE trdmxl_oce

@@ -11,6 +11,7 @@ MODULE usrdef_nam
   INTEGER, PUBLIC :: nn_GYRE
   CONTAINS
   SUBROUTINE usr_def_nam(ldtxt, ldnam, cd_cfg, kk_cfg, kpi, kpj, kpk, kperio)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *), DIMENSION(:), INTENT(OUT) :: ldtxt, ldnam
     CHARACTER(LEN = *), INTENT(OUT) :: cd_cfg
     INTEGER, INTENT(OUT) :: kk_cfg
@@ -18,6 +19,8 @@ MODULE usrdef_nam
     INTEGER, INTENT(OUT) :: kperio
     INTEGER :: ios, ii
     NAMELIST /namusr_def/ nn_GYRE, ln_bench, jpkglo
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('usr_def_nam', 'r0', 0, 0)
     ii = 1
     REWIND(UNIT = numnam_cfg)
     READ(numnam_cfg, namusr_def, IOSTAT = ios, ERR = 902)
@@ -51,5 +54,6 @@ MODULE usrdef_nam
     ii = ii + 1
     WRITE(ldtxt(ii), FMT = *) '   Lateral b.c. of the global domain set to closed     jperio = ', kperio
     ii = ii + 1
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE usr_def_nam
 END MODULE usrdef_nam

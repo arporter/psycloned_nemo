@@ -104,8 +104,13 @@ MODULE crs
   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:, :) :: nmln_crs, hmld_crs, hmlp_crs, hmlpt_crs
   CONTAINS
   INTEGER FUNCTION crs_dom_alloc()
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, DIMENSION(17) :: ierr
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    !$ACC KERNELS
     ierr(:) = 0
+    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('crs_dom_alloc', 'r0', 0, 0)
     ALLOCATE(mis2_crs(jpiglo_crs), mie2_crs(jpiglo_crs), mjs2_crs(jpjglo_crs), mje2_crs(jpjglo_crs), mi0_crs(jpiglo_crs), mi1_crs(jpiglo_crs), mj0_crs(jpjglo_crs), mj1_crs(jpjglo_crs), mig_crs(jpi_crs), mjg_crs(jpj_crs), STAT = ierr(1))
     ALLOCATE(tmask_crs(jpi_crs, jpj_crs, jpk), fmask_crs(jpi_crs, jpj_crs, jpk), umask_crs(jpi_crs, jpj_crs, jpk), vmask_crs(jpi_crs, jpj_crs, jpk), STAT = ierr(2))
     ALLOCATE(tmask_i_crs(jpi_crs, jpj_crs), rnfmsk_crs(jpi_crs, jpj_crs), tpol_crs(jpiglo_crs, jpjglo_crs), fpol_crs(jpiglo_crs, jpjglo_crs), STAT = ierr(3))
@@ -122,14 +127,22 @@ MODULE crs
     ALLOCATE(nmln_crs(jpi_crs, jpj_crs), hmld_crs(jpi_crs, jpj_crs), hmlp_crs(jpi_crs, jpj_crs), hmlpt_crs(jpi_crs, jpj_crs), STAT = ierr(14))
     ALLOCATE(nimppt_crs(jpnij), nlcit_crs(jpnij), nldit_crs(jpnij), nleit_crs(jpnij), nimppt_full(jpnij), nlcit_full(jpnij), nldit_full(jpnij), nleit_full(jpnij), njmppt_crs(jpnij), nlcjt_crs(jpnij), nldjt_crs(jpnij), nlejt_crs(jpnij), njmppt_full(jpnij), nlcjt_full(jpnij), nldjt_full(jpnij), nlejt_full(jpnij), STAT = ierr(15))
     crs_dom_alloc = MAXVAL(ierr)
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION crs_dom_alloc
   INTEGER FUNCTION crs_dom_alloc2()
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, DIMENSION(1) :: ierr
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    !$ACC KERNELS
     ierr(:) = 0
+    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('crs_dom_alloc2', 'r0', 0, 0)
     ALLOCATE(mjs_crs(nlej_crs), mje_crs(nlej_crs), mis_crs(nlei_crs), mie_crs(nlei_crs), STAT = ierr(1))
     crs_dom_alloc2 = MAXVAL(ierr)
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION crs_dom_alloc2
   SUBROUTINE dom_grid_glo
+    !$ACC KERNELS
     jpi = jpi_full
     jpj = jpj_full
     jpim1 = jpim1_full
@@ -154,8 +167,10 @@ MODULE crs
     nldjt(:) = nldjt_full(:)
     nlejt(:) = nlejt_full(:)
     njmppt(:) = njmppt_full(:)
+    !$ACC END KERNELS
   END SUBROUTINE dom_grid_glo
   SUBROUTINE dom_grid_crs
+    !$ACC KERNELS
     jpi = jpi_crs
     jpj = jpj_crs
     jpim1 = jpi_crsm1
@@ -180,5 +195,6 @@ MODULE crs
     nldjt(:) = nldjt_crs(:)
     nlejt(:) = nlejt_crs(:)
     njmppt(:) = njmppt_crs(:)
+    !$ACC END KERNELS
   END SUBROUTINE dom_grid_crs
 END MODULE crs

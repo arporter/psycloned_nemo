@@ -25,9 +25,12 @@ MODULE icedyn_adv
   INTEGER :: nn_UMx
   CONTAINS
   SUBROUTINE ice_dyn_adv(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: jl
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zmask
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_dyn_adv', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('icedyn_adv')
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
@@ -62,10 +65,14 @@ MODULE icedyn_adv
     IF (ln_icediachk) CALL ice_cons_hsm(1, 'icedyn_adv', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (ln_icectl) CALL ice_prt(kt, iiceprt, jiceprt, - 1, ' - ice dyn & trp - ')
     IF (ln_timing) CALL timing_stop('icedyn_adv')
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_dyn_adv
   SUBROUTINE ice_dyn_adv_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios, ioptio
     NAMELIST /namdyn_adv/ ln_adv_Pra, ln_adv_UMx, nn_UMx
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_dyn_adv_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ice_ref)
     READ(numnam_ice_ref, namdyn_adv, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namdyn_adv in reference namelist', lwp)
@@ -93,5 +100,6 @@ MODULE icedyn_adv
     END IF
     IF (ioptio /= 1) CALL ctl_stop('ice_dyn_adv_init: choose one and only one ice adv. scheme (ln_adv_Pra or ln_adv_UMx)')
     IF (ln_adv_Pra) CALL adv_pra_init
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_dyn_adv_init
 END MODULE icedyn_adv

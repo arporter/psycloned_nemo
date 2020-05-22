@@ -18,16 +18,17 @@ MODULE traldf_iso
   LOGICAL :: l_hst
   CONTAINS
   SUBROUTINE tra_ldf_iso(kt, kit000, cdtype, pahu, pahv, pgu, pgv, pgui, pgvi, ptb, ptbb, pta, kjpt, kpass)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
-    INTEGER, INTENT(IN   ) :: kjpt
-    INTEGER, INTENT(IN   ) :: kpass
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pahu, pahv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgu, pgv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN   ) :: pgui, pgvi
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptb
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: ptbb
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    INTEGER, INTENT(IN) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN) :: cdtype
+    INTEGER, INTENT(IN) :: kjpt
+    INTEGER, INTENT(IN) :: kpass
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: pahu, pahv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN) :: pgu, pgv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(IN) :: pgui, pgvi
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN) :: ptb
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN) :: ptbb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     INTEGER :: ikt
@@ -37,15 +38,21 @@ MODULE traldf_iso
     REAL(KIND = wp) :: zcoef0, ze3w_2, zsign, z2dt, z1_2dt
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zdkt, zdk1t, z2d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdit, zdjt, zftu, zftv, ztfw
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     IF (kpass == 1 .AND. kt == kit000) THEN
+      CALL profile_psy_data0 % PreStart('tra_ldf_iso', 'r0', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'tra_ldf_iso : rotated laplacian diffusion operator on ', cdtype
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
+      CALL profile_psy_data0 % PostEnd
       !$ACC KERNELS
       akz(:, :, :) = 0._wp
       ah_wslp2(:, :, :) = 0._wp
       !$ACC END KERNELS
     END IF
+    CALL profile_psy_data1 % PreStart('tra_ldf_iso', 'r1', 0, 0)
     l_hst = .FALSE.
     l_ptr = .FALSE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
@@ -61,9 +68,11 @@ MODULE traldf_iso
     ELSE
       zsign = - 1._wp
     END IF
+    CALL profile_psy_data1 % PostEnd
     IF (kpass == 1) THEN
       !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zmsku = wmask(ji, jj, jk) / MAX(umask(ji, jj, jk - 1) + umask(ji - 1, jj, jk) + umask(ji - 1, jj, jk - 1) + umask(ji, jj, jk), 1._wp)
@@ -78,6 +87,7 @@ MODULE traldf_iso
       IF (ln_traldf_msc) THEN
         !$ACC KERNELS
         DO jk = 2, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               akz(ji, jj, jk) = 0.25_wp * ((pahu(ji, jj, jk) + pahu(ji, jj, jk - 1)) / (e1u(ji, jj) * e1u(ji, jj)) + (pahu(ji - 1, jj, jk) + pahu(ji - 1, jj, jk - 1)) / (e1u(ji - 1, jj) * e1u(ji - 1, jj)) + (pahv(ji, jj, jk) + pahv(ji, jj, jk - 1)) / (e2v(ji, jj) * e2v(ji, jj)) + (pahv(ji, jj - 1, jk) + pahv(ji, jj - 1, jk - 1)) / (e2v(ji, jj - 1) * e2v(ji, jj - 1)))
@@ -88,6 +98,7 @@ MODULE traldf_iso
         IF (ln_traldf_blp) THEN
           !$ACC KERNELS
           DO jk = 2, jpkm1
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 1, jpim1
                 akz(ji, jj, jk) = 16._wp * ah_wslp2(ji, jj, jk) * (akz(ji, jj, jk) + ah_wslp2(ji, jj, jk) / (e3w_n(ji, jj, jk) * e3w_n(ji, jj, jk)))
@@ -98,6 +109,7 @@ MODULE traldf_iso
         ELSE IF (ln_traldf_lap) THEN
           !$ACC KERNELS
           DO jk = 2, jpkm1
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 1, jpim1
                 ze3w_2 = e3w_n(ji, jj, jk) * e3w_n(ji, jj, jk)
@@ -121,6 +133,7 @@ MODULE traldf_iso
       zdjt(1, :, :) = 0._wp
       zdjt(jpi, :, :) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zdit(ji, jj, jk) = (ptb(ji + 1, jj, jk, jn) - ptb(ji, jj, jk, jn)) * umask(ji, jj, jk)
@@ -131,6 +144,7 @@ MODULE traldf_iso
       !$ACC END KERNELS
       IF (ln_zps) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zdit(ji, jj, mbku(ji, jj)) = pgu(ji, jj, jn)
@@ -140,6 +154,7 @@ MODULE traldf_iso
         !$ACC END KERNELS
         IF (ln_isfcav) THEN
           !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               IF (miku(ji, jj) > 1) zdit(ji, jj, miku(ji, jj)) = pgui(ji, jj, jn)
@@ -152,17 +167,12 @@ MODULE traldf_iso
       DO jk = 1, jpkm1
         !$ACC KERNELS
         zdk1t(:, :) = (ptb(:, :, jk, jn) - ptb(:, :, jk + 1, jn)) * wmask(:, :, jk + 1)
-        !$ACC END KERNELS
         IF (jk == 1) THEN
-          !$ACC KERNELS
           zdkt(:, :) = zdk1t(:, :)
-          !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
           zdkt(:, :) = (ptb(:, :, jk - 1, jn) - ptb(:, :, jk, jn)) * wmask(:, :, jk)
-          !$ACC END KERNELS
         END IF
-        !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zabe1 = pahu(ji, jj, jk) * e2_e1u(ji, jj) * e3u_n(ji, jj, jk)
@@ -175,6 +185,7 @@ MODULE traldf_iso
             zftv(ji, jj, jk) = (zabe2 * zdjt(ji, jj, jk) + zcof2 * (zdkt(ji, jj + 1) + zdk1t(ji, jj) + zdk1t(ji, jj + 1) + zdkt(ji, jj))) * vmask(ji, jj, jk)
           END DO
         END DO
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (zftu(ji, jj, jk) - zftu(ji - 1, jj, jk) + zftv(ji, jj, jk) - zftv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
@@ -188,6 +199,7 @@ MODULE traldf_iso
       ztfw(:, :, 1) = 0._wp
       ztfw(:, :, jpk) = 0._wp
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zmsku = wmask(ji, jj, jk) / MAX(umask(ji, jj, jk - 1) + umask(ji - 1, jj, jk) + umask(ji - 1, jj, jk - 1) + umask(ji, jj, jk), 1._wp)
@@ -204,6 +216,7 @@ MODULE traldf_iso
       IF (ln_traldf_lap) THEN
         !$ACC KERNELS
         DO jk = 2, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 2, jpim1
               ztfw(ji, jj, jk) = ztfw(ji, jj, jk) + e1e2t(ji, jj) / e3w_n(ji, jj, jk) * wmask(ji, jj, jk) * (ah_wslp2(ji, jj, jk) - akz(ji, jj, jk)) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn))
@@ -212,31 +225,32 @@ MODULE traldf_iso
         END DO
         !$ACC END KERNELS
       ELSE
+        !$ACC KERNELS
         SELECT CASE (kpass)
         CASE (1)
-          !$ACC KERNELS
           DO jk = 2, jpkm1
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
                 ztfw(ji, jj, jk) = ztfw(ji, jj, jk) + ah_wslp2(ji, jj, jk) * e1e2t(ji, jj) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn)) / e3w_n(ji, jj, jk) * wmask(ji, jj, jk)
               END DO
             END DO
           END DO
-          !$ACC END KERNELS
         CASE (2)
-          !$ACC KERNELS
           DO jk = 2, jpkm1
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
                 ztfw(ji, jj, jk) = ztfw(ji, jj, jk) + e1e2t(ji, jj) / e3w_n(ji, jj, jk) * wmask(ji, jj, jk) * (ah_wslp2(ji, jj, jk) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn)) + akz(ji, jj, jk) * (ptbb(ji, jj, jk - 1, jn) - ptbb(ji, jj, jk, jn)))
               END DO
             END DO
           END DO
-          !$ACC END KERNELS
         END SELECT
+        !$ACC END KERNELS
       END IF
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (ztfw(ji, jj, jk) - ztfw(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
@@ -244,10 +258,12 @@ MODULE traldf_iso
         END DO
       END DO
       !$ACC END KERNELS
+      CALL profile_psy_data2 % PreStart('tra_ldf_iso', 'r2', 0, 0)
       IF ((kpass == 1 .AND. ln_traldf_lap) .OR. (kpass == 2 .AND. ln_traldf_blp)) THEN
         IF (l_ptr) CALL dia_ptr_hst(jn, 'ldf', - zftv(:, :, :))
         IF (l_hst) CALL dia_ar5_hst(jn, 'ldf', - zftu(:, :, :), - zftv(:, :, :))
       END IF
+      CALL profile_psy_data2 % PostEnd
     END DO
   END SUBROUTINE tra_ldf_iso
 END MODULE traldf_iso

@@ -48,18 +48,22 @@ MODULE zdftke
     IF (zdf_tke_alloc /= 0) CALL ctl_warn('zdf_tke_alloc: failed to allocate arrays')
   END FUNCTION zdf_tke_alloc
   SUBROUTINE zdf_tke(kt, p_sh2, p_avm, p_avt)
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: p_sh2
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('zdf_tke', 'r0', 0, 0)
     CALL tke_tke(gdepw_n, e3t_n, e3w_n, p_sh2, p_avm, p_avt)
     CALL tke_avn(gdepw_n, e3t_n, e3w_n, p_avm, p_avt)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE zdf_tke
   SUBROUTINE tke_tke(pdepw, p_e3t, p_e3w, p_sh2, p_avm, p_avt)
     USE zdf_oce, ONLY: en
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdepw
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_e3t, p_e3w
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_avm, p_avt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: pdepw
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: p_e3t, p_e3w
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: p_sh2
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zetop, zebot, zmsku, zmskv
     REAL(KIND = wp) :: zrhoa = 1.22
@@ -78,6 +82,7 @@ MODULE zdftke
     zfact1 = - .5_wp * rdt
     zfact2 = 1.5_wp * rdt * rn_ediss
     zfact3 = 0.5_wp * rn_ediss
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         en(ji, jj, 1) = MAX(rn_emin0, zbbrau * taum(ji, jj)) * tmask(ji, jj, 1)
@@ -86,6 +91,7 @@ MODULE zdftke
     !$ACC END KERNELS
     IF (ln_isfcav) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           en(ji, jj, mikt(ji, jj)) = rn_emin * tmask(ji, jj, 1)
@@ -95,6 +101,7 @@ MODULE zdftke
     END IF
     IF (ln_drg) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zmsku = (2. - umask(ji - 1, jj, mbkt(ji, jj)) * umask(ji, jj, mbkt(ji, jj)))
@@ -106,6 +113,7 @@ MODULE zdftke
       !$ACC END KERNELS
       IF (ln_isfcav) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zmsku = (2. - umask(ji - 1, jj, mikt(ji, jj)) * umask(ji, jj, mikt(ji, jj)))
@@ -126,6 +134,7 @@ MODULE zdftke
       zcof = 0.5 * 0.016 * 0.016 / (zrhoa * zcdrag)
       imlc(:, :) = mbkt(:, :) + 1
       DO jk = jpkm1, 2, - 1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zus = zcof * taum(ji, jj)
@@ -133,6 +142,7 @@ MODULE zdftke
           END DO
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zhlc(ji, jj) = pdepw(ji, jj, imlc(ji, jj))
@@ -140,6 +150,7 @@ MODULE zdftke
       END DO
       zcof = 0.016 / SQRT(zrhoa * zcdrag)
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zus = zcof * SQRT(taum(ji, jj))
@@ -151,9 +162,10 @@ MODULE zdftke
       END DO
       !$ACC END KERNELS
     END IF
+    !$ACC KERNELS
     IF (nn_pdl == 1) THEN
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zri = MAX(rn2b(ji, jj, jk), 0._wp) * p_avm(ji, jj, jk) / (p_sh2(ji, jj, jk) + rn_bshear)
@@ -161,10 +173,9 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zcof = zfact1 * tmask(ji, jj, jk)
@@ -178,30 +189,35 @@ MODULE zdftke
       END DO
     END DO
     DO jk = 3, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zdiag(ji, jj, jk) = zdiag(ji, jj, jk) - zd_lw(ji, jj, jk) * zd_up(ji, jj, jk - 1) / zdiag(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zd_lw(ji, jj, 2) = en(ji, jj, 2) - zd_lw(ji, jj, 2) * en(ji, jj, 1)
       END DO
     END DO
     DO jk = 3, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zd_lw(ji, jj, jk) = en(ji, jj, jk) - zd_lw(ji, jj, jk) / zdiag(ji, jj, jk - 1) * zd_lw(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         en(ji, jj, jpkm1) = zd_lw(ji, jj, jpkm1) / zdiag(ji, jj, jpkm1)
       END DO
     END DO
     DO jk = jpk - 2, 2, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           en(ji, jj, jk) = (zd_lw(ji, jj, jk) - zd_up(ji, jj, jk) * en(ji, jj, jk + 1)) / zdiag(ji, jj, jk)
@@ -209,35 +225,33 @@ MODULE zdftke
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           en(ji, jj, jk) = MAX(en(ji, jj, jk), rn_emin) * wmask(ji, jj, jk)
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
     IF (nn_etau == 1) THEN
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             en(ji, jj, jk) = en(ji, jj, jk) + rn_efr * en(ji, jj, 1) * EXP(- pdepw(ji, jj, jk) / htau(ji, jj)) * MAX(0., 1._wp - rn_eice * fr_i(ji, jj)) * wmask(ji, jj, jk) * tmask(ji, jj, 1)
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     ELSE IF (nn_etau == 2) THEN
-      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           jk = nmln(ji, jj)
           en(ji, jj, jk) = en(ji, jj, jk) + rn_efr * en(ji, jj, 1) * EXP(- pdepw(ji, jj, jk) / htau(ji, jj)) * MAX(0., 1._wp - rn_eice * fr_i(ji, jj)) * wmask(ji, jj, jk) * tmask(ji, jj, 1)
         END DO
       END DO
-      !$ACC END KERNELS
     ELSE IF (nn_etau == 3) THEN
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ztx2 = utau(ji - 1, jj) + utau(ji, jj)
@@ -249,19 +263,21 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
   END SUBROUTINE tke_tke
   SUBROUTINE tke_avn(pdepw, p_e3t, p_e3w, p_avm, p_avt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE zdf_oce, ONLY: en, avtb, avmb, avtb_2d
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdepw
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_e3t, p_e3w
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT) :: p_avm, p_avt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: pdepw
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: p_e3t, p_e3w
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(OUT) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zrn2, zraug, zcoef, zav
     REAL(KIND = wp) :: zdku, zdkv, zsqen
     REAL(KIND = wp) :: zemxl, zemlm, zemlp
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zmxlm, zmxld
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     zmxlm(:, :, :) = rmxl_min
     zmxld(:, :, :) = rmxl_min
@@ -269,6 +285,7 @@ MODULE zdftke
     IF (ln_mxl0) THEN
       !$ACC KERNELS
       zraug = vkarmn * 2.E5_wp / (rau0 * grav)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zmxlm(ji, jj, 1) = MAX(rn_mxl0, zraug * taum(ji, jj) * tmask(ji, jj, 1))
@@ -282,6 +299,7 @@ MODULE zdftke
     END IF
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zrn2 = MAX(rn2(ji, jj, jk), rsmall)
@@ -291,11 +309,10 @@ MODULE zdftke
     END DO
     zmxld(:, :, 1) = zmxlm(:, :, 1)
     zmxld(:, :, jpk) = rmxl_min
-    !$ACC END KERNELS
     SELECT CASE (nn_mxl)
     CASE (0)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zemxl = MIN(pdepw(ji, jj, jk) - pdepw(ji, jj, mikt(ji, jj)), zmxlm(ji, jj, jk), pdepw(ji, jj, mbkt(ji, jj) + 1) - pdepw(ji, jj, jk))
@@ -304,10 +321,9 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (1)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zemxl = MIN(p_e3w(ji, jj, jk), zmxlm(ji, jj, jk))
@@ -316,10 +332,9 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (2)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zmxlm(ji, jj, jk) = MIN(zmxlm(ji, jj, jk - 1) + p_e3t(ji, jj, jk - 1), zmxlm(ji, jj, jk))
@@ -327,6 +342,7 @@ MODULE zdftke
         END DO
       END DO
       DO jk = jpkm1, 2, - 1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zemxl = MIN(zmxlm(ji, jj, jk + 1) + p_e3t(ji, jj, jk + 1), zmxlm(ji, jj, jk))
@@ -335,10 +351,9 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (3)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zmxld(ji, jj, jk) = MIN(zmxld(ji, jj, jk - 1) + p_e3t(ji, jj, jk - 1), zmxlm(ji, jj, jk))
@@ -346,6 +361,7 @@ MODULE zdftke
         END DO
       END DO
       DO jk = jpkm1, 2, - 1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zmxlm(ji, jj, jk) = MIN(zmxlm(ji, jj, jk + 1) + p_e3t(ji, jj, jk + 1), zmxlm(ji, jj, jk))
@@ -353,6 +369,7 @@ MODULE zdftke
         END DO
       END DO
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zemlm = MIN(zmxld(ji, jj, jk), zmxlm(ji, jj, jk))
@@ -362,10 +379,9 @@ MODULE zdftke
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zsqen = SQRT(en(ji, jj, jk))
@@ -376,28 +392,33 @@ MODULE zdftke
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
     IF (nn_pdl == 1) THEN
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             p_avt(ji, jj, jk) = MAX(apdlr(ji, jj, jk) * p_avt(ji, jj, jk), avtb_2d(ji, jj) * avtb(jk)) * tmask(ji, jj, jk)
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('tke_avn', 'r0', 0, 0)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab3d_1 = en, clinfo1 = ' tke  - e: ', tab3d_2 = p_avt, clinfo2 = ' t: ', kdim = jpk)
       CALL prt_ctl(tab3d_1 = p_avm, clinfo1 = ' tke  - m: ', kdim = jpk)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tke_avn
   SUBROUTINE zdf_tke_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE zdf_oce, ONLY: ln_zdfiwm
     INTEGER :: ji, jj, jk
     INTEGER :: ios
     NAMELIST /namzdf_tke/ rn_ediff, rn_ediss, rn_ebb, rn_emin, rn_emin0, rn_bshear, nn_mxl, ln_mxl0, rn_mxl0, nn_pdl, ln_drg, ln_lc, rn_lc, nn_etau, nn_htau, rn_efr, rn_eice
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('zdf_tke_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namzdf_tke, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namzdf_tke in reference namelist', lwp)
@@ -458,18 +479,16 @@ MODULE zdftke
       rn_mxl0 = rmxl_min
     END IF
     IF (nn_etau == 2) CALL zdf_mxl(nit000)
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     IF (nn_etau /= 0) THEN
       SELECT CASE (nn_htau)
       CASE (0)
-        !$ACC KERNELS
         htau(:, :) = 10._wp
-        !$ACC END KERNELS
       CASE (1)
-        !$ACC KERNELS
         htau(:, :) = MAX(0.5_wp, MIN(30._wp, 45._wp * ABS(SIN(rpi / 180._wp * gphit(:, :)))))
-        !$ACC END KERNELS
       CASE (4)
-        !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (gphit(ji, jj) <= 0._wp) THEN
@@ -479,9 +498,10 @@ MODULE zdftke
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
       END SELECT
     END IF
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('zdf_tke_init', 'r1', 0, 0)
     CALL tke_rst(nit000, 'READ')
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('en')
@@ -489,41 +509,57 @@ MODULE zdftke
       CALL iom_set_rstw_var_active('avm_k')
       CALL iom_set_rstw_var_active('dissl')
     END IF
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE zdf_tke_init
   SUBROUTINE tke_rst(kt, cdrw)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE zdf_oce, ONLY: en, avt_k, avm_k
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
     INTEGER :: jit, jk
     INTEGER :: id1, id2, id3, id4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
     IF (TRIM(cdrw) == 'READ') THEN
       IF (ln_rstart) THEN
+        CALL profile_psy_data0 % PreStart('tke_rst', 'r0', 0, 0)
         id1 = iom_varid(numror, 'en', ldstop = .FALSE.)
         id2 = iom_varid(numror, 'avt_k', ldstop = .FALSE.)
         id3 = iom_varid(numror, 'avm_k', ldstop = .FALSE.)
         id4 = iom_varid(numror, 'dissl', ldstop = .FALSE.)
+        CALL profile_psy_data0 % PostEnd
         IF (MIN(id1, id2, id3, id4) > 0) THEN
+          CALL profile_psy_data1 % PreStart('tke_rst', 'r1', 0, 0)
           CALL iom_get(numror, jpdom_autoglo, 'en', en, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'avt_k', avt_k, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'avm_k', avm_k, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'dissl', dissl, ldxios = lrxios)
+          CALL profile_psy_data1 % PostEnd
         ELSE
+          CALL profile_psy_data2 % PreStart('tke_rst', 'r2', 0, 0)
           IF (lwp) WRITE(numout, FMT = *)
           IF (lwp) WRITE(numout, FMT = *) '   ==>>>   previous run without TKE scheme, set en to background values'
+          CALL profile_psy_data2 % PostEnd
           !$ACC KERNELS
           en(:, :, :) = rn_emin * wmask(:, :, :)
           dissl(:, :, :) = 1.E-12_wp
           !$ACC END KERNELS
         END IF
       ELSE
+        CALL profile_psy_data3 % PreStart('tke_rst', 'r3', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   start from rest: set en to the background value'
+        CALL profile_psy_data3 % PostEnd
         !$ACC KERNELS
         en(:, :, :) = rn_emin * wmask(:, :, :)
         dissl(:, :, :) = 1.E-12_wp
         !$ACC END KERNELS
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
+      CALL profile_psy_data4 % PreStart('tke_rst', 'r4', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '---- tke_rst ----'
       IF (lwxios) CALL iom_swap(cwxios_context)
       CALL iom_rstput(kt, nitrst, numrow, 'en', en, ldxios = lwxios)
@@ -531,6 +567,7 @@ MODULE zdftke
       CALL iom_rstput(kt, nitrst, numrow, 'avm_k', avm_k, ldxios = lwxios)
       CALL iom_rstput(kt, nitrst, numrow, 'dissl', dissl, ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
+      CALL profile_psy_data4 % PostEnd
     END IF
   END SUBROUTINE tke_rst
 END MODULE zdftke

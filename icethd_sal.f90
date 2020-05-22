@@ -17,14 +17,16 @@ MODULE icethd_sal
   REAL(KIND = wp) :: rn_time_fl
   CONTAINS
   SUBROUTINE ice_thd_sal(ld_sal)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     LOGICAL, INTENT(IN) :: ld_sal
     INTEGER :: ji, jk
     REAL(KIND = wp) :: iflush, igravdr
     REAL(KIND = wp) :: zs_sni, zs_i_gd, zs_i_fl, zs_i_si, zs_i_bg
     REAL(KIND = wp) :: z1_time_gd, z1_time_fl
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_thd_sal', 'r0', 0, 0)
     SELECT CASE (nn_icesal)
     CASE (2)
-      !$ACC KERNELS
       z1_time_gd = 1._wp / rn_time_gd * rdt_ice
       z1_time_fl = 1._wp / rn_time_fl * rdt_ice
       DO ji = 1, npti
@@ -43,15 +45,18 @@ MODULE icethd_sal
           sfx_bri_1d(ji) = sfx_bri_1d(ji) - rhoi * a_i_1d(ji) * h_i_1d(ji) * (zs_i_fl + zs_i_gd) * r1_rdtice
         END IF
       END DO
-      !$ACC END KERNELS
       CALL ice_var_salprof1d
     CASE (3)
       CALL ice_var_salprof1d
     END SELECT
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_thd_sal
   SUBROUTINE ice_thd_sal_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     NAMELIST /namthd_sal/ nn_icesal, rn_icesal, rn_sal_gd, rn_time_gd, rn_sal_fl, rn_time_fl, rn_simax, rn_simin
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_thd_sal_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ice_ref)
     READ(numnam_ice_ref, namthd_sal, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namthd_sal in reference namelist', lwp)
@@ -73,5 +78,6 @@ MODULE icethd_sal
       WRITE(numout, FMT = *) '      Maximum tolerated ice salinity                          rn_simax   = ', rn_simax
       WRITE(numout, FMT = *) '      Minimum tolerated ice salinity                          rn_simin   = ', rn_simin
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_thd_sal_init
 END MODULE icethd_sal

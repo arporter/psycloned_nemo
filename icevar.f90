@@ -22,9 +22,10 @@ MODULE icevar
   PUBLIC :: ice_var_enthalpy
   CONTAINS
   SUBROUTINE ice_var_agg(kn)
-    INTEGER, INTENT( IN ) :: kn
+    INTEGER, INTENT(IN) :: kn
     INTEGER :: ji, jj, jk, jl
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: z1_at_i, z1_vt_i, z1_vt_s
+    !$ACC KERNELS
     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
     vt_s(:, :) = SUM(v_s(:, :, :), dim = 3)
     at_i(:, :) = SUM(a_i(:, :, :), dim = 3)
@@ -32,11 +33,11 @@ MODULE icevar
     et_i(:, :) = SUM(SUM(e_i(:, :, :, :), dim = 4), dim = 3)
     at_ip(:, :) = SUM(a_ip(:, :, :), dim = 3)
     vt_ip(:, :) = SUM(v_ip(:, :, :), dim = 3)
-    !$ACC KERNELS
     ato_i(:, :) = 1._wp - at_i(:, :)
     !$ACC END KERNELS
     IF (kn > 1) THEN
       ALLOCATE(z1_at_i(jpi, jpj), z1_vt_i(jpi, jpj), z1_vt_s(jpi, jpj))
+      !$ACC KERNELS
       WHERE (at_i(:, :) > epsi20)
         z1_at_i(:, :) = 1._wp / at_i(:, :)
       ELSEWHERE
@@ -52,42 +53,47 @@ MODULE icevar
       ELSEWHERE
         z1_vt_s(:, :) = 0._wp
       END WHERE
-      !$ACC KERNELS
       hm_i(:, :) = vt_i(:, :) * z1_at_i(:, :)
       hm_s(:, :) = vt_s(:, :) * z1_at_i(:, :)
-      !$ACC END KERNELS
       tm_su(:, :) = SUM(t_su(:, :, :) * a_i(:, :, :), dim = 3) * z1_at_i(:, :)
       tm_si(:, :) = SUM(t_si(:, :, :) * a_i(:, :, :), dim = 3) * z1_at_i(:, :)
       om_i(:, :) = SUM(oa_i(:, :, :), dim = 3) * z1_at_i(:, :)
       sm_i(:, :) = SUM(sv_i(:, :, :), dim = 3) * z1_vt_i(:, :)
-      !$ACC KERNELS
       tm_i(:, :) = 0._wp
       tm_s(:, :) = 0._wp
+      !$ACC END KERNELS
       DO jl = 1, jpl
+        !$ACC KERNELS
         DO jk = 1, nlay_i
           tm_i(:, :) = tm_i(:, :) + r1_nlay_i * t_i(:, :, jk, jl) * v_i(:, :, jl) * z1_vt_i(:, :)
         END DO
         DO jk = 1, nlay_s
           tm_s(:, :) = tm_s(:, :) + r1_nlay_s * t_s(:, :, jk, jl) * v_s(:, :, jl) * z1_vt_s(:, :)
         END DO
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
+      !$ACC KERNELS
       WHERE (at_i(:, :) <= epsi20)
         tm_su(:, :) = rt0
         tm_si(:, :) = rt0
         tm_i(:, :) = rt0
         tm_s(:, :) = rt0
       END WHERE
+      !$ACC END KERNELS
       DEALLOCATE(z1_at_i, z1_vt_i, z1_vt_s)
     END IF
   END SUBROUTINE ice_var_agg
   SUBROUTINE ice_var_glo2eqv
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk, jl
     REAL(KIND = wp) :: ze_i
     REAL(KIND = wp) :: ze_s, ztmelts, zbbb, zccc
     REAL(KIND = wp) :: zhmax, z1_zhmax
     REAL(KIND = wp) :: zlay_i, zlay_s
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: z1_a_i, z1_v_i
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    !$ACC KERNELS
     WHERE (a_i(:, :, :) > epsi20)
       z1_a_i(:, :, :) = 1._wp / a_i(:, :, :)
     ELSEWHERE
@@ -98,21 +104,17 @@ MODULE icevar
     ELSEWHERE
       z1_v_i(:, :, :) = 0._wp
     END WHERE
-    !$ACC KERNELS
     h_i(:, :, :) = v_i(:, :, :) * z1_a_i(:, :, :)
     zhmax = hi_max(jpl)
     z1_zhmax = 1._wp / hi_max(jpl)
-    !$ACC END KERNELS
     WHERE (h_i(:, :, jpl) > zhmax)
       h_i(:, :, jpl) = zhmax
       a_i(:, :, jpl) = v_i(:, :, jpl) * z1_zhmax
       z1_a_i(:, :, jpl) = zhmax * z1_v_i(:, :, jpl)
     END WHERE
-    !$ACC KERNELS
     h_s(:, :, :) = v_s(:, :, :) * z1_a_i(:, :, :)
     o_i(:, :, :) = oa_i(:, :, :) * z1_a_i(:, :, :)
     a_ip_frac(:, :, :) = a_ip(:, :, :) * z1_a_i(:, :, :)
-    !$ACC END KERNELS
     WHERE (a_ip_frac(:, :, :) > epsi20)
       h_ip(:, :, :) = v_ip(:, :, :) * z1_a_i(:, :, :) / a_ip_frac(:, :, :)
     ELSEWHERE
@@ -125,11 +127,15 @@ MODULE icevar
         s_i(:, :, :) = rn_simin
       END WHERE
     END IF
+    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('ice_var_glo2eqv', 'r0', 0, 0)
     CALL ice_var_salprof
     zlay_i = REAL(nlay_i, wp)
-    !$ACC KERNELS
+    CALL profile_psy_data0 % PostEnd
     DO jl = 1, jpl
+      !$ACC KERNELS
       DO jk = 1, nlay_i
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (v_i(ji, jj, jl) > epsi20) THEN
@@ -144,9 +150,12 @@ MODULE icevar
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('ice_var_glo2eqv', 'r1', 0, 0)
     zlay_s = REAL(nlay_s, wp)
+    CALL profile_psy_data1 % PostEnd
+    !$ACC KERNELS
     DO jk = 1, nlay_s
       WHERE (v_s(:, :, :) > epsi20)
         t_s(:, :, jk, :) = rt0 + MAX(- 100._wp, MIN(r1_rcpi * (- r1_rhos * (e_s(:, :, jk, :) / v_s(:, :, :) * zlay_s) + rLfus), 0._wp))
@@ -157,6 +166,7 @@ MODULE icevar
     vt_i(:, :) = SUM(v_i, dim = 3)
     vt_s(:, :) = SUM(v_s, dim = 3)
     at_i(:, :) = SUM(a_i, dim = 3)
+    !$ACC END KERNELS
   END SUBROUTINE ice_var_glo2eqv
   SUBROUTINE ice_var_eqv2glo
     !$ACC KERNELS
@@ -167,12 +177,15 @@ MODULE icevar
     !$ACC END KERNELS
   END SUBROUTINE ice_var_eqv2glo
   SUBROUTINE ice_var_salprof
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk, jl
     REAL(KIND = wp) :: zsal, z1_dS
     REAL(KIND = wp) :: zargtemp, zs0, zs
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: z_slope_s, zalpha
     REAL(KIND = wp), PARAMETER :: zsi0 = 3.5_wp
     REAL(KIND = wp), PARAMETER :: zsi1 = 4.5_wp
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     SELECT CASE (nn_icesal)
     CASE (1)
       !$ACC KERNELS
@@ -181,21 +194,22 @@ MODULE icevar
       !$ACC END KERNELS
     CASE (2)
       ALLOCATE(z_slope_s(jpi, jpj, jpl), zalpha(jpi, jpj, jpl))
-      !$ACC KERNELS
       DO jl = 1, jpl
+        !$ACC KERNELS
         DO jk = 1, nlay_i
           sz_i(:, :, jk, jl) = s_i(:, :, jl)
         END DO
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
+      !$ACC KERNELS
       WHERE (h_i(:, :, :) > epsi20)
         z_slope_s(:, :, :) = 2._wp * s_i(:, :, :) / h_i(:, :, :)
       ELSEWHERE
         z_slope_s(:, :, :) = 0._wp
       END WHERE
-      !$ACC KERNELS
       z1_dS = 1._wp / (zsi1 - zsi0)
       DO jl = 1, jpl
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zalpha(ji, jj, jl) = MAX(0._wp, MIN((zsi1 - s_i(ji, jj, jl)) * z1_dS, 1._wp))
@@ -204,6 +218,7 @@ MODULE icevar
         END DO
       END DO
       !$ACC END KERNELS
+      CALL profile_psy_data0 % PreStart('ice_var_salprof', 'r0', 0, 0)
       DO jl = 1, jpl
         DO jk = 1, nlay_i
           DO jj = 1, jpj
@@ -216,13 +231,16 @@ MODULE icevar
         END DO
       END DO
       DEALLOCATE(z_slope_s, zalpha)
+      CALL profile_psy_data0 % PostEnd
     CASE (3)
       !$ACC KERNELS
       s_i(:, :, :) = 2.30_wp
       !$ACC END KERNELS
       DO jl = 1, jpl
         DO jk = 1, nlay_i
+          CALL profile_psy_data1 % PreStart('ice_var_salprof', 'r1', 0, 0)
           zargtemp = (REAL(jk, wp) - 0.5_wp) * r1_nlay_i
+          CALL profile_psy_data1 % PostEnd
           !$ACC KERNELS
           sz_i(:, :, jk, jl) = 1.6_wp * (1._wp - COS(rpi * zargtemp ** (0.407_wp / (0.573_wp + zargtemp))))
           !$ACC END KERNELS
@@ -231,31 +249,33 @@ MODULE icevar
     END SELECT
   END SUBROUTINE ice_var_salprof
   SUBROUTINE ice_var_salprof1d
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jk
     REAL(KIND = wp) :: zargtemp, zsal, z1_dS
     REAL(KIND = wp) :: zs, zs0
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:) :: z_slope_s, zalpha
     REAL(KIND = wp), PARAMETER :: zsi0 = 3.5_wp
     REAL(KIND = wp), PARAMETER :: zsi1 = 4.5_wp
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     SELECT CASE (nn_icesal)
     CASE (1)
       !$ACC KERNELS
       sz_i_1d(1 : npti, :) = rn_icesal
       !$ACC END KERNELS
     CASE (2)
+      CALL profile_psy_data0 % PreStart('ice_var_salprof1d', 'r0', 0, 0)
       ALLOCATE(z_slope_s(jpij), zalpha(jpij))
       WHERE (h_i_1d(1 : npti) > epsi20)
         z_slope_s(1 : npti) = 2._wp * s_i_1d(1 : npti) / h_i_1d(1 : npti)
       ELSEWHERE
         z_slope_s(1 : npti) = 0._wp
       END WHERE
-      !$ACC KERNELS
       z1_dS = 1._wp / (zsi1 - zsi0)
       DO ji = 1, npti
         zalpha(ji) = MAX(0._wp, MIN((zsi1 - s_i_1d(ji)) * z1_dS, 1._wp))
         IF (2._wp * s_i_1d(ji) >= sss_1d(ji)) zalpha(ji) = 0._wp
       END DO
-      !$ACC END KERNELS
       DO jk = 1, nlay_i
         DO ji = 1, npti
           zs0 = z_slope_s(ji) * (REAL(jk, wp) - 0.5_wp) * h_i_1d(ji) * r1_nlay_i
@@ -264,10 +284,15 @@ MODULE icevar
         END DO
       END DO
       DEALLOCATE(z_slope_s, zalpha)
+      CALL profile_psy_data0 % PostEnd
     CASE (3)
+      !$ACC KERNELS
       s_i_1d(1 : npti) = 2.30_wp
+      !$ACC END KERNELS
       DO jk = 1, nlay_i
+        CALL profile_psy_data1 % PreStart('ice_var_salprof1d', 'r1', 0, 0)
         zargtemp = (REAL(jk, wp) - 0.5_wp) * r1_nlay_i
+        CALL profile_psy_data1 % PostEnd
         !$ACC KERNELS
         zsal = 1.6_wp * (1._wp - COS(rpi * zargtemp ** (0.407_wp / (0.573_wp + zargtemp))))
         DO ji = 1, npti
@@ -280,6 +305,7 @@ MODULE icevar
   SUBROUTINE ice_var_zapsmall
     INTEGER :: ji, jj, jl, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zswitch
+    !$ACC KERNELS
     DO jl = 1, jpl
       WHERE (a_i(:, :, jl) > epsi10)
         h_i(:, :, jl) = v_i(:, :, jl) / a_i(:, :, jl)
@@ -291,8 +317,8 @@ MODULE icevar
       ELSEWHERE
         zswitch(:, :) = 1._wp
       END WHERE
-      !$ACC KERNELS
       DO jk = 1, nlay_i
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             hfx_res(ji, jj) = hfx_res(ji, jj) - (1._wp - zswitch(ji, jj)) * e_i(ji, jj, jk, jl) * r1_rdtice
@@ -302,6 +328,7 @@ MODULE icevar
         END DO
       END DO
       DO jk = 1, nlay_s
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             hfx_res(ji, jj) = hfx_res(ji, jj) - (1._wp - zswitch(ji, jj)) * e_s(ji, jj, jk, jl) * r1_rdtice
@@ -310,6 +337,7 @@ MODULE icevar
           END DO
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           sfx_res(ji, jj) = sfx_res(ji, jj) + (1._wp - zswitch(ji, jj)) * sv_i(ji, jj, jl) * rhoi * r1_rdtice
@@ -327,11 +355,11 @@ MODULE icevar
           v_ip(ji, jj, jl) = v_ip(ji, jj, jl) * zswitch(ji, jj)
         END DO
       END DO
-      !$ACC END KERNELS
     END DO
     at_i(:, :) = SUM(a_i(:, :, :), dim = 3)
     vt_i(:, :) = SUM(v_i(:, :, :), dim = 3)
     WHERE (at_i(:, :) == 0._wp) ato_i(:, :) = 1._wp
+    !$ACC END KERNELS
   END SUBROUTINE ice_var_zapsmall
   SUBROUTINE ice_var_zapneg(pato_i, pv_i, pv_s, psv_i, poa_i, pa_i, pa_ip, pv_ip, pe_s, pe_i)
     INTEGER :: ji, jj, jl, jk
@@ -345,14 +373,17 @@ MODULE icevar
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: pv_ip
     REAL(KIND = wp), DIMENSION(:, :, :, :), INTENT(INOUT) :: pe_s
     REAL(KIND = wp), DIMENSION(:, :, :, :), INTENT(INOUT) :: pe_i
+    !$ACC KERNELS
     WHERE (pato_i(:, :) < 0._wp) pato_i(:, :) = 0._wp
     WHERE (poa_i(:, :, :) < 0._wp) poa_i(:, :, :) = 0._wp
     WHERE (pa_i(:, :, :) < 0._wp) pa_i(:, :, :) = 0._wp
     WHERE (pa_ip(:, :, :) < 0._wp) pa_ip(:, :, :) = 0._wp
     WHERE (pv_ip(:, :, :) < 0._wp) pv_ip(:, :, :) = 0._wp
-    !$ACC KERNELS
+    !$ACC END KERNELS
     DO jl = 1, jpl
+      !$ACC KERNELS
       DO jk = 1, nlay_i
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (pe_i(ji, jj, jk, jl) < 0._wp) THEN
@@ -363,6 +394,7 @@ MODULE icevar
         END DO
       END DO
       DO jk = 1, nlay_s
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (pe_s(ji, jj, jk, jl) < 0._wp) THEN
@@ -372,6 +404,7 @@ MODULE icevar
           END DO
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (pv_i(ji, jj, jl) < 0._wp) THEN
@@ -388,24 +421,27 @@ MODULE icevar
           END IF
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
   END SUBROUTINE ice_var_zapneg
   SUBROUTINE ice_var_itd(zhti, zhts, zati, zh_i, zh_s, za_i)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jk, jl
     INTEGER :: idim, i_fill, jl0
     REAL(KIND = wp) :: zarg, zV, zconv, zdh, zdv
     REAL(KIND = wp), DIMENSION(:), INTENT(IN) :: zhti, zhts, zati
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: zh_i, zh_s, za_i
     INTEGER, DIMENSION(4) :: itest
-    idim = SIZE(zhti, 1)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
+    idim = SIZE(zhti, 1)
     zh_i(1 : idim, 1 : jpl) = 0._wp
     zh_s(1 : idim, 1 : jpl) = 0._wp
     za_i(1 : idim, 1 : jpl) = 0._wp
     !$ACC END KERNELS
     DO ji = 1, idim
       IF (zhti(ji) > 0._wp) THEN
+        CALL profile_psy_data0 % PreStart('ice_var_itd', 'r0', 0, 0)
         jl0 = jpl
         DO jl = 1, jpl
           IF ((zhti(ji) >= hi_max(jl - 1)) .AND. (zhti(ji) < hi_max(jl))) THEN
@@ -413,8 +449,11 @@ MODULE icevar
             CYCLE
           END IF
         END DO
+        CALL profile_psy_data0 % PostEnd
+        !$ACC KERNELS
         itest(:) = 0
         i_fill = jpl + 1
+        !$ACC END KERNELS
         DO WHILE ((SUM(itest(:)) /= 4) .AND. (i_fill >= 2))
           i_fill = i_fill - 1
           zh_i(ji, 1 : jpl) = 0._wp
@@ -474,6 +513,7 @@ MODULE icevar
     !$ACC END KERNELS
   END SUBROUTINE ice_var_itd
   SUBROUTINE ice_var_itd2(zhti, zhts, zati, zh_i, zh_s, za_i)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jl, jl1, jl2
     INTEGER :: idim, icat
     INTEGER, PARAMETER :: ztrans = 0.25_wp
@@ -481,19 +521,24 @@ MODULE icevar
     REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: zh_i, zh_s, za_i
     INTEGER, DIMENSION(:, :), ALLOCATABLE :: jlfil, jlfil2
     INTEGER, DIMENSION(:), ALLOCATABLE :: jlmax, jlmin
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('ice_var_itd2', 'r0', 0, 0)
     idim = SIZE(zhti, 1)
     icat = SIZE(zhti, 2)
     ALLOCATE(jlfil(idim, jpl), jlfil2(idim, jpl))
     ALLOCATE(jlmin(idim), jlmax(idim))
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zh_i(1 : idim, 1 : jpl) = 0._wp
     zh_s(1 : idim, 1 : jpl) = 0._wp
     za_i(1 : idim, 1 : jpl) = 0._wp
-    !$ACC END KERNELS
     jlmax(:) = 0
     jlmin(:) = 999
-    !$ACC KERNELS
     jlfil(:, :) = 0
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('ice_var_itd2', 'r1', 0, 0)
     DO jl1 = 1, jpl
       DO jl2 = 1, icat
         DO ji = 1, idim
@@ -508,6 +553,8 @@ MODULE icevar
         END DO
       END DO
     END DO
+    CALL profile_psy_data1 % PostEnd
+    !$ACC KERNELS
     DO ji = 1, idim
       jl1 = jlmin(ji)
       jl2 = jlmax(ji)
@@ -544,8 +591,10 @@ MODULE icevar
       END DO
     END DO
     !$ACC END KERNELS
+    CALL profile_psy_data2 % PreStart('ice_var_itd2', 'r2', 0, 0)
     DEALLOCATE(jlfil, jlfil2)
     DEALLOCATE(jlmin, jlmax)
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE ice_var_itd2
   SUBROUTINE ice_var_bv
     INTEGER :: ji, jj, jk, jl
@@ -553,17 +602,21 @@ MODULE icevar
     bv_i(:, :, :) = 0._wp
     !$ACC END KERNELS
     DO jl = 1, jpl
+      !$ACC KERNELS
       DO jk = 1, nlay_i
         WHERE (t_i(:, :, jk, jl) < rt0 - epsi10)
           bv_i(:, :, jl) = bv_i(:, :, jl) - rTmlt * sz_i(:, :, jk, jl) * r1_nlay_i / (t_i(:, :, jk, jl) - rt0)
         END WHERE
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     WHERE (vt_i(:, :) > epsi20)
       bvm_i(:, :) = SUM(bv_i(:, :, :) * v_i(:, :, :), dim = 3) / vt_i(:, :)
     ELSEWHERE
       bvm_i(:, :) = 0._wp
     END WHERE
+    !$ACC END KERNELS
   END SUBROUTINE ice_var_bv
   SUBROUTINE ice_var_enthalpy
     INTEGER :: ji, jk

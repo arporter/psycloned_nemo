@@ -9,19 +9,26 @@ MODULE usrdef_fmask
   PUBLIC :: usr_def_fmask
   CONTAINS
   SUBROUTINE usr_def_fmask(cd_cfg, kcfg, pfmsk)
-    CHARACTER(LEN = *), INTENT(IN   ) :: cd_cfg
-    INTEGER, INTENT(IN   ) :: kcfg
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    CHARACTER(LEN = *), INTENT(IN) :: cd_cfg
+    INTEGER, INTENT(IN) :: kcfg
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: pfmsk
     INTEGER :: iif, iil, ii0, ii1, ii
     INTEGER :: ijf, ijl, ij0, ij1
     INTEGER :: isrow
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
     IF (TRIM(cd_cfg) == "orca") THEN
       SELECT CASE (kcfg)
       CASE (2)
+        CALL profile_psy_data0 % PreStart('usr_def_fmask', 'r0', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) 'usr_def_fmask : ORCA_R2: increase lateral friction near the following straits:'
         IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~'
         IF (lwp) WRITE(numout, FMT = *) '      Gibraltar '
+        CALL profile_psy_data0 % PostEnd
         !$ACC KERNELS
         ij0 = 101
         ij1 = 101
@@ -48,6 +55,7 @@ MODULE usrdef_fmask
         pfmsk(mi0(ii0) : mi1(ii1), mj0(ij0) : mj1(ij1), 1 : jpk) = 1._wp
         !$ACC END KERNELS
       CASE (1)
+        CALL profile_psy_data1 % PreStart('usr_def_fmask', 'r1', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) 'usr_def_fmask : ORCA_R1: increase lateral friction near the following straits:'
         IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~'
@@ -55,6 +63,7 @@ MODULE usrdef_fmask
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   orca_r1: increase friction near the following straits : '
         IF (lwp) WRITE(numout, FMT = *) '      Gibraltar '
+        CALL profile_psy_data1 % PostEnd
         !$ACC KERNELS
         ii0 = 282
         ii1 = 283
@@ -119,14 +128,18 @@ MODULE usrdef_fmask
         pfmsk(mi0(ii0) : mi1(ii1), mj0(ij0) : mj1(ij1), 1 : jpk) = 3._wp
         !$ACC END KERNELS
       CASE DEFAULT
+        CALL profile_psy_data2 % PreStart('usr_def_fmask', 'r2', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) 'usr_def_fmask : ORCA_R', kcfg, ' : NO alteration of fmask in specific straits '
         IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~'
+        CALL profile_psy_data2 % PostEnd
       END SELECT
     ELSE
+      CALL profile_psy_data3 % PreStart('usr_def_fmask', 'r3', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'usr_def_fmask : NO alteration of fmask in specific straits '
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~'
+      CALL profile_psy_data3 % PostEnd
     END IF
     CALL lbc_lnk(pfmsk, 'F', 1._wp)
   END SUBROUTINE usr_def_fmask

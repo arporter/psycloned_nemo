@@ -17,6 +17,7 @@ MODULE restart
   PUBLIC :: rst_read_open
   CONTAINS
   SUBROUTINE rst_opn(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: iyear, imonth, iday
     REAL(KIND = wp) :: zsec
@@ -26,6 +27,8 @@ MODULE restart
     CHARACTER(LEN = lc) :: clpath
     CHARACTER(LEN = 52) :: clpname
     CHARACTER(LEN = 256) :: clinfo
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('rst_opn', 'r0', 0, 0)
     IF (kt == nit000) THEN
       lrst_oce = .FALSE.
       IF (ln_rst_list) THEN
@@ -80,9 +83,13 @@ MODULE restart
         lrst_oce = .TRUE.
       END IF
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE rst_opn
   SUBROUTINE rst_write(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('rst_write', 'r0', 0, 0)
     IF (lwxios) CALL iom_swap(cwxios_context)
     CALL iom_rstput(kt, nitrst, numrow, 'rdt', rdt, ldxios = lwxios)
     IF (.NOT. ln_diurnal_only) THEN
@@ -122,11 +129,15 @@ MODULE restart
         nitrst = nstocklist(nrst_lst)
       END IF
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE rst_write
   SUBROUTINE rst_read_open
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jlibalt = jprstlib
     LOGICAL :: llok
     CHARACTER(LEN = lc) :: clpath
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('rst_read_open', 'r0', 0, 0)
     IF (numror <= 0) THEN
       IF (lwp) THEN
         WRITE(numout, FMT = *)
@@ -156,11 +167,15 @@ MODULE restart
         lxios_set = .TRUE.
       END IF
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE rst_read_open
   SUBROUTINE rst_read
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp) :: zrdt
     INTEGER :: jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: w3d
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('rst_read', 'r0', 0, 0)
     CALL rst_read_open
     IF (iom_varid(numror, 'rdt', ldstop = .FALSE.) > 0) THEN
       CALL iom_get(numror, 'rdt', zrdt, ldxios = lrxios)
@@ -193,6 +208,7 @@ MODULE restart
     ELSE
       CALL eos(tsn, rhd, rhop, gdept_n(:, :, :))
     END IF
+    CALL profile_psy_data0 % PostEnd
     IF (neuler == 0) THEN
       !$ACC KERNELS
       tsb(:, :, :, :) = tsn(:, :, :, :)

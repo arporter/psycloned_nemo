@@ -28,20 +28,23 @@ MODULE trdglo
   REAL(KIND = wp), DIMENSION(jptot_dyn) :: hke
   CONTAINS
   SUBROUTINE trd_glo(ptrdx, ptrdy, ktrd, ctype, kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
-    INTEGER, INTENT(IN   ) :: ktrd
-    CHARACTER(LEN = 3), INTENT(IN   ) :: ctype
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN) :: ktrd
+    CHARACTER(LEN = 3), INTENT(IN) :: ctype
+    INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: ikbu, ikbv
     REAL(KIND = wp) :: zvm, zvt, zvs, z1_2rau0
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztswu, ztswv, z2dx, z2dy
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     IF (MOD(kt, nn_trd) == 0 .OR. kt == nit000 .OR. kt == nitend) THEN
       SELECT CASE (ctype)
       CASE ('TRA')
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpj
             DO ji = 1, jpi
               zvm = e1e2t(ji, jj) * e3t_n(ji, jj, jk) * tmask(ji, jj, jk) * tmask_i(ji, jj)
@@ -55,22 +58,27 @@ MODULE trdglo
           END DO
         END DO
         !$ACC END KERNELS
+        CALL profile_psy_data0 % PreStart('trd_glo', 'r0', 0, 0)
         IF (ln_linssh .AND. ktrd == jptra_zad) THEN
           tmo(jptra_sad) = SUM(wn(:, :, 1) * tsn(:, :, 1, jp_tem) * e1e2t(:, :) * tmask_i(:, :))
           smo(jptra_sad) = SUM(wn(:, :, 1) * tsn(:, :, 1, jp_sal) * e1e2t(:, :) * tmask_i(:, :))
           t2(jptra_sad) = SUM(wn(:, :, 1) * tsn(:, :, 1, jp_tem) * tsn(:, :, 1, jp_tem) * e1e2t(:, :) * tmask_i(:, :))
           s2(jptra_sad) = SUM(wn(:, :, 1) * tsn(:, :, 1, jp_sal) * tsn(:, :, 1, jp_sal) * e1e2t(:, :) * tmask_i(:, :))
         END IF
+        CALL profile_psy_data0 % PostEnd
         IF (ktrd == jptra_atf) THEN
           CALL glo_tra_wri(kt)
+          !$ACC KERNELS
           tmo(:) = 0._wp
           smo(:) = 0._wp
           t2(:) = 0._wp
           s2(:) = 0._wp
+          !$ACC END KERNELS
         END IF
       CASE ('DYN')
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zvt = ptrdx(ji, jj, jk) * tmask_i(ji + 1, jj) * tmask_i(ji, jj) * umask(ji, jj, jk) * e1e2u(ji, jj) * e3u_n(ji, jj, jk)
@@ -81,10 +89,9 @@ MODULE trdglo
             END DO
           END DO
         END DO
-        !$ACC END KERNELS
         IF (ktrd == jpdyn_zdf) THEN
-          !$ACC KERNELS
           z1_2rau0 = 0.5_wp / rau0
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
               zvt = (utau_b(ji, jj) + utau(ji, jj)) * tmask_i(ji + 1, jj) * tmask_i(ji, jj) * umask(ji, jj, jk) * z1_2rau0 * e1e2u(ji, jj)
@@ -94,16 +101,18 @@ MODULE trdglo
               hke(jpdyn_tau) = hke(jpdyn_tau) + un(ji, jj, 1) * zvt + vn(ji, jj, 1) * zvs
             END DO
           END DO
-          !$ACC END KERNELS
         END IF
+        !$ACC END KERNELS
       END SELECT
     END IF
   END SUBROUTINE trd_glo
   SUBROUTINE glo_dyn_wri(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcof
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zkx, zky, zkz, zkepe
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     IF (MOD(kt, nn_trd) == 0 .OR. kt == nit000 .OR. kt == nitend) THEN
       !$ACC KERNELS
       zkx(:, :, :) = 0._wp
@@ -120,6 +129,7 @@ MODULE trdglo
       END DO
       zcof = 0.5_wp / rau0
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zkx(ji, jj, jk) = zcof * e2u(ji, jj) * e3u_n(ji, jj, jk) * un(ji, jj, jk) * (rhop(ji, jj, jk) + rhop(ji + 1, jj, jk))
@@ -128,6 +138,7 @@ MODULE trdglo
         END DO
       END DO
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zkepe(ji, jj, jk) = - (zkz(ji, jj, jk) - zkz(ji, jj, jk + 1) + zkx(ji, jj, jk) - zkx(ji - 1, jj, jk) + zky(ji, jj, jk) - zky(ji, jj - 1, jk)) / (e1e2t(ji, jj) * e3t_n(ji, jj, jk)) * tmask(ji, jj, jk) * tmask_i(ji, jj)
@@ -136,6 +147,7 @@ MODULE trdglo
       END DO
       peke = 0._wp
       !$ACC END KERNELS
+      CALL profile_psy_data0 % PreStart('glo_dyn_wri', 'r0', 0, 0)
       DO jk = 1, jpkm1
         peke = peke + SUM(zkepe(:, :, jk) * gdept_n(:, :, jk) * e1e2t(:, :) * e3t_n(:, :, jk))
       END DO
@@ -237,11 +249,15 @@ MODULE trdglo
 9547  FORMAT(' 0 < vertical diffusion                                    : ', E20.13)
 9548  FORMAT(' pressure gradient u2 = - 1/rau0 u.dz(rhop)                : ', E20.13, '  u.dz(rhop) =', E20.13)
       rpktrd = peke
+      CALL profile_psy_data0 % PostEnd
     END IF
   END SUBROUTINE glo_dyn_wri
   SUBROUTINE glo_tra_wri(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: jk
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('glo_tra_wri', 'r0', 0, 0)
     IF (MOD(kt, nn_trd) == 0 .OR. kt == nit000 .OR. kt == nitend) THEN
       IF (lk_mpp) THEN
         CALL mpp_sum(tmo, jptot_tra)
@@ -330,9 +346,14 @@ MODULE trdglo
 9448  FORMAT(' 0 > vertical diffusion            * t  ', E20.13, '       ', E20.13)
 9449  FORMAT(' 0 > static instability mixing     * t  ', E20.13, '       ', E20.13)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE glo_tra_wri
   SUBROUTINE trd_glo_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('trd_glo_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'trd_glo_init : integral constraints properties trends'
@@ -344,11 +365,13 @@ MODULE trdglo
     END DO
     IF (lk_mpp) CALL mpp_sum(tvolt)
     IF (lwp) WRITE(numout, FMT = *) '                total ocean volume at T-point   tvolt = ', tvolt
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     rpktrd = 0._wp
     tvolu = 0._wp
     tvolv = 0._wp
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           tvolu = tvolu + e1u(ji, jj) * e2u(ji, jj) * e3u_n(ji, jj, jk) * tmask_i(ji + 1, jj) * tmask_i(ji, jj) * umask(ji, jj, jk)
@@ -357,11 +380,13 @@ MODULE trdglo
       END DO
     END DO
     !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('trd_glo_init', 'r1', 0, 0)
     IF (lk_mpp) CALL mpp_sum(tvolu)
     IF (lk_mpp) CALL mpp_sum(tvolv)
     IF (lwp) THEN
       WRITE(numout, FMT = *) '                total ocean volume at U-point   tvolu = ', tvolu
       WRITE(numout, FMT = *) '                total ocean volume at V-point   tvolv = ', tvolv
     END IF
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE trd_glo_init
 END MODULE trdglo

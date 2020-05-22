@@ -40,9 +40,13 @@ MODULE sbcmod
   INTEGER :: nsbc
   CONTAINS
   SUBROUTINE sbc_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios, icpt
     LOGICAL :: ll_purecpl, ll_opa, ll_not_nemo
     NAMELIST /namsbc/ nn_fsbc, ln_usr, ln_flx, ln_blk, ln_cpl, ln_mixcpl, nn_components, nn_ice, ln_ice_embd, ln_traqsr, ln_dm2dc, ln_rnf, nn_fwb, ln_ssr, ln_isf, ln_apr_dyn, ln_wave, ln_cdgw, ln_sdw, ln_tauwoc, ln_stcor, ln_tauw, nn_lsm, nn_sdrift
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('sbc_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'sbc_init : surface boundary condition setting'
@@ -145,6 +149,7 @@ MODULE sbcmod
     CASE DEFAULT
     END SELECT
     IF (sbc_oce_alloc() /= 0) CALL ctl_stop('sbc_init : unable to allocate sbc_oce arrays')
+    CALL profile_psy_data0 % PostEnd
     IF (.NOT. ln_isf) THEN
       IF (sbc_isf_alloc() /= 0) CALL ctl_stop('STOP', 'sbc_init : unable to allocate sbc_isf arrays')
       !$ACC KERNELS
@@ -154,14 +159,15 @@ MODULE sbcmod
       risf_tsc_b(:, :, :) = 0._wp
       !$ACC END KERNELS
     END IF
+    !$ACC KERNELS
     IF (nn_ice == 0) THEN
       IF (nn_components /= jp_iam_opa) fr_i(:, :) = 0._wp
     END IF
-    !$ACC KERNELS
     sfx(:, :) = 0._wp
     fmmflx(:, :) = 0._wp
     taum(:, :) = 0._wp
     !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('sbc_init', 'r1', 0, 0)
     IF (ln_dm2dc) THEN
       nday_qsr = - 1
       IF (.NOT. (ln_flx .OR. ln_blk) .AND. nn_components /= jp_iam_opa) CALL ctl_stop('qsr diurnal cycle from daily values requires a flux or bulk formulation')
@@ -244,10 +250,15 @@ MODULE sbcmod
       CALL iom_set_rstw_var_active('emp_b')
       CALL iom_set_rstw_var_active('sfx_b')
     END IF
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE sbc_init
   SUBROUTINE sbc(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     LOGICAL :: ll_sas, ll_opa
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     IF (ln_timing) CALL timing_start('sbc')
     IF (kt /= nit000) THEN
       !$ACC KERNELS
@@ -270,6 +281,7 @@ MODULE sbcmod
         !$ACC END KERNELS
       END IF
     END IF
+    CALL profile_psy_data0 % PreStart('sbc', 'r0', 0, 0)
     ll_sas = nn_components == jp_iam_sas
     ll_opa = nn_components == jp_iam_opa
     IF (.NOT. ll_sas) CALL sbc_ssm(kt)
@@ -306,13 +318,16 @@ MODULE sbcmod
     IF (ln_ssr) CALL sbc_ssr(kt)
     IF (nn_fwb /= 0) CALL sbc_fwb(kt, nn_fwb, nn_fsbc)
     IF (l_sbc_clo .AND. (.NOT. ln_diurnal_only)) CALL sbc_clo(kt)
+    CALL profile_psy_data0 % PostEnd
     IF (kt == nit000) THEN
       IF (ln_rstart .AND. iom_varid(numror, 'utau_b', ldstop = .FALSE.) > 0) THEN
+        CALL profile_psy_data1 % PreStart('sbc', 'r1', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 surface forcing fields red in the restart file'
         CALL iom_get(numror, jpdom_autoglo, 'utau_b', utau_b, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'vtau_b', vtau_b, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'qns_b', qns_b, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'emp_b', emp_b, ldxios = lrxios)
+        CALL profile_psy_data1 % PostEnd
         IF (iom_varid(numror, 'sfx_b', ldstop = .FALSE.) > 0) THEN
           CALL iom_get(numror, jpdom_autoglo, 'sfx_b', sfx_b, ldxios = lrxios)
         ELSE
@@ -331,6 +346,7 @@ MODULE sbcmod
         !$ACC END KERNELS
       END IF
     END IF
+    CALL profile_psy_data2 % PreStart('sbc', 'r2', 0, 0)
     IF (lrst_oce) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'sbc : ocean surface forcing fields written in ocean restart file ', 'at it= ', kt, ' date= ', ndastp
@@ -370,6 +386,7 @@ MODULE sbcmod
     END IF
     IF (kt == nitend) CALL sbc_final
     IF (ln_timing) CALL timing_stop('sbc')
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE sbc
   SUBROUTINE sbc_final
     IF (nn_ice == 3) CALL cice_sbc_final

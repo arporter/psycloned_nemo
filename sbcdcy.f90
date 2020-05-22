@@ -18,6 +18,7 @@ MODULE sbcdcy
     IF (sbc_dcy_alloc /= 0) CALL ctl_warn('sbc_dcy_alloc: failed to allocate arrays')
   END FUNCTION sbc_dcy_alloc
   FUNCTION sbc_dcy(pqsrin, l_mask) RESULT(zqsrout)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     LOGICAL, OPTIONAL, INTENT(IN) :: l_mask
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqsrin
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zqsrout
@@ -29,13 +30,22 @@ MODULE sbcdcy
     REAL(KIND = wp) :: ztmp, ztmp1, ztmp2, ztest
     REAL(KIND = wp) :: ztmpm, ztmpm1, ztmpm2
     REAL(KIND = wp) :: fintegral, pt1, pt2, paaa, pbbb, pccc
-    fintegral (pt1, pt2, paaa, pbbb, pccc) = paaa * pt2 + zinvtwopi * pbbb * SIN(pccc + ztwopi * pt2) - paaa * pt1 - zinvtwopi * pbbb * SIN(pccc + ztwopi * pt1)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    !ARPDBG statement function below not currently supported by fparser
+    fintegral(pt1, pt2, paaa, pbbb, pccc) = paaa * pt2 + zinvtwopi * pbbb * SIN(pccc + ztwopi * pt2) - paaa * pt1 - zinvtwopi * pbbb * SIN(pccc + ztwopi * pt1)
+    CALL profile_psy_data0 % PreStart('sbc_dcy', 'r0', 0, 0)
     ztwopi = 2._wp * rpi
     zinvtwopi = 1._wp / ztwopi
     zconvrad = ztwopi / 360._wp
     zlo = (REAL(nsec_day, wp) - 0.5_wp * rdt) / rday
     zup = zlo + (REAL(nn_fsbc, wp) * rdt) / rday
+    CALL profile_psy_data0 % PostEnd
     IF (nday_qsr == - 1) THEN
+      CALL profile_psy_data1 % PreStart('sbc_dcy', 'r1', 0, 0)
       IF (lwp) THEN
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) 'sbc_dcy : introduce diurnal cycle from daily mean qsr'
@@ -43,6 +53,7 @@ MODULE sbcdcy
         WRITE(numout, FMT = *)
       END IF
       IF (sbc_dcy_alloc() /= 0) CALL ctl_stop('STOP', 'sbc_dcy_alloc : unable to allocate arrays')
+      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       rcc(:, :) = zconvrad * glamt(:, :) - rpi
       rtmd(:, :) = 0.5_wp - glamt(:, :) / 360._wp
@@ -50,12 +61,15 @@ MODULE sbcdcy
       !$ACC END KERNELS
     END IF
     IF (nday_qsr /= nday) THEN
+      CALL profile_psy_data2 % PreStart('sbc_dcy', 'r2', 0, 0)
       nday_qsr = nday
       zdsws = REAL(11 + nday_year, wp)
       zdecrad = (- 23.5_wp * zconvrad) * COS(zdsws * ztwopi / REAL(nyear_len(1), wp))
+      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       zsin = SIN(zdecrad)
       zcos = COS(zdecrad)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           ztmp = zconvrad * gphit(ji, jj)
@@ -64,6 +78,7 @@ MODULE sbcdcy
         END DO
       END DO
       rab(:, :) = - raa(:, :) / rbb(:, :)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (ABS(rab(ji, jj)) < 1._wp) THEN
@@ -84,6 +99,7 @@ MODULE sbcdcy
       END DO
       rdawn(:, :) = MOD((rdawn(:, :) + 1._wp), 1._wp)
       rdusk(:, :) = MOD((rdusk(:, :) + 1._wp), 1._wp)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (ABS(rab(ji, jj)) < 1._wp) THEN
@@ -110,13 +126,17 @@ MODULE sbcdcy
         END DO
       END DO
       !$ACC END KERNELS
+      CALL profile_psy_data3 % PreStart('sbc_dcy', 'r3', 0, 0)
       ztmp = rday / (rdt * REAL(nn_fsbc, wp))
+      CALL profile_psy_data3 % PostEnd
       !$ACC KERNELS
       rscal(:, :) = rscal(:, :) * ztmp
       !$ACC END KERNELS
     END IF
     !$ACC KERNELS
     imask_night(:, :) = 0
+    !$ACC END KERNELS
+    CALL profile_psy_data4 % PreStart('sbc_dcy', 'r4', 0, 0)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ztmpm = 0._wp
@@ -156,9 +176,11 @@ MODULE sbcdcy
         END IF
       END DO
     END DO
-    !$ACC END KERNELS
+    CALL profile_psy_data4 % PostEnd
     IF (PRESENT(l_mask)) THEN
+      !$ACC KERNELS
       IF (l_mask) zqsrout(:, :) = FLOAT(imask_night(:, :))
+      !$ACC END KERNELS
     END IF
   END FUNCTION sbc_dcy
 END MODULE sbcdcy

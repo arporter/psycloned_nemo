@@ -23,12 +23,16 @@ MODULE domain
   PUBLIC :: domain_cfg
   CONTAINS
   SUBROUTINE dom_init(cdstr)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk, ik
     INTEGER :: iconf = 0
     CHARACTER(LEN = 64) :: cform = "(A12, 3(A13, I7))"
     CHARACTER(LEN = *), INTENT(IN) :: cdstr
     INTEGER, DIMENSION(jpi, jpj) :: ik_top, ik_bot
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z1_hu_0, z1_hv_0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('dom_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dom_init : domain initialization'
@@ -86,7 +90,9 @@ MODULE domain
     CALL dom_zgr(ik_top, ik_bot)
     CALL dom_msk(ik_top, ik_bot)
     IF (ln_closea) CALL dom_clo
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ik = mikt(ji, jj)
@@ -96,12 +102,14 @@ MODULE domain
     ht_0(:, :) = 0._wp
     hu_0(:, :) = 0._wp
     hv_0(:, :) = 0._wp
+    !$ACC END KERNELS
     DO jk = 1, jpk
+      !$ACC KERNELS
       ht_0(:, :) = ht_0(:, :) + e3t_0(:, :, jk) * tmask(:, :, jk)
       hu_0(:, :) = hu_0(:, :) + e3u_0(:, :, jk) * umask(:, :, jk)
       hv_0(:, :) = hv_0(:, :) + e3v_0(:, :, jk) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     IF (ln_linssh) THEN
       !$ACC KERNELS
       gdept_b = gdept_0
@@ -144,6 +152,7 @@ MODULE domain
     ELSE
       IF (.NOT. l_offline) CALL dom_vvl_init
     END IF
+    CALL profile_psy_data1 % PreStart('dom_init', 'r1', 0, 0)
     IF (lk_c1d) CALL cor_c1d
     IF (ln_meshmask .AND. .NOT. ln_iscpl) CALL dom_wri
     IF (ln_meshmask .AND. ln_iscpl .AND. .NOT. ln_rstart) CALL dom_wri
@@ -155,9 +164,12 @@ MODULE domain
       WRITE(numout, FMT = *) '~~~~~~~~'
       WRITE(numout, FMT = *)
     END IF
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE dom_init
   SUBROUTINE dom_glo
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     DO ji = 1, jpi
       mig(ji) = ji + nimpp - 1
@@ -174,6 +186,7 @@ MODULE domain
       mj1(jj) = MAX(0, MIN(jj - njmpp + 1, jpj))
     END DO
     !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('dom_glo', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dom_glo : domain: global <<==>> local '
@@ -204,12 +217,16 @@ MODULE domain
       END IF
     END IF
 25  FORMAT(100(10X, 19I4, /))
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dom_glo
   SUBROUTINE dom_nam
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE ioipsl
     INTEGER :: ios
     NAMELIST /namrun/ cn_ocerst_indir, cn_ocerst_outdir, nn_stocklist, ln_rst_list, nn_no, cn_exp, cn_ocerst_in, cn_ocerst_out, ln_rstart, nn_rstctl, nn_it000, nn_itend, nn_date0, nn_time0, nn_leapy, nn_istate, nn_stock, nn_write, ln_mskland, ln_clobber, nn_chunksz, nn_euler, ln_cfmeta, ln_iscpl, ln_xios_read, nn_wxios, ln_rstdate
     NAMELIST /namdom/ ln_linssh, rn_isfhmin, rn_rdt, rn_atfp, ln_crs, ln_meshmask
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dom_nam', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dom_nam : domain initialization through namelist read'
@@ -323,11 +340,15 @@ MODULE domain
       nxioso = nn_wxios
     END IF
     snc4set % luse = .FALSE.
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dom_nam
   SUBROUTINE dom_ctl
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: iimi1, ijmi1, iimi2, ijmi2, iima1, ijma1, iima2, ijma2
     INTEGER, DIMENSION(2) :: iloc
     REAL(KIND = wp) :: ze1min, ze1max, ze2min, ze2max
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dom_ctl', 'r0', 0, 0)
     IF (lk_mpp) THEN
       CALL mpp_minloc(e1t(:, :), tmask_i(:, :), ze1min, iimi1, ijmi1)
       CALL mpp_minloc(e2t(:, :), tmask_i(:, :), ze2min, iimi2, ijmi2)
@@ -360,8 +381,10 @@ MODULE domain
       WRITE(numout, "(14x,'e2t maxi: ',1f10.2,' at i = ',i5,' j= ',i5)") ze2max, iima2, ijma2
       WRITE(numout, "(14x,'e2t mini: ',1f10.2,' at i = ',i5,' j= ',i5)") ze2min, iimi2, ijmi2
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dom_ctl
   SUBROUTINE domain_cfg(ldtxt, cd_cfg, kk_cfg, kpi, kpj, kpk, kperio)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *), DIMENSION(:), INTENT(OUT) :: ldtxt
     CHARACTER(LEN = *), INTENT(OUT) :: cd_cfg
     INTEGER, INTENT(OUT) :: kk_cfg
@@ -370,6 +393,8 @@ MODULE domain
     INTEGER :: inum, ii
     REAL(KIND = wp) :: zorca_res
     REAL(KIND = wp) :: ziglo, zjglo, zkglo, zperio
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('domain_cfg', 'r0', 0, 0)
     ii = 1
     WRITE(ldtxt(ii), FMT = *) '           '
     ii = ii + 1
@@ -417,13 +442,17 @@ MODULE domain
     ii = ii + 1
     WRITE(ldtxt(ii), FMT = *) '      type of global domain lateral boundary   jperio = ', kperio
     ii = ii + 1
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE domain_cfg
   SUBROUTINE cfg_write
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: izco, izps, isco, icav
     INTEGER :: inum
     CHARACTER(LEN = 21) :: clnam
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z2d
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('cfg_write', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'cfg_write : create the domain configuration file (', TRIM(cn_domcfg_out), '.nc)'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~'
@@ -502,5 +531,6 @@ MODULE domain
       CALL iom_putatt(inum, 'cn_cfg', TRIM(cn_cfg))
     END IF
     CALL iom_close(inum)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE cfg_write
 END MODULE domain

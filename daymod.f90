@@ -16,8 +16,11 @@ MODULE daymod
   INTEGER, PUBLIC :: nsecd, nsecd05, ndt, ndt05
   CONTAINS
   SUBROUTINE day_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: inbday, idweek
     REAL(KIND = wp) :: zjul
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('day_init', 'r0', 0, 0)
     IF (REAL(nitend - nit000 + 1) * rdt > REAL(HUGE(nsec1jan000))) THEN
       CALL ctl_stop('The number of seconds between each restart exceeds the integer 4 max value: 2^31-1. ', 'You must do a restart at higher frequency (or remove this stop and recompile the code in I8)')
     END IF
@@ -70,9 +73,11 @@ MODULE daymod
       CALL iom_set_rstw_var_active('adatrj')
       CALL iom_set_rstw_var_active('ntime')
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE day_init
   SUBROUTINE day_mth
     INTEGER :: jm
+    !$ACC KERNELS
     IF (nleapy < 2) THEN
       nmonth_len(:) = (/31, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 31/)
       nyear_len(:) = 365
@@ -92,7 +97,6 @@ MODULE daymod
       nmonth_len(:) = nleapy
       nyear_len(:) = 12 * nleapy
     END IF
-    !$ACC KERNELS
     nmonth_half(0) = - nsecd05 * nmonth_len(0)
     DO jm = 1, 13
       nmonth_half(jm) = nmonth_half(jm - 1) + nsecd05 * (nmonth_len(jm - 1) + nmonth_len(jm))
@@ -104,9 +108,12 @@ MODULE daymod
     !$ACC END KERNELS
   END SUBROUTINE
   SUBROUTINE day(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = 25) :: charout
     REAL(KIND = wp) :: zprec
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('day', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('day')
     zprec = 0.1 / rday
     nsec_year = nsec_year + ndt
@@ -147,12 +154,16 @@ MODULE daymod
     IF (.NOT. l_offline) CALL rst_opn(kt)
     IF (lrst_oce) CALL day_rst(kt, 'WRITE')
     IF (ln_timing) CALL timing_stop('day')
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE day
   SUBROUTINE day_rst(kt, cdrw)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
     REAL(KIND = wp) :: zkt, zndastp, zdayfrac, ksecs, ktime
     INTEGER :: ihour, iminute
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('day_rst', 'r0', 0, 0)
     IF (TRIM(cdrw) == 'READ') THEN
       IF (iom_varid(numror, 'kt', ldstop = .FALSE.) > 0) THEN
         CALL iom_get(numror, 'kt', zkt, ldxios = lrxios)
@@ -230,5 +241,6 @@ MODULE daymod
       CALL iom_rstput(kt, nitrst, numrow, 'ntime', REAL(nn_time0, wp), ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE day_rst
 END MODULE daymod
