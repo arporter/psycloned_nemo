@@ -37,6 +37,7 @@ MODULE ldfslp
   REAL(KIND = wp) :: repsln = 1.E-25_wp
   CONTAINS
   SUBROUTINE ldf_slp(kt, prd, pn2)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: prd
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: pn2
@@ -51,6 +52,7 @@ MODULE ldfslp
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zslpml_hmlpu, zslpml_hmlpv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zgru, zwz, zdzr
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zgrv, zww
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     IF (ln_timing) CALL timing_start('ldf_slp')
     !$ACC KERNELS
     zeps = 1.E-20_wp
@@ -61,6 +63,7 @@ MODULE ldfslp
     zww(:, :, :) = 0._wp
     zwz(:, :, :) = 0._wp
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zgru(ji, jj, jk) = umask(ji, jj, jk) * (prd(ji + 1, jj, jk) - prd(ji, jj, jk))
@@ -71,6 +74,7 @@ MODULE ldfslp
     !$ACC END KERNELS
     IF (ln_zps) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zgru(ji, jj, mbku(ji, jj)) = gru(ji, jj)
@@ -79,17 +83,16 @@ MODULE ldfslp
       END DO
       !$ACC END KERNELS
     END IF
+    !$ACC KERNELS
     IF (ln_zps .AND. ln_isfcav) THEN
-      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           IF (miku(ji, jj) > 1) zgru(ji, jj, miku(ji, jj)) = grui(ji, jj)
           IF (mikv(ji, jj) > 1) zgrv(ji, jj, mikv(ji, jj)) = grvi(ji, jj)
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     zdzr(:, :, 1) = 0._wp
     DO jk = 2, jpkm1
       zdzr(:, :, jk) = zm1_g * (prd(:, :, jk) + 1._wp) * (pn2(:, :, jk) + pn2(:, :, jk + 1)) * (1._wp - 0.5_wp * tmask(:, :, jk + 1))
@@ -98,6 +101,7 @@ MODULE ldfslp
     CALL ldf_slp_mxl(prd, pn2, zgru, zgrv, zdzr)
     IF (ln_isfcav) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zslpml_hmlpu(ji, jj) = uslpml(ji, jj) / (MAX(hmlpt(ji, jj), hmlpt(ji + 1, jj), 5._wp) - MAX(risfdep(ji, jj), risfdep(ji + 1, jj)))
@@ -107,6 +111,7 @@ MODULE ldfslp
       !$ACC END KERNELS
     ELSE
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zslpml_hmlpu(ji, jj) = uslpml(ji, jj) / MAX(hmlpt(ji, jj), hmlpt(ji + 1, jj), 5._wp)
@@ -117,6 +122,7 @@ MODULE ldfslp
     END IF
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zau = zgru(ji, jj, jk) * r1_e1u(ji, jj)
@@ -136,28 +142,34 @@ MODULE ldfslp
     END DO
     !$ACC END KERNELS
     CALL lbc_lnk_multi(zwz, 'U', - 1., zww, 'V', - 1.)
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1, MAX(1, jpj - 3)
         DO ji = 2, jpim1
           uslp(ji, jj, jk) = z1_16 * (zwz(ji - 1, jj - 1, jk) + zwz(ji + 1, jj - 1, jk) + zwz(ji - 1, jj + 1, jk) + zwz(ji + 1, jj + 1, jk) + 2. * (zwz(ji, jj - 1, jk) + zwz(ji - 1, jj, jk) + zwz(ji + 1, jj, jk) + zwz(ji, jj + 1, jk)) + 4. * zwz(ji, jj, jk))
           vslp(ji, jj, jk) = z1_16 * (zww(ji - 1, jj - 1, jk) + zww(ji + 1, jj - 1, jk) + zww(ji - 1, jj + 1, jk) + zww(ji + 1, jj + 1, jk) + 2. * (zww(ji, jj - 1, jk) + zww(ji - 1, jj, jk) + zww(ji + 1, jj, jk) + zww(ji, jj + 1, jk)) + 4. * zww(ji, jj, jk))
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 3, jpj - 2
         DO ji = 2, jpim1
           uslp(ji, jj, jk) = z1_16 * (zwz(ji - 1, jj - 1, jk) + zwz(ji + 1, jj - 1, jk) + zwz(ji - 1, jj + 1, jk) + zwz(ji + 1, jj + 1, jk) + 2. * (zwz(ji, jj - 1, jk) + zwz(ji - 1, jj, jk) + zwz(ji + 1, jj, jk) + zwz(ji, jj + 1, jk)) + 4. * zwz(ji, jj, jk))
           vslp(ji, jj, jk) = z1_16 * (zww(ji - 1, jj - 1, jk) + zww(ji + 1, jj - 1, jk) + zww(ji - 1, jj + 1, jk) + zww(ji + 1, jj + 1, jk) + 2. * (zww(ji, jj - 1, jk) + zww(ji - 1, jj, jk) + zww(ji + 1, jj, jk) + zww(ji, jj + 1, jk)) + 4. * zww(ji, jj, jk))
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           uslp(ji, jj, jk) = uslp(ji, jj, jk) * (umask(ji, jj + 1, jk) + umask(ji, jj - 1, jk)) * 0.5_wp * (umask(ji, jj, jk) + umask(ji, jj, jk + 1)) * 0.5_wp
           vslp(ji, jj, jk) = vslp(ji, jj, jk) * (vmask(ji + 1, jj, jk) + vmask(ji - 1, jj, jk)) * 0.5_wp * (vmask(ji, jj, jk) + vmask(ji, jj, jk + 1)) * 0.5_wp
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zbw = zm1_2g * pn2(ji, jj, jk) * (prd(ji, jj, jk) + prd(ji, jj, jk - 1) + 2.)
@@ -176,8 +188,9 @@ MODULE ldfslp
     END DO
     !$ACC END KERNELS
     CALL lbc_lnk_multi(zwz, 'T', - 1., zww, 'T', - 1.)
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1, MAX(1, jpj - 3)
         DO ji = 2, jpim1
           zcofw = wmask(ji, jj, jk) * z1_16
@@ -185,6 +198,7 @@ MODULE ldfslp
           wslpj(ji, jj, jk) = (zww(ji - 1, jj - 1, jk) + zww(ji + 1, jj - 1, jk) + zww(ji - 1, jj + 1, jk) + zww(ji + 1, jj + 1, jk) + 2. * (zww(ji, jj - 1, jk) + zww(ji - 1, jj, jk) + zww(ji + 1, jj, jk) + zww(ji, jj + 1, jk)) + 4. * zww(ji, jj, jk)) * zcofw
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 3, jpj - 2
         DO ji = 2, jpim1
           zcofw = wmask(ji, jj, jk) * z1_16
@@ -192,6 +206,7 @@ MODULE ldfslp
           wslpj(ji, jj, jk) = (zww(ji - 1, jj - 1, jk) + zww(ji + 1, jj - 1, jk) + zww(ji - 1, jj + 1, jk) + zww(ji + 1, jj + 1, jk) + 2. * (zww(ji, jj - 1, jk) + zww(ji - 1, jj, jk) + zww(ji + 1, jj, jk) + zww(ji, jj + 1, jk)) + 4. * zww(ji, jj, jk)) * zcofw
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zck = (umask(ji, jj, jk) + umask(ji - 1, jj, jk)) * (vmask(ji, jj, jk) + vmask(ji, jj - 1, jk)) * 0.25
@@ -199,17 +214,20 @@ MODULE ldfslp
           wslpj(ji, jj, jk) = wslpj(ji, jj, jk) * zck
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('ldf_slp', 'r0', 0, 0)
     CALL lbc_lnk_multi(uslp, 'U', - 1., vslp, 'V', - 1., wslpi, 'W', - 1., wslpj, 'W', - 1.)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab3d_1 = uslp, clinfo1 = ' slp  - u : ', tab3d_2 = vslp, clinfo2 = ' v : ', kdim = jpk)
       CALL prt_ctl(tab3d_1 = wslpi, clinfo1 = ' slp  - wi: ', tab3d_2 = wslpj, clinfo2 = ' wj: ', kdim = jpk)
     END IF
     IF (ln_timing) CALL timing_stop('ldf_slp')
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ldf_slp
   SUBROUTINE ldf_slp_triad(kt)
-    INTEGER, INTENT( IN ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jl, ip, jp, kp
     INTEGER :: iku, ikv
     REAL(KIND = wp) :: zfacti, zfactj
@@ -224,12 +242,15 @@ MODULE ldfslp
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zalbet
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 0 : 1) :: zdxrho, zdyrho, zdzrho
     REAL(KIND = wp), DIMENSION(jpi, jpj, 0 : 1, 0 : 1) :: zti_mlb, ztj_mlb
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_timing) CALL timing_start('ldf_slp_triad')
+    !$ACC KERNELS
     DO jl = 0, 1
-      !$ACC KERNELS
       ip = jl
       jp = jl
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             zdit = (tsb(ji + 1, jj, jk, jp_tem) - tsb(ji, jj, jk, jp_tem))
@@ -243,9 +264,8 @@ MODULE ldfslp
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
       IF (ln_zps .AND. l_grad_zps) THEN
-        !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             iku = mbku(ji, jj)
@@ -260,12 +280,13 @@ MODULE ldfslp
             zdyrho(ji, jj + jp, ikv, 1 - jp) = SIGN(MAX(repsln, ABS(zdyrho_raw)), zdyrho_raw)
           END DO
         END DO
-        !$ACC END KERNELS
       END IF
     END DO
-    !$ACC KERNELS
+    !$ACC END KERNELS
     DO kp = 0, 1
+      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (jk + kp > 1) THEN
@@ -280,7 +301,10 @@ MODULE ldfslp
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         jk = MIN(nmln(ji, jj), mbkt(ji, jj)) + 1
@@ -298,6 +322,7 @@ MODULE ldfslp
     triadj(:, :, jpk, :, :) = 0._wp
     DO jl = 0, 1
       DO kp = 0, 1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             ip = jl
@@ -323,6 +348,7 @@ MODULE ldfslp
       END DO
     END DO
     !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('ldf_slp_triad', 'r0', 0, 0)
     DO kp = 0, 1
       DO jl = 0, 1
         ip = jl
@@ -372,11 +398,14 @@ MODULE ldfslp
         END DO
       END DO
     END DO
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     wslp2(:, :, 1) = 0._wp
     !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('ldf_slp_triad', 'r1', 0, 0)
     CALL lbc_lnk(wslp2, 'W', 1.)
     IF (ln_timing) CALL timing_stop('ldf_slp_triad')
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE ldf_slp_triad
   SUBROUTINE ldf_slp_mxl(prd, pn2, p_gru, p_grv, p_dzr)
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: prd
@@ -403,6 +432,7 @@ MODULE ldfslp
     wslpjml(1, :) = 0._wp
     wslpjml(jpi, :) = 0._wp
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           ik = nmln(ji, jj) - 1
@@ -414,6 +444,7 @@ MODULE ldfslp
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         iku = MIN(MAX(1, nmln(ji, jj), nmln(ji + 1, jj)), jpkm1)
@@ -443,8 +474,13 @@ MODULE ldfslp
     CALL lbc_lnk_multi(uslpml, 'U', - 1., vslpml, 'V', - 1., wslpiml, 'W', - 1., wslpjml, 'W', - 1.)
   END SUBROUTINE ldf_slp_mxl
   SUBROUTINE ldf_slp_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: ierr
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('ldf_slp_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'ldf_slp_init : direction of lateral mixing'
@@ -452,15 +488,20 @@ MODULE ldfslp
     END IF
     ALLOCATE(ah_wslp2(jpi, jpj, jpk), akz(jpi, jpj, jpk), STAT = ierr)
     IF (ierr > 0) CALL ctl_stop('STOP', 'ldf_slp_init : unable to allocate ah_slp2 or akz')
+    CALL profile_psy_data0 % PostEnd
     IF (ln_traldf_triad) THEN
+      CALL profile_psy_data1 % PreStart('ldf_slp_init', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   triad) operator (Griffies)'
       ALLOCATE(triadi_g(jpi, jpj, jpk, 0 : 1, 0 : 1), triadj_g(jpi, jpj, jpk, 0 : 1, 0 : 1), triadi(jpi, jpj, jpk, 0 : 1, 0 : 1), triadj(jpi, jpj, jpk, 0 : 1, 0 : 1), wslp2(jpi, jpj, jpk), STAT = ierr)
       IF (ierr > 0) CALL ctl_stop('STOP', 'ldf_slp_init : unable to allocate Griffies operator slope')
       IF (ln_dynldf_iso) CALL ctl_stop('ldf_slp_init: Griffies operator on momentum not supported')
+      CALL profile_psy_data1 % PostEnd
     ELSE
+      CALL profile_psy_data2 % PreStart('ldf_slp_init', 'r2', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   iso operator (Madec)'
       ALLOCATE(omlmask(jpi, jpj, jpk), uslp(jpi, jpj, jpk), uslpml(jpi, jpj), wslpi(jpi, jpj, jpk), wslpiml(jpi, jpj), vslp(jpi, jpj, jpk), vslpml(jpi, jpj), wslpj(jpi, jpj, jpk), wslpjml(jpi, jpj), STAT = ierr)
       IF (ierr > 0) CALL ctl_stop('STOP', 'ldf_slp_init : unable to allocate Madec operator slope ')
+      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       uslp(:, :, :) = 0._wp
       uslpml(:, :) = 0._wp

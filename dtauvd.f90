@@ -15,12 +15,15 @@ MODULE dtauvd
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_uvd
   CONTAINS
   SUBROUTINE dta_uvd_init(ld_dyndmp)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     LOGICAL, INTENT(IN), OPTIONAL :: ld_dyndmp
     INTEGER :: ios, ierr0, ierr1, ierr2, ierr3
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N), DIMENSION(2) :: suv_i
     TYPE(FLD_N) :: sn_ucur, sn_vcur
     NAMELIST /namc1d_uvd/ ln_uvd_init, ln_uvd_dyndmp, cn_dir, sn_ucur, sn_vcur
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dta_uvd_init', 'r0', 0, 0)
     ierr0 = 0
     ierr1 = 0
     ierr2 = 0
@@ -68,26 +71,37 @@ MODULE dtauvd
       suv_i(2) = sn_vcur
       CALL fld_fill(sf_uvd, suv_i, cn_dir, 'dta_uvd', 'U & V current data', 'namc1d_uvd')
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dta_uvd_init
   SUBROUTINE dta_uvd(kt, puvd)
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2), INTENT(  OUT) :: puvd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2), INTENT(OUT) :: puvd
     INTEGER :: ji, jj, jk, jl, jkk
     INTEGER :: ik, il0, il1, ii0, ii1, ij0, ij1
     REAL(KIND = wp) :: zl, zi
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:) :: zup, zvp
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    CALL profile_psy_data0 % PreStart('dta_uvd', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('dta_uvd')
     CALL fld_read(kt, 1, sf_uvd)
     puvd(:, :, :, 1) = sf_uvd(1) % fnow(:, :, :)
     puvd(:, :, :, 2) = sf_uvd(2) % fnow(:, :, :)
+    CALL profile_psy_data0 % PostEnd
     IF (ln_sco) THEN
+      CALL profile_psy_data1 % PreStart('dta_uvd', 'r1', 0, 0)
       ALLOCATE(zup(jpk), zvp(jpk))
       IF (kt == nit000 .AND. lwp) THEN
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) 'dta_uvd: interpolate U & V current data onto the s- or mixed s-z-coordinate mesh'
       END IF
+      CALL profile_psy_data1 % PostEnd
       DO jj = 1, jpj
         DO ji = 1, jpi
+          CALL profile_psy_data2 % PreStart('dta_uvd', 'r2', 0, 0)
           DO jk = 1, jpk
             zl = gdept_n(ji, jj, jk)
             IF (zl < gdept_1d(1)) THEN
@@ -97,7 +111,6 @@ MODULE dtauvd
               zup(jk) = puvd(ji, jj, jpkm1, 1)
               zvp(jk) = puvd(ji, jj, jpkm1, 2)
             ELSE
-              !$ACC KERNELS
               DO jkk = 1, jpkm1
                 IF ((zl - gdept_1d(jkk)) * (zl - gdept_1d(jkk + 1)) <= 0._wp) THEN
                   zi = (zl - gdept_1d(jkk)) / (gdept_1d(jkk + 1) - gdept_1d(jkk))
@@ -105,9 +118,9 @@ MODULE dtauvd
                   zvp(jk) = puvd(ji, jj, jkk, 2) + (puvd(ji, jj, jkk + 1, 2) - puvd(ji, jj, jkk, 2)) * zi
                 END IF
               END DO
-              !$ACC END KERNELS
             END IF
           END DO
+          CALL profile_psy_data2 % PostEnd
           !$ACC KERNELS
           DO jk = 1, jpkm1
             puvd(ji, jj, jk, 1) = zup(jk) * umask(ji, jj, jk)
@@ -126,6 +139,7 @@ MODULE dtauvd
       !$ACC END KERNELS
       IF (ln_zps) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             ik = mbkt(ji, jj)
@@ -139,6 +153,7 @@ MODULE dtauvd
         !$ACC END KERNELS
       END IF
     END IF
+    CALL profile_psy_data3 % PreStart('dta_uvd', 'r3', 0, 0)
     IF (.NOT. ln_uvd_dyndmp) THEN
       IF (lwp) WRITE(numout, FMT = *) 'dta_uvd: deallocate U & V current arrays as they are only used to initialize the run'
       DEALLOCATE(sf_uvd(1) % fnow)
@@ -148,5 +163,6 @@ MODULE dtauvd
       DEALLOCATE(sf_uvd)
     END IF
     IF (ln_timing) CALL timing_stop('dta_uvd')
+    CALL profile_psy_data3 % PostEnd
   END SUBROUTINE dta_uvd
 END MODULE dtauvd

@@ -23,9 +23,12 @@ MODULE zdfric
   LOGICAL :: ln_mldw
   CONTAINS
   SUBROUTINE zdf_ric_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: ios
     NAMELIST /namzdf_ric/ rn_avmri, rn_alp, nn_ric, rn_ekmfc, rn_mldmin, rn_mldmax, rn_wtmix, rn_wvmix, ln_mldw
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('zdf_ric_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namzdf_ric, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namzdf_ric in reference namelist', lwp)
@@ -53,17 +56,19 @@ MODULE zdfric
       CALL iom_set_rstw_var_active('avt_k')
       CALL iom_set_rstw_var_active('avm_k')
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE zdf_ric_init
   SUBROUTINE zdf_ric(kt, pdept, p_sh2, p_avm, p_avt)
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdept
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
+    INTEGER, INTENT(IN) :: kt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: pdept
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: p_sh2
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcfRi, zav, zustar, zhek
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zh_ekm
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zcfRi = 1._wp / (1._wp + rn_alp * MAX(0._wp, avm(ji, jj, jk) * rn2(ji, jj, jk) / (p_sh2(ji, jj, jk) + 1.E-20)))
@@ -76,6 +81,7 @@ MODULE zdfric
     !$ACC END KERNELS
     IF (ln_mldw) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zustar = SQRT(taum(ji, jj) * r1_rau0)
@@ -84,6 +90,7 @@ MODULE zdfric
         END DO
       END DO
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (pdept(ji, jj, jk) < zh_ekm(ji, jj)) THEN
@@ -97,10 +104,13 @@ MODULE zdfric
     END IF
   END SUBROUTINE zdf_ric
   SUBROUTINE ric_rst(kt, cdrw)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
     INTEGER :: jit, jk
     INTEGER :: id1, id2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ric_rst', 'r0', 0, 0)
     IF (TRIM(cdrw) == 'READ') THEN
       IF (ln_rstart) THEN
         id1 = iom_varid(numror, 'avt_k', ldstop = .FALSE.)
@@ -117,5 +127,6 @@ MODULE zdfric
       CALL iom_rstput(kt, nitrst, numrow, 'avm_k', avm_k, ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ric_rst
 END MODULE zdfric

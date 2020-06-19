@@ -27,10 +27,13 @@ MODULE tideini
   INTEGER, PUBLIC, ALLOCATABLE, DIMENSION(:) :: ntide
   CONTAINS
   SUBROUTINE tide_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jk
     CHARACTER(LEN = 4), DIMENSION(jpmax_harmo) :: clname
     INTEGER :: ios
     NAMELIST /nam_tide/ ln_tide, ln_tide_pot, ln_scal_load, ln_read_load, cn_tide_load, ln_tide_ramp, rn_scal_load, rdttideramp, clname
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('tide_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, nam_tide, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'nam_tide in reference namelist', lwp)
@@ -84,5 +87,6 @@ MODULE tideini
     ALLOCATE(omega_tide(nb_harmo), v0tide(nb_harmo), utide(nb_harmo), ftide(nb_harmo))
     kt_tide = nit000
     IF (.NOT. ln_scal_load) rn_scal_load = 0._wp
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tide_init
 END MODULE tideini

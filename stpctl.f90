@@ -15,7 +15,8 @@ MODULE stpctl
   INTEGER :: idrun, idtime, idssh, idu, ids1, ids2, istatus
   CONTAINS
   SUBROUTINE stp_ctl(kt, kindic)
-    INTEGER, INTENT(IN   ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(INOUT) :: kindic
     INTEGER :: ji, jj, jk
     INTEGER :: iih, ijh
@@ -27,6 +28,8 @@ MODULE stpctl
     INTEGER, DIMENSION(2) :: iloch
     REAL(KIND = wp), DIMENSION(5) :: zmax
     CHARACTER(LEN = 20) :: clname
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('stp_ctl', 'r0', 0, 0)
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'stp_ctl : time-stepping control'
@@ -117,5 +120,6 @@ MODULE stpctl
       IF (kt == nitend) istatus = NF90_CLOSE(idrun)
     END IF
 9500 FORMAT(' it :', I8, '    |ssh|_max: ', D23.16, ' |U|_max: ', D23.16, ' S_min: ', D23.16, ' S_max: ', D23.16)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE stp_ctl
 END MODULE stpctl

@@ -24,17 +24,27 @@ MODULE lib_mpp
   INTEGER, PUBLIC :: mpi_comm_oce
   CONTAINS
   INTEGER FUNCTION lib_mpp_alloc(kumout)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kumout
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('lib_mpp_alloc', 'r0', 0, 0)
     lib_mpp_alloc = 0
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION lib_mpp_alloc
   FUNCTION mynode(ldtxt, ldname, kumnam_ref, knumnam_cfg, kumond, kstop, localComm) RESULT(function_value)
-    INTEGER, OPTIONAL, INTENT(IN   ) :: localComm
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, OPTIONAL, INTENT(IN) :: localComm
     CHARACTER(LEN = *), DIMENSION(:) :: ldtxt
     CHARACTER(LEN = *) :: ldname
     INTEGER :: kumnam_ref, knumnam_cfg, kumond, kstop
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('mynode', 'r0', 0, 0)
     IF (PRESENT(localComm)) mpi_comm_oce = localComm
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     function_value = 0
     IF (.FALSE.) ldtxt(:) = 'never done'
+    !$ACC END KERNELS
     CALL ctl_opn(kumond, TRIM(ldname), 'UNKNOWN', 'FORMATTED', 'SEQUENTIAL', - 1, 6, .FALSE., 1)
   END FUNCTION mynode
   SUBROUTINE mppsync
@@ -69,13 +79,13 @@ MODULE lib_mpp
   END SUBROUTINE mpp_sum_i
   SUBROUTINE mppsum_realdd(ytab, kcom)
     COMPLEX(KIND = wp), INTENT(INOUT) :: ytab
-    INTEGER, INTENT( IN  ), OPTIONAL :: kcom
+    INTEGER, INTENT(IN), OPTIONAL :: kcom
     WRITE(*, FMT = *) 'mppsum_realdd: You should not have seen this print! error?', ytab
   END SUBROUTINE mppsum_realdd
   SUBROUTINE mppsum_a_realdd(ytab, kdim, kcom)
-    INTEGER, INTENT( IN ) :: kdim
-    COMPLEX(KIND = wp), DIMENSION(kdim), INTENT( INOUT ) :: ytab
-    INTEGER, INTENT( IN  ), OPTIONAL :: kcom
+    INTEGER, INTENT(IN) :: kdim
+    COMPLEX(KIND = wp), DIMENSION(kdim), INTENT(INOUT) :: ytab
+    INTEGER, INTENT(IN), OPTIONAL :: kcom
     WRITE(*, FMT = *) 'mppsum_a_realdd: You should not have seen this print! error?', kdim, ytab(1), kcom
   END SUBROUTINE mppsum_a_realdd
   SUBROUTINE mppmax_a_real(parr, kdim, kcom)
@@ -168,8 +178,11 @@ MODULE lib_mpp
     WRITE(*, FMT = *) 'mppmax_real_multiple: You should not have seen this print! error?', ptab(1), kdim
   END SUBROUTINE mppmax_real_multiple
   SUBROUTINE ctl_stop(cd1, cd2, cd3, cd4, cd5, cd6, cd7, cd8, cd9, cd10)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cd1, cd2, cd3, cd4, cd5
     CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cd6, cd7, cd8, cd9, cd10
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ctl_stop', 'r0', 0, 0)
     nstop = nstop + 1
     IF (lwp) THEN
       WRITE(numout, cform_err)
@@ -192,10 +205,14 @@ MODULE lib_mpp
       IF (lwp) WRITE(numout, FMT = *) 'huge E-R-R-O-R : immediate stop'
       CALL mppstop
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ctl_stop
   SUBROUTINE ctl_warn(cd1, cd2, cd3, cd4, cd5, cd6, cd7, cd8, cd9, cd10)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cd1, cd2, cd3, cd4, cd5
     CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cd6, cd7, cd8, cd9, cd10
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ctl_warn', 'r0', 0, 0)
     nwarn = nwarn + 1
     IF (lwp) THEN
       WRITE(numout, cform_war)
@@ -211,19 +228,23 @@ MODULE lib_mpp
       IF (PRESENT(cd10)) WRITE(numout, FMT = *) cd10
     END IF
     CALL FLUSH(numout)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ctl_warn
   SUBROUTINE ctl_opn(knum, cdfile, cdstat, cdform, cdacce, klengh, kout, ldwp, karea)
-    INTEGER, INTENT(  OUT) :: knum
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdfile
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdstat
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdform
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdacce
-    INTEGER, INTENT(IN   ) :: klengh
-    INTEGER, INTENT(IN   ) :: kout
-    LOGICAL, INTENT(IN   ) :: ldwp
-    INTEGER, OPTIONAL, INTENT(IN   ) :: karea
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(OUT) :: knum
+    CHARACTER(LEN = *), INTENT(IN) :: cdfile
+    CHARACTER(LEN = *), INTENT(IN) :: cdstat
+    CHARACTER(LEN = *), INTENT(IN) :: cdform
+    CHARACTER(LEN = *), INTENT(IN) :: cdacce
+    INTEGER, INTENT(IN) :: klengh
+    INTEGER, INTENT(IN) :: kout
+    LOGICAL, INTENT(IN) :: ldwp
+    INTEGER, OPTIONAL, INTENT(IN) :: karea
     CHARACTER(LEN = 80) :: clfile
     INTEGER :: iost
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ctl_opn', 'r0', 0, 0)
     clfile = TRIM(cdfile)
     IF (PRESENT(karea)) THEN
       IF (karea > 1) WRITE(clfile, FMT = "(a,'_',i4.4)") TRIM(clfile), karea - 1
@@ -273,12 +294,16 @@ MODULE lib_mpp
       CALL FLUSH(kout)
       STOP 'ctl_opn bad opening'
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ctl_opn
   SUBROUTINE ctl_nam(kios, cdnam, ldwp)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(INOUT) :: kios
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdnam
+    CHARACTER(LEN = *), INTENT(IN) :: cdnam
     CHARACTER(LEN = 5) :: clios
-    LOGICAL, INTENT(IN   ) :: ldwp
+    LOGICAL, INTENT(IN) :: ldwp
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ctl_nam', 'r0', 0, 0)
     WRITE(clios, FMT = '(I5.0)') kios
     IF (kios < 0) THEN
       CALL ctl_warn('end of record or file while reading namelist ' // TRIM(cdnam) // ' iostat = ' // TRIM(clios))
@@ -288,9 +313,13 @@ MODULE lib_mpp
     END IF
     kios = 0
     RETURN
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ctl_nam
   INTEGER FUNCTION get_unit()
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     LOGICAL :: llopn
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('get_unit', 'r0', 0, 0)
     get_unit = 15
     llopn = .TRUE.
     DO WHILE ((get_unit < 998) .AND. llopn)
@@ -301,5 +330,6 @@ MODULE lib_mpp
       CALL ctl_stop('get_unit: All logical units until 999 are used...')
       get_unit = - 1
     END IF
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION get_unit
 END MODULE lib_mpp

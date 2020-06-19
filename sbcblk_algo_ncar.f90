@@ -4,7 +4,6 @@ MODULE sbcblk_algo_ncar
   USE phycst
   USE sbc_oce
   USE sbcwave, ONLY: cdn_wave
-  USE sbc_ice
   USE iom
   USE lib_mpp
   USE in_out_manager
@@ -16,20 +15,21 @@ MODULE sbcblk_algo_ncar
   REAL(KIND = wp), PARAMETER :: rctv0 = 0.608
   CONTAINS
   SUBROUTINE turb_ncar(zt, zu, sst, t_zt, ssq, q_zt, U_zu, Cd, Ch, Ce, t_zu, q_zu, U_blk, Cdn, Chn, Cen)
-    REAL(KIND = wp), INTENT(IN   ) :: zt
-    REAL(KIND = wp), INTENT(IN   ) :: zu
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: sst
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: t_zt
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: ssq
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: q_zt
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: U_zu
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Cd
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Ch
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Ce
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: t_zu
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: q_zu
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: U_blk
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), INTENT(IN) :: zt
+    REAL(KIND = wp), INTENT(IN) :: zu
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: sst
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: t_zt
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: ssq
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: q_zt
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: U_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Cd
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Ch
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Ce
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: t_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: q_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: U_blk
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
     INTEGER :: j_itt
     LOGICAL :: l_zt_equal_zu = .FALSE.
     INTEGER, PARAMETER :: nb_itt = 4
@@ -39,6 +39,8 @@ MODULE sbcblk_algo_ncar
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zpsi_h_u
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztmp0, ztmp1, ztmp2
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: stab
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('turb_ncar', 'r0', 0, 0)
     l_zt_equal_zu = .FALSE.
     IF (ABS(zu - zt) < 0.01) l_zt_equal_zu = .TRUE.
     U_blk = MAX(0.5, U_zu)
@@ -108,12 +110,16 @@ MODULE sbcblk_algo_ncar
         Ce = Cx_n10 * ztmp2 / ztmp1
       END IF
     END DO
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE turb_ncar
   FUNCTION cd_neutral_10m(pw10)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pw10
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: cd_neutral_10m
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zgt33, zw, zw6
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('cd_neutral_10m', 'r0', 0, 0)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zw = pw10(ji, jj)
@@ -124,6 +130,7 @@ MODULE sbcblk_algo_ncar
         cd_neutral_10m(ji, jj) = MAX(cd_neutral_10m(ji, jj), 1.E-6)
       END DO
     END DO
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION cd_neutral_10m
   FUNCTION psi_m(pzeta)
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pzeta
@@ -131,6 +138,7 @@ MODULE sbcblk_algo_ncar
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zx2, zx, zstab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zx2 = SQRT(ABS(1. - 16. * pzeta(ji, jj)))
@@ -148,6 +156,7 @@ MODULE sbcblk_algo_ncar
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zx2, zstab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zx2 = SQRT(ABS(1. - 16. * pzeta(ji, jj)))

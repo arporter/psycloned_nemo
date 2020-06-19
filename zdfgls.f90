@@ -83,9 +83,10 @@ MODULE zdfgls
     IF (zdf_gls_alloc /= 0) CALL ctl_warn('zdf_gls_alloc: failed to allocate arrays')
   END FUNCTION zdf_gls_alloc
   SUBROUTINE zdf_gls(kt, p_sh2, p_avm, p_avt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE zdf_oce, ONLY: en, avtb, avmb
-    INTEGER, INTENT(IN   ) :: kt
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: p_sh2
+    INTEGER, INTENT(IN) :: kt
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: p_sh2
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     INTEGER :: ibot, ibotm1
@@ -107,12 +108,16 @@ MODULE zdfgls
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: psi
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zd_lw, zd_up, zdiag
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zstt, zstm
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     !$ACC KERNELS
     ustar2_surf(:, :) = 0._wp
     psi(:, :, :) = 0._wp
     ustar2_top(:, :) = 0._wp
     zwall_psi(:, :, :) = 0._wp
     ustar2_bot(:, :) = 0._wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ustar2_surf(ji, jj) = r1_rau0 * taum(ji, jj) * tmask(ji, jj, 1)
@@ -124,6 +129,7 @@ MODULE zdfgls
     !$ACC END KERNELS
     IF (ln_isfcav) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zmsku = (2. - umask(ji - 1, jj, mikt(ji, jj)) * umask(ji, jj, mikt(ji, jj)))
@@ -133,27 +139,20 @@ MODULE zdfgls
       END DO
       !$ACC END KERNELS
     END IF
+    !$ACC KERNELS
     SELECT CASE (nn_z0_met)
     CASE (0)
-      !$ACC KERNELS
       zhsro(:, :) = rn_hsro
-      !$ACC END KERNELS
     CASE (1)
-      !$ACC KERNELS
       zhsro(:, :) = MAX(rsbc_zs1 * ustar2_surf(:, :), rn_hsro)
-      !$ACC END KERNELS
     CASE (2)
-      !$ACC KERNELS
       zdep(:, :) = 30. * TANH(2. * 0.3 / (28. * SQRT(MAX(ustar2_surf(:, :), rsmall))))
       zhsro(:, :) = MAX(rsbc_zs2 * ustar2_surf(:, :) * zdep(:, :) ** 1.5, rn_hsro)
-      !$ACC END KERNELS
     CASE (3)
-      !$ACC KERNELS
       zhsro(:, :) = rn_frac_hs * hsw(:, :)
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           eps(ji, jj, jk) = rc03 * en(ji, jj, jk) * SQRT(en(ji, jj, jk)) / hmxl_n(ji, jj, jk)
@@ -162,10 +161,9 @@ MODULE zdfgls
     END DO
     eb(:, :, :) = en(:, :, :)
     hmxl_b(:, :, :) = hmxl_n(:, :, :)
-    !$ACC END KERNELS
     IF (nn_clos == 0) THEN
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zup = hmxl_n(ji, jj, jk) * gdepw_n(ji, jj, mbkt(ji, jj) + 1)
@@ -175,9 +173,9 @@ MODULE zdfgls
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
+    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('zdf_gls', 'r0', 0, 0)
     DO jk = 2, jpkm1
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -200,13 +198,13 @@ MODULE zdfgls
         END DO
       END DO
     END DO
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     zdiag(:, :, jpk) = 1._wp
     zwall_psi(:, :, 1) = zwall_psi(:, :, 2)
     zwall_psi(:, :, jpk) = 1._wp
-    !$ACC END KERNELS
     SELECT CASE (nn_bc_surf)
     CASE (0)
-      !$ACC KERNELS
       en(:, :, 1) = MAX(rn_emin, rc02r * ustar2_surf(:, :) * (1._wp + rsbc_tke1) ** r2_3)
       zd_lw(:, :, 1) = en(:, :, 1)
       zd_up(:, :, 1) = 0._wp
@@ -215,9 +213,7 @@ MODULE zdfgls
       zd_lw(:, :, 2) = 0._wp
       zd_up(:, :, 2) = 0._wp
       zdiag(:, :, 2) = 1._wp
-      !$ACC END KERNELS
     CASE (1)
-      !$ACC KERNELS
       en(:, :, 1) = MAX(rc02r * ustar2_surf(:, :) * (1._wp + rsbc_tke1) ** r2_3, rn_emin)
       zd_lw(:, :, 1) = en(:, :, 1)
       zd_up(:, :, 1) = 0._wp
@@ -227,11 +223,12 @@ MODULE zdfgls
       zkar(:, :) = (rl_sf + (vkarmn - rl_sf) * (1. - EXP(- rtrans * gdept_n(:, :, 1) / zhsro(:, :))))
       zflxs(:, :) = rsbc_tke2 * ustar2_surf(:, :) ** 1.5_wp * zkar(:, :) * ((zhsro(:, :) + gdept_n(:, :, 1)) / zhsro(:, :)) ** (1.5_wp * ra_sf)
       en(:, :, 2) = en(:, :, 2) + zflxs(:, :) / e3w_n(:, :, 2)
-      !$ACC END KERNELS
     END SELECT
+    !$ACC END KERNELS
     SELECT CASE (nn_bc_bot)
     CASE (0)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ibot = mbkt(ji, jj) + 1
@@ -250,6 +247,7 @@ MODULE zdfgls
       !$ACC END KERNELS
       IF (ln_isfcav) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             itop = mikt(ji, jj)
@@ -269,6 +267,7 @@ MODULE zdfgls
       END IF
     CASE (1)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ibot = mbkt(ji, jj) + 1
@@ -284,6 +283,7 @@ MODULE zdfgls
       !$ACC END KERNELS
       IF (ln_isfcav) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             itop = mikt(ji, jj)
@@ -301,6 +301,7 @@ MODULE zdfgls
     END SELECT
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zdiag(ji, jj, jk) = zdiag(ji, jj, jk) - zd_lw(ji, jj, jk) * zd_up(ji, jj, jk - 1) / zdiag(ji, jj, jk - 1)
@@ -308,6 +309,7 @@ MODULE zdfgls
       END DO
     END DO
     DO jk = 2, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zd_lw(ji, jj, jk) = en(ji, jj, jk) - zd_lw(ji, jj, jk) / zdiag(ji, jj, jk - 1) * zd_lw(ji, jj, jk - 1)
@@ -315,6 +317,7 @@ MODULE zdfgls
       END DO
     END DO
     DO jk = jpk - 1, 2, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           en(ji, jj, jk) = (zd_lw(ji, jj, jk) - zd_up(ji, jj, jk) * en(ji, jj, jk + 1)) / zdiag(ji, jj, jk)
@@ -322,51 +325,46 @@ MODULE zdfgls
       END DO
     END DO
     en(:, :, :) = MAX(en(:, :, :), rn_emin)
-    !$ACC END KERNELS
     SELECT CASE (nn_clos)
     CASE (0)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             psi(ji, jj, jk) = eb(ji, jj, jk) * hmxl_b(ji, jj, jk)
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (1)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             psi(ji, jj, jk) = eps(ji, jj, jk)
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (2)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             psi(ji, jj, jk) = SQRT(eb(ji, jj, jk)) / (rc0 * hmxl_b(ji, jj, jk))
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (3)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             psi(ji, jj, jk) = rc02 * eb(ji, jj, jk) * hmxl_b(ji, jj, jk) ** rnn
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zratio = psi(ji, jj, jk) / eb(ji, jj, jk)
@@ -387,10 +385,8 @@ MODULE zdfgls
       END DO
     END DO
     zdiag(:, :, jpk) = 1._wp
-    !$ACC END KERNELS
     SELECT CASE (nn_bc_surf)
     CASE (0)
-      !$ACC KERNELS
       zdep(:, :) = zhsro(:, :) * rl_sf
       psi(:, :, 1) = rc0 ** rpp * en(:, :, 1) ** rmm * zdep(:, :) ** rnn * tmask(:, :, 1)
       zd_lw(:, :, 1) = psi(:, :, 1)
@@ -402,9 +398,7 @@ MODULE zdfgls
       zd_lw(:, :, 2) = 0._wp
       zd_up(:, :, 2) = 0._wp
       zdiag(:, :, 2) = 1._wp
-      !$ACC END KERNELS
     CASE (1)
-      !$ACC KERNELS
       zdep(:, :) = zhsro(:, :) * rl_sf
       psi(:, :, 1) = rc0 ** rpp * en(:, :, 1) ** rmm * zdep(:, :) ** rnn * tmask(:, :, 1)
       zd_lw(:, :, 1) = psi(:, :, 1)
@@ -418,11 +412,10 @@ MODULE zdfgls
       zdep(:, :) = rsbc_psi1 * (zwall_psi(:, :, 1) * p_avm(:, :, 1) + zwall_psi(:, :, 2) * p_avm(:, :, 2)) * ustar2_surf(:, :) ** rmm * zkar(:, :) ** rnn * (zhsro(:, :) + gdept_n(:, :, 1)) ** (rnn - 1.)
       zflxs(:, :) = zdep(:, :) * zflxs(:, :)
       psi(:, :, 2) = psi(:, :, 2) + zflxs(:, :) / e3w_n(:, :, 2)
-      !$ACC END KERNELS
     END SELECT
     SELECT CASE (nn_bc_bot)
     CASE (0)
-      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ibot = mbkt(ji, jj) + 1
@@ -439,9 +432,8 @@ MODULE zdfgls
           zdiag(ji, jj, ibotm1) = 1._wp
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (1)
-      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ibot = mbkt(ji, jj) + 1
@@ -458,10 +450,9 @@ MODULE zdfgls
           psi(ji, jj, ibotm1) = psi(ji, jj, ibotm1) + zflxb / e3w_n(ji, jj, ibotm1)
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zdiag(ji, jj, jk) = zdiag(ji, jj, jk) - zd_lw(ji, jj, jk) * zd_up(ji, jj, jk - 1) / zdiag(ji, jj, jk - 1)
@@ -469,6 +460,7 @@ MODULE zdfgls
       END DO
     END DO
     DO jk = 2, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zd_lw(ji, jj, jk) = psi(ji, jj, jk) - zd_lw(ji, jj, jk) / zdiag(ji, jj, jk - 1) * zd_lw(ji, jj, jk - 1)
@@ -476,59 +468,56 @@ MODULE zdfgls
       END DO
     END DO
     DO jk = jpk - 1, 2, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           psi(ji, jj, jk) = (zd_lw(ji, jj, jk) - zd_up(ji, jj, jk) * psi(ji, jj, jk + 1)) / zdiag(ji, jj, jk)
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
     SELECT CASE (nn_clos)
     CASE (0)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             eps(ji, jj, jk) = rc03 * en(ji, jj, jk) * en(ji, jj, jk) * SQRT(en(ji, jj, jk)) / MAX(psi(ji, jj, jk), rn_epsmin)
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (1)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             eps(ji, jj, jk) = psi(ji, jj, jk)
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (2)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             eps(ji, jj, jk) = rc04 * en(ji, jj, jk) * psi(ji, jj, jk)
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (3)
-      !$ACC KERNELS
       zcoef = rc0 ** (3._wp + rpp / rnn)
       zex1 = (1.5_wp + rmm / rnn)
       zex2 = - 1._wp / rnn
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             eps(ji, jj, jk) = zcoef * en(ji, jj, jk) ** zex1 * psi(ji, jj, jk) ** zex2
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('zdf_gls', 'r1', 0, 0)
     DO jk = 1, jpkm1
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -539,11 +528,12 @@ MODULE zdfgls
         END DO
       END DO
     END DO
-    !$ACC END KERNELS
+    CALL profile_psy_data1 % PostEnd
+    !$ACC KERNELS
     SELECT CASE (nn_stab_func)
     CASE (0, 1)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zcof = hmxl_b(ji, jj, jk) * hmxl_b(ji, jj, jk) / (2._wp * eb(ji, jj, jk))
@@ -557,10 +547,9 @@ MODULE zdfgls
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (2, 3)
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zcof = hmxl_b(ji, jj, jk) * hmxl_b(ji, jj, jk) / (2._wp * eb(ji, jj, jk))
@@ -580,16 +569,16 @@ MODULE zdfgls
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     zstm(:, :, 1) = zstm(:, :, 2)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zstm(ji, jj, mbkt(ji, jj) + 1) = zstm(ji, jj, mbkt(ji, jj))
       END DO
     END DO
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zsqen = SQRT(2._wp * en(ji, jj, jk)) * hmxl_n(ji, jj, jk)
@@ -602,16 +591,22 @@ MODULE zdfgls
     END DO
     p_avt(:, :, 1) = 0._wp
     !$ACC END KERNELS
+    CALL profile_psy_data2 % PreStart('zdf_gls', 'r2', 0, 0)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab3d_1 = en, clinfo1 = ' gls  - e: ', tab3d_2 = p_avt, clinfo2 = ' t: ', kdim = jpk)
       CALL prt_ctl(tab3d_1 = p_avm, clinfo1 = ' gls  - m: ', kdim = jpk)
     END IF
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE zdf_gls
   SUBROUTINE zdf_gls_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jk
     INTEGER :: ios
     REAL(KIND = wp) :: zcr
     NAMELIST /namzdf_gls/ rn_emin, rn_epsmin, ln_length_lim, rn_clim_galp, ln_sigpsi, rn_hsro, rn_crban, rn_charn, rn_frac_hs, nn_bc_surf, nn_bc_bot, nn_z0_met, nn_stab_func, nn_clos
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('zdf_gls_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namzdf_gls, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namzdf_gls in reference namelist', lwp)
@@ -825,6 +820,7 @@ MODULE zdfgls
       WRITE(numout, FMT = *) '      ra_sf    = ', ra_sf
       WRITE(numout, FMT = *) '      rl_sf    = ', rl_sf
     END IF
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     rc02 = rc0 * rc0
     rc02r = 1. / rc02
@@ -842,6 +838,7 @@ MODULE zdfgls
     rfact_psi = - 0.5_wp / rsc_psi * rdt
     zwall(:, :, :) = 1._wp * tmask(:, :, :)
     !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('zdf_gls_init', 'r1', 0, 0)
     CALL gls_rst(nit000, 'READ')
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('en')
@@ -849,8 +846,10 @@ MODULE zdfgls
       CALL iom_set_rstw_var_active('avm_k')
       CALL iom_set_rstw_var_active('hmxl_n')
     END IF
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE zdf_gls_init
   SUBROUTINE gls_rst(kt, cdrw)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE zdf_oce, ONLY: en, avt_k, avm_k
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
@@ -858,34 +857,48 @@ MODULE zdfgls
     INTEGER :: id1, id2, id3, id4
     INTEGER :: ji, jj, ikbu, ikbv
     REAL(KIND = wp) :: cbx, cby
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
     IF (TRIM(cdrw) == 'READ') THEN
       IF (ln_rstart) THEN
+        CALL profile_psy_data0 % PreStart('gls_rst', 'r0', 0, 0)
         id1 = iom_varid(numror, 'en', ldstop = .FALSE.)
         id2 = iom_varid(numror, 'avt_k', ldstop = .FALSE.)
         id3 = iom_varid(numror, 'avm_k', ldstop = .FALSE.)
         id4 = iom_varid(numror, 'hmxl_n', ldstop = .FALSE.)
+        CALL profile_psy_data0 % PostEnd
         IF (MIN(id1, id2, id3, id4) > 0) THEN
+          CALL profile_psy_data1 % PreStart('gls_rst', 'r1', 0, 0)
           CALL iom_get(numror, jpdom_autoglo, 'en', en, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'avt_k', avt_k, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'avm_k', avm_k, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'hmxl_n', hmxl_n, ldxios = lrxios)
+          CALL profile_psy_data1 % PostEnd
         ELSE
+          CALL profile_psy_data2 % PreStart('gls_rst', 'r2', 0, 0)
           IF (lwp) WRITE(numout, FMT = *)
           IF (lwp) WRITE(numout, FMT = *) '   ==>>   previous run without GLS scheme, set en and hmxl_n to background values'
+          CALL profile_psy_data2 % PostEnd
           !$ACC KERNELS
           en(:, :, :) = rn_emin
           hmxl_n(:, :, :) = 0.05_wp
           !$ACC END KERNELS
         END IF
       ELSE
+        CALL profile_psy_data3 % PreStart('gls_rst', 'r3', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>   start from rest, set en and hmxl_n by background values'
+        CALL profile_psy_data3 % PostEnd
         !$ACC KERNELS
         en(:, :, :) = rn_emin
         hmxl_n(:, :, :) = 0.05_wp
         !$ACC END KERNELS
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
+      CALL profile_psy_data4 % PreStart('gls_rst', 'r4', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '---- gls-rst ----'
       IF (lwxios) CALL iom_swap(cwxios_context)
       CALL iom_rstput(kt, nitrst, numrow, 'en', en, ldxios = lwxios)
@@ -893,6 +906,7 @@ MODULE zdfgls
       CALL iom_rstput(kt, nitrst, numrow, 'avm_k', avm_k, ldxios = lwxios)
       CALL iom_rstput(kt, nitrst, numrow, 'hmxl_n', hmxl_n, ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
+      CALL profile_psy_data4 % PostEnd
     END IF
   END SUBROUTINE gls_rst
 END MODULE zdfgls

@@ -14,6 +14,7 @@ MODULE dynadv_ubs
   PUBLIC :: dyn_adv_ubs
   CONTAINS
   SUBROUTINE dyn_adv_ubs(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zui, zvj, zfuj, zfvi, zl_u, zl_v
@@ -21,11 +22,14 @@ MODULE dynadv_ubs
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zfv_t, zfv_f, zfv_vw, zfv, zfw
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2) :: zlu_uu, zlu_uv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2) :: zlv_vv, zlv_vu
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dyn_adv_ubs', 'r0', 0, 0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn_adv_ubs : UBS flux form momentum advection'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
     END IF
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zfu_t(:, :, :) = 0._wp
     zfv_t(:, :, :) = 0._wp
@@ -42,10 +46,11 @@ MODULE dynadv_ubs
       zfv_vw(:, :, :) = va(:, :, :)
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       zfu(:, :, jk) = e2u(:, :) * e3u_n(:, :, jk) * un(:, :, jk)
       zfv(:, :, jk) = e1v(:, :) * e3v_n(:, :, jk) * vn(:, :, jk)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zlu_uu(ji, jj, jk, 1) = (ub(ji + 1, jj, jk) - 2. * ub(ji, jj, jk) + ub(ji - 1, jj, jk)) * umask(ji, jj, jk)
@@ -58,13 +63,14 @@ MODULE dynadv_ubs
           zlv_vu(ji, jj, jk, 2) = (zfv(ji + 1, jj, jk) - zfv(ji, jj, jk)) * fmask(ji, jj, jk) - (zfv(ji, jj, jk) - zfv(ji - 1, jj, jk)) * fmask(ji - 1, jj, jk)
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     CALL lbc_lnk_multi(zlu_uu(:, :, :, 1), 'U', 1., zlu_uv(:, :, :, 1), 'U', 1., zlu_uu(:, :, :, 2), 'U', 1., zlu_uv(:, :, :, 2), 'U', 1., zlv_vv(:, :, :, 1), 'V', 1., zlv_vu(:, :, :, 1), 'V', 1., zlv_vv(:, :, :, 2), 'V', 1., zlv_vu(:, :, :, 2), 'V', 1.)
-    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC KERNELS
       zfu(:, :, jk) = 0.25_wp * e2u(:, :) * e3u_n(:, :, jk) * un(:, :, jk)
       zfv(:, :, jk) = 0.25_wp * e1v(:, :) * e3v_n(:, :, jk) * vn(:, :, jk)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zui = (un(ji, jj, jk) + un(ji + 1, jj, jk))
@@ -97,14 +103,15 @@ MODULE dynadv_ubs
           zfu_f(ji, jj, jk) = (zfuj - gamma2 * (zlu_uv(ji, jj, jk, 2) + zlu_uv(ji, jj + 1, jk, 2))) * (vn(ji, jj, jk) + vn(ji + 1, jj, jk) - gamma1 * zl_v)
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ua(ji, jj, jk) = ua(ji, jj, jk) - (zfu_t(ji + 1, jj, jk) - zfu_t(ji, jj, jk) + zfv_f(ji, jj, jk) - zfv_f(ji, jj - 1, jk)) * r1_e1e2u(ji, jj) / e3u_n(ji, jj, jk)
           va(ji, jj, jk) = va(ji, jj, jk) - (zfu_f(ji, jj, jk) - zfu_f(ji - 1, jj, jk) + zfv_t(ji, jj + 1, jk) - zfv_t(ji, jj, jk)) * r1_e1e2v(ji, jj) / e3v_n(ji, jj, jk)
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     IF (l_trddyn) THEN
       !$ACC KERNELS
       zfu_uw(:, :, :) = ua(:, :, :) - zfu_uw(:, :, :)
@@ -117,6 +124,7 @@ MODULE dynadv_ubs
       !$ACC END KERNELS
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zfu_uw(ji, jj, jpk) = 0._wp
@@ -128,6 +136,7 @@ MODULE dynadv_ubs
     !$ACC END KERNELS
     IF (ln_linssh) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zfu_uw(ji, jj, 1) = 0.5_wp * (e1e2t(ji, jj) * wn(ji, jj, 1) + e1e2t(ji + 1, jj) * wn(ji + 1, jj, 1)) * un(ji, jj, 1)
@@ -136,21 +145,26 @@ MODULE dynadv_ubs
       END DO
       !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj
         DO ji = 2, jpi
           zfw(ji, jj, jk) = 0.25_wp * e1e2t(ji, jj) * wn(ji, jj, jk)
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zfu_uw(ji, jj, jk) = (zfw(ji, jj, jk) + zfw(ji + 1, jj, jk)) * (un(ji, jj, jk) + un(ji, jj, jk - 1))
           zfv_vw(ji, jj, jk) = (zfw(ji, jj, jk) + zfw(ji, jj + 1, jk)) * (vn(ji, jj, jk) + vn(ji, jj, jk - 1))
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ua(ji, jj, jk) = ua(ji, jj, jk) - (zfu_uw(ji, jj, jk) - zfu_uw(ji, jj, jk + 1)) * r1_e1e2u(ji, jj) / e3u_n(ji, jj, jk)

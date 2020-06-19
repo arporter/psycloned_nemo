@@ -4,7 +4,6 @@ MODULE sbcblk_algo_coare
   USE phycst
   USE sbc_oce
   USE sbcwave, ONLY: cdn_wave
-  USE sbc_ice
   USE in_out_manager
   USE iom
   USE lib_mpp
@@ -18,20 +17,21 @@ MODULE sbcblk_algo_coare
   REAL(KIND = wp), PARAMETER :: rctv0 = 0.608_wp
   CONTAINS
   SUBROUTINE turb_coare(zt, zu, sst, t_zt, ssq, q_zt, U_zu, Cd, Ch, Ce, t_zu, q_zu, U_blk, Cdn, Chn, Cen)
-    REAL(KIND = wp), INTENT(IN   ) :: zt
-    REAL(KIND = wp), INTENT(IN   ) :: zu
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: sst
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: t_zt
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: ssq
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: q_zt
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: U_zu
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Cd
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Ch
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Ce
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: t_zu
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: q_zu
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: U_blk
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), INTENT(IN) :: zt
+    REAL(KIND = wp), INTENT(IN) :: zu
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: sst
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: t_zt
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: ssq
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: q_zt
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: U_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Cd
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Ch
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Ce
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: t_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: q_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: U_blk
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
     INTEGER :: j_itt
     LOGICAL :: l_zt_equal_zu = .FALSE.
     INTEGER, PARAMETER :: nb_itt = 4
@@ -39,6 +39,8 @@ MODULE sbcblk_algo_coare
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zeta_u
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztmp0, ztmp1, ztmp2
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zeta_t
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('turb_coare', 'r0', 0, 0)
     l_zt_equal_zu = .FALSE.
     IF (ABS(zu - zt) < 0.01) l_zt_equal_zu = .TRUE.
     IF (.NOT. l_zt_equal_zu) ALLOCATE(zeta_t(jpi, jpj))
@@ -120,6 +122,7 @@ MODULE sbcblk_algo_coare
     Chn = vkarmn * vkarmn / (LOG(ztmp1 / z0t) * LOG(ztmp1 / z0t))
     Cen = Chn
     IF (.NOT. l_zt_equal_zu) DEALLOCATE(zeta_t)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE turb_coare
   FUNCTION alfa_charn(pwnd)
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: alfa_charn
@@ -127,6 +130,7 @@ MODULE sbcblk_algo_coare
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zw, zgt10, zgt18
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zw = pwnd(ji, jj)
@@ -143,6 +147,7 @@ MODULE sbcblk_algo_coare
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zqa
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zqa = (1. + rctv0 * pqa(ji, jj))
@@ -157,6 +162,7 @@ MODULE sbcblk_algo_coare
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zta, zphi_m, zphi_c, zpsi_k, zpsi_c, zf, zc, zstab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zta = pzeta(ji, jj)
@@ -179,6 +185,7 @@ MODULE sbcblk_algo_coare
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zta, zphi_h, zphi_c, zpsi_k, zpsi_c, zf, zc, zstab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zta = pzeta(ji, jj)
@@ -201,6 +208,7 @@ MODULE sbcblk_algo_coare
     INTEGER :: ji, jj
     REAL(KIND = wp) :: ztc, ztc2
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ztc = ptak(ji, jj) - rt0

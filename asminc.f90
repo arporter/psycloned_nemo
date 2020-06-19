@@ -11,7 +11,6 @@ MODULE asminc
   USE c1d
   USE sbc_oce
   USE diaobs, ONLY: calc_date
-  USE ice, ONLY: hm_i, at_i, at_i_b
   USE in_out_manager
   USE iom
   USE lib_mpp
@@ -49,6 +48,7 @@ MODULE asminc
   REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: seaice_bkginc
   CONTAINS
   SUBROUTINE asm_inc_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk, jt
     INTEGER :: imid, inum
     INTEGER :: ios
@@ -67,6 +67,8 @@ MODULE asminc
     REAL(KIND = wp) :: zdate_inc
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zhdiv
     NAMELIST /nam_asminc/ ln_bkgwri, ln_trainc, ln_dyninc, ln_sshinc, ln_asmdin, ln_asmiau, nitbkg, nitdin, nitiaustr, nitiaufin, niaufn, ln_salfix, salfixmin, nn_divdmp
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('asm_inc_init', 'r0', 0, 0)
     ln_seaiceinc = .FALSE.
     ln_temnofreeze = .FALSE.
     REWIND(UNIT = numnam_ref)
@@ -141,31 +143,24 @@ MODULE asminc
       ALLOCATE(wgtiau(icycper))
       wgtiau(:) = 0._wp
       IF (niaufn == 0) THEN
-        !$ACC KERNELS
         DO jt = 1, iiauper
           wgtiau(jt + nitiaustr - 1) = 1.0 / REAL(iiauper)
         END DO
-        !$ACC END KERNELS
       ELSE IF (niaufn == 1) THEN
         znorm = 0._wp
         IF (MOD(iiauper, 2) == 0) THEN
-          !$ACC KERNELS
           imid = iiauper / 2
           DO jt = 1, imid
             znorm = znorm + REAL(jt)
           END DO
           znorm = 2.0 * znorm
-          !$ACC END KERNELS
         ELSE
-          !$ACC KERNELS
           imid = (iiauper + 1) / 2
           DO jt = 1, imid - 1
             znorm = znorm + REAL(jt)
           END DO
           znorm = 2.0 * znorm + REAL(imid)
-          !$ACC END KERNELS
         END IF
-        !$ACC KERNELS
         znorm = 1.0 / znorm
         DO jt = 1, imid - 1
           wgtiau(jt + nitiaustr - 1) = REAL(jt) * znorm
@@ -173,7 +168,6 @@ MODULE asminc
         DO jt = imid, iiauper
           wgtiau(jt + nitiaustr - 1) = REAL(iiauper - jt + 1) * znorm
         END DO
-        !$ACC END KERNELS
       END IF
       IF (lwp) THEN
         WRITE(numout, FMT = *)
@@ -192,29 +186,17 @@ MODULE asminc
       END IF
     END IF
     ALLOCATE(t_bkginc(jpi, jpj, jpk))
-    !$ACC KERNELS
     t_bkginc(:, :, :) = 0._wp
-    !$ACC END KERNELS
     ALLOCATE(s_bkginc(jpi, jpj, jpk))
-    !$ACC KERNELS
     s_bkginc(:, :, :) = 0._wp
-    !$ACC END KERNELS
     ALLOCATE(u_bkginc(jpi, jpj, jpk))
-    !$ACC KERNELS
     u_bkginc(:, :, :) = 0._wp
-    !$ACC END KERNELS
     ALLOCATE(v_bkginc(jpi, jpj, jpk))
-    !$ACC KERNELS
     v_bkginc(:, :, :) = 0._wp
-    !$ACC END KERNELS
     ALLOCATE(ssh_bkginc(jpi, jpj))
-    !$ACC KERNELS
     ssh_bkginc(:, :) = 0._wp
-    !$ACC END KERNELS
     ALLOCATE(seaice_bkginc(jpi, jpj))
-    !$ACC KERNELS
     seaice_bkginc(:, :) = 0._wp
-    !$ACC END KERNELS
     IF (ln_trainc .OR. ln_dyninc .OR. ln_sshinc .OR. ln_seaiceinc) THEN
       CALL iom_open(c_asminc, inum)
       CALL iom_get(inum, 'time', zdate_inc)
@@ -232,35 +214,27 @@ MODULE asminc
       IF (ln_trainc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'bckint', t_bkginc, 1)
         CALL iom_get(inum, jpdom_autoglo, 'bckins', s_bkginc, 1)
-        !$ACC KERNELS
         t_bkginc(:, :, :) = t_bkginc(:, :, :) * tmask(:, :, :)
         s_bkginc(:, :, :) = s_bkginc(:, :, :) * tmask(:, :, :)
-        !$ACC END KERNELS
         WHERE (ABS(t_bkginc(:, :, :)) > 1.0E+10) t_bkginc(:, :, :) = 0.0
         WHERE (ABS(s_bkginc(:, :, :)) > 1.0E+10) s_bkginc(:, :, :) = 0.0
       END IF
       IF (ln_dyninc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'bckinu', u_bkginc, 1)
         CALL iom_get(inum, jpdom_autoglo, 'bckinv', v_bkginc, 1)
-        !$ACC KERNELS
         u_bkginc(:, :, :) = u_bkginc(:, :, :) * umask(:, :, :)
         v_bkginc(:, :, :) = v_bkginc(:, :, :) * vmask(:, :, :)
-        !$ACC END KERNELS
         WHERE (ABS(u_bkginc(:, :, :)) > 1.0E+10) u_bkginc(:, :, :) = 0.0
         WHERE (ABS(v_bkginc(:, :, :)) > 1.0E+10) v_bkginc(:, :, :) = 0.0
       END IF
       IF (ln_sshinc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'bckineta', ssh_bkginc, 1)
-        !$ACC KERNELS
         ssh_bkginc(:, :) = ssh_bkginc(:, :) * tmask(:, :, 1)
-        !$ACC END KERNELS
         WHERE (ABS(ssh_bkginc(:, :)) > 1.0E+10) ssh_bkginc(:, :) = 0.0
       END IF
       IF (ln_seaiceinc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'bckinseaice', seaice_bkginc, 1)
-        !$ACC KERNELS
         seaice_bkginc(:, :) = seaice_bkginc(:, :) * tmask(:, :, 1)
-        !$ACC END KERNELS
         WHERE (ABS(seaice_bkginc(:, :)) > 1.0E+10) seaice_bkginc(:, :) = 0.0
       END IF
       CALL iom_close(inum)
@@ -269,48 +243,34 @@ MODULE asminc
       ALLOCATE(zhdiv(jpi, jpj))
       DO jt = 1, nn_divdmp
         DO jk = 1, jpkm1
-          !$ACC KERNELS
           zhdiv(:, :) = 0._wp
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               zhdiv(ji, jj) = (e2u(ji, jj) * e3u_n(ji, jj, jk) * u_bkginc(ji, jj, jk) - e2u(ji - 1, jj) * e3u_n(ji - 1, jj, jk) * u_bkginc(ji - 1, jj, jk) + e1v(ji, jj) * e3v_n(ji, jj, jk) * v_bkginc(ji, jj, jk) - e1v(ji, jj - 1) * e3v_n(ji, jj - 1, jk) * v_bkginc(ji, jj - 1, jk)) / e3t_n(ji, jj, jk)
             END DO
           END DO
-          !$ACC END KERNELS
           CALL lbc_lnk(zhdiv, 'T', 1.)
-          !$ACC KERNELS
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               u_bkginc(ji, jj, jk) = u_bkginc(ji, jj, jk) + 0.2_wp * (zhdiv(ji + 1, jj) - zhdiv(ji, jj)) * r1_e1u(ji, jj) * umask(ji, jj, jk)
               v_bkginc(ji, jj, jk) = v_bkginc(ji, jj, jk) + 0.2_wp * (zhdiv(ji, jj + 1) - zhdiv(ji, jj)) * r1_e2v(ji, jj) * vmask(ji, jj, jk)
             END DO
           END DO
-          !$ACC END KERNELS
         END DO
       END DO
       DEALLOCATE(zhdiv)
     END IF
     IF (ln_asmdin) THEN
       ALLOCATE(t_bkg(jpi, jpj, jpk))
-      !$ACC KERNELS
       t_bkg(:, :, :) = 0._wp
-      !$ACC END KERNELS
       ALLOCATE(s_bkg(jpi, jpj, jpk))
-      !$ACC KERNELS
       s_bkg(:, :, :) = 0._wp
-      !$ACC END KERNELS
       ALLOCATE(u_bkg(jpi, jpj, jpk))
-      !$ACC KERNELS
       u_bkg(:, :, :) = 0._wp
-      !$ACC END KERNELS
       ALLOCATE(v_bkg(jpi, jpj, jpk))
-      !$ACC KERNELS
       v_bkg(:, :, :) = 0._wp
-      !$ACC END KERNELS
       ALLOCATE(ssh_bkg(jpi, jpj))
-      !$ACC KERNELS
       ssh_bkg(:, :) = 0._wp
-      !$ACC END KERNELS
       CALL iom_open(c_asmdin, inum)
       CALL iom_get(inum, 'rdastp', zdate_bkg)
       IF (lwp) THEN
@@ -322,24 +282,18 @@ MODULE asminc
       IF (ln_trainc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'tn', t_bkg)
         CALL iom_get(inum, jpdom_autoglo, 'sn', s_bkg)
-        !$ACC KERNELS
         t_bkg(:, :, :) = t_bkg(:, :, :) * tmask(:, :, :)
         s_bkg(:, :, :) = s_bkg(:, :, :) * tmask(:, :, :)
-        !$ACC END KERNELS
       END IF
       IF (ln_dyninc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'un', u_bkg)
         CALL iom_get(inum, jpdom_autoglo, 'vn', v_bkg)
-        !$ACC KERNELS
         u_bkg(:, :, :) = u_bkg(:, :, :) * umask(:, :, :)
         v_bkg(:, :, :) = v_bkg(:, :, :) * vmask(:, :, :)
-        !$ACC END KERNELS
       END IF
       IF (ln_sshinc) THEN
         CALL iom_get(inum, jpdom_autoglo, 'sshn', ssh_bkg)
-        !$ACC KERNELS
         ssh_bkg(:, :) = ssh_bkg(:, :) * tmask(:, :, 1)
-        !$ACC END KERNELS
       END IF
       CALL iom_close(inum)
     END IF
@@ -352,18 +306,28 @@ MODULE asminc
         IF (ln_sshinc) CALL ssh_asm_inc(nit000 - 1)
       END IF
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE asm_inc_init
   SUBROUTINE tra_asm_inc(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: it
     REAL(KIND = wp) :: zincwgt
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: fzptnz
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    CALL profile_psy_data0 % PreStart('tra_asm_inc', 'r0', 0, 0)
     DO jk = 1, jpkm1
       CALL eos_fzp(tsn(:, :, jk, jp_sal), fzptnz(:, :, jk), gdept_n(:, :, jk))
     END DO
+    CALL profile_psy_data0 % PostEnd
     IF (ln_asmiau) THEN
       IF ((kt >= nitiaustr_r) .AND. (kt <= nitiaufin_r)) THEN
+        CALL profile_psy_data1 % PreStart('tra_asm_inc', 'r1', 0, 0)
         it = kt - nit000 + 1
         zincwgt = wgtiau(it) / rdt
         IF (lwp) THEN
@@ -371,6 +335,7 @@ MODULE asminc
           WRITE(numout, FMT = *) 'tra_asm_inc : Tracer IAU at time step = ', kt, ' with IAU weight = ', wgtiau(it)
           WRITE(numout, FMT = *) '~~~~~~~~~~~~'
         END IF
+        CALL profile_psy_data1 % PostEnd
         DO jk = 1, jpkm1
           IF (ln_temnofreeze) THEN
             WHERE (t_bkginc(:, :, jk) > 0.0_wp .OR. tsn(:, :, jk, jp_tem) + tsa(:, :, jk, jp_tem) + t_bkginc(:, :, jk) * wgtiau(it) > fzptnz(:, :, jk))
@@ -392,26 +357,34 @@ MODULE asminc
           END IF
         END DO
       END IF
+      CALL profile_psy_data2 % PreStart('tra_asm_inc', 'r2', 0, 0)
       IF (kt == nitiaufin_r + 1) THEN
         DEALLOCATE(t_bkginc)
         DEALLOCATE(s_bkginc)
       END IF
+      CALL profile_psy_data2 % PostEnd
     ELSE IF (ln_asmdin) THEN
       IF (kt == nitdin_r) THEN
+        CALL profile_psy_data3 % PreStart('tra_asm_inc', 'r3', 0, 0)
         neuler = 0
+        CALL profile_psy_data3 % PostEnd
         IF (ln_temnofreeze) THEN
+          !$ACC KERNELS
           WHERE (t_bkginc(:, :, :) > 0.0_wp .OR. tsn(:, :, :, jp_tem) + t_bkginc(:, :, :) > fzptnz(:, :, :))
             tsn(:, :, :, jp_tem) = t_bkg(:, :, :) + t_bkginc(:, :, :)
           END WHERE
+          !$ACC END KERNELS
         ELSE
           !$ACC KERNELS
           tsn(:, :, :, jp_tem) = t_bkg(:, :, :) + t_bkginc(:, :, :)
           !$ACC END KERNELS
         END IF
         IF (ln_salfix) THEN
+          !$ACC KERNELS
           WHERE (s_bkginc(:, :, :) > 0.0_wp .OR. tsn(:, :, :, jp_sal) + s_bkginc(:, :, :) > salfixmin)
             tsn(:, :, :, jp_sal) = s_bkg(:, :, :) + s_bkginc(:, :, :)
           END WHERE
+          !$ACC END KERNELS
         ELSE
           !$ACC KERNELS
           tsn(:, :, :, jp_sal) = s_bkg(:, :, :) + s_bkginc(:, :, :)
@@ -420,6 +393,7 @@ MODULE asminc
         !$ACC KERNELS
         tsb(:, :, :, :) = tsn(:, :, :, :)
         !$ACC END KERNELS
+        CALL profile_psy_data4 % PreStart('tra_asm_inc', 'r4', 0, 0)
         CALL eos(tsb, rhd, rhop, gdept_0(:, :, :))
         IF (ln_zps .AND. .NOT. lk_c1d .AND. .NOT. ln_isfcav) CALL zps_hde(kt, jpts, tsb, gtsu, gtsv, rhd, gru, grv)
         IF (ln_zps .AND. .NOT. lk_c1d .AND. ln_isfcav) CALL zps_hde_isf(nit000, jpts, tsb, gtsu, gtsv, gtui, gtvi, rhd, gru, grv, grui, grvi)
@@ -427,17 +401,23 @@ MODULE asminc
         DEALLOCATE(s_bkginc)
         DEALLOCATE(t_bkg)
         DEALLOCATE(s_bkg)
+        CALL profile_psy_data4 % PostEnd
       END IF
     END IF
     IF (ln_seaiceinc) CALL seaice_asm_inc(kt)
   END SUBROUTINE tra_asm_inc
   SUBROUTINE dyn_asm_inc(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: jk
     INTEGER :: it
     REAL(KIND = wp) :: zincwgt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     IF (ln_asmiau) THEN
       IF ((kt >= nitiaustr_r) .AND. (kt <= nitiaufin_r)) THEN
+        CALL profile_psy_data0 % PreStart('dyn_asm_inc', 'r0', 0, 0)
         it = kt - nit000 + 1
         zincwgt = wgtiau(it) / rdt
         IF (lwp) THEN
@@ -445,16 +425,19 @@ MODULE asminc
           WRITE(numout, FMT = *) 'dyn_asm_inc : Dynamics IAU at time step = ', kt, ' with IAU weight = ', wgtiau(it)
           WRITE(numout, FMT = *) '~~~~~~~~~~~~'
         END IF
-        !$ACC KERNELS
+        CALL profile_psy_data0 % PostEnd
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           ua(:, :, jk) = ua(:, :, jk) + u_bkginc(:, :, jk) * zincwgt
           va(:, :, jk) = va(:, :, jk) + v_bkginc(:, :, jk) * zincwgt
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
+        CALL profile_psy_data1 % PreStart('dyn_asm_inc', 'r1', 0, 0)
         IF (kt == nitiaufin_r) THEN
           DEALLOCATE(u_bkginc)
           DEALLOCATE(v_bkginc)
         END IF
+        CALL profile_psy_data1 % PostEnd
       END IF
     ELSE IF (ln_asmdin) THEN
       IF (kt == nitdin_r) THEN
@@ -465,19 +448,25 @@ MODULE asminc
         ub(:, :, :) = un(:, :, :)
         vb(:, :, :) = vn(:, :, :)
         !$ACC END KERNELS
+        CALL profile_psy_data2 % PreStart('dyn_asm_inc', 'r2', 0, 0)
         DEALLOCATE(u_bkg)
         DEALLOCATE(v_bkg)
         DEALLOCATE(u_bkginc)
         DEALLOCATE(v_bkginc)
+        CALL profile_psy_data2 % PostEnd
       END IF
     END IF
   END SUBROUTINE dyn_asm_inc
   SUBROUTINE ssh_asm_inc(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: it
     INTEGER :: jk
     REAL(KIND = wp) :: zincwgt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_asmiau) THEN
+      CALL profile_psy_data0 % PreStart('ssh_asm_inc', 'r0', 0, 0)
       IF ((kt >= nitiaustr_r) .AND. (kt <= nitiaufin_r)) THEN
         it = kt - nit000 + 1
         zincwgt = wgtiau(it) / rdt
@@ -489,6 +478,7 @@ MODULE asminc
       ELSE IF (kt == nitiaufin_r + 1) THEN
         IF (ALLOCATED(ssh_bkginc)) DEALLOCATE(ssh_bkginc)
       END IF
+      CALL profile_psy_data0 % PostEnd
     ELSE IF (ln_asmdin) THEN
       IF (kt == nitdin_r) THEN
         !$ACC KERNELS
@@ -497,8 +487,10 @@ MODULE asminc
         sshb(:, :) = sshn(:, :)
         e3t_b(:, :, :) = e3t_n(:, :, :)
         !$ACC END KERNELS
+        CALL profile_psy_data1 % PreStart('ssh_asm_inc', 'r1', 0, 0)
         DEALLOCATE(ssh_bkg)
         DEALLOCATE(ssh_bkginc)
+        CALL profile_psy_data1 % PostEnd
       END IF
     END IF
   END SUBROUTINE ssh_asm_inc
@@ -509,12 +501,13 @@ MODULE asminc
     REAL(KIND = wp), DIMENSION(:, :), POINTER :: ztim
   END SUBROUTINE ssh_asm_div
   SUBROUTINE seaice_asm_inc(kt, kindic)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN), OPTIONAL :: kindic
     INTEGER :: it
     REAL(KIND = wp) :: zincwgt
-    REAL(KIND = wp), DIMENSION(jpi, jpj) :: zofrld, zohicif, zseaicendg, zhicifinc
-    REAL(KIND = wp) :: zhicifmin = 0.5_wp
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('seaice_asm_inc', 'r0', 0, 0)
     IF (ln_asmiau) THEN
       IF ((kt >= nitiaustr_r) .AND. (kt <= nitiaufin_r)) THEN
         it = kt - nit000 + 1
@@ -524,22 +517,6 @@ MODULE asminc
           WRITE(numout, FMT = *) 'seaice_asm_inc : sea ice conc IAU at time step = ', kt, ' with IAU weight = ', wgtiau(it)
           WRITE(numout, FMT = *) '~~~~~~~~~~~~'
         END IF
-        !$ACC KERNELS
-        zofrld(:, :) = 1._wp - at_i(:, :)
-        zohicif(:, :) = hm_i(:, :)
-        at_i(:, :) = 1. - MIN(MAX(1. - at_i(:, :) - seaice_bkginc(:, :) * zincwgt, 0.0_wp), 1.0_wp)
-        at_i_b(:, :) = 1. - MIN(MAX(1. - at_i_b(:, :) - seaice_bkginc(:, :) * zincwgt, 0.0_wp), 1.0_wp)
-        fr_i(:, :) = at_i(:, :)
-        zseaicendg(:, :) = zofrld(:, :) - (1. - at_i(:, :))
-        !$ACC END KERNELS
-        WHERE (zseaicendg(:, :) > 0.0_wp .AND. hm_i(:, :) < zhicifmin)
-          zhicifinc(:, :) = (zhicifmin - hm_i(:, :)) * zincwgt
-        ELSEWHERE
-          zhicifinc(:, :) = 0.0_wp
-        END WHERE
-        !$ACC KERNELS
-        hm_i(:, :) = hm_i(:, :) + zhicifinc(:, :)
-        !$ACC END KERNELS
         IF (kt == nitiaufin_r) THEN
           DEALLOCATE(seaice_bkginc)
         END IF
@@ -547,28 +524,13 @@ MODULE asminc
       END IF
     ELSE IF (ln_asmdin) THEN
       IF (kt == nitdin_r) THEN
-        !$ACC KERNELS
         neuler = 0
-        zofrld(:, :) = 1._wp - at_i(:, :)
-        zohicif(:, :) = hm_i(:, :)
-        at_i(:, :) = 1. - MIN(MAX(1. - at_i(:, :) - seaice_bkginc(:, :), 0.0_wp), 1.0_wp)
-        at_i_b(:, :) = at_i(:, :)
-        fr_i(:, :) = at_i(:, :)
-        zseaicendg(:, :) = zofrld(:, :) - (1. - at_i(:, :))
-        !$ACC END KERNELS
-        WHERE (zseaicendg(:, :) > 0.0_wp .AND. hm_i(:, :) < zhicifmin)
-          zhicifinc(:, :) = (zhicifmin - hm_i(:, :)) * zincwgt
-        ELSEWHERE
-          zhicifinc(:, :) = 0.0_wp
-        END WHERE
-        !$ACC KERNELS
-        hm_i(:, :) = hm_i(:, :) + zhicifinc(:, :)
-        !$ACC END KERNELS
         IF (.NOT. PRESENT(kindic)) THEN
           DEALLOCATE(seaice_bkginc)
         END IF
       ELSE
       END IF
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE seaice_asm_inc
 END MODULE asminc

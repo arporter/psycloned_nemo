@@ -8,7 +8,7 @@ MODULE diadct
   END SUBROUTINE dia_dct_init
   SUBROUTINE dia_dct(kt)
     IMPLICIT NONE
-    INTEGER, INTENT( IN ) :: kt
+    INTEGER, INTENT(IN) :: kt
     WRITE(*, FMT = *) 'dia_dct: You should not have seen this print! error?', kt
   END SUBROUTINE dia_dct
 END MODULE diadct

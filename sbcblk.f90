@@ -9,8 +9,6 @@ MODULE sbcblk
   USE sbcwave, ONLY: cdn_wave
   USE sbc_ice
   USE lib_fortran
-  USE ice, ONLY: u_ice, v_ice, jpl, a_i_b, at_i_b, tm_su, rn_cnd_s, hfx_err_dif
-  USE icethd_dh
   USE sbcblk_algo_ncar
   USE sbcblk_algo_coare
   USE sbcblk_algo_coare3p5
@@ -24,9 +22,6 @@ MODULE sbcblk
   PRIVATE
   PUBLIC :: sbc_blk_init
   PUBLIC :: sbc_blk
-  PUBLIC :: blk_ice_tau
-  PUBLIC :: blk_ice_flx
-  PUBLIC :: blk_ice_qcn
   REAL(KIND = wp), PARAMETER :: Cp_dry = 1005.0
   REAL(KIND = wp), PARAMETER :: Cp_vap = 1860.0
   REAL(KIND = wp), PARAMETER :: R_dry = 287.05_wp
@@ -80,6 +75,7 @@ MODULE sbcblk
     IF (sbc_blk_alloc /= 0) CALL ctl_warn('sbc_blk_alloc: failed to allocate arrays')
   END FUNCTION sbc_blk_alloc
   SUBROUTINE sbc_blk_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ifpr, jfld
     INTEGER :: ios, ierror, ioptio
     CHARACTER(LEN = 100) :: cn_dir
@@ -88,6 +84,8 @@ MODULE sbcblk
     TYPE(FLD_N) :: sn_qlw, sn_tair, sn_prec, sn_snow
     TYPE(FLD_N) :: sn_slp, sn_tdif
     NAMELIST /namsbc_blk/ sn_wndi, sn_wndj, sn_humi, sn_qsr, sn_qlw, sn_tair, sn_prec, sn_snow, sn_slp, sn_tdif, ln_NCAR, ln_COARE_3p0, ln_COARE_3p5, ln_ECMWF, cn_dir, ln_taudif, rn_zqt, rn_zu, rn_pfac, rn_efac, rn_vfac, ln_Cd_L12, ln_Cd_L15
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('sbc_blk_init', 'r0', 0, 0)
     IF (sbc_blk_alloc() /= 0) CALL ctl_stop('STOP', 'sbc_blk : unable to allocate standard arrays')
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namsbc_blk, IOSTAT = ios, ERR = 901)
@@ -180,14 +178,20 @@ MODULE sbcblk
         WRITE(numout, FMT = *) '   ==>>>   "ECMWF" algorithm       (IFS cycle 31)'
       END SELECT
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE sbc_blk_init
   SUBROUTINE sbc_blk(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('sbc_blk', 'r0', 0, 0)
     CALL fld_read(kt, nn_fsbc, sf)
     IF (MOD(kt - 1, nn_fsbc) == 0) CALL blk_oce(kt, sf, sst_m, ssu_m, ssv_m)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE sbc_blk
   SUBROUTINE blk_oce(kt, sf, pst, pu, pv)
-    INTEGER, INTENT(IN   ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     TYPE(fld), INTENT(INOUT), DIMENSION(:) :: sf
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: pst
     REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: pu
@@ -202,11 +206,19 @@ MODULE sbcblk
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zU_zu
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztpot
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zrhoa
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
     !$ACC KERNELS
     zst(:, :) = pst(:, :) + rt0
     zwnd_i(:, :) = 0._wp
     zwnd_j(:, :) = 0._wp
     !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('blk_oce', 'r0', 0, 0)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zwnd_i(ji, jj) = (sf(jp_wndi) % fnow(ji, jj, 1) - rn_vfac * 0.5 * (pu(ji - 1, jj) + pu(ji, jj)))
@@ -214,10 +226,12 @@ MODULE sbcblk
       END DO
     END DO
     CALL lbc_lnk_multi(zwnd_i, 'T', - 1., zwnd_j, 'T', - 1.)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     wndm(:, :) = SQRT(zwnd_i(:, :) * zwnd_i(:, :) + zwnd_j(:, :) * zwnd_j(:, :)) * tmask(:, :, 1)
     zztmp = 1. - albo
     !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('blk_oce', 'r1', 0, 0)
     IF (ln_dm2dc) THEN
       qsr(:, :) = zztmp * sbc_dcy(sf(jp_qsr) % fnow(:, :, 1)) * tmask(:, :, 1)
     ELSE
@@ -243,7 +257,9 @@ MODULE sbcblk
     ELSE
       zrhoa(:, :) = rho_air(sf(jp_tair) % fnow(:, :, 1), sf(jp_humi) % fnow(:, :, 1), sf(jp_slp) % fnow(:, :, 1))
     END IF
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zztmp = zrhoa(ji, jj) * zU_zu(ji, jj) * Cd_atm(ji, jj)
@@ -253,9 +269,12 @@ MODULE sbcblk
       END DO
     END DO
     !$ACC END KERNELS
+    CALL profile_psy_data2 % PreStart('blk_oce', 'r2', 0, 0)
     IF (lhftau) taum(:, :) = taum(:, :) + sf(jp_tdif) % fnow(:, :, 1)
     CALL iom_put("taum_oce", taum)
+    CALL profile_psy_data2 % PostEnd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         utau(ji, jj) = 0.5 * (2. - umask(ji, jj, 1)) * (zwnd_i(ji, jj) + zwnd_i(ji + 1, jj)) * MAX(tmask(ji, jj, 1), tmask(ji + 1, jj, 1))
@@ -268,14 +287,19 @@ MODULE sbcblk
     zqla(:, :) = zrhoa(:, :) * zU_zu(:, :) * tmask(:, :, 1)
     !$ACC END KERNELS
     IF (ABS(rn_zu - rn_zqt) < 0.01_wp) THEN
+      CALL profile_psy_data3 % PreStart('blk_oce', 'r3', 0, 0)
       zevap(:, :) = rn_efac * MAX(0._wp, zqla(:, :) * Ce_atm(:, :) * (zsq(:, :) - sf(jp_humi) % fnow(:, :, 1)))
       zqsb(:, :) = cp_air(sf(jp_humi) % fnow(:, :, 1)) * zqla(:, :) * Ch_atm(:, :) * (zst(:, :) - ztpot(:, :))
+      CALL profile_psy_data3 % PostEnd
     ELSE
       !$ACC KERNELS
       zevap(:, :) = rn_efac * MAX(0._wp, zqla(:, :) * Ce_atm(:, :) * (zsq(:, :) - q_zu(:, :)))
       !$ACC END KERNELS
+      CALL profile_psy_data4 % PreStart('blk_oce', 'r4', 0, 0)
       zqsb(:, :) = cp_air(sf(jp_humi) % fnow(:, :, 1)) * zqla(:, :) * Ch_atm(:, :) * (zst(:, :) - t_zu(:, :))
+      CALL profile_psy_data4 % PostEnd
     END IF
+    CALL profile_psy_data5 % PreStart('blk_oce', 'r5', 0, 0)
     zqla(:, :) = L_vap(zst(:, :)) * zevap(:, :)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab2d_1 = zqla, clinfo1 = ' blk_oce: zqla   : ', tab2d_2 = Ce_atm, clinfo2 = ' Ce_oce  : ')
@@ -288,11 +312,11 @@ MODULE sbcblk
     END IF
     emp(:, :) = (zevap(:, :) - sf(jp_prec) % fnow(:, :, 1) * rn_pfac) * tmask(:, :, 1)
     qns(:, :) = zqlw(:, :) - zqsb(:, :) - zqla(:, :) - sf(jp_snow) % fnow(:, :, 1) * rn_pfac * rLfus - zevap(:, :) * pst(:, :) * rcp + (sf(jp_prec) % fnow(:, :, 1) - sf(jp_snow) % fnow(:, :, 1)) * rn_pfac * (sf(jp_tair) % fnow(:, :, 1) - rt0) * rcp + sf(jp_snow) % fnow(:, :, 1) * rn_pfac * (MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi
+    CALL profile_psy_data5 % PostEnd
     !$ACC KERNELS
     qns(:, :) = qns(:, :) * tmask(:, :, 1)
-    qns_oce(:, :) = zqlw(:, :) - zqsb(:, :) - zqla(:, :)
-    qsr_oce(:, :) = qsr(:, :)
     !$ACC END KERNELS
+    CALL profile_psy_data6 % PreStart('blk_oce', 'r6', 0, 0)
     IF (nn_ice == 0) THEN
       CALL iom_put("qlw_oce", zqlw)
       CALL iom_put("qsb_oce", - zqsb)
@@ -312,18 +336,27 @@ MODULE sbcblk
       CALL prt_ctl(tab2d_1 = pst, clinfo1 = ' blk_oce: pst    : ', tab2d_2 = emp, clinfo2 = ' emp   : ')
       CALL prt_ctl(tab2d_1 = utau, clinfo1 = ' blk_oce: utau   : ', mask1 = umask, tab2d_2 = vtau, clinfo2 = ' vtau  : ', mask2 = vmask)
     END IF
+    CALL profile_psy_data6 % PostEnd
   END SUBROUTINE blk_oce
   FUNCTION rho_air(ptak, pqa, pslp)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: ptak
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqa
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pslp
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: rho_air
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('rho_air', 'r0', 0, 0)
     rho_air = pslp / (R_dry * ptak * (1._wp + rctv0 * pqa))
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION rho_air
   FUNCTION cp_air(pqa)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqa
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: cp_air
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('cp_air', 'r0', 0, 0)
     Cp_air = Cp_dry + Cp_vap * pqa
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION cp_air
   FUNCTION q_sat(ptak, pslp)
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: ptak
@@ -332,6 +365,7 @@ MODULE sbcblk
     INTEGER :: ji, jj
     REAL(KIND = wp) :: ze_sat, ztmp
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ztmp = rt0 / ptak(ji, jj)
@@ -348,6 +382,7 @@ MODULE sbcblk
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zrv, ziRT
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zrv = pqa(ji, jj) / (1. - pqa(ji, jj))
@@ -358,283 +393,12 @@ MODULE sbcblk
     !$ACC END KERNELS
   END FUNCTION gamma_moist
   FUNCTION L_vap(psst)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: L_vap
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: psst
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('l_vap', 'r0', 0, 0)
     L_vap = (2.501 - 0.00237 * (psst(:, :) - rt0)) * 1.E6
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION L_vap
-  SUBROUTINE blk_ice_tau
-    INTEGER :: ji, jj
-    REAL(KIND = wp) :: zwndi_f, zwndj_f, zwnorm_f
-    REAL(KIND = wp) :: zwndi_t, zwndj_t
-    REAL(KIND = wp), DIMENSION(jpi, jpj) :: zrhoa
-    !$ACC KERNELS
-    Cd_atm(:, :) = Cd_ice
-    Ch_atm(:, :) = Cd_ice
-    Ce_atm(:, :) = Cd_ice
-    wndm_ice(:, :) = 0._wp
-    !$ACC END KERNELS
-    DO jj = 2, jpjm1
-      DO ji = 2, jpim1
-        zwndi_t = (sf(jp_wndi) % fnow(ji, jj, 1) - rn_vfac * 0.5 * (u_ice(ji - 1, jj) + u_ice(ji, jj)))
-        zwndj_t = (sf(jp_wndj) % fnow(ji, jj, 1) - rn_vfac * 0.5 * (v_ice(ji, jj - 1) + v_ice(ji, jj)))
-        wndm_ice(ji, jj) = SQRT(zwndi_t * zwndi_t + zwndj_t * zwndj_t) * tmask(ji, jj, 1)
-      END DO
-    END DO
-    CALL lbc_lnk(wndm_ice, 'T', 1.)
-    IF (ln_Cd_L12) THEN
-      CALL Cdn10_Lupkes2012(Cd_atm)
-      !$ACC KERNELS
-      Ch_atm(:, :) = Cd_atm(:, :)
-      !$ACC END KERNELS
-    ELSE IF (ln_Cd_L15) THEN
-      CALL Cdn10_Lupkes2015(Cd_atm, Ch_atm)
-    END IF
-    zrhoa(:, :) = rho_air(sf(jp_tair) % fnow(:, :, 1), sf(jp_humi) % fnow(:, :, 1), sf(jp_slp) % fnow(:, :, 1))
-    !$ACC KERNELS
-    utau_ice(:, :) = 0._wp
-    vtau_ice(:, :) = 0._wp
-    !$ACC END KERNELS
-    DO jj = 2, jpjm1
-      DO ji = 2, jpim1
-        utau_ice(ji, jj) = 0.5 * zrhoa(ji, jj) * Cd_atm(ji, jj) * (wndm_ice(ji + 1, jj) + wndm_ice(ji, jj)) * (0.5 * (sf(jp_wndi) % fnow(ji + 1, jj, 1) + sf(jp_wndi) % fnow(ji, jj, 1)) - rn_vfac * u_ice(ji, jj))
-        vtau_ice(ji, jj) = 0.5 * zrhoa(ji, jj) * Cd_atm(ji, jj) * (wndm_ice(ji, jj + 1) + wndm_ice(ji, jj)) * (0.5 * (sf(jp_wndj) % fnow(ji, jj + 1, 1) + sf(jp_wndj) % fnow(ji, jj, 1)) - rn_vfac * v_ice(ji, jj))
-      END DO
-    END DO
-    CALL lbc_lnk_multi(utau_ice, 'U', - 1., vtau_ice, 'V', - 1.)
-    IF (ln_ctl) THEN
-      CALL prt_ctl(tab2d_1 = utau_ice, clinfo1 = ' blk_ice: utau_ice : ', tab2d_2 = vtau_ice, clinfo2 = ' vtau_ice : ')
-      CALL prt_ctl(tab2d_1 = wndm_ice, clinfo1 = ' blk_ice: wndm_ice : ')
-    END IF
-  END SUBROUTINE blk_ice_tau
-  SUBROUTINE blk_ice_flx(ptsu, phs, phi, palb)
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: ptsu
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: phs
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: phi
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: palb
-    INTEGER :: ji, jj, jl
-    REAL(KIND = wp) :: zst3
-    REAL(KIND = wp) :: zcoef_dqlw, zcoef_dqla
-    REAL(KIND = wp) :: zztmp, z1_rLsub
-    REAL(KIND = wp) :: zfr1, zfr2
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: z1_st
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: z_qlw
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: z_qsb
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: z_dqlw
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: z_dqsb
-    REAL(KIND = wp), DIMENSION(jpi, jpj) :: zevap, zsnw
-    REAL(KIND = wp), DIMENSION(jpi, jpj) :: zrhoa
-    zcoef_dqlw = 4.0 * 0.95 * Stef
-    zcoef_dqla = - Ls * 11637800. * (- 5897.8)
-    zrhoa(:, :) = rho_air(sf(jp_tair) % fnow(:, :, 1), sf(jp_humi) % fnow(:, :, 1), sf(jp_slp) % fnow(:, :, 1))
-    zztmp = 1. / (1. - albo)
-    WHERE (ptsu(:, :, :) /= 0._wp)
-      z1_st(:, :, :) = 1._wp / ptsu(:, :, :)
-    ELSEWHERE
-      z1_st(:, :, :) = 0._wp
-    END WHERE
-    DO jl = 1, jpl
-      DO jj = 1, jpj
-        DO ji = 1, jpi
-          zst3 = ptsu(ji, jj, jl) * ptsu(ji, jj, jl) * ptsu(ji, jj, jl)
-          qsr_ice(ji, jj, jl) = zztmp * (1. - palb(ji, jj, jl)) * qsr(ji, jj)
-          z_qlw(ji, jj, jl) = 0.95 * (sf(jp_qlw) % fnow(ji, jj, 1) - Stef * ptsu(ji, jj, jl) * zst3) * tmask(ji, jj, 1)
-          z_dqlw(ji, jj, jl) = zcoef_dqlw * zst3
-          z_qsb(ji, jj, jl) = zrhoa(ji, jj) * cpa * Ch_atm(ji, jj) * wndm_ice(ji, jj) * (ptsu(ji, jj, jl) - sf(jp_tair) % fnow(ji, jj, 1))
-          qla_ice(ji, jj, jl) = rn_efac * MAX(0.E0, zrhoa(ji, jj) * Ls * Ch_atm(ji, jj) * wndm_ice(ji, jj) * (11637800. * EXP(- 5897.8 * z1_st(ji, jj, jl)) / zrhoa(ji, jj) - sf(jp_humi) % fnow(ji, jj, 1)))
-          IF (qla_ice(ji, jj, jl) > 0._wp) THEN
-            dqla_ice(ji, jj, jl) = rn_efac * zcoef_dqla * Ch_atm(ji, jj) * wndm_ice(ji, jj) * z1_st(ji, jj, jl) * z1_st(ji, jj, jl) * EXP(- 5897.8 * z1_st(ji, jj, jl))
-          ELSE
-            dqla_ice(ji, jj, jl) = 0._wp
-          END IF
-          z_dqsb(ji, jj, jl) = zrhoa(ji, jj) * cpa * Ch_atm(ji, jj) * wndm_ice(ji, jj)
-          qns_ice(ji, jj, jl) = z_qlw(ji, jj, jl) - z_qsb(ji, jj, jl) - qla_ice(ji, jj, jl)
-          dqns_ice(ji, jj, jl) = - (z_dqlw(ji, jj, jl) + z_dqsb(ji, jj, jl) + dqla_ice(ji, jj, jl))
-        END DO
-      END DO
-    END DO
-    tprecip(:, :) = sf(jp_prec) % fnow(:, :, 1) * rn_pfac * tmask(:, :, 1)
-    sprecip(:, :) = sf(jp_snow) % fnow(:, :, 1) * rn_pfac * tmask(:, :, 1)
-    CALL iom_put('snowpre', sprecip)
-    CALL iom_put('precip', tprecip)
-    !$ACC KERNELS
-    z1_rLsub = 1._wp / rLsub
-    evap_ice(:, :, :) = rn_efac * qla_ice(:, :, :) * z1_rLsub
-    devap_ice(:, :, :) = rn_efac * dqla_ice(:, :, :) * z1_rLsub
-    zevap(:, :) = rn_efac * (emp(:, :) + tprecip(:, :))
-    zsnw(:, :) = 0._wp
-    !$ACC END KERNELS
-    CALL ice_thd_snwblow((1. - at_i_b(:, :)), zsnw)
-    !$ACC KERNELS
-    emp_oce(:, :) = (1._wp - at_i_b(:, :)) * zevap(:, :) - (tprecip(:, :) - sprecip(:, :)) - sprecip(:, :) * (1._wp - zsnw)
-    !$ACC END KERNELS
-    emp_ice(:, :) = SUM(a_i_b(:, :, :) * evap_ice(:, :, :), dim = 3) - sprecip(:, :) * zsnw
-    !$ACC KERNELS
-    emp_tot(:, :) = emp_oce(:, :) + emp_ice(:, :)
-    !$ACC END KERNELS
-    qemp_oce(:, :) = - (1._wp - at_i_b(:, :)) * zevap(:, :) * sst_m(:, :) * rcp + (tprecip(:, :) - sprecip(:, :)) * (sf(jp_tair) % fnow(:, :, 1) - rt0) * rcp + sprecip(:, :) * (1._wp - zsnw) * ((MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi * tmask(:, :, 1) - rLfus)
-    qemp_ice(:, :) = sprecip(:, :) * zsnw * ((MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi * tmask(:, :, 1) - rLfus)
-    qns_tot(:, :) = (1._wp - at_i_b(:, :)) * qns_oce(:, :) + SUM(a_i_b(:, :, :) * qns_ice(:, :, :), dim = 3) + qemp_ice(:, :) + qemp_oce(:, :)
-    qsr_tot(:, :) = (1._wp - at_i_b(:, :)) * qsr_oce(:, :) + SUM(a_i_b(:, :, :) * qsr_ice(:, :, :), dim = 3)
-    qprec_ice(:, :) = rhos * ((MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi * tmask(:, :, 1) - rLfus)
-    !$ACC KERNELS
-    DO jl = 1, jpl
-      qevap_ice(:, :, jl) = 0._wp
-    END DO
-    zfr1 = (0.18 * (1.0 - cldf_ice) + 0.35 * cldf_ice)
-    zfr2 = (0.82 * (1.0 - cldf_ice) + 0.65 * cldf_ice)
-    !$ACC END KERNELS
-    WHERE (phs(:, :, :) <= 0._wp .AND. phi(:, :, :) < 0.1_wp)
-      qtr_ice_top(:, :, :) = qsr_ice(:, :, :) * (zfr1 + zfr2 * (1._wp - phi(:, :, :) * 10._wp))
-    ELSEWHERE(phs(:, :, :) <= 0._wp .AND. phi(:, :, :) >= 0.1_wp)
-      qtr_ice_top(:, :, :) = qsr_ice(:, :, :) * zfr1
-    ELSEWHERE
-      qtr_ice_top(:, :, :) = 0._wp
-    END WHERE
-    IF (ln_ctl) THEN
-      CALL prt_ctl(tab3d_1 = qla_ice, clinfo1 = ' blk_ice: qla_ice  : ', tab3d_2 = z_qsb, clinfo2 = ' z_qsb    : ', kdim = jpl)
-      CALL prt_ctl(tab3d_1 = z_qlw, clinfo1 = ' blk_ice: z_qlw    : ', tab3d_2 = dqla_ice, clinfo2 = ' dqla_ice : ', kdim = jpl)
-      CALL prt_ctl(tab3d_1 = z_dqsb, clinfo1 = ' blk_ice: z_dqsb   : ', tab3d_2 = z_dqlw, clinfo2 = ' z_dqlw   : ', kdim = jpl)
-      CALL prt_ctl(tab3d_1 = dqns_ice, clinfo1 = ' blk_ice: dqns_ice : ', tab3d_2 = qsr_ice, clinfo2 = ' qsr_ice  : ', kdim = jpl)
-      CALL prt_ctl(tab3d_1 = ptsu, clinfo1 = ' blk_ice: ptsu     : ', tab3d_2 = qns_ice, clinfo2 = ' qns_ice  : ', kdim = jpl)
-      CALL prt_ctl(tab2d_1 = tprecip, clinfo1 = ' blk_ice: tprecip  : ', tab2d_2 = sprecip, clinfo2 = ' sprecip  : ')
-    END IF
-  END SUBROUTINE blk_ice_flx
-  SUBROUTINE blk_ice_qcn(k_virtual_itd, ptsu, ptb, phs, phi)
-    INTEGER, INTENT(IN   ) :: k_virtual_itd
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptsu
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: ptb
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: phs
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: phi
-    INTEGER, PARAMETER :: nit = 10
-    REAL(KIND = wp), PARAMETER :: zepsilon = 0.1_wp
-    INTEGER :: ji, jj, jl
-    INTEGER :: iter
-    REAL(KIND = wp) :: zfac, zfac2, zfac3
-    REAL(KIND = wp) :: zkeff_h, ztsu, ztsu0
-    REAL(KIND = wp) :: zqc, zqnet
-    REAL(KIND = wp) :: zhe, zqa0
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: zgfac
-    !$ACC KERNELS
-    zgfac(:, :, :) = 1._wp
-    !$ACC END KERNELS
-    SELECT CASE (k_virtual_itd)
-    CASE (1, 2)
-      !$ACC KERNELS
-      zfac = 1._wp / (rn_cnd_s + rcnd_i)
-      zfac2 = EXP(1._wp) * 0.5_wp * zepsilon
-      zfac3 = 2._wp / zepsilon
-      DO jl = 1, jpl
-        DO jj = 1, jpj
-          DO ji = 1, jpi
-            zhe = (rn_cnd_s * phi(ji, jj, jl) + rcnd_i * phs(ji, jj, jl)) * zfac
-            IF (zhe >= zfac2) zgfac(ji, jj, jl) = MIN(2._wp, 0.5_wp * (1._wp + LOG(zhe * zfac3)))
-          END DO
-        END DO
-      END DO
-      !$ACC END KERNELS
-    END SELECT
-    !$ACC KERNELS
-    zfac = rcnd_i * rn_cnd_s
-    DO jl = 1, jpl
-      DO jj = 1, jpj
-        DO ji = 1, jpi
-          zkeff_h = zfac * zgfac(ji, jj, jl) / (rcnd_i * phs(ji, jj, jl) + rn_cnd_s * MAX(0.01, phi(ji, jj, jl)))
-          ztsu = ptsu(ji, jj, jl)
-          ztsu0 = ptsu(ji, jj, jl)
-          zqa0 = qsr_ice(ji, jj, jl) - qtr_ice_top(ji, jj, jl) + qns_ice(ji, jj, jl)
-          DO iter = 1, nit
-            zqc = zkeff_h * (ztsu - ptb(ji, jj))
-            zqnet = zqa0 + dqns_ice(ji, jj, jl) * (ztsu - ptsu(ji, jj, jl)) - zqc
-            ztsu = ztsu - zqnet / (dqns_ice(ji, jj, jl) - zkeff_h)
-          END DO
-          ptsu(ji, jj, jl) = MIN(rt0, ztsu)
-          qcn_ice(ji, jj, jl) = zkeff_h * (ptsu(ji, jj, jl) - ptb(ji, jj))
-          qns_ice(ji, jj, jl) = qns_ice(ji, jj, jl) + dqns_ice(ji, jj, jl) * (ptsu(ji, jj, jl) - ztsu0)
-          qml_ice(ji, jj, jl) = (qsr_ice(ji, jj, jl) - qtr_ice_top(ji, jj, jl) + qns_ice(ji, jj, jl) - qcn_ice(ji, jj, jl)) * MAX(0._wp, SIGN(1._wp, ptsu(ji, jj, jl) - rt0))
-          hfx_err_dif(ji, jj) = hfx_err_dif(ji, jj) - (dqns_ice(ji, jj, jl) * (ptsu(ji, jj, jl) - ztsu0)) * a_i_b(ji, jj, jl)
-        END DO
-      END DO
-    END DO
-    !$ACC END KERNELS
-  END SUBROUTINE blk_ice_qcn
-  SUBROUTINE Cdn10_Lupkes2012(Cd)
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: Cd
-    REAL(KIND = wp), PARAMETER :: zCe = 2.23E-03_wp
-    REAL(KIND = wp), PARAMETER :: znu = 1._wp
-    REAL(KIND = wp), PARAMETER :: zmu = 1._wp
-    REAL(KIND = wp), PARAMETER :: zbeta = 1._wp
-    REAL(KIND = wp) :: zcoef
-    !$ACC KERNELS
-    zcoef = znu + 1._wp / (10._wp * zbeta)
-    Cd(:, :) = Cd_ice + zCe * (1._wp - at_i_b(:, :)) ** zcoef * at_i_b(:, :) ** (zmu - 1._wp)
-    !$ACC END KERNELS
-  END SUBROUTINE Cdn10_Lupkes2012
-  SUBROUTINE Cdn10_Lupkes2015(Cd, Ch)
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: Cd
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: Ch
-    REAL(KIND = wp), DIMENSION(jpi, jpj) :: zst, zqo_sat, zqi_sat
-    REAL(KIND = wp), PARAMETER :: z0_skin_ice = 0.69E-3_wp
-    REAL(KIND = wp), PARAMETER :: z0_form_ice = 0.57E-3_wp
-    REAL(KIND = wp), PARAMETER :: z0_ice = 1.00E-3_wp
-    REAL(KIND = wp), PARAMETER :: zce10 = 2.80E-3_wp
-    REAL(KIND = wp), PARAMETER :: zbeta = 1.1_wp
-    REAL(KIND = wp), PARAMETER :: zc = 5._wp
-    REAL(KIND = wp), PARAMETER :: zc2 = zc * zc
-    REAL(KIND = wp), PARAMETER :: zam = 2. * zc
-    REAL(KIND = wp), PARAMETER :: zah = 3. * zc
-    REAL(KIND = wp), PARAMETER :: z1_alpha = 1._wp / 0.2_wp
-    REAL(KIND = wp), PARAMETER :: z1_alphaf = z1_alpha
-    REAL(KIND = wp), PARAMETER :: zbetah = 1.E-3_wp
-    REAL(KIND = wp), PARAMETER :: zgamma = 1.25_wp
-    REAL(KIND = wp), PARAMETER :: z1_gamma = 1._wp / zgamma
-    REAL(KIND = wp), PARAMETER :: r1_3 = 1._wp / 3._wp
-    INTEGER :: ji, jj
-    REAL(KIND = wp) :: zthetav_os, zthetav_is, zthetav_zu
-    REAL(KIND = wp) :: zrib_o, zrib_i
-    REAL(KIND = wp) :: zCdn_skin_ice, zCdn_form_ice, zCdn_ice
-    REAL(KIND = wp) :: zChn_skin_ice, zChn_form_ice
-    REAL(KIND = wp) :: z0w, z0i, zfmi, zfmw, zfhi, zfhw
-    REAL(KIND = wp) :: zCdn_form_tmp
-    !$ACC KERNELS
-    zCdn_form_tmp = zce10 * (LOG(10._wp / z0_form_ice + 1._wp) / LOG(rn_zu / z0_form_ice + 1._wp)) ** 2
-    zCdn_skin_ice = (vkarmn / LOG(rn_zu / z0_skin_ice + 1._wp)) ** 2
-    zCdn_ice = zCdn_skin_ice
-    zChn_skin_ice = vkarmn ** 2 / (LOG(rn_zu / z0_ice + 1._wp) * LOG(rn_zu * z1_alpha / z0_skin_ice + 1._wp))
-    zst(:, :) = sst_m(:, :) + rt0
-    !$ACC END KERNELS
-    zqo_sat(:, :) = 0.98_wp * q_sat(zst(:, :), sf(jp_slp) % fnow(:, :, 1))
-    zqi_sat(:, :) = 0.98_wp * q_sat(tm_su(:, :), sf(jp_slp) % fnow(:, :, 1))
-    !$ACC KERNELS
-    DO jj = 2, jpjm1
-      DO ji = 2, jpim1
-        zthetav_os = zst(ji, jj) * (1._wp + rctv0 * zqo_sat(ji, jj))
-        zthetav_is = tm_su(ji, jj) * (1._wp + rctv0 * zqi_sat(ji, jj))
-        zthetav_zu = t_zu(ji, jj) * (1._wp + rctv0 * q_zu(ji, jj))
-        zrib_o = grav / zthetav_os * (zthetav_zu - zthetav_os) * rn_zu / MAX(0.5, wndm(ji, jj)) ** 2
-        zrib_i = grav / zthetav_is * (zthetav_zu - zthetav_is) * rn_zu / MAX(0.5, wndm_ice(ji, jj)) ** 2
-        zCdn_form_ice = zCdn_form_tmp * at_i_b(ji, jj) * (1._wp - at_i_b(ji, jj)) ** zbeta
-        zChn_form_ice = zCdn_form_ice / (1._wp + (LOG(z1_alphaf) / vkarmn) * SQRT(zCdn_form_ice))
-        z0w = rn_zu * EXP(- 1._wp * vkarmn / SQRT(Cdn_oce(ji, jj)))
-        z0i = z0_skin_ice
-        IF (zrib_o <= 0._wp) THEN
-          zfmw = 1._wp - zam * zrib_o / (1._wp + 3._wp * zc2 * Cdn_oce(ji, jj) * SQRT(- zrib_o * (rn_zu / z0w + 1._wp)))
-          zfhw = (1._wp + (zbetah * (zthetav_os - zthetav_zu) ** r1_3 / (Chn_oce(ji, jj) * MAX(0.01, wndm(ji, jj)))) ** zgamma) ** z1_gamma
-        ELSE
-          zfmw = 1._wp / (1._wp + zam * zrib_o / SQRT(1._wp + zrib_o))
-          zfhw = 1._wp / (1._wp + zah * zrib_o / SQRT(1._wp + zrib_o))
-        END IF
-        IF (zrib_i <= 0._wp) THEN
-          zfmi = 1._wp - zam * zrib_i / (1._wp + 3._wp * zc2 * zCdn_ice * SQRT(- zrib_i * (rn_zu / z0i + 1._wp)))
-          zfhi = 1._wp - zah * zrib_i / (1._wp + 3._wp * zc2 * zCdn_ice * SQRT(- zrib_i * (rn_zu / z0i + 1._wp)))
-        ELSE
-          zfmi = 1._wp / (1._wp + zam * zrib_i / SQRT(1._wp + zrib_i))
-          zfhi = 1._wp / (1._wp + zah * zrib_i / SQRT(1._wp + zrib_i))
-        END IF
-        Cd(ji, jj) = zCdn_skin_ice * zfmi + zCdn_form_ice * (zfmi * at_i_b(ji, jj) + zfmw * (1._wp - at_i_b(ji, jj))) / MAX(1.E-06, at_i_b(ji, jj))
-        Ch(ji, jj) = zChn_skin_ice * zfhi + zChn_form_ice * (zfhi * at_i_b(ji, jj) + zfhw * (1._wp - at_i_b(ji, jj))) / MAX(1.E-06, at_i_b(ji, jj))
-      END DO
-    END DO
-    !$ACC END KERNELS
-    CALL lbc_lnk_multi(Cd, 'T', 1., Ch, 'T', 1.)
-  END SUBROUTINE Cdn10_Lupkes2015
 END MODULE sbcblk

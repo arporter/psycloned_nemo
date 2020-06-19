@@ -15,6 +15,7 @@ MODULE obs_rot_vel
   PUBLIC :: obs_rotvel
   CONTAINS
   SUBROUTINE obs_rotvel(profdata, k2dint, pu, pv)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obs_prof), INTENT(INOUT) :: profdata
     INTEGER, INTENT(IN) :: k2dint
     REAL(KIND = wp), DIMENSION(*) :: pu, pv
@@ -28,6 +29,8 @@ MODULE obs_rot_vel
     INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: igrdiu, igrdju, igrdiv, igrdjv
     INTEGER :: ji
     INTEGER :: jk
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_rotvel', 'r0', 0, 0)
     ALLOCATE(igrdiu(2, 2, profdata % nprof), igrdju(2, 2, profdata % nprof), zglamu(2, 2, profdata % nprof), zgphiu(2, 2, profdata % nprof), zmasku(2, 2, profdata % nprof), zcoslu(2, 2, profdata % nprof), zsinlu(2, 2, profdata % nprof), igrdiv(2, 2, profdata % nprof), igrdjv(2, 2, profdata % nprof), zglamv(2, 2, profdata % nprof), zgphiv(2, 2, profdata % nprof), zmaskv(2, 2, profdata % nprof), zcoslv(2, 2, profdata % nprof), zsinlv(2, 2, profdata % nprof))
     CALL obs_rot(zsingu, zcosgu, zsingv, zcosgv)
     DO ji = 1, profdata % nprof
@@ -81,5 +84,6 @@ MODULE obs_rot_vel
       END DO
     END DO
     DEALLOCATE(igrdiu, igrdju, zglamu, zgphiu, zmasku, zcoslu, zsinlu, igrdiv, igrdjv, zglamv, zgphiv, zmaskv, zcoslv, zsinlv)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_rotvel
 END MODULE obs_rot_vel

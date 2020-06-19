@@ -16,6 +16,7 @@ MODULE obs_read_surf
   PUBLIC :: obs_rea_surf
   CONTAINS
   SUBROUTINE obs_rea_surf(surfdata, knumfiles, cdfilenames, kvars, kextr, kstp, ddobsini, ddobsend, ldignmis, ldmod, ldnightav)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obs_surf), INTENT(INOUT) :: surfdata
     INTEGER, INTENT(IN) :: knumfiles
     CHARACTER(LEN = 128), INTENT(IN) :: cdfilenames(knumfiles)
@@ -58,6 +59,9 @@ MODULE obs_read_surf
     REAL(KIND = wp), DIMENSION(knumfiles) :: djulini, djulend
     LOGICAL :: llvalprof
     TYPE(obfbdata), POINTER, DIMENSION(:) :: inpfiles
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('obs_rea_surf', 'r0', 0, 0)
     iobs = 0
     inobf = knumfiles
     ALLOCATE(inpfiles(inobf))
@@ -193,9 +197,13 @@ MODULE obs_read_surf
     CALL obs_surf_alloc(surfdata, iobs, kvars, kextr, kstp, jpi, jpj)
     iobs = 0
     surfdata % cvars(:) = clvars(:)
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     ityp(:) = 0
     itypmpp(:) = 0
     ioserrcount = 0
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('obs_rea_surf', 'r1', 0, 0)
     DO jk = 1, iobstot
       jj = ifileidx(iindx(jk))
       ji = isurfidx(iindx(jk))
@@ -272,5 +280,6 @@ MODULE obs_read_surf
       END IF
     END DO
     DEALLOCATE(inpfiles)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE obs_rea_surf
 END MODULE obs_read_surf

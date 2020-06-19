@@ -47,11 +47,20 @@ MODULE ldftra
   REAL(KIND = wp) :: r1_12 = 1._wp / 12._wp
   CONTAINS
   SUBROUTINE ldf_tra_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jk
     INTEGER :: ioptio, ierr, inum, ios, inn
     REAL(KIND = wp) :: zah_max, zUfac
     CHARACTER(LEN = 5) :: cl_Units
     NAMELIST /namtra_ldf/ ln_traldf_OFF, ln_traldf_lap, ln_traldf_blp, ln_traldf_lev, ln_traldf_hor, ln_traldf_triad, ln_traldf_iso, ln_traldf_msc, rn_slpmax, ln_triad_iso, ln_botmix_triad, rn_sw_triad, nn_aht_ijk_t, rn_Ud, rn_Ld
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    CALL profile_psy_data0 % PreStart('ldf_tra_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'ldf_tra_init : lateral tracer diffusion'
@@ -175,16 +184,22 @@ MODULE ldftra
       WRITE(numout, FMT = *)
     END IF
     l_ldftra_time = .FALSE.
+    CALL profile_psy_data0 % PostEnd
     IF (ln_traldf_OFF) THEN
+      CALL profile_psy_data1 % PreStart('ldf_tra_init', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   No diffusive operator selected. ahtu and ahtv are not allocated'
       RETURN
+      CALL profile_psy_data1 % PostEnd
     ELSE
+      CALL profile_psy_data2 % PreStart('ldf_tra_init', 'r2', 0, 0)
       ALLOCATE(ahtu(jpi, jpj, jpk), ahtv(jpi, jpj, jpk), STAT = ierr)
       IF (ierr /= 0) CALL ctl_stop('STOP', 'ldf_tra_init: failed to allocate arrays')
+      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       ahtu(:, :, jpk) = 0._wp
       ahtv(:, :, jpk) = 0._wp
       !$ACC END KERNELS
+      CALL profile_psy_data3 % PreStart('ldf_tra_init', 'r3', 0, 0)
       IF (ln_traldf_lap) THEN
         zufac = r1_2 * rn_ud
         inn = 1
@@ -196,6 +211,7 @@ MODULE ldftra
       END IF
       aht0 = zUfac * rn_Ld ** inn
       zah_max = zUfac * (ra * rad) ** inn
+      CALL profile_psy_data3 % PostEnd
       SELECT CASE (nn_aht_ijk_t)
       CASE (0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = constant = ', aht0, cl_Units
@@ -204,29 +220,36 @@ MODULE ldftra
         ahtv(:, :, 1 : jpkm1) = aht0
         !$ACC END KERNELS
       CASE (10)
+        CALL profile_psy_data4 % PreStart('ldf_tra_init', 'r4', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( depth )'
         IF (lwp) WRITE(numout, FMT = *) '           surface eddy diffusivity = constant = ', aht0, cl_Units
+        CALL profile_psy_data4 % PostEnd
         !$ACC KERNELS
         ahtu(:, :, 1) = aht0
         ahtv(:, :, 1) = aht0
         !$ACC END KERNELS
         CALL ldf_c1d('TRA', ahtu(:, :, 1), ahtv(:, :, 1), ahtu, ahtv)
       CASE (- 20)
+        CALL profile_psy_data5 % PreStart('ldf_tra_init', 'r5', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F(i,j) read in eddy_diffusivity.nc file'
         CALL iom_open('eddy_diffusivity_2D.nc', inum)
         CALL iom_get(inum, jpdom_data, 'ahtu_2D', ahtu(:, :, 1))
         CALL iom_get(inum, jpdom_data, 'ahtv_2D', ahtv(:, :, 1))
         CALL iom_close(inum)
-        !$ACC KERNELS
+        CALL profile_psy_data5 % PostEnd
         DO jk = 2, jpkm1
+          !$ACC KERNELS
           ahtu(:, :, jk) = ahtu(:, :, 1)
           ahtv(:, :, jk) = ahtv(:, :, 1)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       CASE (20)
+        CALL profile_psy_data6 % PreStart('ldf_tra_init', 'r6', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( e1, e2 ) or F( e1^3, e2^3 ) (lap or blp case)'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ud, ' m/s   and   Ld = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
         CALL ldf_c2d('TRA', zUfac, inn, ahtu, ahtv)
+        CALL profile_psy_data6 % PostEnd
       CASE (21)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( latitude, longitude, time )'
         IF (lwp) WRITE(numout, FMT = *) '                            = F( growth rate of baroclinic instability )'
@@ -243,6 +266,7 @@ MODULE ldftra
       CASE (30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( latitude, longitude, depth )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ud, ' m/s   and   Ld = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
         CALL ldf_c2d('TRA', zUfac, inn, ahtu, ahtv)
         CALL ldf_c1d('TRA', ahtu(:, :, 1), ahtv(:, :, 1), ahtu, ahtv)
       CASE (31)
@@ -268,12 +292,17 @@ MODULE ldftra
     END IF
   END SUBROUTINE ldf_tra_init
   SUBROUTINE ldf_tra(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zaht, zahf, zaht_min, zDaht, z1_f20
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('ldf_tra', 'r0', 0, 0)
     IF (ln_ldfeiv .AND. nn_aei_ijk_t == 21) THEN
       CALL ldf_eiv(kt, aei0, aeiu, aeiv)
     END IF
+    CALL profile_psy_data0 % PostEnd
     SELECT CASE (nn_aht_ijk_t)
     CASE (21)
       IF (ln_ldfeiv .AND. nn_aei_ijk_t == 21) THEN
@@ -288,6 +317,7 @@ MODULE ldftra
       z1_f20 = 1._wp / (2._wp * omega * SIN(rad * 20._wp))
       zaht_min = 0.2_wp * aht0
       zDaht = aht0 - zaht_min
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zaht = (1._wp - MIN(1._wp, ABS(ff_t(ji, jj) * z1_f20))) * zDaht
@@ -296,28 +326,31 @@ MODULE ldftra
           ahtv(ji, jj, 1) = (MAX(zaht_min, ahtv(ji, jj, 1)) + zahf)
         END DO
       END DO
+      !$ACC END KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ahtu(:, :, jk) = ahtu(:, :, 1) * umask(:, :, jk)
         ahtv(:, :, jk) = ahtv(:, :, 1) * vmask(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
     CASE (31)
       IF (ln_traldf_lap) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           ahtu(:, :, jk) = ABS(ub(:, :, jk)) * e1u(:, :) * r1_12
           ahtv(:, :, jk) = ABS(vb(:, :, jk)) * e2v(:, :) * r1_12
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       ELSE IF (ln_traldf_blp) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           ahtu(:, :, jk) = SQRT(ABS(ub(:, :, jk)) * e1u(:, :) * r1_12) * e1u(:, :)
           ahtv(:, :, jk) = SQRT(ABS(vb(:, :, jk)) * e2v(:, :) * r1_12) * e2v(:, :)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
     END SELECT
+    CALL profile_psy_data1 % PreStart('ldf_tra', 'r1', 0, 0)
     CALL iom_put("ahtu_2d", ahtu(:, :, 1))
     CALL iom_put("ahtv_2d", ahtv(:, :, 1))
     CALL iom_put("ahtu_3d", ahtu(:, :, :))
@@ -328,12 +361,21 @@ MODULE ldftra
       CALL iom_put("aeiu_3d", aeiu(:, :, :))
       CALL iom_put("aeiv_3d", aeiv(:, :, :))
     END IF
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE ldf_tra
   SUBROUTINE ldf_eiv_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jk
     INTEGER :: ierr, inum, ios, inn
     REAL(KIND = wp) :: zah_max, zUfac
     NAMELIST /namtra_eiv/ ln_ldfeiv, ln_ldfeiv_dia, nn_aei_ijk_t, rn_Ue, rn_Le
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    CALL profile_psy_data0 % PreStart('ldf_eiv_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'ldf_eiv_init : eddy induced velocity parametrization'
@@ -357,15 +399,20 @@ MODULE ldftra
       WRITE(numout, FMT = *)
     END IF
     l_ldfeiv_time = .FALSE.
+    CALL profile_psy_data0 % PostEnd
     IF (.NOT. ln_ldfeiv) THEN
+      CALL profile_psy_data1 % PreStart('ldf_eiv_init', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity param is NOT used'
       ln_ldfeiv_dia = .FALSE.
+      CALL profile_psy_data1 % PostEnd
     ELSE
+      CALL profile_psy_data2 % PreStart('ldf_eiv_init', 'r2', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   use eddy induced velocity parametrization'
       IF (lwp) WRITE(numout, FMT = *)
       IF (ln_traldf_blp) CALL ctl_stop('ldf_eiv_init: eddy induced velocity ONLY with laplacian diffusivity')
       ALLOCATE(aeiu(jpi, jpj, jpk), aeiv(jpi, jpj, jpk), STAT = ierr)
       IF (ierr /= 0) CALL ctl_stop('STOP', 'ldf_eiv: failed to allocate arrays')
+      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       aeiu(:, :, jpk) = 0._wp
       aeiv(:, :, jpk) = 0._wp
@@ -382,29 +429,36 @@ MODULE ldftra
         aeiv(:, :, 1 : jpkm1) = aei0
         !$ACC END KERNELS
       CASE (10)
+        CALL profile_psy_data3 % PreStart('ldf_eiv_init', 'r3', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F( depth )'
         IF (lwp) WRITE(numout, FMT = *) '           surface eddy diffusivity = constant = ', aht0, ' m2/s'
+        CALL profile_psy_data3 % PostEnd
         !$ACC KERNELS
         aeiu(:, :, 1) = aei0
         aeiv(:, :, 1) = aei0
         !$ACC END KERNELS
         CALL ldf_c1d('TRA', aeiu(:, :, 1), aeiv(:, :, 1), aeiu, aeiv)
       CASE (- 20)
+        CALL profile_psy_data4 % PreStart('ldf_eiv_init', 'r4', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F(i,j) read in eddy_diffusivity_2D.nc file'
         CALL iom_open('eddy_induced_velocity_2D.nc', inum)
         CALL iom_get(inum, jpdom_data, 'aeiu', aeiu(:, :, 1))
         CALL iom_get(inum, jpdom_data, 'aeiv', aeiv(:, :, 1))
         CALL iom_close(inum)
-        !$ACC KERNELS
+        CALL profile_psy_data4 % PostEnd
         DO jk = 2, jpkm1
+          !$ACC KERNELS
           aeiu(:, :, jk) = aeiu(:, :, 1)
           aeiv(:, :, jk) = aeiv(:, :, 1)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       CASE (20)
+        CALL profile_psy_data5 % PreStart('ldf_eiv_init', 'r5', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F( e1, e2 )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ue, ' m/s   and   Le = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, ' m2/s   for e1=1°)'
         CALL ldf_c2d('TRA', zUfac, inn, aeiu, aeiv)
+        CALL profile_psy_data5 % PostEnd
       CASE (21)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F( latitude, longitude, time )'
         IF (lwp) WRITE(numout, FMT = *) '                                       = F( growth rate of baroclinic instability )'
@@ -424,17 +478,17 @@ MODULE ldftra
         CALL ctl_stop('ldf_tra_init: wrong choice for nn_aei_ijk_t, the type of space-time variation of aei')
       END SELECT
       IF (.NOT. l_ldfeiv_time) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
           aeiu(:, :, jk) = aeiu(:, :, jk) * umask(:, :, jk)
           ahtv(:, :, jk) = ahtv(:, :, jk) * vmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
     END IF
   END SUBROUTINE ldf_eiv_init
   SUBROUTINE ldf_eiv(kt, paei0, paeiu, paeiv)
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), INTENT(INOUT) :: paei0
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: paeiu, paeiv
     INTEGER :: ji, jj, jk
@@ -449,6 +503,7 @@ MODULE ldftra
     IF (ln_traldf_triad) THEN
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zn2 = MAX(rn2b(ji, jj, jk), 0._wp)
@@ -463,6 +518,7 @@ MODULE ldftra
     ELSE
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zn2 = MAX(rn2b(ji, jj, jk), 0._wp)
@@ -476,6 +532,7 @@ MODULE ldftra
       !$ACC END KERNELS
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zfw = MAX(ABS(2. * omega * SIN(rad * gphit(ji, jj))), 1.E-10)
@@ -484,6 +541,7 @@ MODULE ldftra
       END DO
     END DO
     z1_f20 = 1._wp / (2._wp * omega * SIN(rad * 20._wp))
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zzaei = MIN(1._wp, ABS(ff_t(ji, jj) * z1_f20)) * zaeiw(ji, jj)
@@ -493,6 +551,7 @@ MODULE ldftra
     !$ACC END KERNELS
     CALL lbc_lnk(zaeiw(:, :), 'W', 1.)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         paeiu(ji, jj, 1) = 0.5_wp * (zaeiw(ji, jj) + zaeiw(ji + 1, jj)) * umask(ji, jj, 1)
@@ -501,17 +560,18 @@ MODULE ldftra
     END DO
     !$ACC END KERNELS
     CALL lbc_lnk_multi(paeiu(:, :, 1), 'U', 1., paeiv(:, :, 1), 'V', 1.)
-    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       paeiu(:, :, jk) = paeiu(:, :, 1) * umask(:, :, jk)
       paeiv(:, :, jk) = paeiv(:, :, 1) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
   END SUBROUTINE ldf_eiv
   SUBROUTINE ldf_eiv_trp(kt, kit000, pun, pvn, pwn, cdtype)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN   ) :: cdtype
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    INTEGER, INTENT(IN) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN) :: cdtype
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pun
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pvn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pwn
@@ -519,17 +579,21 @@ MODULE ldftra
     REAL(KIND = wp) :: zuwk, zuwk1, zuwi, zuwi1
     REAL(KIND = wp) :: zvwk, zvwk1, zvwj, zvwj1
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zpsi_uw, zpsi_vw
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ldf_eiv_trp', 'r0', 0, 0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'ldf_eiv_trp : eddy induced advection on ', cdtype, ' :'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~   add to velocity fields the eiv component'
     END IF
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zpsi_uw(:, :, 1) = 0._wp
     zpsi_vw(:, :, 1) = 0._wp
     zpsi_uw(:, :, jpk) = 0._wp
     zpsi_vw(:, :, jpk) = 0._wp
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zpsi_uw(ji, jj, jk) = - r1_4 * e2u(ji, jj) * (wslpi(ji, jj, jk) + wslpi(ji + 1, jj, jk)) * (aeiu(ji, jj, jk - 1) + aeiu(ji, jj, jk)) * umask(ji, jj, jk)
@@ -538,6 +602,7 @@ MODULE ldftra
       END DO
     END DO
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           pun(ji, jj, jk) = pun(ji, jj, jk) - (zpsi_uw(ji, jj, jk) - zpsi_uw(ji, jj, jk + 1))
@@ -546,6 +611,7 @@ MODULE ldftra
       END DO
     END DO
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           pwn(ji, jj, jk) = pwn(ji, jj, jk) + (zpsi_uw(ji, jj, jk) - zpsi_uw(ji - 1, jj, jk) + zpsi_vw(ji, jj, jk) - zpsi_vw(ji, jj - 1, jk))
@@ -556,11 +622,17 @@ MODULE ldftra
     IF (ln_ldfeiv_dia .AND. cdtype == 'TRA') CALL ldf_eiv_dia(zpsi_uw, zpsi_vw)
   END SUBROUTINE ldf_eiv_trp
   SUBROUTINE ldf_eiv_dia(psi_uw, psi_vw)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: psi_uw, psi_vw
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zztmp
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zw2d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zw3d
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
     CALL lbc_lnk_multi(psi_uw, 'U', - 1., psi_vw, 'V', - 1.)
     !$ACC KERNELS
     zw3d(:, :, jpk) = 0._wp
@@ -577,6 +649,7 @@ MODULE ldftra
     CALL iom_put("voce_eiv", zw3d)
     !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zw3d(ji, jj, jk) = (psi_vw(ji, jj, jk) - psi_vw(ji, jj - 1, jk) + psi_uw(ji, jj, jk) - psi_uw(ji - 1, jj, jk)) / e1e2t(ji, jj)
@@ -584,14 +657,17 @@ MODULE ldftra
       END DO
     END DO
     !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('ldf_eiv_dia', 'r0', 0, 0)
     CALL lbc_lnk(zw3d, 'T', 1.)
     CALL iom_put("woce_eiv", zw3d)
     zztmp = 0.5_wp * rau0 * rcp
+    CALL profile_psy_data0 % PostEnd
     IF (iom_use('ueiv_heattr') .OR. iom_use('ueiv_heattr3d')) THEN
       !$ACC KERNELS
       zw2d(:, :) = 0._wp
       zw3d(:, :, :) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_uw(ji, jj, jk + 1) - psi_uw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_tem) + tsn(ji + 1, jj, jk, jp_tem))
@@ -600,15 +676,18 @@ MODULE ldftra
         END DO
       END DO
       !$ACC END KERNELS
+      CALL profile_psy_data1 % PreStart('ldf_eiv_dia', 'r1', 0, 0)
       CALL lbc_lnk(zw2d, 'U', - 1.)
       CALL lbc_lnk(zw3d, 'U', - 1.)
       CALL iom_put("ueiv_heattr", zztmp * zw2d)
       CALL iom_put("ueiv_heattr3d", zztmp * zw3d)
+      CALL profile_psy_data1 % PostEnd
     END IF
     !$ACC KERNELS
     zw2d(:, :) = 0._wp
     zw3d(:, :, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_vw(ji, jj, jk + 1) - psi_vw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_tem) + tsn(ji, jj + 1, jk, jp_tem))
@@ -617,16 +696,21 @@ MODULE ldftra
       END DO
     END DO
     !$ACC END KERNELS
+    CALL profile_psy_data2 % PreStart('ldf_eiv_dia', 'r2', 0, 0)
     CALL lbc_lnk(zw2d, 'V', - 1.)
-    CALL iom_put("veiv_heattr", zztmp * zw2d)
-    CALL iom_put("veiv_heattr", zztmp * zw3d)
+    IF (iom_use('veiv_heattr')) THEN
+      CALL iom_put("veiv_heattr", zztmp * zw2d)
+      CALL iom_put("veiv_heattr", zztmp * zw3d)
+    END IF
     IF (ln_diaptr) CALL dia_ptr_hst(jp_tem, 'eiv', 0.5 * zw3d)
     zztmp = 0.5_wp * 0.5
+    CALL profile_psy_data2 % PostEnd
     IF (iom_use('ueiv_salttr') .OR. iom_use('ueiv_salttr3d')) THEN
       !$ACC KERNELS
       zw2d(:, :) = 0._wp
       zw3d(:, :, :) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zw3d(ji, jj, jk) = zw3d(ji, jj, jk) * (psi_uw(ji, jj, jk + 1) - psi_uw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_sal) + tsn(ji + 1, jj, jk, jp_sal))
@@ -635,15 +719,18 @@ MODULE ldftra
         END DO
       END DO
       !$ACC END KERNELS
+      CALL profile_psy_data3 % PreStart('ldf_eiv_dia', 'r3', 0, 0)
       CALL lbc_lnk(zw2d, 'U', - 1.)
       CALL lbc_lnk(zw3d, 'U', - 1.)
       CALL iom_put("ueiv_salttr", zztmp * zw2d)
       CALL iom_put("ueiv_salttr3d", zztmp * zw3d)
+      CALL profile_psy_data3 % PostEnd
     END IF
     !$ACC KERNELS
     zw2d(:, :) = 0._wp
     zw3d(:, :, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_vw(ji, jj, jk + 1) - psi_vw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_sal) + tsn(ji, jj + 1, jk, jp_sal))
@@ -652,9 +739,13 @@ MODULE ldftra
       END DO
     END DO
     !$ACC END KERNELS
-    CALL lbc_lnk(zw2d, 'V', - 1.)
-    CALL iom_put("veiv_salttr", zztmp * zw2d)
-    CALL iom_put("veiv_salttr", zztmp * zw3d)
+    CALL profile_psy_data4 % PreStart('ldf_eiv_dia', 'r4', 0, 0)
+    IF (iom_use('veiv_salttr') .OR. iom_use('veiv_salttr3d')) THEN
+      CALL lbc_lnk(zw2d, 'V', - 1.)
+      CALL iom_put("veiv_salttr", zztmp * zw2d)
+      CALL iom_put("veiv_salttr", zztmp * zw3d)
+    END IF
     IF (ln_diaptr) CALL dia_ptr_hst(jp_sal, 'eiv', 0.5 * zw3d)
+    CALL profile_psy_data4 % PostEnd
   END SUBROUTINE ldf_eiv_dia
 END MODULE ldftra

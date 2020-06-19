@@ -22,12 +22,15 @@ MODULE sbcapr
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_apr
   CONTAINS
   SUBROUTINE sbc_apr_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ierror
     INTEGER :: ios
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N) :: sn_apr
     LOGICAL :: lrxios
     NAMELIST /namsbc_apr/ cn_dir, sn_apr, ln_ref_apr, rn_pref, ln_apr_obc
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('sbc_apr_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namsbc_apr, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namsbc_apr in reference namelist', lwp)
@@ -61,21 +64,32 @@ MODULE sbcapr
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('ssh_ibb')
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE sbc_apr_init
   SUBROUTINE sbc_apr(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
+      !$ACC KERNELS
       IF (kt /= nit000) ssh_ibb(:, :) = ssh_ib(:, :)
+      !$ACC END KERNELS
+      CALL profile_psy_data0 % PreStart('sbc_apr', 'r0', 0, 0)
       CALL fld_read(kt, nn_fsbc, sf_apr)
       IF (ln_ref_apr) rn_pref = glob_sum(sf_apr(1) % fnow(:, :, 1) * e1e2t(:, :)) / tarea
       ssh_ib(:, :) = - (sf_apr(1) % fnow(:, :, 1) - rn_pref) * r1_grau
       apr(:, :) = sf_apr(1) % fnow(:, :, 1)
       CALL iom_put("ssh_ib", ssh_ib)
+      CALL profile_psy_data0 % PostEnd
     END IF
     IF (kt == nit000) THEN
       IF (ln_rstart .AND. iom_varid(numror, 'ssh_ibb', ldstop = .FALSE.) > 0) THEN
+        CALL profile_psy_data1 % PreStart('sbc_apr', 'r1', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) 'sbc_apr:   ssh_ibb read in the restart file'
         CALL iom_get(numror, jpdom_autoglo, 'ssh_ibb', ssh_ibb, ldxios = lrxios)
+        CALL profile_psy_data1 % PostEnd
       ELSE
         IF (lwp) WRITE(numout, FMT = *) 'sbc_apr:   ssh_ibb set to nit000 values'
         !$ACC KERNELS
@@ -83,6 +97,7 @@ MODULE sbcapr
         !$ACC END KERNELS
       END IF
     END IF
+    CALL profile_psy_data2 % PreStart('sbc_apr', 'r2', 0, 0)
     IF (lrst_oce) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'sbc_apr : ssh_ib written in ocean restart file at it= ', kt, ' date= ', ndastp
@@ -91,5 +106,6 @@ MODULE sbcapr
       CALL iom_rstput(kt, nitrst, numrow, 'ssh_ibb', ssh_ib, ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE sbc_apr
 END MODULE sbcapr
