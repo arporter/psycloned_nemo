@@ -99,9 +99,12 @@ MODULE diacfl
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dia_cfl : Maximum Courant number information for the run '
       WRITE(numout, FMT = *) '~~~~~~~'
-      WRITE(numout, FMT = *) '   Max Cu = ', rCu_max, ' at (i,j,k) = (', nCu_loc(1), nCu_loc(2), nCu_loc(3), ') => dt/C = ', z2dt / rCu_max
-      WRITE(numout, FMT = *) '   Max Cv = ', rCv_max, ' at (i,j,k) = (', nCv_loc(1), nCv_loc(2), nCv_loc(3), ') => dt/C = ', z2dt / rCv_max
-      WRITE(numout, FMT = *) '   Max Cw = ', rCw_max, ' at (i,j,k) = (', nCw_loc(1), nCw_loc(2), nCw_loc(3), ') => dt/C = ', z2dt / rCw_max
+      WRITE(numout, FMT = *) '   Max Cu = ', rCu_max, ' at (i,j,k) = (', nCu_loc(1), nCu_loc(2), nCu_loc(3), ') => dt/C = ', z2dt &
+&/ rCu_max
+      WRITE(numout, FMT = *) '   Max Cv = ', rCv_max, ' at (i,j,k) = (', nCv_loc(1), nCv_loc(2), nCv_loc(3), ') => dt/C = ', z2dt &
+&/ rCv_max
+      WRITE(numout, FMT = *) '   Max Cw = ', rCw_max, ' at (i,j,k) = (', nCw_loc(1), nCw_loc(2), nCw_loc(3), ') => dt/C = ', z2dt &
+&/ rCw_max
     END IF
     IF (ln_timing) CALL timing_stop('dia_cfl')
     CALL profile_psy_data1 % PostEnd

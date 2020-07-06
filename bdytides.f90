@@ -24,7 +24,6 @@ MODULE bdytides
   TYPE(OBC_DATA), PUBLIC, DIMENSION(jp_bdy) :: dta_bdy_s
   CONTAINS
   SUBROUTINE bdytide_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = 80) :: filtide
     LOGICAL :: ln_bdytide_2ddta
     LOGICAL :: ln_bdytide_conj
@@ -40,29 +39,20 @@ MODULE bdytides
     TYPE(TIDES_DATA), POINTER :: td
     TYPE(MAP_POINTER), DIMENSION(jpbgrd) :: ibmap_ptr
     NAMELIST /nambdy_tide/ filtide, ln_bdytide_2ddta, ln_bdytide_conj
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    CALL profile_psy_data0 % PreStart('bdytide_init', 'r0', 0, 0)
     IF (nb_bdy > 0) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'bdytide_init : initialization of tidal harmonic forcing at open boundaries'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~'
     END IF
     REWIND(UNIT = numnam_cfg)
-    CALL profile_psy_data0 % PostEnd
     DO ib_bdy = 1, nb_bdy
       IF (nn_dyn2d_dta(ib_bdy) >= 2) THEN
-        CALL profile_psy_data1 % PreStart('bdytide_init', 'r1', 0, 0)
         td => tides(ib_bdy)
         nblen => idx_bdy(ib_bdy) % nblen
         nblenrim => idx_bdy(ib_bdy) % nblenrim
-        CALL profile_psy_data1 % PostEnd
         !$ACC KERNELS
         filtide(:) = ''
         !$ACC END KERNELS
-        CALL profile_psy_data2 % PreStart('bdytide_init', 'r2', 0, 0)
         READ(numnam_ref, nambdy_tide, IOSTAT = ios, ERR = 901)
 901     IF (ios /= 0) CALL ctl_nam(ios, 'nambdy_tide in reference namelist', lwp)
         READ(numnam_cfg, nambdy_tide, IOSTAT = ios, ERR = 902)
@@ -80,7 +70,6 @@ MODULE bdytides
           END DO
         END IF
         IF (lwp) WRITE(numout, FMT = *) ' '
-        CALL profile_psy_data2 % PostEnd
         IF (cn_dyn2d(ib_bdy) == 'frs') THEN
           !$ACC KERNELS
           ilen0(:) = nblen(:)
@@ -90,7 +79,6 @@ MODULE bdytides
           ilen0(:) = nblenrim(:)
           !$ACC END KERNELS
         END IF
-        CALL profile_psy_data3 % PreStart('bdytide_init', 'r3', 0, 0)
         ALLOCATE(td % ssh0(ilen0(1), nb_harmo, 2))
         ALLOCATE(td % ssh(ilen0(1), nb_harmo, 2))
         ALLOCATE(td % u0(ilen0(2), nb_harmo, 2))
@@ -192,7 +180,6 @@ MODULE bdytides
         dta_bdy_s(ib_bdy) % ssh(:) = 0._wp
         dta_bdy_s(ib_bdy) % u2d(:) = 0._wp
         dta_bdy_s(ib_bdy) % v2d(:) = 0._wp
-        CALL profile_psy_data3 % PostEnd
       END IF
     END DO
   END SUBROUTINE bdytide_init
@@ -335,19 +322,22 @@ MODULE bdytides
           IF (dta_bdy(ib_bdy) % ll_ssh) THEN
             igrd = 1
             DO ib = 1, ilen0(igrd)
-              dta_bdy(ib_bdy) % ssh(ib) = dta_bdy(ib_bdy) % ssh(ib) + (tides(ib_bdy) % ssh(ib, itide, 1) * z_cost + tides(ib_bdy) % ssh(ib, itide, 2) * z_sist)
+              dta_bdy(ib_bdy) % ssh(ib) = dta_bdy(ib_bdy) % ssh(ib) + (tides(ib_bdy) % ssh(ib, itide, 1) * z_cost + tides(ib_bdy) &
+&% ssh(ib, itide, 2) * z_sist)
             END DO
           END IF
           IF (dta_bdy(ib_bdy) % ll_u2d) THEN
             igrd = 2
             DO ib = 1, ilen0(igrd)
-              dta_bdy(ib_bdy) % u2d(ib) = dta_bdy(ib_bdy) % u2d(ib) + (tides(ib_bdy) % u(ib, itide, 1) * z_cost + tides(ib_bdy) % u(ib, itide, 2) * z_sist)
+              dta_bdy(ib_bdy) % u2d(ib) = dta_bdy(ib_bdy) % u2d(ib) + (tides(ib_bdy) % u(ib, itide, 1) * z_cost + tides(ib_bdy) % &
+&u(ib, itide, 2) * z_sist)
             END DO
           END IF
           IF (dta_bdy(ib_bdy) % ll_v2d) THEN
             igrd = 3
             DO ib = 1, ilen0(igrd)
-              dta_bdy(ib_bdy) % v2d(ib) = dta_bdy(ib_bdy) % v2d(ib) + (tides(ib_bdy) % v(ib, itide, 1) * z_cost + tides(ib_bdy) % v(ib, itide, 2) * z_sist)
+              dta_bdy(ib_bdy) % v2d(ib) = dta_bdy(ib_bdy) % v2d(ib) + (tides(ib_bdy) % v(ib, itide, 1) * z_cost + tides(ib_bdy) % &
+&v(ib, itide, 2) * z_sist)
             END DO
           END IF
         END DO
@@ -356,105 +346,76 @@ MODULE bdytides
     END DO
   END SUBROUTINE bdy_dta_tides
   SUBROUTINE tide_init_elevation(idx, td)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(TIDES_DATA), INTENT(INOUT) :: td
     INTEGER :: itide, igrd, ib
     INTEGER, DIMENSION(1) :: ilen0
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:) :: mod_tide, phi_tide
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    CALL profile_psy_data0 % PreStart('tide_init_elevation', 'r0', 0, 0)
     igrd = 1
     ilen0(1) = SIZE(td % ssh0(:, 1, 1))
     ALLOCATE(mod_tide(ilen0(igrd)), phi_tide(ilen0(igrd)))
-    CALL profile_psy_data0 % PostEnd
     DO itide = 1, nb_harmo
-      CALL profile_psy_data1 % PreStart('tide_init_elevation', 'r1', 0, 0)
       DO ib = 1, ilen0(igrd)
         mod_tide(ib) = SQRT(td % ssh0(ib, itide, 1) ** 2. + td % ssh0(ib, itide, 2) ** 2.)
         phi_tide(ib) = ATAN2(- td % ssh0(ib, itide, 2), td % ssh0(ib, itide, 1))
       END DO
-      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       DO ib = 1, ilen0(igrd)
         mod_tide(ib) = mod_tide(ib) * ftide(itide)
         phi_tide(ib) = phi_tide(ib) + v0tide(itide) + utide(itide)
       END DO
       !$ACC END KERNELS
-      CALL profile_psy_data2 % PreStart('tide_init_elevation', 'r2', 0, 0)
       DO ib = 1, ilen0(igrd)
         td % ssh(ib, itide, 1) = mod_tide(ib) * COS(phi_tide(ib))
         td % ssh(ib, itide, 2) = - mod_tide(ib) * SIN(phi_tide(ib))
       END DO
-      CALL profile_psy_data2 % PostEnd
     END DO
     DEALLOCATE(mod_tide, phi_tide)
   END SUBROUTINE tide_init_elevation
   SUBROUTINE tide_init_velocities(idx, td)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(TIDES_DATA), INTENT(INOUT) :: td
     INTEGER :: itide, igrd, ib
     INTEGER, DIMENSION(3) :: ilen0
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:) :: mod_tide, phi_tide
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
-    CALL profile_psy_data0 % PreStart('tide_init_velocities', 'r0', 0, 0)
     ilen0(2) = SIZE(td % u0(:, 1, 1))
     ilen0(3) = SIZE(td % v0(:, 1, 1))
     igrd = 2
     ALLOCATE(mod_tide(ilen0(igrd)), phi_tide(ilen0(igrd)))
-    CALL profile_psy_data0 % PostEnd
     DO itide = 1, nb_harmo
-      CALL profile_psy_data1 % PreStart('tide_init_velocities', 'r1', 0, 0)
       DO ib = 1, ilen0(igrd)
         mod_tide(ib) = SQRT(td % u0(ib, itide, 1) ** 2. + td % u0(ib, itide, 2) ** 2.)
         phi_tide(ib) = ATAN2(- td % u0(ib, itide, 2), td % u0(ib, itide, 1))
       END DO
-      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       DO ib = 1, ilen0(igrd)
         mod_tide(ib) = mod_tide(ib) * ftide(itide)
         phi_tide(ib) = phi_tide(ib) + v0tide(itide) + utide(itide)
       END DO
       !$ACC END KERNELS
-      CALL profile_psy_data2 % PreStart('tide_init_velocities', 'r2', 0, 0)
       DO ib = 1, ilen0(igrd)
         td % u(ib, itide, 1) = mod_tide(ib) * COS(phi_tide(ib))
         td % u(ib, itide, 2) = - mod_tide(ib) * SIN(phi_tide(ib))
       END DO
-      CALL profile_psy_data2 % PostEnd
     END DO
-    CALL profile_psy_data3 % PreStart('tide_init_velocities', 'r3', 0, 0)
     DEALLOCATE(mod_tide, phi_tide)
     igrd = 3
     ALLOCATE(mod_tide(ilen0(igrd)), phi_tide(ilen0(igrd)))
-    CALL profile_psy_data3 % PostEnd
     DO itide = 1, nb_harmo
-      CALL profile_psy_data4 % PreStart('tide_init_velocities', 'r4', 0, 0)
       DO ib = 1, ilen0(igrd)
         mod_tide(ib) = SQRT(td % v0(ib, itide, 1) ** 2. + td % v0(ib, itide, 2) ** 2.)
         phi_tide(ib) = ATAN2(- td % v0(ib, itide, 2), td % v0(ib, itide, 1))
       END DO
-      CALL profile_psy_data4 % PostEnd
       !$ACC KERNELS
       DO ib = 1, ilen0(igrd)
         mod_tide(ib) = mod_tide(ib) * ftide(itide)
         phi_tide(ib) = phi_tide(ib) + v0tide(itide) + utide(itide)
       END DO
       !$ACC END KERNELS
-      CALL profile_psy_data5 % PreStart('tide_init_velocities', 'r5', 0, 0)
       DO ib = 1, ilen0(igrd)
         td % v(ib, itide, 1) = mod_tide(ib) * COS(phi_tide(ib))
         td % v(ib, itide, 2) = - mod_tide(ib) * SIN(phi_tide(ib))
       END DO
-      CALL profile_psy_data5 % PostEnd
     END DO
     DEALLOCATE(mod_tide, phi_tide)
   END SUBROUTINE tide_init_velocities

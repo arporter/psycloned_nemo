@@ -61,11 +61,18 @@ MODULE obs_read_surf
     TYPE(obfbdata), POINTER, DIMENSION(:) :: inpfiles
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
     CALL profile_psy_data0 % PreStart('obs_rea_surf', 'r0', 0, 0)
     iobs = 0
     inobf = knumfiles
     ALLOCATE(inpfiles(inobf))
+    CALL profile_psy_data0 % PostEnd
     surf_files:DO jj = 1, inobf
+      CALL profile_psy_data1 % PreStart('obs_rea_surf', 'r1', 0, 0)
       IF (lwp) THEN
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) ' obs_rea_surf : Reading from file = ', TRIM(TRIM(cdfilenames(jj)))
@@ -73,21 +80,27 @@ MODULE obs_read_surf
         WRITE(numout, FMT = *)
       END IF
       iflag = nf90_open(TRIM(TRIM(cdfilenames(jj))), nf90_nowrite, i_file_id)
+      CALL profile_psy_data1 % PostEnd
       IF (iflag /= nf90_noerr) THEN
+        CALL profile_psy_data2 % PreStart('obs_rea_surf', 'r2', 0, 0)
         IF (ldignmis) THEN
           inpfiles(jj) % nobs = 0
           CALL ctl_warn('File ' // TRIM(TRIM(cdfilenames(jj))) // ' not found')
         ELSE
           CALL ctl_stop('File ' // TRIM(TRIM(cdfilenames(jj))) // ' not found')
         END IF
+        CALL profile_psy_data2 % PostEnd
       ELSE
+        CALL profile_psy_data3 % PreStart('obs_rea_surf', 'r3', 0, 0)
         iflag = nf90_close(i_file_id)
         CALL init_obfbdata(inpfiles(jj))
         CALL read_obfbdata(TRIM(cdfilenames(jj)), inpfiles(jj), ldgrid = .TRUE.)
+        CALL profile_psy_data3 % PostEnd
         IF (ldmod .AND. (inpfiles(jj) % nadd == 0)) THEN
           CALL ctl_stop('Model not in input data')
           RETURN
         END IF
+        CALL profile_psy_data4 % PreStart('obs_rea_surf', 'r4', 0, 0)
         IF (jj == 1) THEN
           ALLOCATE(clvars(inpfiles(jj) % nvar))
           DO ji = 1, inpfiles(jj) % nvar
@@ -171,8 +184,10 @@ MODULE obs_read_surf
             END IF
           END IF
         END DO
+        CALL profile_psy_data4 % PostEnd
       END IF
     END DO surf_files
+    CALL profile_psy_data5 % PreStart('obs_rea_surf', 'r5', 0, 0)
     iobstot = 0
     DO jj = 1, inobf
       DO ji = 1, inpfiles(jj) % nobs
@@ -197,13 +212,13 @@ MODULE obs_read_surf
     CALL obs_surf_alloc(surfdata, iobs, kvars, kextr, kstp, jpi, jpj)
     iobs = 0
     surfdata % cvars(:) = clvars(:)
-    CALL profile_psy_data0 % PostEnd
+    CALL profile_psy_data5 % PostEnd
     !$ACC KERNELS
     ityp(:) = 0
     itypmpp(:) = 0
     ioserrcount = 0
     !$ACC END KERNELS
-    CALL profile_psy_data1 % PreStart('obs_rea_surf', 'r1', 0, 0)
+    CALL profile_psy_data6 % PreStart('obs_rea_surf', 'r6', 0, 0)
     DO jk = 1, iobstot
       jj = ifileidx(iindx(jk))
       ji = isurfidx(iindx(jk))
@@ -280,6 +295,6 @@ MODULE obs_read_surf
       END IF
     END DO
     DEALLOCATE(inpfiles)
-    CALL profile_psy_data1 % PostEnd
+    CALL profile_psy_data6 % PostEnd
   END SUBROUTINE obs_rea_surf
 END MODULE obs_read_surf

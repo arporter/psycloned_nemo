@@ -34,7 +34,8 @@ MODULE trdvor
   CHARACTER(LEN = 12) :: cvort
   CONTAINS
   INTEGER FUNCTION trd_vor_alloc()
-    ALLOCATE(vor_avr(jpi, jpj), vor_avrb(jpi, jpj), vor_avrbb(jpi, jpj), vor_avrbn(jpi, jpj), rotot(jpi, jpj), vor_avrtot(jpi, jpj), vor_avrres(jpi, jpj), vortrd(jpi, jpj, jpltot_vor), ndexvor1(jpi * jpj), STAT = trd_vor_alloc)
+    ALLOCATE(vor_avr(jpi, jpj), vor_avrb(jpi, jpj), vor_avrbb(jpi, jpj), vor_avrbn(jpi, jpj), rotot(jpi, jpj), vor_avrtot(jpi, &
+&jpj), vor_avrres(jpi, jpj), vortrd(jpi, jpj, jpltot_vor), ndexvor1(jpi * jpj), STAT = trd_vor_alloc)
     IF (lk_mpp) CALL mpp_sum(trd_vor_alloc)
     IF (trd_vor_alloc /= 0) CALL ctl_warn('trd_vor_alloc: failed to allocate arrays')
   END FUNCTION trd_vor_alloc
@@ -120,7 +121,8 @@ MODULE trdvor
     zvdpvor(:, :) = zvdpvor(:, :) * r1_hv_n(:, :)
     DO ji = 1, jpim1
       DO jj = 1, jpjm1
-        vortrd(ji, jj, ktrd) = (zvdpvor(ji + 1, jj) - zvdpvor(ji, jj) - (zudpvor(ji, jj + 1) - zudpvor(ji, jj))) / (e1f(ji, jj) * e2f(ji, jj))
+        vortrd(ji, jj, ktrd) = (zvdpvor(ji + 1, jj) - zvdpvor(ji, jj) - (zudpvor(ji, jj + 1) - zudpvor(ji, jj))) / (e1f(ji, jj) * &
+&e2f(ji, jj))
       END DO
     END DO
     vortrd(:, :, ktrd) = vortrd(:, :, ktrd) * fmask(:, :, 1)
@@ -160,7 +162,8 @@ MODULE trdvor
       zvbet(:, :) = zvdpvor(:, :)
       DO ji = 1, jpim1
         DO jj = 1, jpjm1
-          vortrd(ji, jj, jpvor_bev) = (zvbet(ji + 1, jj) - zvbet(ji, jj) - (zubet(ji, jj + 1) - zubet(ji, jj))) / (e1f(ji, jj) * e2f(ji, jj))
+          vortrd(ji, jj, jpvor_bev) = (zvbet(ji + 1, jj) - zvbet(ji, jj) - (zubet(ji, jj + 1) - zubet(ji, jj))) / (e1f(ji, jj) * &
+&e2f(ji, jj))
         END DO
       END DO
       vortrd(:, :, jpvor_bev) = vortrd(:, :, jpvor_bev) * r1_hu_n(:, :) * fmask(:, :, 1)
@@ -169,7 +172,8 @@ MODULE trdvor
     zvdpvor(:, :) = zvdpvor(:, :) * r1_hv_n(:, :)
     DO ji = 1, jpim1
       DO jj = 1, jpjm1
-        vortrd(ji, jj, ktrd) = (zvdpvor(ji + 1, jj) - zvdpvor(ji, jj) - (zudpvor(ji, jj + 1) - zudpvor(ji, jj))) / (e1f(ji, jj) * e2f(ji, jj))
+        vortrd(ji, jj, ktrd) = (zvdpvor(ji + 1, jj) - zvdpvor(ji, jj) - (zudpvor(ji, jj + 1) - zudpvor(ji, jj))) / (e1f(ji, jj) * &
+&e2f(ji, jj))
       END DO
     END DO
     vortrd(:, :, ktrd) = vortrd(:, :, ktrd) * fmask(:, :, 1)
@@ -210,7 +214,8 @@ MODULE trdvor
     zvn(:, :) = zvn(:, :) * r1_hv_n(:, :)
     DO ji = 1, jpim1
       DO jj = 1, jpjm1
-        vor_avr(ji, jj) = ((zvn(ji + 1, jj) - zvn(ji, jj)) - (zun(ji, jj + 1) - zun(ji, jj))) / (e1f(ji, jj) * e2f(ji, jj)) * fmask(ji, jj, 1)
+        vor_avr(ji, jj) = ((zvn(ji + 1, jj) - zvn(ji, jj)) - (zun(ji, jj + 1) - zun(ji, jj))) / (e1f(ji, jj) * e2f(ji, jj)) * &
+&fmask(ji, jj, 1)
       END DO
     END DO
     IF (kt == nit000 + 1) THEN
@@ -280,13 +285,9 @@ MODULE trdvor
     IF (kt == nitend) CALL histclo(nidvor)
   END SUBROUTINE trd_vor_iom
   SUBROUTINE trd_vor_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp) :: zjulian, zsto, zout
     CHARACTER(LEN = 40) :: clhstnam
     CHARACTER(LEN = 40) :: clop
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    CALL profile_psy_data0 % PreStart('trd_vor_init', 'r0', 0, 0)
     cvort = 'averaged-vor'
     ndebug = 0
     IF (lwp) THEN
@@ -301,14 +302,12 @@ MODULE trdvor
       WRITE(numout, FMT = *) ' '
     END IF
     IF (trd_vor_alloc() /= 0) CALL ctl_stop('STOP', 'trd_vor_init : unable to allocate trdvor arrays')
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     nmoydpvor = 0
     rotot(:, :) = 0
     vor_avrtot(:, :) = 0
     vor_avrres(:, :) = 0
     !$ACC END KERNELS
-    CALL profile_psy_data1 % PreStart('trd_vor_init', 'r1', 0, 0)
     IF (ndebug /= 0) THEN
       WRITE(numout, FMT = *) ' debuging trd_vor_init: I. done'
       CALL FLUSH(numout)
@@ -325,10 +324,12 @@ MODULE trdvor
     CALL ymds2ju(nyear, nmonth, nday, rdt, zjulian)
     zjulian = zjulian - adatrj
     IF (lwp) WRITE(numout, FMT = *) ' '
-    IF (lwp) WRITE(numout, FMT = *) '               Date 0 used :', nit000, ' YEAR ', nyear, ' MONTH ', nmonth, ' DAY ', nday, 'Julian day : ', zjulian
+    IF (lwp) WRITE(numout, FMT = *) '               Date 0 used :', nit000, ' YEAR ', nyear, ' MONTH ', nmonth, ' DAY ', nday, &
+&'Julian day : ', zjulian
     CALL dia_nam(clhstnam, nn_trd, 'vort')
     IF (lwp) WRITE(numout, FMT = *) ' Name of NETCDF file ', clhstnam
-    CALL histbeg(clhstnam, jpi, glamf, jpj, gphif, 1, jpi, 1, jpj, nit000 - 1, zjulian, rdt, nh_t, nidvor, domain_id = nidom, snc4chunks = snc4set)
+    CALL histbeg(clhstnam, jpi, glamf, jpj, gphif, 1, jpi, 1, jpj, nit000 - 1, zjulian, rdt, nh_t, nidvor, domain_id = nidom, &
+&snc4chunks = snc4set)
     CALL wheneq(jpi * jpj, fmask, 1, 1., ndexvor1, ndimvor1)
     CALL histdef(nidvor, "sovortPh", cvort // "grad Ph", "s-2", jpi, jpj, nh_t, 1, 1, 1, - 99, 32, clop, zsto, zout)
     CALL histdef(nidvor, "sovortEk", cvort // "Energy", "s-2", jpi, jpj, nh_t, 1, 1, 1, - 99, 32, clop, zsto, zout)
@@ -348,6 +349,5 @@ MODULE trdvor
       WRITE(numout, FMT = *) ' debuging trd_vor_init: II. done'
       CALL FLUSH(numout)
     END IF
-    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE trd_vor_init
 END MODULE trdvor

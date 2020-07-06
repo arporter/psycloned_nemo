@@ -108,7 +108,8 @@ MODULE tranxt
       ELSE
         CALL tra_nxt_vvl(kt, nit000, rdt, 'TRA', tsb, tsn, tsa, sbc_tsc, sbc_tsc_b, jpts)
       END IF
-      CALL lbc_lnk_multi(tsb(:, :, :, jp_tem), 'T', 1., tsb(:, :, :, jp_sal), 'T', 1., tsn(:, :, :, jp_tem), 'T', 1., tsn(:, :, :, jp_sal), 'T', 1., tsa(:, :, :, jp_tem), 'T', 1., tsa(:, :, :, jp_sal), 'T', 1.)
+      CALL lbc_lnk_multi(tsb(:, :, :, jp_tem), 'T', 1., tsb(:, :, :, jp_sal), 'T', 1., tsn(:, :, :, jp_tem), 'T', 1., tsn(:, :, :, &
+&jp_sal), 'T', 1., tsa(:, :, :, jp_tem), 'T', 1., tsa(:, :, :, jp_sal), 'T', 1.)
       CALL profile_psy_data4 % PostEnd
     END IF
     IF (l_trdtra .AND. ln_linssh) THEN
@@ -128,7 +129,8 @@ MODULE tranxt
     END IF
     CALL profile_psy_data7 % PreStart('tra_nxt', 'r7', 0, 0)
     IF (l_trdtra) DEALLOCATE(ztrdt, ztrds)
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsn(:, :, :, jp_tem), clinfo1 = ' nxt  - Tn: ', mask1 = tmask, tab3d_2 = tsn(:, :, :, jp_sal), clinfo2 = ' Sn: ', mask2 = tmask)
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsn(:, :, :, jp_tem), clinfo1 = ' nxt  - Tn: ', mask1 = tmask, tab3d_2 = tsn(:, :, :, &
+&jp_sal), clinfo2 = ' Sn: ', mask2 = tmask)
     IF (ln_timing) CALL timing_stop('tra_nxt')
     CALL profile_psy_data7 % PostEnd
   END SUBROUTINE tra_nxt
@@ -244,10 +246,13 @@ MODULE tranxt
               END IF
             END IF
             IF (ll_traqsr .AND. jn == jp_tem .AND. jk <= nksr) ztc_f = ztc_f - zfact1 * (qsr_hc(ji, jj, jk) - qsr_hc_b(ji, jj, jk))
-            IF (ll_rnf .AND. jk <= nk_rnf(ji, jj)) ztc_f = ztc_f - zfact1 * (rnf_tsc(ji, jj, jn) - rnf_tsc_b(ji, jj, jn)) * e3t_n(ji, jj, jk) / h_rnf(ji, jj)
+            IF (ll_rnf .AND. jk <= nk_rnf(ji, jj)) ztc_f = ztc_f - zfact1 * (rnf_tsc(ji, jj, jn) - rnf_tsc_b(ji, jj, jn)) * &
+&e3t_n(ji, jj, jk) / h_rnf(ji, jj)
             IF (ll_isf) THEN
-              IF (jk >= misfkt(ji, jj) .AND. jk < misfkb(ji, jj)) ztc_f = ztc_f - zfact1 * (risf_tsc(ji, jj, jn) - risf_tsc_b(ji, jj, jn)) * e3t_n(ji, jj, jk) * r1_hisf_tbl(ji, jj)
-              IF (jk == misfkb(ji, jj)) ztc_f = ztc_f - zfact1 * (risf_tsc(ji, jj, jn) - risf_tsc_b(ji, jj, jn)) * e3t_n(ji, jj, jk) * r1_hisf_tbl(ji, jj) * ralpha(ji, jj)
+              IF (jk >= misfkt(ji, jj) .AND. jk < misfkb(ji, jj)) ztc_f = ztc_f - zfact1 * (risf_tsc(ji, jj, jn) - risf_tsc_b(ji, &
+&jj, jn)) * e3t_n(ji, jj, jk) * r1_hisf_tbl(ji, jj)
+              IF (jk == misfkb(ji, jj)) ztc_f = ztc_f - zfact1 * (risf_tsc(ji, jj, jn) - risf_tsc_b(ji, jj, jn)) * e3t_n(ji, jj, &
+&jk) * r1_hisf_tbl(ji, jj) * ralpha(ji, jj)
             END IF
             ze3t_f = 1.E0 / ze3t_f
             ptb(ji, jj, jk, jn) = ztc_f * ze3t_f

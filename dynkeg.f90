@@ -94,8 +94,12 @@ MODULE dynkeg
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            zu = 8._wp * (un(ji - 1, jj, jk) * un(ji - 1, jj, jk) + un(ji, jj, jk) * un(ji, jj, jk)) + (un(ji - 1, jj - 1, jk) + un(ji - 1, jj + 1, jk)) * (un(ji - 1, jj - 1, jk) + un(ji - 1, jj + 1, jk)) + (un(ji, jj - 1, jk) + un(ji, jj + 1, jk)) * (un(ji, jj - 1, jk) + un(ji, jj + 1, jk))
-            zv = 8._wp * (vn(ji, jj - 1, jk) * vn(ji, jj - 1, jk) + vn(ji, jj, jk) * vn(ji, jj, jk)) + (vn(ji - 1, jj - 1, jk) + vn(ji + 1, jj - 1, jk)) * (vn(ji - 1, jj - 1, jk) + vn(ji + 1, jj - 1, jk)) + (vn(ji - 1, jj, jk) + vn(ji + 1, jj, jk)) * (vn(ji - 1, jj, jk) + vn(ji + 1, jj, jk))
+            zu = 8._wp * (un(ji - 1, jj, jk) * un(ji - 1, jj, jk) + un(ji, jj, jk) * un(ji, jj, jk)) + (un(ji - 1, jj - 1, jk) + &
+&un(ji - 1, jj + 1, jk)) * (un(ji - 1, jj - 1, jk) + un(ji - 1, jj + 1, jk)) + (un(ji, jj - 1, jk) + un(ji, jj + 1, jk)) * (un(ji, &
+&jj - 1, jk) + un(ji, jj + 1, jk))
+            zv = 8._wp * (vn(ji, jj - 1, jk) * vn(ji, jj - 1, jk) + vn(ji, jj, jk) * vn(ji, jj, jk)) + (vn(ji - 1, jj - 1, jk) + &
+&vn(ji + 1, jj - 1, jk)) * (vn(ji - 1, jj - 1, jk) + vn(ji + 1, jj - 1, jk)) + (vn(ji - 1, jj, jk) + vn(ji + 1, jj, jk)) * (vn(ji &
+&- 1, jj, jk) + vn(ji + 1, jj, jk))
             zhke(ji, jj, jk) = r1_48 * (zv + zu)
           END DO
         END DO
@@ -131,7 +135,8 @@ MODULE dynkeg
       CALL profile_psy_data2 % PostEnd
     END IF
     CALL profile_psy_data3 % PreStart('dyn_keg', 'r3', 0, 0)
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' keg  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' keg  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = &
+&vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_keg')
     CALL profile_psy_data3 % PostEnd
   END SUBROUTINE dyn_keg

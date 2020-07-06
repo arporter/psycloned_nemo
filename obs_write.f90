@@ -153,7 +153,8 @@ MODULE obs_write
           fbdata % iobsj(jo, jvar) = mjg(profdata % mj(jo, jvar))
         END IF
       END DO
-      CALL greg2jul(0, profdata % nmin(jo), profdata % nhou(jo), profdata % nday(jo), profdata % nmon(jo), profdata % nyea(jo), fbdata % ptim(jo), krefdate = 19500101)
+      CALL greg2jul(0, profdata % nmin(jo), profdata % nhou(jo), profdata % nday(jo), profdata % nmon(jo), profdata % nyea(jo), &
+&fbdata % ptim(jo), krefdate = 19500101)
       DO jvar = 1, 2
         DO jk = profdata % npvsta(jo, jvar), profdata % npvend(jo, jvar)
           ik = profdata % var(jvar) % nvlidx(jk)
@@ -187,9 +188,11 @@ MODULE obs_write
       DO jo = 1, fbdata % nobs
         IF (fbdata % pphi(jo) < 9999.0) THEN
           DO jk = 1, fbdata % nlev
-            IF ((fbdata % pob(jk, jo, 1) >= 9999.0) .AND. (fbdata % pdep(jk, jo) < 9999.0) .AND. (fbdata % padd(jk, jo, 1, 2) < 9999.0) .AND. (fbdata % pext(jk, jo, 1) < 9999.0)) THEN
+            IF ((fbdata % pob(jk, jo, 1) >= 9999.0) .AND. (fbdata % pdep(jk, jo) < 9999.0) .AND. (fbdata % padd(jk, jo, 1, 2) < &
+&9999.0) .AND. (fbdata % pext(jk, jo, 1) < 9999.0)) THEN
               zpres = dep_to_p(REAL(fbdata % pdep(jk, jo), wp), REAL(fbdata % pphi(jo), wp))
-              fbdata % pob(jk, jo, 1) = potemp(REAL(fbdata % padd(jk, jo, 1, 2), wp), REAL(fbdata % pext(jk, jo, 1), wp), zpres, 0.0_wp)
+              fbdata % pob(jk, jo, 1) = potemp(REAL(fbdata % padd(jk, jo, 1, 2), wp), REAL(fbdata % pext(jk, jo, 1), wp), zpres, &
+&0.0_wp)
             END IF
           END DO
         END IF
@@ -350,7 +353,8 @@ MODULE obs_write
         fbdata % iobsi(jo, 1) = mig(surfdata % mi(jo))
         fbdata % iobsj(jo, 1) = mjg(surfdata % mj(jo))
       END IF
-      CALL greg2jul(0, surfdata % nmin(jo), surfdata % nhou(jo), surfdata % nday(jo), surfdata % nmon(jo), surfdata % nyea(jo), fbdata % ptim(jo), krefdate = 19500101)
+      CALL greg2jul(0, surfdata % nmin(jo), surfdata % nhou(jo), surfdata % nday(jo), surfdata % nmon(jo), surfdata % nyea(jo), &
+&fbdata % ptim(jo), krefdate = 19500101)
       fbdata % padd(1, jo, 1, 1) = surfdata % rmod(jo, 1)
       IF (TRIM(surfdata % cvars(1)) == 'SLA') fbdata % padd(1, jo, 2, 1) = surfdata % rext(jo, 1)
       fbdata % pob(1, jo, 1) = surfdata % robs(jo, 1)
@@ -405,7 +409,8 @@ MODULE obs_write
       inumgoodobs = 0
       DO jo = 1, fbdata % nobs
         DO jk = 1, fbdata % nlev
-          IF ((fbdata % pob(jk, jo, jvar) < 9999.0) .AND. (fbdata % pdep(jk, jo) < 9999.0) .AND. (fbdata % padd(jk, jo, 1, jvar) < 9999.0)) THEN
+          IF ((fbdata % pob(jk, jo, jvar) < 9999.0) .AND. (fbdata % pdep(jk, jo) < 9999.0) .AND. (fbdata % padd(jk, jo, 1, jvar) < &
+&9999.0)) THEN
             zomb = fbdata % pob(jk, jo, jvar) - fbdata % padd(jk, jo, 1, jvar)
             zsumx = zsumx + zomb
             zsumx2 = zsumx2 + zomb ** 2

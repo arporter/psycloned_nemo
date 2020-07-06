@@ -16,7 +16,8 @@ MODULE obs_oper
   PUBLIC :: obs_surf_opt
   INTEGER, PARAMETER, PUBLIC :: imaxavtypes = 20
   CONTAINS
-  SUBROUTINE obs_prof_opt(prodatqc, kt, kpi, kpj, kpk, kit000, kdaystp, pvar1, pvar2, pgdept, pgdepw, pmask1, pmask2, plam1, plam2, pphi1, pphi2, k1dint, k2dint, kdailyavtypes)
+  SUBROUTINE obs_prof_opt(prodatqc, kt, kpi, kpj, kpk, kit000, kdaystp, pvar1, pvar2, pgdept, pgdepw, pmask1, pmask2, plam1, &
+&plam2, pphi1, pphi2, k1dint, k2dint, kdailyavtypes)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE obs_profiles_def
     IMPLICIT NONE
@@ -120,7 +121,9 @@ MODULE obs_oper
         END DO
       END IF
     END IF
-    ALLOCATE(igrdi1(2, 2, ipro), igrdi2(2, 2, ipro), igrdj1(2, 2, ipro), igrdj2(2, 2, ipro), zglam1(2, 2, ipro), zglam2(2, 2, ipro), zgphi1(2, 2, ipro), zgphi2(2, 2, ipro), zmask1(2, 2, kpk, ipro), zmask2(2, 2, kpk, ipro), zint1(2, 2, kpk, ipro), zint2(2, 2, kpk, ipro), zgdept(2, 2, kpk, ipro), zgdepw(2, 2, kpk, ipro))
+    ALLOCATE(igrdi1(2, 2, ipro), igrdi2(2, 2, ipro), igrdj1(2, 2, ipro), igrdj2(2, 2, ipro), zglam1(2, 2, ipro), zglam2(2, 2, &
+&ipro), zgphi1(2, 2, ipro), zgphi2(2, 2, ipro), zmask1(2, 2, kpk, ipro), zmask2(2, 2, kpk, ipro), zint1(2, 2, kpk, ipro), zint2(2, &
+&2, kpk, ipro), zgdept(2, 2, kpk, ipro), zgdepw(2, 2, kpk, ipro))
     DO jobs = prodatqc % nprofup + 1, prodatqc % nprofup + ipro
       iobs = jobs - prodatqc % nprofup
       igrdi1(1, 1, iobs) = prodatqc % mi(jobs, 1) - 1
@@ -161,8 +164,8 @@ MODULE obs_oper
       CALL obs_int_comm_3d(2, 2, ipro, kpi, kpj, kpk, igrdi1, igrdj1, prodatqc % vdmean(:, :, :, 1), zinm1)
       CALL obs_int_comm_3d(2, 2, ipro, kpi, kpj, kpk, igrdi2, igrdj2, prodatqc % vdmean(:, :, :, 2), zinm2)
     END IF
-    IF (ipro == 0) RETURN
     CALL profile_psy_data3 % PostEnd
+    IF (ipro == 0) RETURN
     DO jobs = prodatqc % nprofup + 1, prodatqc % nprofup + ipro
       CALL profile_psy_data4 % PreStart('obs_prof_opt', 'r4', 0, 0)
       iobs = jobs - prodatqc % nprofup
@@ -172,17 +175,20 @@ MODULE obs_oper
           WRITE(numout, FMT = *) ' E R R O R : Observation', ' time step is not consistent with the', ' model time step'
           WRITE(numout, FMT = *) ' ========='
           WRITE(numout, FMT = *)
-          WRITE(numout, FMT = *) ' Record  = ', jobs, ' kt      = ', kt, ' mstp    = ', prodatqc % mstp(jobs), ' ntyp    = ', prodatqc % ntyp(jobs)
+          WRITE(numout, FMT = *) ' Record  = ', jobs, ' kt      = ', kt, ' mstp    = ', prodatqc % mstp(jobs), ' ntyp    = ', &
+&prodatqc % ntyp(jobs)
         END IF
         CALL ctl_stop('obs_pro_opt', 'Inconsistent time')
       END IF
       zlam = prodatqc % rlam(jobs)
       zphi = prodatqc % rphi(jobs)
       IF (prodatqc % npvend(jobs, 1) > 0) THEN
-        CALL obs_int_h2d_init(1, 1, k2dint, zlam, zphi, zglam1(:, :, iobs), zgphi1(:, :, iobs), zmask1(:, :, 1, iobs), zweig1, zmsk_1)
+        CALL obs_int_h2d_init(1, 1, k2dint, zlam, zphi, zglam1(:, :, iobs), zgphi1(:, :, iobs), zmask1(:, :, 1, iobs), zweig1, &
+&zmsk_1)
       END IF
       IF (prodatqc % npvend(jobs, 2) > 0) THEN
-        CALL obs_int_h2d_init(1, 1, k2dint, zlam, zphi, zglam2(:, :, iobs), zgphi2(:, :, iobs), zmask2(:, :, 1, iobs), zweig2, zmsk_2)
+        CALL obs_int_h2d_init(1, 1, k2dint, zlam, zphi, zglam2(:, :, iobs), zgphi2(:, :, iobs), zmask2(:, :, 1, iobs), zweig2, &
+&zmsk_2)
       END IF
       CALL profile_psy_data4 % PostEnd
       IF (prodatqc % npvend(jobs, 1) > 0) THEN
@@ -202,7 +208,8 @@ MODULE obs_oper
                   CALL obs_int_z1d_spl(kpk, zinm1(iin, ijn, :, iobs), zobs2k, zgdept(iin, ijn, :, iobs), zmask1(iin, ijn, :, iobs))
                 END IF
                 CALL obs_level_search(kpk, zgdept(iin, ijn, :, iobs), inum_obs, prodatqc % var(1) % vdep(ista : iend), iv_indic)
-                CALL obs_int_z1d(kpk, iv_indic, k1dint, inum_obs, prodatqc % var(1) % vdep(ista : iend), zinm1(iin, ijn, :, iobs), zobs2k, interp_corner(iin, ijn, :), zgdept(iin, ijn, :, iobs), zmask1(iin, ijn, :, iobs))
+                CALL obs_int_z1d(kpk, iv_indic, k1dint, inum_obs, prodatqc % var(1) % vdep(ista : iend), zinm1(iin, ijn, :, iobs), &
+&zobs2k, interp_corner(iin, ijn, :), zgdept(iin, ijn, :, iobs), zmask1(iin, ijn, :, iobs))
               END DO
             END DO
           END IF
@@ -217,7 +224,8 @@ MODULE obs_oper
                 CALL obs_int_z1d_spl(kpk, zint1(iin, ijn, :, iobs), zobs2k, zgdept(iin, ijn, :, iobs), zmask1(iin, ijn, :, iobs))
               END IF
               CALL obs_level_search(kpk, zgdept(iin, ijn, :, iobs), inum_obs, prodatqc % var(1) % vdep(ista : iend), iv_indic)
-              CALL obs_int_z1d(kpk, iv_indic, k1dint, inum_obs, prodatqc % var(1) % vdep(ista : iend), zint1(iin, ijn, :, iobs), zobs2k, interp_corner(iin, ijn, :), zgdept(iin, ijn, :, iobs), zmask1(iin, ijn, :, iobs))
+              CALL obs_int_z1d(kpk, iv_indic, k1dint, inum_obs, prodatqc % var(1) % vdep(ista : iend), zint1(iin, ijn, :, iobs), &
+&zobs2k, interp_corner(iin, ijn, :), zgdept(iin, ijn, :, iobs), zmask1(iin, ijn, :, iobs))
             END DO
           END DO
         END IF
@@ -232,7 +240,8 @@ MODULE obs_oper
             DO ijn = 1, 2
               depth_loop1:DO ik = kpk, 2, - 1
                 IF (zmask1(iin, ijn, ik - 1, iobs) > 0.9) THEN
-                  zweig(iin, ijn, 1) = zweig1(iin, ijn, 1) * MAX(SIGN(1._wp, (zgdepw(iin, ijn, ik, iobs)) - prodatqc % var(1) % vdep(iend)), 0._wp)
+                  zweig(iin, ijn, 1) = zweig1(iin, ijn, 1) * MAX(SIGN(1._wp, (zgdepw(iin, ijn, ik, iobs)) - prodatqc % var(1) % &
+&vdep(iend)), 0._wp)
                   EXIT depth_loop1
                 END IF
               END DO depth_loop1
@@ -261,7 +270,8 @@ MODULE obs_oper
                   CALL obs_int_z1d_spl(kpk, zinm2(iin, ijn, :, iobs), zobs2k, zgdept(iin, ijn, :, iobs), zmask2(iin, ijn, :, iobs))
                 END IF
                 CALL obs_level_search(kpk, zgdept(iin, ijn, :, iobs), inum_obs, prodatqc % var(2) % vdep(ista : iend), iv_indic)
-                CALL obs_int_z1d(kpk, iv_indic, k1dint, inum_obs, prodatqc % var(2) % vdep(ista : iend), zinm2(iin, ijn, :, iobs), zobs2k, interp_corner(iin, ijn, :), zgdept(iin, ijn, :, iobs), zmask2(iin, ijn, :, iobs))
+                CALL obs_int_z1d(kpk, iv_indic, k1dint, inum_obs, prodatqc % var(2) % vdep(ista : iend), zinm2(iin, ijn, :, iobs), &
+&zobs2k, interp_corner(iin, ijn, :), zgdept(iin, ijn, :, iobs), zmask2(iin, ijn, :, iobs))
               END DO
             END DO
           END IF
@@ -276,7 +286,8 @@ MODULE obs_oper
                 CALL obs_int_z1d_spl(kpk, zint2(iin, ijn, :, iobs), zobs2k, zgdept(iin, ijn, :, iobs), zmask2(iin, ijn, :, iobs))
               END IF
               CALL obs_level_search(kpk, zgdept(iin, ijn, :, iobs), inum_obs, prodatqc % var(2) % vdep(ista : iend), iv_indic)
-              CALL obs_int_z1d(kpk, iv_indic, k1dint, inum_obs, prodatqc % var(2) % vdep(ista : iend), zint2(iin, ijn, :, iobs), zobs2k, interp_corner(iin, ijn, :), zgdept(iin, ijn, :, iobs), zmask2(iin, ijn, :, iobs))
+              CALL obs_int_z1d(kpk, iv_indic, k1dint, inum_obs, prodatqc % var(2) % vdep(ista : iend), zint2(iin, ijn, :, iobs), &
+&zobs2k, interp_corner(iin, ijn, :), zgdept(iin, ijn, :, iobs), zmask2(iin, ijn, :, iobs))
             END DO
           END DO
         END IF
@@ -291,7 +302,8 @@ MODULE obs_oper
             DO ijn = 1, 2
               depth_loop2:DO ik = kpk, 2, - 1
                 IF (zmask2(iin, ijn, ik - 1, iobs) > 0.9) THEN
-                  zweig(iin, ijn, 1) = zweig2(iin, ijn, 1) * MAX(SIGN(1._wp, (zgdepw(iin, ijn, ik, iobs)) - prodatqc % var(2) % vdep(iend)), 0._wp)
+                  zweig(iin, ijn, 1) = zweig2(iin, ijn, 1) * MAX(SIGN(1._wp, (zgdepw(iin, ijn, ik, iobs)) - prodatqc % var(2) % &
+&vdep(iend)), 0._wp)
                   EXIT depth_loop2
                 END IF
               END DO depth_loop2
@@ -312,7 +324,8 @@ MODULE obs_oper
     prodatqc % nprofup = prodatqc % nprofup + ipro
     CALL profile_psy_data9 % PostEnd
   END SUBROUTINE obs_prof_opt
-  SUBROUTINE obs_surf_opt(surfdataqc, kt, kpi, kpj, kit000, kdaystp, psurf, psurfmask, k2dint, ldnightav, plamscl, pphiscl, lindegrees)
+  SUBROUTINE obs_surf_opt(surfdataqc, kt, kpi, kpj, kit000, kdaystp, psurf, psurfmask, k2dint, ldnightav, plamscl, pphiscl, &
+&lindegrees)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE obs_surf_def
     IMPLICIT NONE
@@ -411,7 +424,10 @@ MODULE obs_oper
       CALL profile_psy_data3 % PostEnd
     END IF
     CALL profile_psy_data4 % PreStart('obs_surf_opt', 'r4', 0, 0)
-    ALLOCATE(zweig(imaxifp, imaxjfp, 1), igrdi(imaxifp, imaxjfp, isurf), igrdj(imaxifp, imaxjfp, isurf), zglam(imaxifp, imaxjfp, isurf), zgphi(imaxifp, imaxjfp, isurf), zmask(imaxifp, imaxjfp, isurf), zsurf(imaxifp, imaxjfp, isurf), zsurftmp(imaxifp, imaxjfp, isurf), zglamf(imaxifp + 1, imaxjfp + 1, isurf), zgphif(imaxifp + 1, imaxjfp + 1, isurf), igrdip1(imaxifp + 1, imaxjfp + 1, isurf), igrdjp1(imaxifp + 1, imaxjfp + 1, isurf))
+    ALLOCATE(zweig(imaxifp, imaxjfp, 1), igrdi(imaxifp, imaxjfp, isurf), igrdj(imaxifp, imaxjfp, isurf), zglam(imaxifp, imaxjfp, &
+&isurf), zgphi(imaxifp, imaxjfp, isurf), zmask(imaxifp, imaxjfp, isurf), zsurf(imaxifp, imaxjfp, isurf), zsurftmp(imaxifp, &
+&imaxjfp, isurf), zglamf(imaxifp + 1, imaxjfp + 1, isurf), zgphif(imaxifp + 1, imaxjfp + 1, isurf), igrdip1(imaxifp + 1, imaxjfp + &
+&1, isurf), igrdjp1(imaxifp + 1, imaxjfp + 1, isurf))
     DO jobs = surfdataqc % nsurfup + 1, surfdataqc % nsurfup + isurf
       iobs = jobs - surfdataqc % nsurfup
       DO ji = 0, imaxifp
@@ -451,7 +467,8 @@ MODULE obs_oper
           WRITE(numout, FMT = *) ' E R R O R : Observation', ' time step is not consistent with the', ' model time step'
           WRITE(numout, FMT = *) ' ========='
           WRITE(numout, FMT = *)
-          WRITE(numout, FMT = *) ' Record  = ', jobs, ' kt      = ', kt, ' mstp    = ', surfdataqc % mstp(jobs), ' ntyp    = ', surfdataqc % ntyp(jobs)
+          WRITE(numout, FMT = *) ' Record  = ', jobs, ' kt      = ', kt, ' mstp    = ', surfdataqc % mstp(jobs), ' ntyp    = ', &
+&surfdataqc % ntyp(jobs)
         END IF
         CALL ctl_stop('obs_surf_opt', 'Inconsistent time')
       END IF
@@ -470,7 +487,8 @@ MODULE obs_oper
         CALL obs_int_h2d_init(1, 1, k2dint, zlam, zphi, zglam(:, :, iobs), zgphi(:, :, iobs), zmask(:, :, iobs), zweig, zobsmask)
         CALL obs_int_h2d(1, 1, zweig, zsurftmp(:, :, iobs), zext)
       ELSE
-        CALL obs_avg_h2d_init(1, 1, imaxifp, imaxjfp, k2dint, zlam, zphi, zglam(:, :, iobs), zgphi(:, :, iobs), zglamf(:, :, iobs), zgphif(:, :, iobs), zmask(:, :, iobs), plamscl, pphiscl, lindegrees, zweig, zobsmask)
+        CALL obs_avg_h2d_init(1, 1, imaxifp, imaxjfp, k2dint, zlam, zphi, zglam(:, :, iobs), zgphi(:, :, iobs), zglamf(:, :, &
+&iobs), zgphif(:, :, iobs), zmask(:, :, iobs), plamscl, pphiscl, lindegrees, zweig, zobsmask)
         CALL obs_avg_h2d(1, 1, imaxifp, imaxjfp, zweig, zsurftmp(:, :, iobs), zext)
       END IF
       IF (TRIM(surfdataqc % cvars(1)) == 'SLA' .AND. surfdataqc % nextra == 2) THEN

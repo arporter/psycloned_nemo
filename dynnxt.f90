@@ -153,7 +153,8 @@ MODULE dynnxt
               DO jj = 1, jpj
                 DO ji = 1, jpi
                   IF (jk <= nk_rnf(ji, jj)) THEN
-                    e3t_b(ji, jj, jk) = e3t_b(ji, jj, jk) - zcoef * (- rnf_b(ji, jj) + rnf(ji, jj)) * (e3t_n(ji, jj, jk) / h_rnf(ji, jj)) * tmask(ji, jj, jk)
+                    e3t_b(ji, jj, jk) = e3t_b(ji, jj, jk) - zcoef * (- rnf_b(ji, jj) + rnf(ji, jj)) * (e3t_n(ji, jj, jk) / &
+&h_rnf(ji, jj)) * tmask(ji, jj, jk)
                   END IF
                 END DO
               END DO
@@ -172,7 +173,8 @@ MODULE dynnxt
             DO jj = 1, jpj
               DO ji = 1, jpi
                 IF (misfkt(ji, jj) <= jk .AND. jk <= misfkb(ji, jj)) THEN
-                  e3t_b(ji, jj, jk) = e3t_b(ji, jj, jk) - zcoef * (fwfisf_b(ji, jj) - fwfisf(ji, jj)) * (e3t_n(ji, jj, jk) * r1_hisf_tbl(ji, jj)) * tmask(ji, jj, jk)
+                  e3t_b(ji, jj, jk) = e3t_b(ji, jj, jk) - zcoef * (fwfisf_b(ji, jj) - fwfisf(ji, jj)) * (e3t_n(ji, jj, jk) * &
+&r1_hisf_tbl(ji, jj)) * tmask(ji, jj, jk)
                 END IF
               END DO
             END DO

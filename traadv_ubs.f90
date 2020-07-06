@@ -49,7 +49,8 @@ MODULE traadv_ubs
     l_ptr = .FALSE.
     IF ((cdtype == 'TRA' .AND. l_trdtra) .OR. (cdtype == 'TRC' .AND. l_trdtrc)) l_trd = .TRUE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
-    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. &
+&iom_use("vadv_salttr"))) l_hst = .TRUE.
     CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     ztw(:, :, 1) = 0._wp
@@ -105,7 +106,8 @@ MODULE traadv_ubs
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (ztu(ji, jj, jk) - ztu(ji - 1, jj, jk) + ztv(ji, jj, jk) - ztv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
+            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (ztu(ji, jj, jk) - ztu(ji - 1, jj, jk) + ztv(ji, jj, jk) - ztv(ji, jj - 1, &
+&jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
           END DO
         END DO
       END DO
@@ -168,7 +170,8 @@ MODULE traadv_ubs
           !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpj
             DO ji = 1, jpi
-              ztw(ji, jj, jk) = (0.5_wp * pwn(ji, jj, jk) * (ptn(ji, jj, jk, jn) + ptn(ji, jj, jk - 1, jn)) - ztw(ji, jj, jk)) * wmask(ji, jj, jk)
+              ztw(ji, jj, jk) = (0.5_wp * pwn(ji, jj, jk) * (ptn(ji, jj, jk, jn) + ptn(ji, jj, jk - 1, jn)) - ztw(ji, jj, jk)) * &
+&wmask(ji, jj, jk)
             END DO
           END DO
         END DO
@@ -194,7 +197,8 @@ MODULE traadv_ubs
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (ztw(ji, jj, jk) - ztw(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
+            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (ztw(ji, jj, jk) - ztw(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, &
+&jk)
           END DO
         END DO
       END DO
@@ -205,7 +209,8 @@ MODULE traadv_ubs
           !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
-              zltv(ji, jj, jk) = pta(ji, jj, jk, jn) - zltv(ji, jj, jk) + ptn(ji, jj, jk, jn) * (pwn(ji, jj, jk) - pwn(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
+              zltv(ji, jj, jk) = pta(ji, jj, jk, jn) - zltv(ji, jj, jk) + ptn(ji, jj, jk, jn) * (pwn(ji, jj, jk) - pwn(ji, jj, jk &
+&+ 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
             END DO
           END DO
         END DO
@@ -235,7 +240,8 @@ MODULE traadv_ubs
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          zbetup(ji, jj, jk) = MAX(pbef(ji, jj, jk), paft(ji, jj, jk), pbef(ji, jj, ikm1), pbef(ji, jj, jk + 1), paft(ji, jj, ikm1), paft(ji, jj, jk + 1))
+          zbetup(ji, jj, jk) = MAX(pbef(ji, jj, jk), paft(ji, jj, jk), pbef(ji, jj, ikm1), pbef(ji, jj, jk + 1), paft(ji, jj, &
+&ikm1), paft(ji, jj, jk + 1))
         END DO
       END DO
     END DO
@@ -246,7 +252,8 @@ MODULE traadv_ubs
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          zbetdo(ji, jj, jk) = MIN(pbef(ji, jj, jk), paft(ji, jj, jk), pbef(ji, jj, ikm1), pbef(ji, jj, jk + 1), paft(ji, jj, ikm1), paft(ji, jj, jk + 1))
+          zbetdo(ji, jj, jk) = MIN(pbef(ji, jj, jk), paft(ji, jj, jk), pbef(ji, jj, ikm1), pbef(ji, jj, jk + 1), paft(ji, jj, &
+&ikm1), paft(ji, jj, jk + 1))
         END DO
       END DO
     END DO

@@ -186,10 +186,18 @@ MODULE domwri
     DO ji = 2, jpim1
       DO jj = 2, jpjm1
         DO jk = 1, jpkm1
-          zr1(1) = ABS((gdepw_0(ji, jj, jk) - gdepw_0(ji - 1, jj, jk) + gdepw_0(ji, jj, jk + 1) - gdepw_0(ji - 1, jj, jk + 1)) / (gdepw_0(ji, jj, jk) + gdepw_0(ji - 1, jj, jk) - gdepw_0(ji, jj, jk + 1) - gdepw_0(ji - 1, jj, jk + 1) + rsmall)) * umask(ji - 1, jj, jk)
-          zr1(2) = ABS((gdepw_0(ji + 1, jj, jk) - gdepw_0(ji, jj, jk) + gdepw_0(ji + 1, jj, jk + 1) - gdepw_0(ji, jj, jk + 1)) / (gdepw_0(ji + 1, jj, jk) + gdepw_0(ji, jj, jk) - gdepw_0(ji + 1, jj, jk + 1) - gdepw_0(ji, jj, jk + 1) + rsmall)) * umask(ji, jj, jk)
-          zr1(3) = ABS((gdepw_0(ji, jj + 1, jk) - gdepw_0(ji, jj, jk) + gdepw_0(ji, jj + 1, jk + 1) - gdepw_0(ji, jj, jk + 1)) / (gdepw_0(ji, jj + 1, jk) + gdepw_0(ji, jj, jk) - gdepw_0(ji, jj + 1, jk + 1) - gdepw_0(ji, jj, jk + 1) + rsmall)) * vmask(ji, jj, jk)
-          zr1(4) = ABS((gdepw_0(ji, jj, jk) - gdepw_0(ji, jj - 1, jk) + gdepw_0(ji, jj, jk + 1) - gdepw_0(ji, jj - 1, jk + 1)) / (gdepw_0(ji, jj, jk) + gdepw_0(ji, jj - 1, jk) - gdepw_0(ji, jj, jk + 1) - gdepw_0(ji, jj - 1, jk + 1) + rsmall)) * vmask(ji, jj - 1, jk)
+          zr1(1) = ABS((gdepw_0(ji, jj, jk) - gdepw_0(ji - 1, jj, jk) + gdepw_0(ji, jj, jk + 1) - gdepw_0(ji - 1, jj, jk + 1)) / &
+&(gdepw_0(ji, jj, jk) + gdepw_0(ji - 1, jj, jk) - gdepw_0(ji, jj, jk + 1) - gdepw_0(ji - 1, jj, jk + 1) + rsmall)) * umask(ji - 1, &
+&jj, jk)
+          zr1(2) = ABS((gdepw_0(ji + 1, jj, jk) - gdepw_0(ji, jj, jk) + gdepw_0(ji + 1, jj, jk + 1) - gdepw_0(ji, jj, jk + 1)) / &
+&(gdepw_0(ji + 1, jj, jk) + gdepw_0(ji, jj, jk) - gdepw_0(ji + 1, jj, jk + 1) - gdepw_0(ji, jj, jk + 1) + rsmall)) * umask(ji, jj, &
+&jk)
+          zr1(3) = ABS((gdepw_0(ji, jj + 1, jk) - gdepw_0(ji, jj, jk) + gdepw_0(ji, jj + 1, jk + 1) - gdepw_0(ji, jj, jk + 1)) / &
+&(gdepw_0(ji, jj + 1, jk) + gdepw_0(ji, jj, jk) - gdepw_0(ji, jj + 1, jk + 1) - gdepw_0(ji, jj, jk + 1) + rsmall)) * vmask(ji, jj, &
+&jk)
+          zr1(4) = ABS((gdepw_0(ji, jj, jk) - gdepw_0(ji, jj - 1, jk) + gdepw_0(ji, jj, jk + 1) - gdepw_0(ji, jj - 1, jk + 1)) / &
+&(gdepw_0(ji, jj, jk) + gdepw_0(ji, jj - 1, jk) - gdepw_0(ji, jj, jk + 1) - gdepw_0(ji, jj - 1, jk + 1) + rsmall)) * vmask(ji, jj &
+&- 1, jk)
           zrxmax = MAXVAL(zr1(1 : 4))
           zx1(ji, jj) = MAX(zx1(ji, jj), zrxmax)
         END DO

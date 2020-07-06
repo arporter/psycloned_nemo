@@ -38,7 +38,8 @@ MODULE domvvl
   INTEGER FUNCTION dom_vvl_alloc()
     IF (ln_vvl_zstar) dom_vvl_alloc = 0
     IF (ln_vvl_ztilde .OR. ln_vvl_layer) THEN
-      ALLOCATE(tilde_e3t_b(jpi, jpj, jpk), tilde_e3t_n(jpi, jpj, jpk), tilde_e3t_a(jpi, jpj, jpk), dtilde_e3t_a(jpi, jpj, jpk), un_td(jpi, jpj, jpk), vn_td(jpi, jpj, jpk), STAT = dom_vvl_alloc)
+      ALLOCATE(tilde_e3t_b(jpi, jpj, jpk), tilde_e3t_n(jpi, jpj, jpk), tilde_e3t_a(jpi, jpj, jpk), dtilde_e3t_a(jpi, jpj, jpk), &
+&un_td(jpi, jpj, jpk), vn_td(jpi, jpj, jpk), STAT = dom_vvl_alloc)
       IF (lk_mpp) CALL mpp_sum(dom_vvl_alloc)
       IF (dom_vvl_alloc /= 0) CALL ctl_warn('dom_vvl_alloc: failed to allocate arrays')
       un_td = 0._wp
@@ -51,25 +52,18 @@ MODULE domvvl
     END IF
   END FUNCTION dom_vvl_alloc
   SUBROUTINE dom_vvl_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: ii0, ii1, ij0, ij1
     REAL(KIND = wp) :: zcoef
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    CALL profile_psy_data0 % PreStart('dom_vvl_init', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_init : Variable volume activated'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~'
     CALL dom_vvl_ctl
     IF (dom_vvl_alloc() /= 0) CALL ctl_stop('STOP', 'dom_vvl_init : unable to allocate arrays')
     CALL dom_vvl_rst(nit000, 'READ')
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     e3t_a(:, :, jpk) = e3t_0(:, :, jpk)
     !$ACC END KERNELS
-    CALL profile_psy_data1 % PreStart('dom_vvl_init', 'r1', 0, 0)
     CALL dom_vvl_interpol(e3t_b(:, :, :), e3u_b(:, :, :), 'U')
     CALL dom_vvl_interpol(e3t_n(:, :, :), e3u_n(:, :, :), 'U')
     CALL dom_vvl_interpol(e3t_b(:, :, :), e3v_b(:, :, :), 'V')
@@ -81,7 +75,6 @@ MODULE domvvl
     CALL dom_vvl_interpol(e3u_b(:, :, :), e3uw_b(:, :, :), 'UW')
     CALL dom_vvl_interpol(e3v_n(:, :, :), e3vw_n(:, :, :), 'VW')
     CALL dom_vvl_interpol(e3v_b(:, :, :), e3vw_b(:, :, :), 'VW')
-    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     e3t_a(:, :, :) = e3t_n(:, :, :)
     e3u_a(:, :, :) = e3u_n(:, :, :)
@@ -97,10 +90,12 @@ MODULE domvvl
         DO ji = 1, jpi
           zcoef = (tmask(ji, jj, jk) - wmask(ji, jj, jk))
           gdepw_n(ji, jj, jk) = gdepw_n(ji, jj, jk - 1) + e3t_n(ji, jj, jk - 1)
-          gdept_n(ji, jj, jk) = zcoef * (gdepw_n(ji, jj, jk) + 0.5 * e3w_n(ji, jj, jk)) + (1 - zcoef) * (gdept_n(ji, jj, jk - 1) + e3w_n(ji, jj, jk))
+          gdept_n(ji, jj, jk) = zcoef * (gdepw_n(ji, jj, jk) + 0.5 * e3w_n(ji, jj, jk)) + (1 - zcoef) * (gdept_n(ji, jj, jk - 1) + &
+&e3w_n(ji, jj, jk))
           gde3w_n(ji, jj, jk) = gdept_n(ji, jj, jk) - sshn(ji, jj)
           gdepw_b(ji, jj, jk) = gdepw_b(ji, jj, jk - 1) + e3t_b(ji, jj, jk - 1)
-          gdept_b(ji, jj, jk) = zcoef * (gdepw_b(ji, jj, jk) + 0.5 * e3w_b(ji, jj, jk)) + (1 - zcoef) * (gdept_b(ji, jj, jk - 1) + e3w_b(ji, jj, jk))
+          gdept_b(ji, jj, jk) = zcoef * (gdepw_b(ji, jj, jk) + 0.5 * e3w_b(ji, jj, jk)) + (1 - zcoef) * (gdept_b(ji, jj, jk - 1) + &
+&e3w_b(ji, jj, jk))
         END DO
       END DO
     END DO
@@ -148,8 +143,10 @@ MODULE domvvl
               frq_rst_e3t(ji, jj) = 0.0_wp
               frq_rst_hdv(ji, jj) = 1.0_wp / rdt
             ELSE
-              frq_rst_e3t(ji, jj) = 0.0_wp + (frq_rst_e3t(ji, jj) - 0.0_wp) * 0.5_wp * (1.0_wp - COS(rad * (ABS(gphit(ji, jj)) - 2.5_wp) * 180._wp / 3.5_wp))
-              frq_rst_hdv(ji, jj) = (1.0_wp / rdt) + (frq_rst_hdv(ji, jj) - (1.E0_wp / rdt)) * 0.5_wp * (1._wp - COS(rad * (ABS(gphit(ji, jj)) - 2.5_wp) * 180._wp / 3.5_wp))
+              frq_rst_e3t(ji, jj) = 0.0_wp + (frq_rst_e3t(ji, jj) - 0.0_wp) * 0.5_wp * (1.0_wp - COS(rad * (ABS(gphit(ji, jj)) - &
+&2.5_wp) * 180._wp / 3.5_wp))
+              frq_rst_hdv(ji, jj) = (1.0_wp / rdt) + (frq_rst_hdv(ji, jj) - (1.E0_wp / rdt)) * 0.5_wp * (1._wp - COS(rad * &
+&(ABS(gphit(ji, jj)) - 2.5_wp) * 180._wp / 3.5_wp))
             END IF
           END DO
         END DO
@@ -166,7 +163,6 @@ MODULE domvvl
         !$ACC END KERNELS
       END IF
     END IF
-    CALL profile_psy_data2 % PreStart('dom_vvl_init', 'r2', 0, 0)
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('e3t_b')
       CALL iom_set_rstw_var_active('e3t_n')
@@ -178,7 +174,6 @@ MODULE domvvl
         CALL iom_set_rstw_var_active('hdiv_lf')
       END IF
     END IF
-    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE dom_vvl_init
   SUBROUTINE dom_vvl_sf_nxt(kt, kcall)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
@@ -198,8 +193,8 @@ MODULE domvvl
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
-    CALL profile_psy_data0 % PreStart('dom_vvl_sf_nxt', 'r0', 0, 0)
     IF (ln_linssh) RETURN
+    CALL profile_psy_data0 % PreStart('dom_vvl_sf_nxt', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('dom_vvl_sf_nxt')
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -235,7 +230,8 @@ MODULE domvvl
         !$ACC KERNELS
         IF (kt > nit000) THEN
           DO jk = 1, jpkm1
-            hdiv_lf(:, :, jk) = hdiv_lf(:, :, jk) - rdt * frq_rst_hdv(:, :) * (hdiv_lf(:, :, jk) - e3t_n(:, :, jk) * (hdivn(:, :, jk) - zhdiv(:, :)))
+            hdiv_lf(:, :, jk) = hdiv_lf(:, :, jk) - rdt * frq_rst_hdv(:, :) * (hdiv_lf(:, :, jk) - e3t_n(:, :, jk) * (hdivn(:, :, &
+&jk) - zhdiv(:, :)))
           END DO
         END IF
         !$ACC END KERNELS
@@ -270,8 +266,10 @@ MODULE domvvl
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            un_td(ji, jj, jk) = rn_ahe3 * umask(ji, jj, jk) * e2_e1u(ji, jj) * (tilde_e3t_b(ji, jj, jk) - tilde_e3t_b(ji + 1, jj, jk))
-            vn_td(ji, jj, jk) = rn_ahe3 * vmask(ji, jj, jk) * e1_e2v(ji, jj) * (tilde_e3t_b(ji, jj, jk) - tilde_e3t_b(ji, jj + 1, jk))
+            un_td(ji, jj, jk) = rn_ahe3 * umask(ji, jj, jk) * e2_e1u(ji, jj) * (tilde_e3t_b(ji, jj, jk) - tilde_e3t_b(ji + 1, jj, &
+&jk))
+            vn_td(ji, jj, jk) = rn_ahe3 * vmask(ji, jj, jk) * e1_e2v(ji, jj) * (tilde_e3t_b(ji, jj, jk) - tilde_e3t_b(ji, jj + 1, &
+&jk))
             zwu(ji, jj) = zwu(ji, jj) + un_td(ji, jj, jk)
             zwv(ji, jj) = zwv(ji, jj) + vn_td(ji, jj, jk)
           END DO
@@ -288,7 +286,8 @@ MODULE domvvl
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            tilde_e3t_a(ji, jj, jk) = tilde_e3t_a(ji, jj, jk) + (un_td(ji - 1, jj, jk) - un_td(ji, jj, jk) + vn_td(ji, jj - 1, jk) - vn_td(ji, jj, jk)) * r1_e1e2t(ji, jj)
+            tilde_e3t_a(ji, jj, jk) = tilde_e3t_a(ji, jj, jk) + (un_td(ji - 1, jj, jk) - un_td(ji, jj, jk) + vn_td(ji, jj - 1, jk) &
+&- vn_td(ji, jj, jk)) * r1_e1e2t(ji, jj)
           END DO
         END DO
       END DO
@@ -438,8 +437,8 @@ MODULE domvvl
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    CALL profile_psy_data0 % PreStart('dom_vvl_sf_swp', 'r0', 0, 0)
     IF (ln_linssh) RETURN
+    CALL profile_psy_data0 % PreStart('dom_vvl_sf_swp', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('dom_vvl_sf_swp')
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -452,7 +451,8 @@ MODULE domvvl
       IF (neuler == 0 .AND. kt == nit000) THEN
         tilde_e3t_b(:, :, :) = tilde_e3t_n(:, :, :)
       ELSE
-        tilde_e3t_b(:, :, :) = tilde_e3t_n(:, :, :) + atfp * (tilde_e3t_b(:, :, :) - 2.0_wp * tilde_e3t_n(:, :, :) + tilde_e3t_a(:, :, :))
+        tilde_e3t_b(:, :, :) = tilde_e3t_n(:, :, :) + atfp * (tilde_e3t_b(:, :, :) - 2.0_wp * tilde_e3t_n(:, :, :) + &
+&tilde_e3t_a(:, :, :))
       END IF
       tilde_e3t_n(:, :, :) = tilde_e3t_a(:, :, :)
     END IF
@@ -481,7 +481,8 @@ MODULE domvvl
         DO ji = 1, jpi
           zcoef = (tmask(ji, jj, jk) - wmask(ji, jj, jk))
           gdepw_n(ji, jj, jk) = gdepw_n(ji, jj, jk - 1) + e3t_n(ji, jj, jk - 1)
-          gdept_n(ji, jj, jk) = zcoef * (gdepw_n(ji, jj, jk) + 0.5 * e3w_n(ji, jj, jk)) + (1 - zcoef) * (gdept_n(ji, jj, jk - 1) + e3w_n(ji, jj, jk))
+          gdept_n(ji, jj, jk) = zcoef * (gdepw_n(ji, jj, jk) + 0.5 * e3w_n(ji, jj, jk)) + (1 - zcoef) * (gdept_n(ji, jj, jk - 1) + &
+&e3w_n(ji, jj, jk))
           gde3w_n(ji, jj, jk) = gdept_n(ji, jj, jk) - sshn(ji, jj)
         END DO
       END DO
@@ -522,7 +523,8 @@ MODULE domvvl
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            pe3_out(ji, jj, jk) = 0.5_wp * (umask(ji, jj, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2u(ji, jj) * (e1e2t(ji, jj) * (pe3_in(ji, jj, jk) - e3t_0(ji, jj, jk)) + e1e2t(ji + 1, jj) * (pe3_in(ji + 1, jj, jk) - e3t_0(ji + 1, jj, jk)))
+            pe3_out(ji, jj, jk) = 0.5_wp * (umask(ji, jj, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2u(ji, jj) * (e1e2t(ji, jj) * &
+&(pe3_in(ji, jj, jk) - e3t_0(ji, jj, jk)) + e1e2t(ji + 1, jj) * (pe3_in(ji + 1, jj, jk) - e3t_0(ji + 1, jj, jk)))
           END DO
         END DO
       END DO
@@ -537,7 +539,8 @@ MODULE domvvl
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            pe3_out(ji, jj, jk) = 0.5_wp * (vmask(ji, jj, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2v(ji, jj) * (e1e2t(ji, jj) * (pe3_in(ji, jj, jk) - e3t_0(ji, jj, jk)) + e1e2t(ji, jj + 1) * (pe3_in(ji, jj + 1, jk) - e3t_0(ji, jj + 1, jk)))
+            pe3_out(ji, jj, jk) = 0.5_wp * (vmask(ji, jj, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2v(ji, jj) * (e1e2t(ji, jj) * &
+&(pe3_in(ji, jj, jk) - e3t_0(ji, jj, jk)) + e1e2t(ji, jj + 1) * (pe3_in(ji, jj + 1, jk) - e3t_0(ji, jj + 1, jk)))
           END DO
         END DO
       END DO
@@ -552,7 +555,9 @@ MODULE domvvl
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            pe3_out(ji, jj, jk) = 0.5_wp * (umask(ji, jj, jk) * umask(ji, jj + 1, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2f(ji, jj) * (e1e2u(ji, jj) * (pe3_in(ji, jj, jk) - e3u_0(ji, jj, jk)) + e1e2u(ji, jj + 1) * (pe3_in(ji, jj + 1, jk) - e3u_0(ji, jj + 1, jk)))
+            pe3_out(ji, jj, jk) = 0.5_wp * (umask(ji, jj, jk) * umask(ji, jj + 1, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2f(ji, &
+&jj) * (e1e2u(ji, jj) * (pe3_in(ji, jj, jk) - e3u_0(ji, jj, jk)) + e1e2u(ji, jj + 1) * (pe3_in(ji, jj + 1, jk) - e3u_0(ji, jj + 1, &
+&jk)))
           END DO
         END DO
       END DO
@@ -565,43 +570,35 @@ MODULE domvvl
       !$ACC KERNELS
       pe3_out(:, :, 1) = e3w_0(:, :, 1) + pe3_in(:, :, 1) - e3t_0(:, :, 1)
       DO jk = 2, jpk
-        pe3_out(:, :, jk) = e3w_0(:, :, jk) + (1.0_wp - 0.5_wp * (tmask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd)) * (pe3_in(:, :, jk - 1) - e3t_0(:, :, jk - 1)) + 0.5_wp * (tmask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd) * (pe3_in(:, :, jk) - e3t_0(:, :, jk))
+        pe3_out(:, :, jk) = e3w_0(:, :, jk) + (1.0_wp - 0.5_wp * (tmask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd)) * (pe3_in(:, :, jk &
+&- 1) - e3t_0(:, :, jk - 1)) + 0.5_wp * (tmask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd) * (pe3_in(:, :, jk) - e3t_0(:, :, jk))
       END DO
       !$ACC END KERNELS
     CASE ('UW')
       !$ACC KERNELS
       pe3_out(:, :, 1) = e3uw_0(:, :, 1) + pe3_in(:, :, 1) - e3u_0(:, :, 1)
       DO jk = 2, jpk
-        pe3_out(:, :, jk) = e3uw_0(:, :, jk) + (1.0_wp - 0.5_wp * (umask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd)) * (pe3_in(:, :, jk - 1) - e3u_0(:, :, jk - 1)) + 0.5_wp * (umask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd) * (pe3_in(:, :, jk) - e3u_0(:, :, jk))
+        pe3_out(:, :, jk) = e3uw_0(:, :, jk) + (1.0_wp - 0.5_wp * (umask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd)) * (pe3_in(:, :, jk &
+&- 1) - e3u_0(:, :, jk - 1)) + 0.5_wp * (umask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd) * (pe3_in(:, :, jk) - e3u_0(:, :, jk))
       END DO
       !$ACC END KERNELS
     CASE ('VW')
       !$ACC KERNELS
       pe3_out(:, :, 1) = e3vw_0(:, :, 1) + pe3_in(:, :, 1) - e3v_0(:, :, 1)
       DO jk = 2, jpk
-        pe3_out(:, :, jk) = e3vw_0(:, :, jk) + (1.0_wp - 0.5_wp * (vmask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd)) * (pe3_in(:, :, jk - 1) - e3v_0(:, :, jk - 1)) + 0.5_wp * (vmask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd) * (pe3_in(:, :, jk) - e3v_0(:, :, jk))
+        pe3_out(:, :, jk) = e3vw_0(:, :, jk) + (1.0_wp - 0.5_wp * (vmask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd)) * (pe3_in(:, :, jk &
+&- 1) - e3v_0(:, :, jk - 1)) + 0.5_wp * (vmask(:, :, jk) * (1.0_wp - zlnwd) + zlnwd) * (pe3_in(:, :, jk) - e3v_0(:, :, jk))
       END DO
       !$ACC END KERNELS
     END SELECT
   END SUBROUTINE dom_vvl_interpol
   SUBROUTINE dom_vvl_rst(kt, cdrw)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
     INTEGER :: ji, jj, jk
     INTEGER :: id1, id2, id3, id4, id5
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data8
     IF (TRIM(cdrw) == 'READ') THEN
       IF (ln_rstart) THEN
-        CALL profile_psy_data0 % PreStart('dom_vvl_rst', 'r0', 0, 0)
         CALL rst_read_open
         CALL iom_get(numror, jpdom_autoglo, 'sshn', sshn, ldxios = lrxios)
         id1 = iom_varid(numror, 'e3t_b', ldstop = .FALSE.)
@@ -609,13 +606,10 @@ MODULE domvvl
         id3 = iom_varid(numror, 'tilde_e3t_b', ldstop = .FALSE.)
         id4 = iom_varid(numror, 'tilde_e3t_n', ldstop = .FALSE.)
         id5 = iom_varid(numror, 'hdiv_lf', ldstop = .FALSE.)
-        CALL profile_psy_data0 % PostEnd
         IF (MIN(id1, id2) > 0) THEN
-          CALL profile_psy_data1 % PreStart('dom_vvl_rst', 'r1', 0, 0)
           CALL iom_get(numror, jpdom_autoglo, 'e3t_b', e3t_b(:, :, :), ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'e3t_n', e3t_n(:, :, :), ldxios = lrxios)
           IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_rst : e3t_b and e3t_n found in restart files'
-          CALL profile_psy_data1 % PostEnd
           !$ACC KERNELS
           WHERE (tmask(:, :, :) == 0.0_wp)
             e3t_n(:, :, :) = e3t_0(:, :, :)
@@ -626,53 +620,44 @@ MODULE domvvl
           END IF
           !$ACC END KERNELS
         ELSE IF (id1 > 0) THEN
-          CALL profile_psy_data2 % PreStart('dom_vvl_rst', 'r2', 0, 0)
           IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_rst WARNING : e3t_n not found in restart files'
           IF (lwp) WRITE(numout, FMT = *) 'e3t_n set equal to e3t_b.'
           IF (lwp) WRITE(numout, FMT = *) 'neuler is forced to 0'
           CALL iom_get(numror, jpdom_autoglo, 'e3t_b', e3t_b(:, :, :), ldxios = lrxios)
-          CALL profile_psy_data2 % PostEnd
           !$ACC KERNELS
           e3t_n(:, :, :) = e3t_b(:, :, :)
           neuler = 0
           !$ACC END KERNELS
         ELSE IF (id2 > 0) THEN
-          CALL profile_psy_data3 % PreStart('dom_vvl_rst', 'r3', 0, 0)
           IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_rst WARNING : e3t_b not found in restart files'
           IF (lwp) WRITE(numout, FMT = *) 'e3t_b set equal to e3t_n.'
           IF (lwp) WRITE(numout, FMT = *) 'neuler is forced to 0'
           CALL iom_get(numror, jpdom_autoglo, 'e3t_n', e3t_n(:, :, :), ldxios = lrxios)
-          CALL profile_psy_data3 % PostEnd
           !$ACC KERNELS
           e3t_b(:, :, :) = e3t_n(:, :, :)
           neuler = 0
           !$ACC END KERNELS
         ELSE
-          CALL profile_psy_data4 % PreStart('dom_vvl_rst', 'r4', 0, 0)
           IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_rst WARNING : e3t_n not found in restart file'
           IF (lwp) WRITE(numout, FMT = *) 'Compute scale factor from sshn'
           IF (lwp) WRITE(numout, FMT = *) 'neuler is forced to 0'
-          CALL profile_psy_data4 % PostEnd
           !$ACC KERNELS
           DO jk = 1, jpk
-            e3t_n(:, :, jk) = e3t_0(:, :, jk) * (ht_0(:, :) + sshn(:, :)) / (ht_0(:, :) + 1._wp - ssmask(:, :)) * tmask(:, :, jk) + e3t_0(:, :, jk) * (1._wp - tmask(:, :, jk))
+            e3t_n(:, :, jk) = e3t_0(:, :, jk) * (ht_0(:, :) + sshn(:, :)) / (ht_0(:, :) + 1._wp - ssmask(:, :)) * tmask(:, :, jk) &
+&+ e3t_0(:, :, jk) * (1._wp - tmask(:, :, jk))
           END DO
           e3t_b(:, :, :) = e3t_n(:, :, :)
           neuler = 0
           !$ACC END KERNELS
         END IF
         IF (ln_vvl_zstar) THEN
-          CALL profile_psy_data5 % PreStart('dom_vvl_rst', 'r5', 0, 0)
           IF (MIN(id3, id4) > 0) THEN
             CALL ctl_stop('dom_vvl_rst: z_star cannot restart from a z_tilde or layer run')
           END IF
-          CALL profile_psy_data5 % PostEnd
         ELSE
           IF (MIN(id3, id4) > 0) THEN
-            CALL profile_psy_data6 % PreStart('dom_vvl_rst', 'r6', 0, 0)
             CALL iom_get(numror, jpdom_autoglo, 'tilde_e3t_b', tilde_e3t_b(:, :, :), ldxios = lrxios)
             CALL iom_get(numror, jpdom_autoglo, 'tilde_e3t_n', tilde_e3t_n(:, :, :), ldxios = lrxios)
-            CALL profile_psy_data6 % PostEnd
           ELSE
             !$ACC KERNELS
             tilde_e3t_b(:, :, :) = 0.0_wp
@@ -717,11 +702,11 @@ MODULE domvvl
           END IF
           !$ACC KERNELS
           DO jk = 1, jpk
-            e3t_n(:, :, jk) = e3t_0(:, :, jk) * (ht_0(:, :) + sshn(:, :)) / (ht_0(:, :) + 1._wp - ssmask(:, :)) * tmask(:, :, jk) + e3t_0(:, :, jk) * (1._wp - tmask(:, :, jk))
+            e3t_n(:, :, jk) = e3t_0(:, :, jk) * (ht_0(:, :) + sshn(:, :)) / (ht_0(:, :) + 1._wp - ssmask(:, :)) * tmask(:, :, jk) &
+&+ e3t_0(:, :, jk) * (1._wp - tmask(:, :, jk))
           END DO
           e3t_b(:, :, :) = e3t_n(:, :, :)
           !$ACC END KERNELS
-          CALL profile_psy_data7 % PreStart('dom_vvl_rst', 'r7', 0, 0)
           DO ji = 1, jpi
             DO jj = 1, jpj
               IF (ht_0(ji, jj) .LE. 0.0 .AND. NINT(ssmask(ji, jj)) .EQ. 1) THEN
@@ -729,7 +714,6 @@ MODULE domvvl
               END IF
             END DO
           END DO
-          CALL profile_psy_data7 % PostEnd
         ELSE
           !$ACC KERNELS
           sshn(:, :) = 0._wp
@@ -746,7 +730,6 @@ MODULE domvvl
         !$ACC END KERNELS
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
-      CALL profile_psy_data8 % PreStart('dom_vvl_rst', 'r8', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '---- dom_vvl_rst ----'
       IF (lwxios) CALL iom_swap(cwxios_context)
       CALL iom_rstput(kt, nitrst, numrow, 'e3t_b', e3t_b(:, :, :), ldxios = lwxios)
@@ -759,13 +742,13 @@ MODULE domvvl
         CALL iom_rstput(kt, nitrst, numrow, 'hdiv_lf', hdiv_lf(:, :, :), ldxios = lwxios)
       END IF
       IF (lwxios) CALL iom_swap(cxios_context)
-      CALL profile_psy_data8 % PostEnd
     END IF
   END SUBROUTINE dom_vvl_rst
   SUBROUTINE dom_vvl_ctl
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ioptio, ios
-    NAMELIST /nam_vvl/ ln_vvl_zstar, ln_vvl_ztilde, ln_vvl_layer, ln_vvl_ztilde_as_zstar, ln_vvl_zstar_at_eqtor, rn_ahe3, rn_rst_e3t, rn_lf_cutoff, rn_zdef_max, ln_vvl_dbg
+    NAMELIST /nam_vvl/ ln_vvl_zstar, ln_vvl_ztilde, ln_vvl_layer, ln_vvl_ztilde_as_zstar, ln_vvl_zstar_at_eqtor, rn_ahe3, &
+&rn_rst_e3t, rn_lf_cutoff, rn_zdef_max, ln_vvl_dbg
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     CALL profile_psy_data0 % PreStart('dom_vvl_ctl', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)

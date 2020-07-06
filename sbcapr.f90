@@ -22,15 +22,12 @@ MODULE sbcapr
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_apr
   CONTAINS
   SUBROUTINE sbc_apr_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ierror
     INTEGER :: ios
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N) :: sn_apr
     LOGICAL :: lrxios
     NAMELIST /namsbc_apr/ cn_dir, sn_apr, ln_ref_apr, rn_pref, ln_apr_obc
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('sbc_apr_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namsbc_apr, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namsbc_apr in reference namelist', lwp)
@@ -60,11 +57,11 @@ MODULE sbcapr
     IF (ln_apr_obc) THEN
       IF (lwp) WRITE(numout, FMT = *) '         Inverse barometer added to OBC ssh data'
     END IF
-    IF (ln_apr_obc .AND. .NOT. ln_apr_dyn) CALL ctl_warn('sbc_apr: use inverse barometer ssh at open boundary ONLY requires ln_apr_dyn=T')
+    IF (ln_apr_obc .AND. .NOT. ln_apr_dyn) CALL ctl_warn('sbc_apr: use inverse barometer ssh at open boundary ONLY requires &
+&ln_apr_dyn=T')
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('ssh_ibb')
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE sbc_apr_init
   SUBROUTINE sbc_apr(kt)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType

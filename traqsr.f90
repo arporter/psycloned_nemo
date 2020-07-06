@@ -100,7 +100,8 @@ MODULE traqsr
       END DO
       !$ACC END KERNELS
     CASE (np_RGB, np_RGBc)
-      ALLOCATE(zekb(jpi, jpj), zekg(jpi, jpj), zekr(jpi, jpj), ze0(jpi, jpj, jpk), ze1(jpi, jpj, jpk), ze2(jpi, jpj, jpk), ze3(jpi, jpj, jpk), zea(jpi, jpj, jpk), zchl3d(jpi, jpj, jpk))
+      ALLOCATE(zekb(jpi, jpj), zekg(jpi, jpj), zekr(jpi, jpj), ze0(jpi, jpj, jpk), ze1(jpi, jpj, jpk), ze2(jpi, jpj, jpk), &
+&ze3(jpi, jpj, jpk), zea(jpi, jpj, jpk), zchl3d(jpi, jpj, jpk))
       IF (nqsr == np_RGBc) THEN
         CALL profile_psy_data2 % PreStart('tra_qsr', 'r2', 0, 0)
         CALL fld_read(kt, 1, sf_chl)
@@ -258,7 +259,6 @@ MODULE traqsr
     CALL profile_psy_data7 % PostEnd
   END SUBROUTINE tra_qsr
   SUBROUTINE tra_qsr_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: ios, irgb, ierror, ioptio
     REAL(KIND = wp) :: zz0, zc0, zc1, zcoef
@@ -266,9 +266,6 @@ MODULE traqsr
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N) :: sn_chl
     NAMELIST /namtra_qsr/ sn_chl, cn_dir, ln_qsr_rgb, ln_qsr_2bd, ln_qsr_bio, nn_chldta, rn_abs, rn_si0, rn_si1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    CALL profile_psy_data0 % PreStart('tra_qsr_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namtra_qsr, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namtra_qsr in reference namelist', lwp)
@@ -294,7 +291,8 @@ MODULE traqsr
     IF (ln_qsr_rgb) ioptio = ioptio + 1
     IF (ln_qsr_2bd) ioptio = ioptio + 1
     IF (ln_qsr_bio) ioptio = ioptio + 1
-    IF (ioptio /= 1) CALL ctl_stop('Choose ONE type of light penetration in namelist namtra_qsr', ' 2 bands, 3 RGB bands or bio-model light penetration')
+    IF (ioptio /= 1) CALL ctl_stop('Choose ONE type of light penetration in namelist namtra_qsr', ' 2 bands, 3 RGB bands or &
+&bio-model light penetration')
     IF (ln_qsr_rgb .AND. nn_chldta == 0) nqsr = np_RGB
     IF (ln_qsr_rgb .AND. nn_chldta == 1) nqsr = np_RGBc
     IF (ln_qsr_2bd) nqsr = np_2BD
@@ -316,7 +314,8 @@ MODULE traqsr
         END IF
         ALLOCATE(sf_chl(1) % fnow(jpi, jpj, 1))
         IF (sn_chl % ln_tint) ALLOCATE(sf_chl(1) % fdta(jpi, jpj, 1, 2))
-        CALL fld_fill(sf_chl, (/sn_chl/), cn_dir, 'tra_qsr_init', 'Solar penetration function of read chlorophyll', 'namtra_qsr', no_print)
+        CALL fld_fill(sf_chl, (/sn_chl/), cn_dir, 'tra_qsr_init', 'Solar penetration function of read chlorophyll', 'namtra_qsr', &
+&no_print)
       END IF
       IF (nqsr == np_RGB) THEN
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   Constant Chlorophyll concentration = 0.05'
@@ -329,7 +328,6 @@ MODULE traqsr
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   bio-model light penetration'
       IF (.NOT. lk_top) CALL ctl_stop('No bio model : ln_qsr_bio = true impossible ')
     END SELECT
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     qsr_hc(:, :, :) = 0._wp
     !$ACC END KERNELS
@@ -340,11 +338,9 @@ MODULE traqsr
       fraqsr_1lev(:, :) = 1._wp
       !$ACC END KERNELS
     END IF
-    CALL profile_psy_data1 % PreStart('tra_qsr_init', 'r1', 0, 0)
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('qsr_hc_b')
       CALL iom_set_rstw_var_active('fraqsr_1lev')
     END IF
-    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE tra_qsr_init
 END MODULE traqsr

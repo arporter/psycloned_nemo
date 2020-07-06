@@ -71,7 +71,8 @@ MODULE zdftmx
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
-            ztpc = ztpc + e3w_n(ji, jj, jk) * e1t(ji, jj) * e2t(ji, jj) * MAX(0.E0, rn2(ji, jj, jk)) * zav_tide(ji, jj, jk) * tmask(ji, jj, jk) * tmask_i(ji, jj)
+            ztpc = ztpc + e3w_n(ji, jj, jk) * e1t(ji, jj) * e2t(ji, jj) * MAX(0.E0, rn2(ji, jj, jk)) * zav_tide(ji, jj, jk) * &
+&tmask(ji, jj, jk) * tmask_i(ji, jj)
           END DO
         END DO
       END DO
@@ -160,11 +161,13 @@ MODULE zdftmx
     END DO
     zcoef = rn_tfe_itf / (rn_tfe * rau0)
     DO jk = 1, jpk
-      zavt_itf(:, :, jk) = MIN(10.E-4, zcoef * en_tmx(:, :) * zsum(:, :) * zempba_3d(:, :, jk) / MAX(rn_n2min, rn2(:, :, jk)) * tmask(:, :, jk))
+      zavt_itf(:, :, jk) = MIN(10.E-4, zcoef * en_tmx(:, :) * zsum(:, :) * zempba_3d(:, :, jk) / MAX(rn_n2min, rn2(:, :, jk)) * &
+&tmask(:, :, jk))
     END DO
     zkz(:, :) = 0.E0
     DO jk = 2, jpkm1
-      zkz(:, :) = zkz(:, :) + e3w_n(:, :, jk) * MAX(0.E0, rn2(:, :, jk)) * rau0 * zavt_itf(:, :, jk) * tmask(:, :, jk) * tmask(:, :, jk - 1)
+      zkz(:, :) = zkz(:, :) + e3w_n(:, :, jk) * MAX(0.E0, rn2(:, :, jk)) * rau0 * zavt_itf(:, :, jk) * tmask(:, :, jk) * tmask(:, &
+&:, jk - 1)
     END DO
     !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
@@ -183,7 +186,8 @@ MODULE zdftmx
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
-            ztpc = ztpc + e1t(ji, jj) * e2t(ji, jj) * e3w_n(ji, jj, jk) * MAX(0.E0, rn2(ji, jj, jk)) * zavt_itf(ji, jj, jk) * tmask(ji, jj, jk) * tmask_i(ji, jj)
+            ztpc = ztpc + e1t(ji, jj) * e2t(ji, jj) * e3w_n(ji, jj, jk) * MAX(0.E0, rn2(ji, jj, jk)) * zavt_itf(ji, jj, jk) * &
+&tmask(ji, jj, jk) * tmask_i(ji, jj)
           END DO
         END DO
       END DO
@@ -198,7 +202,6 @@ MODULE zdftmx
     !$ACC END KERNELS
   END SUBROUTINE tmx_itf
   SUBROUTINE zdf_tmx_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: inum
     INTEGER :: ios
@@ -210,13 +213,6 @@ MODULE zdftmx
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zpc
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zav_tide
     NAMELIST /namzdf_tmx/ rn_htmx, rn_n2min, rn_tfe, rn_me, ln_tmx_itf, rn_tfe_itf
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
-    CALL profile_psy_data0 % PreStart('zdf_tmx_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namzdf_tmx, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namzdf_tmx in reference namelist', lwp)
@@ -248,7 +244,6 @@ MODULE zdftmx
     CALL iom_open('K1rowdrg', inum)
     CALL iom_get(inum, jpdom_data, 'field', zek1, 1)
     CALL iom_close(inum)
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     en_tmx(:, :) = - rn_tfe * rn_me * (zem2(:, :) * 1.25 + zek1(:, :)) * ssmask(:, :)
     !$ACC LOOP INDEPENDENT COLLAPSE(2)
@@ -286,10 +281,8 @@ MODULE zdftmx
       END DO
       ztpc = rau0 * 1 / (rn_tfe * rn_me) * ztpc
       !$ACC END KERNELS
-      CALL profile_psy_data1 % PreStart('zdf_tmx_init', 'r1', 0, 0)
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) '          Total power consumption of the tidally driven part of Kz : ztpc = ', ztpc * 1.E-12, 'TW'
-      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       zav_tide(:, :, :) = MIN(zav_tide(:, :, :), 60.E-4)
       zkz(:, :) = 0.E0
@@ -297,7 +290,8 @@ MODULE zdftmx
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
-            zkz(ji, jj) = zkz(ji, jj) + e3w_0(ji, jj, jk) * MAX(0.E0, rn2(ji, jj, jk)) * rau0 * zav_tide(ji, jj, jk) * wmask(ji, jj, jk)
+            zkz(ji, jj) = zkz(ji, jj) + e3w_0(ji, jj, jk) * MAX(0.E0, rn2(ji, jj, jk)) * rau0 * zav_tide(ji, jj, jk) * wmask(ji, &
+&jj, jk)
           END DO
         END DO
       END DO
@@ -343,9 +337,8 @@ MODULE zdftmx
       !$ACC END KERNELS
       WRITE(numout, FMT = *) '          2 Total power consumption of the tidally driven part of Kz : ztpc = ', ztpc * 1.E-12, 'TW'
       DO jk = 1, jpk
-        CALL profile_psy_data2 % PreStart('zdf_tmx_init', 'r2', 0, 0)
-        ze_z = SUM(e1t(:, :) * e2t(:, :) * zav_tide(:, :, jk) * tmask_i(:, :)) / MAX(1.E-20, SUM(e1t(:, :) * e2t(:, :) * wmask(:, :, jk) * tmask_i(:, :)))
-        CALL profile_psy_data2 % PostEnd
+        ze_z = SUM(e1t(:, :) * e2t(:, :) * zav_tide(:, :, jk) * tmask_i(:, :)) / MAX(1.E-20, SUM(e1t(:, :) * e2t(:, :) * wmask(:, &
+&:, jk) * tmask_i(:, :)))
         !$ACC KERNELS
         ztpc = 1.E50
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
@@ -355,13 +348,12 @@ MODULE zdftmx
           END DO
         END DO
         !$ACC END KERNELS
-        WRITE(numout, FMT = *) '            N2 min - jk= ', jk, '   ', ze_z * 1.E4, ' cm2/s min= ', ztpc * 1.E4, 'max= ', MAXVAL(zav_tide(:, :, jk)) * 1.E4, ' cm2/s'
+        WRITE(numout, FMT = *) '            N2 min - jk= ', jk, '   ', ze_z * 1.E4, ' cm2/s min= ', ztpc * 1.E4, 'max= ', &
+&MAXVAL(zav_tide(:, :, jk)) * 1.E4, ' cm2/s'
       END DO
-      CALL profile_psy_data3 % PreStart('zdf_tmx_init', 'r3', 0, 0)
       WRITE(numout, FMT = *) '          e_tide : ', SUM(e1t * e2t * en_tmx) / (rn_tfe * rn_me) * 1.E-12, 'TW'
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) '          Initial profile of tidal vertical mixing'
-      CALL profile_psy_data3 % PostEnd
       DO jk = 1, jpk
         !$ACC KERNELS
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
@@ -371,20 +363,19 @@ MODULE zdftmx
           END DO
         END DO
         !$ACC END KERNELS
-        CALL profile_psy_data4 % PreStart('zdf_tmx_init', 'r4', 0, 0)
-        ze_z = SUM(e1t(:, :) * e2t(:, :) * zkz(:, :) * tmask_i(:, :)) / MAX(1.E-20, SUM(e1t(:, :) * e2t(:, :) * wmask(:, :, jk) * tmask_i(:, :)))
+        ze_z = SUM(e1t(:, :) * e2t(:, :) * zkz(:, :) * tmask_i(:, :)) / MAX(1.E-20, SUM(e1t(:, :) * e2t(:, :) * wmask(:, :, jk) * &
+&tmask_i(:, :)))
         WRITE(numout, FMT = *) '                jk= ', jk, '   ', ze_z * 1.E4, ' cm2/s'
-        CALL profile_psy_data4 % PostEnd
       END DO
       DO jk = 1, jpk
         !$ACC KERNELS
         zkz(:, :) = az_tmx(:, :, jk) / rn_n2min
         !$ACC END KERNELS
-        CALL profile_psy_data5 % PreStart('zdf_tmx_init', 'r5', 0, 0)
-        ze_z = SUM(e1t(:, :) * e2t(:, :) * zkz(:, :) * tmask_i(:, :)) / MAX(1.E-20, SUM(e1t(:, :) * e2t(:, :) * wmask(:, :, jk) * tmask_i(:, :)))
+        ze_z = SUM(e1t(:, :) * e2t(:, :) * zkz(:, :) * tmask_i(:, :)) / MAX(1.E-20, SUM(e1t(:, :) * e2t(:, :) * wmask(:, :, jk) * &
+&tmask_i(:, :)))
         WRITE(numout, FMT = *)
-        WRITE(numout, FMT = *) '          N2 min - jk= ', jk, '   ', ze_z * 1.E4, ' cm2/s min= ', MINVAL(zkz) * 1.E4, 'max= ', MAXVAL(zkz) * 1.E4, ' cm2/s'
-        CALL profile_psy_data5 % PostEnd
+        WRITE(numout, FMT = *) '          N2 min - jk= ', jk, '   ', ze_z * 1.E4, ' cm2/s min= ', MINVAL(zkz) * 1.E4, 'max= ', &
+&MAXVAL(zkz) * 1.E4, ' cm2/s'
       END DO
     END IF
   END SUBROUTINE zdf_tmx_init

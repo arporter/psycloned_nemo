@@ -20,7 +20,8 @@ MODULE obs_read_prof
   PRIVATE
   PUBLIC :: obs_rea_prof
   CONTAINS
-  SUBROUTINE obs_rea_prof(profdata, knumfiles, cdfilenames, kvars, kextr, kstp, ddobsini, ddobsend, ldvar1, ldvar2, ldignmis, ldsatt, ldmod, kdailyavtypes)
+  SUBROUTINE obs_rea_prof(profdata, knumfiles, cdfilenames, kvars, kextr, kstp, ddobsini, ddobsend, ldvar1, ldvar2, ldignmis, &
+&ldsatt, ldmod, kdailyavtypes)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obs_prof), INTENT(OUT) :: profdata
     INTEGER, INTENT(IN) :: knumfiles
@@ -275,7 +276,8 @@ MODULE obs_read_prof
             END IF
             loop_p_count:DO ij = 1, inpfiles(jj) % nlev
               IF (inpfiles(jj) % pdep(ij, ji) >= 6000.) CYCLE
-              IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) .OR. (.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2)) THEN
+              IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) &
+&.OR. (.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2)) THEN
                 ip3dt = ip3dt + 1
                 llvalprof = .TRUE.
               END IF
@@ -403,13 +405,15 @@ MODULE obs_read_prof
           loop_p:DO ij = 1, inpfiles(jj) % nlev
             IF (inpfiles(jj) % pdep(ij, ji) >= 6000.) CYCLE
             IF (ldsatt) THEN
-              IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) .OR. (.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2)) THEN
+              IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) &
+&.OR. (.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2)) THEN
                 ip3dt = ip3dt + 1
               ELSE
                 CYCLE
               END IF
             END IF
-            IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) .OR. ldsatt) THEN
+            IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) &
+&.OR. ldsatt) THEN
               IF (ldsatt) THEN
                 ivar1t = ip3dt
               ELSE
@@ -435,7 +439,8 @@ MODULE obs_read_prof
                 profdata % var(1) % vext(ivar1t, 1) = inpfiles(jj) % pext(ij, ji, 1)
               END IF
             END IF
-            IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2) .OR. ldsatt) THEN
+            IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2) &
+&.OR. ldsatt) THEN
               IF (ldsatt) THEN
                 ivar2t = ip3dt
               ELSE
@@ -480,7 +485,8 @@ MODULE obs_read_prof
         END IF
       END DO
       WRITE(numout, FMT = '(1X,A)') '---------------------------------------------------------------'
-      WRITE(numout, FMT = '(1X,A55,I8)') 'Total profile data for variable ' // TRIM(profdata % cvars(1)) // '             = ', ivar1tmpp
+      WRITE(numout, FMT = '(1X,A55,I8)') 'Total profile data for variable ' // TRIM(profdata % cvars(1)) // '             = ', &
+&ivar1tmpp
       WRITE(numout, FMT = '(1X,A)') '---------------------------------------------------------------'
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = '(1X,A)') 'Profile data, ' // TRIM(profdata % cvars(2))
@@ -491,7 +497,8 @@ MODULE obs_read_prof
         END IF
       END DO
       WRITE(numout, FMT = '(1X,A)') '---------------------------------------------------------------'
-      WRITE(numout, FMT = '(1X,A55,I8)') 'Total profile data for variable ' // TRIM(profdata % cvars(2)) // '             = ', ivar2tmpp
+      WRITE(numout, FMT = '(1X,A55,I8)') 'Total profile data for variable ' // TRIM(profdata % cvars(2)) // '             = ', &
+&ivar2tmpp
       WRITE(numout, FMT = '(1X,A)') '---------------------------------------------------------------'
       WRITE(numout, FMT = *)
     END IF

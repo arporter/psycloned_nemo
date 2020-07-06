@@ -131,7 +131,8 @@ MODULE diahsb
     CALL profile_psy_data4 % PostEnd
     !$ACC KERNELS
     DO jk = 1, jpkm1
-      zwrk(:, :, jk) = (surf(:, :) * e3t_n(:, :, jk) * tsn(:, :, jk, jp_tem) - surf_ini(:, :) * hc_loc_ini(:, :, jk)) * tmask(:, :, jk)
+      zwrk(:, :, jk) = (surf(:, :) * e3t_n(:, :, jk) * tsn(:, :, jk, jp_tem) - surf_ini(:, :) * hc_loc_ini(:, :, jk)) * tmask(:, &
+&:, jk)
     END DO
     !$ACC END KERNELS
     CALL profile_psy_data5 % PreStart('dia_hsb', 'r5', 0, 0)
@@ -139,7 +140,8 @@ MODULE diahsb
     CALL profile_psy_data5 % PostEnd
     !$ACC KERNELS
     DO jk = 1, jpkm1
-      zwrk(:, :, jk) = (surf(:, :) * e3t_n(:, :, jk) * tsn(:, :, jk, jp_sal) - surf_ini(:, :) * sc_loc_ini(:, :, jk)) * tmask(:, :, jk)
+      zwrk(:, :, jk) = (surf(:, :) * e3t_n(:, :, jk) * tsn(:, :, jk, jp_sal) - surf_ini(:, :) * sc_loc_ini(:, :, jk)) * tmask(:, &
+&:, jk)
     END DO
     !$ACC END KERNELS
     CALL profile_psy_data6 % PreStart('dia_hsb', 'r6', 0, 0)
@@ -198,18 +200,11 @@ MODULE diahsb
     CALL profile_psy_data7 % PostEnd
   END SUBROUTINE dia_hsb
   SUBROUTINE dia_hsb_rst(kt, cdrw)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
     INTEGER :: ji, jj, jk
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
     IF (TRIM(cdrw) == 'READ') THEN
       IF (ln_rstart) THEN
-        CALL profile_psy_data0 % PreStart('dia_hsb_rst', 'r0', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   dia_hsb_rst : read hsb restart at it= ', kt, ' date= ', ndastp
         IF (lwp) WRITE(numout, FMT = *)
@@ -229,13 +224,10 @@ MODULE diahsb
           CALL iom_get(numror, jpdom_autoglo, 'ssh_hc_loc_ini', ssh_hc_loc_ini, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'ssh_sc_loc_ini', ssh_sc_loc_ini, ldxios = lrxios)
         END IF
-        CALL profile_psy_data0 % PostEnd
       ELSE
-        CALL profile_psy_data1 % PreStart('dia_hsb_rst', 'r1', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   dia_hsb_rst : initialise hsb at initial state '
         IF (lwp) WRITE(numout, FMT = *)
-        CALL profile_psy_data1 % PostEnd
         !$ACC KERNELS
         surf_ini(:, :) = e1e2t(:, :) * tmask_i(:, :)
         ssh_ini(:, :) = sshn(:, :)
@@ -247,11 +239,9 @@ MODULE diahsb
           sc_loc_ini(:, :, jk) = tsn(:, :, jk, jp_sal) * e3t_n(:, :, jk) * tmask(:, :, jk)
           !$ACC END KERNELS
         END DO
-        CALL profile_psy_data2 % PreStart('dia_hsb_rst', 'r2', 0, 0)
         frc_v = 0._wp
         frc_t = 0._wp
         frc_s = 0._wp
-        CALL profile_psy_data2 % PostEnd
         IF (ln_linssh) THEN
           IF (ln_isfcav) THEN
             !$ACC KERNELS
@@ -268,14 +258,11 @@ MODULE diahsb
             ssh_sc_loc_ini(:, :) = tsn(:, :, 1, jp_sal) * sshn(:, :)
             !$ACC END KERNELS
           END IF
-          CALL profile_psy_data3 % PreStart('dia_hsb_rst', 'r3', 0, 0)
           frc_wn_t = 0._wp
           frc_wn_s = 0._wp
-          CALL profile_psy_data3 % PostEnd
         END IF
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
-      CALL profile_psy_data4 % PreStart('dia_hsb_rst', 'r4', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '   dia_hsb_rst : write restart at it= ', kt, ' date= ', ndastp
       IF (lwp) WRITE(numout, FMT = *)
@@ -297,16 +284,11 @@ MODULE diahsb
         CALL iom_rstput(kt, nitrst, numrow, 'ssh_sc_loc_ini', ssh_sc_loc_ini, ldxios = lwxios)
       END IF
       IF (lwxios) CALL iom_swap(cxios_context)
-      CALL profile_psy_data4 % PostEnd
     END IF
   END SUBROUTINE dia_hsb_rst
   SUBROUTINE dia_hsb_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ierror, ios
     NAMELIST /namhsb/ ln_diahsb
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    CALL profile_psy_data0 % PreStart('dia_hsb_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dia_hsb_init : heat and salt budgets diagnostics'
@@ -340,7 +322,8 @@ MODULE diahsb
         CALL iom_set_rstw_var_active('frc_wn_s')
       END IF
     END IF
-    ALLOCATE(hc_loc_ini(jpi, jpj, jpk), sc_loc_ini(jpi, jpj, jpk), surf_ini(jpi, jpj), e3t_ini(jpi, jpj, jpk), surf(jpi, jpj), ssh_ini(jpi, jpj), STAT = ierror)
+    ALLOCATE(hc_loc_ini(jpi, jpj, jpk), sc_loc_ini(jpi, jpj, jpk), surf_ini(jpi, jpj), e3t_ini(jpi, jpj, jpk), surf(jpi, jpj), &
+&ssh_ini(jpi, jpj), STAT = ierror)
     IF (ierror > 0) THEN
       CALL ctl_stop('dia_hsb_init: unable to allocate hc_loc_ini')
       RETURN
@@ -350,14 +333,11 @@ MODULE diahsb
       CALL ctl_stop('dia_hsb: unable to allocate ssh_hc_loc_ini')
       RETURN
     END IF
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     surf(:, :) = e1e2t(:, :) * tmask_i(:, :)
     !$ACC END KERNELS
-    CALL profile_psy_data1 % PreStart('dia_hsb_init', 'r1', 0, 0)
     surf_tot = glob_sum(surf(:, :))
     IF (ln_bdy) CALL ctl_warn('dia_hsb_init: heat/salt budget does not consider open boundary fluxes')
     CALL dia_hsb_rst(nit000, 'READ')
-    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE dia_hsb_init
 END MODULE diahsb

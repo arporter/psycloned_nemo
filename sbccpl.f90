@@ -130,11 +130,14 @@ MODULE sbccpl
     CHARACTER(LEN = 32) :: clvor
     CHARACTER(LEN = 32) :: clvgrd
   END TYPE FLD_C
-  TYPE(FLD_C) :: sn_snd_temp, sn_snd_alb, sn_snd_thick, sn_snd_crt, sn_snd_co2, sn_snd_thick1, sn_snd_cond, sn_snd_mpnd, sn_snd_sstfrz, sn_snd_ttilyr
-  TYPE(FLD_C) :: sn_rcv_w10m, sn_rcv_taumod, sn_rcv_tau, sn_rcv_tauw, sn_rcv_dqnsdt, sn_rcv_qsr, sn_rcv_qns, sn_rcv_emp, sn_rcv_rnf, sn_rcv_ts_ice
+  TYPE(FLD_C) :: sn_snd_temp, sn_snd_alb, sn_snd_thick, sn_snd_crt, sn_snd_co2, sn_snd_thick1, sn_snd_cond, sn_snd_mpnd, &
+&sn_snd_sstfrz, sn_snd_ttilyr
+  TYPE(FLD_C) :: sn_rcv_w10m, sn_rcv_taumod, sn_rcv_tau, sn_rcv_tauw, sn_rcv_dqnsdt, sn_rcv_qsr, sn_rcv_qns, sn_rcv_emp, &
+&sn_rcv_rnf, sn_rcv_ts_ice
   TYPE(FLD_C) :: sn_rcv_cal, sn_rcv_iceflx, sn_rcv_co2, sn_rcv_mslp, sn_rcv_icb, sn_rcv_isf
   TYPE(FLD_C) :: sn_snd_ifrac, sn_snd_crtw, sn_snd_wlev
-  TYPE(FLD_C) :: sn_rcv_hsig, sn_rcv_phioc, sn_rcv_sdrfx, sn_rcv_sdrfy, sn_rcv_wper, sn_rcv_wnum, sn_rcv_tauwoc, sn_rcv_wdrag, sn_rcv_wfreq
+  TYPE(FLD_C) :: sn_rcv_hsig, sn_rcv_phioc, sn_rcv_sdrfx, sn_rcv_sdrfy, sn_rcv_wper, sn_rcv_wnum, sn_rcv_tauwoc, sn_rcv_wdrag, &
+&sn_rcv_wfreq
   INTEGER :: nn_cplmodel
   LOGICAL :: ln_usecplmask
   TYPE :: DYNARR
@@ -147,13 +150,10 @@ MODULE sbccpl
   INTEGER, ALLOCATABLE, SAVE, DIMENSION(:) :: nrcvinfo
   CONTAINS
   INTEGER FUNCTION sbc_cpl_alloc()
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ierr(4)
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     ierr(:) = 0
     !$ACC END KERNELS
-    CALL profile_psy_data0 % PreStart('sbc_cpl_alloc', 'r0', 0, 0)
     ALLOCATE(alb_oce_mix(jpi, jpj), nrcvinfo(jprcv), STAT = ierr(1))
     ALLOCATE(a_i(jpi, jpj, 1), STAT = ierr(2))
     ALLOCATE(xcplmask(jpi, jpj, 0 : nn_cplmodel), STAT = ierr(3))
@@ -161,21 +161,16 @@ MODULE sbccpl
     sbc_cpl_alloc = MAXVAL(ierr)
     IF (lk_mpp) CALL mpp_sum(sbc_cpl_alloc)
     IF (sbc_cpl_alloc > 0) CALL ctl_warn('sbc_cpl_alloc: allocation of arrays failed')
-    CALL profile_psy_data0 % PostEnd
   END FUNCTION sbc_cpl_alloc
   SUBROUTINE sbc_cpl_init(k_ice)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: k_ice
     INTEGER :: jn
     INTEGER :: ios, inum
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zacs, zaos
-    NAMELIST /namsbc_cpl/ sn_snd_temp, sn_snd_alb, sn_snd_thick, sn_snd_crt, sn_snd_co2, sn_rcv_w10m, sn_rcv_taumod, sn_rcv_tau, sn_rcv_dqnsdt, sn_rcv_qsr, sn_snd_ifrac, sn_snd_crtw, sn_snd_wlev, sn_rcv_hsig, sn_rcv_phioc, sn_rcv_sdrfx, sn_rcv_sdrfy, sn_rcv_wper, sn_rcv_wnum, sn_rcv_tauwoc, sn_rcv_wdrag, sn_rcv_qns, sn_rcv_emp, sn_rcv_rnf, sn_rcv_cal, sn_rcv_iceflx, sn_rcv_co2, nn_cplmodel, ln_usecplmask, sn_rcv_mslp, sn_rcv_icb, sn_rcv_isf, sn_rcv_wfreq, sn_rcv_tauw, nn_cats_cpl
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
-    CALL profile_psy_data0 % PreStart('sbc_cpl_init', 'r0', 0, 0)
+    NAMELIST /namsbc_cpl/ sn_snd_temp, sn_snd_alb, sn_snd_thick, sn_snd_crt, sn_snd_co2, sn_rcv_w10m, sn_rcv_taumod, sn_rcv_tau, &
+&sn_rcv_dqnsdt, sn_rcv_qsr, sn_snd_ifrac, sn_snd_crtw, sn_snd_wlev, sn_rcv_hsig, sn_rcv_phioc, sn_rcv_sdrfx, sn_rcv_sdrfy, &
+&sn_rcv_wper, sn_rcv_wnum, sn_rcv_tauwoc, sn_rcv_wdrag, sn_rcv_qns, sn_rcv_emp, sn_rcv_rnf, sn_rcv_cal, sn_rcv_iceflx, sn_rcv_co2, &
+&nn_cplmodel, ln_usecplmask, sn_rcv_mslp, sn_rcv_icb, sn_rcv_isf, sn_rcv_wfreq, sn_rcv_tauw, nn_cats_cpl
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namsbc_cpl, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namsbc_cpl in reference namelist', lwp)
@@ -190,50 +185,87 @@ MODULE sbccpl
     END IF
     IF (lwp .AND. ln_cpl) THEN
       WRITE(numout, FMT = *) '  received fields (mutiple ice categogies)'
-      WRITE(numout, FMT = *) '      10m wind module                 = ', TRIM(sn_rcv_w10m % cldes), ' (', TRIM(sn_rcv_w10m % clcat), ')'
-      WRITE(numout, FMT = *) '      stress module                   = ', TRIM(sn_rcv_taumod % cldes), ' (', TRIM(sn_rcv_taumod % clcat), ')'
-      WRITE(numout, FMT = *) '      surface stress                  = ', TRIM(sn_rcv_tau % cldes), ' (', TRIM(sn_rcv_tau % clcat), ')'
+      WRITE(numout, FMT = *) '      10m wind module                 = ', TRIM(sn_rcv_w10m % cldes), ' (', TRIM(sn_rcv_w10m % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      stress module                   = ', TRIM(sn_rcv_taumod % cldes), ' (', TRIM(sn_rcv_taumod % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      surface stress                  = ', TRIM(sn_rcv_tau % cldes), ' (', TRIM(sn_rcv_tau % clcat), &
+&')'
       WRITE(numout, FMT = *) '                     - referential    = ', sn_rcv_tau % clvref
       WRITE(numout, FMT = *) '                     - orientation    = ', sn_rcv_tau % clvor
       WRITE(numout, FMT = *) '                     - mesh           = ', sn_rcv_tau % clvgrd
-      WRITE(numout, FMT = *) '      non-solar heat flux sensitivity = ', TRIM(sn_rcv_dqnsdt % cldes), ' (', TRIM(sn_rcv_dqnsdt % clcat), ')'
-      WRITE(numout, FMT = *) '      solar heat flux                 = ', TRIM(sn_rcv_qsr % cldes), ' (', TRIM(sn_rcv_qsr % clcat), ')'
-      WRITE(numout, FMT = *) '      non-solar heat flux             = ', TRIM(sn_rcv_qns % cldes), ' (', TRIM(sn_rcv_qns % clcat), ')'
-      WRITE(numout, FMT = *) '      freshwater budget               = ', TRIM(sn_rcv_emp % cldes), ' (', TRIM(sn_rcv_emp % clcat), ')'
-      WRITE(numout, FMT = *) '      runoffs                         = ', TRIM(sn_rcv_rnf % cldes), ' (', TRIM(sn_rcv_rnf % clcat), ')'
-      WRITE(numout, FMT = *) '      calving                         = ', TRIM(sn_rcv_cal % cldes), ' (', TRIM(sn_rcv_cal % clcat), ')'
-      WRITE(numout, FMT = *) '      iceberg                         = ', TRIM(sn_rcv_icb % cldes), ' (', TRIM(sn_rcv_icb % clcat), ')'
-      WRITE(numout, FMT = *) '      ice shelf                       = ', TRIM(sn_rcv_isf % cldes), ' (', TRIM(sn_rcv_isf % clcat), ')'
-      WRITE(numout, FMT = *) '      sea ice heat fluxes             = ', TRIM(sn_rcv_iceflx % cldes), ' (', TRIM(sn_rcv_iceflx % clcat), ')'
-      WRITE(numout, FMT = *) '      atm co2                         = ', TRIM(sn_rcv_co2 % cldes), ' (', TRIM(sn_rcv_co2 % clcat), ')'
-      WRITE(numout, FMT = *) '      significant wave heigth         = ', TRIM(sn_rcv_hsig % cldes), ' (', TRIM(sn_rcv_hsig % clcat), ')'
-      WRITE(numout, FMT = *) '      wave to oce energy flux         = ', TRIM(sn_rcv_phioc % cldes), ' (', TRIM(sn_rcv_phioc % clcat), ')'
-      WRITE(numout, FMT = *) '      Surface Stokes drift grid u     = ', TRIM(sn_rcv_sdrfx % cldes), ' (', TRIM(sn_rcv_sdrfx % clcat), ')'
-      WRITE(numout, FMT = *) '      Surface Stokes drift grid v     = ', TRIM(sn_rcv_sdrfy % cldes), ' (', TRIM(sn_rcv_sdrfy % clcat), ')'
-      WRITE(numout, FMT = *) '      Mean wave period                = ', TRIM(sn_rcv_wper % cldes), ' (', TRIM(sn_rcv_wper % clcat), ')'
-      WRITE(numout, FMT = *) '      Mean wave number                = ', TRIM(sn_rcv_wnum % cldes), ' (', TRIM(sn_rcv_wnum % clcat), ')'
-      WRITE(numout, FMT = *) '      Wave peak frequency             = ', TRIM(sn_rcv_wfreq % cldes), ' (', TRIM(sn_rcv_wfreq % clcat), ')'
-      WRITE(numout, FMT = *) '      Stress frac adsorbed by waves   = ', TRIM(sn_rcv_tauwoc % cldes), ' (', TRIM(sn_rcv_tauwoc % clcat), ')'
-      WRITE(numout, FMT = *) '      Stress components by waves      = ', TRIM(sn_rcv_tauw % cldes), ' (', TRIM(sn_rcv_tauw % clcat), ')'
-      WRITE(numout, FMT = *) '      Neutral surf drag coefficient   = ', TRIM(sn_rcv_wdrag % cldes), ' (', TRIM(sn_rcv_wdrag % clcat), ')'
-      WRITE(numout, FMT = *) '      Sea ice surface skin temperature= ', TRIM(sn_rcv_ts_ice % cldes), ' (', TRIM(sn_rcv_ts_ice % clcat), ')'
+      WRITE(numout, FMT = *) '      non-solar heat flux sensitivity = ', TRIM(sn_rcv_dqnsdt % cldes), ' (', TRIM(sn_rcv_dqnsdt % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      solar heat flux                 = ', TRIM(sn_rcv_qsr % cldes), ' (', TRIM(sn_rcv_qsr % clcat), &
+&')'
+      WRITE(numout, FMT = *) '      non-solar heat flux             = ', TRIM(sn_rcv_qns % cldes), ' (', TRIM(sn_rcv_qns % clcat), &
+&')'
+      WRITE(numout, FMT = *) '      freshwater budget               = ', TRIM(sn_rcv_emp % cldes), ' (', TRIM(sn_rcv_emp % clcat), &
+&')'
+      WRITE(numout, FMT = *) '      runoffs                         = ', TRIM(sn_rcv_rnf % cldes), ' (', TRIM(sn_rcv_rnf % clcat), &
+&')'
+      WRITE(numout, FMT = *) '      calving                         = ', TRIM(sn_rcv_cal % cldes), ' (', TRIM(sn_rcv_cal % clcat), &
+&')'
+      WRITE(numout, FMT = *) '      iceberg                         = ', TRIM(sn_rcv_icb % cldes), ' (', TRIM(sn_rcv_icb % clcat), &
+&')'
+      WRITE(numout, FMT = *) '      ice shelf                       = ', TRIM(sn_rcv_isf % cldes), ' (', TRIM(sn_rcv_isf % clcat), &
+&')'
+      WRITE(numout, FMT = *) '      sea ice heat fluxes             = ', TRIM(sn_rcv_iceflx % cldes), ' (', TRIM(sn_rcv_iceflx % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      atm co2                         = ', TRIM(sn_rcv_co2 % cldes), ' (', TRIM(sn_rcv_co2 % clcat), &
+&')'
+      WRITE(numout, FMT = *) '      significant wave heigth         = ', TRIM(sn_rcv_hsig % cldes), ' (', TRIM(sn_rcv_hsig % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      wave to oce energy flux         = ', TRIM(sn_rcv_phioc % cldes), ' (', TRIM(sn_rcv_phioc % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      Surface Stokes drift grid u     = ', TRIM(sn_rcv_sdrfx % cldes), ' (', TRIM(sn_rcv_sdrfx % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      Surface Stokes drift grid v     = ', TRIM(sn_rcv_sdrfy % cldes), ' (', TRIM(sn_rcv_sdrfy % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      Mean wave period                = ', TRIM(sn_rcv_wper % cldes), ' (', TRIM(sn_rcv_wper % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      Mean wave number                = ', TRIM(sn_rcv_wnum % cldes), ' (', TRIM(sn_rcv_wnum % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      Wave peak frequency             = ', TRIM(sn_rcv_wfreq % cldes), ' (', TRIM(sn_rcv_wfreq % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      Stress frac adsorbed by waves   = ', TRIM(sn_rcv_tauwoc % cldes), ' (', TRIM(sn_rcv_tauwoc % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      Stress components by waves      = ', TRIM(sn_rcv_tauw % cldes), ' (', TRIM(sn_rcv_tauw % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      Neutral surf drag coefficient   = ', TRIM(sn_rcv_wdrag % cldes), ' (', TRIM(sn_rcv_wdrag % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      Sea ice surface skin temperature= ', TRIM(sn_rcv_ts_ice % cldes), ' (', TRIM(sn_rcv_ts_ice % &
+&clcat), ')'
       WRITE(numout, FMT = *) '  sent fields (multiple ice categories)'
-      WRITE(numout, FMT = *) '      surface temperature             = ', TRIM(sn_snd_temp % cldes), ' (', TRIM(sn_snd_temp % clcat), ')'
-      WRITE(numout, FMT = *) '      top ice layer temperature       = ', TRIM(sn_snd_ttilyr % cldes), ' (', TRIM(sn_snd_ttilyr % clcat), ')'
-      WRITE(numout, FMT = *) '      albedo                          = ', TRIM(sn_snd_alb % cldes), ' (', TRIM(sn_snd_alb % clcat), ')'
-      WRITE(numout, FMT = *) '      ice/snow thickness              = ', TRIM(sn_snd_thick % cldes), ' (', TRIM(sn_snd_thick % clcat), ')'
-      WRITE(numout, FMT = *) '      total ice fraction              = ', TRIM(sn_snd_ifrac % cldes), ' (', TRIM(sn_snd_ifrac % clcat), ')'
-      WRITE(numout, FMT = *) '      surface current                 = ', TRIM(sn_snd_crt % cldes), ' (', TRIM(sn_snd_crt % clcat), ')'
+      WRITE(numout, FMT = *) '      surface temperature             = ', TRIM(sn_snd_temp % cldes), ' (', TRIM(sn_snd_temp % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      top ice layer temperature       = ', TRIM(sn_snd_ttilyr % cldes), ' (', TRIM(sn_snd_ttilyr % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      albedo                          = ', TRIM(sn_snd_alb % cldes), ' (', TRIM(sn_snd_alb % clcat), &
+&')'
+      WRITE(numout, FMT = *) '      ice/snow thickness              = ', TRIM(sn_snd_thick % cldes), ' (', TRIM(sn_snd_thick % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      total ice fraction              = ', TRIM(sn_snd_ifrac % cldes), ' (', TRIM(sn_snd_ifrac % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      surface current                 = ', TRIM(sn_snd_crt % cldes), ' (', TRIM(sn_snd_crt % clcat), &
+&')'
       WRITE(numout, FMT = *) '                      - referential   = ', sn_snd_crt % clvref
       WRITE(numout, FMT = *) '                      - orientation   = ', sn_snd_crt % clvor
       WRITE(numout, FMT = *) '                      - mesh          = ', sn_snd_crt % clvgrd
-      WRITE(numout, FMT = *) '      oce co2 flux                    = ', TRIM(sn_snd_co2 % cldes), ' (', TRIM(sn_snd_co2 % clcat), ')'
-      WRITE(numout, FMT = *) '      ice effective conductivity      = ', TRIM(sn_snd_cond % cldes), ' (', TRIM(sn_snd_cond % clcat), ')'
-      WRITE(numout, FMT = *) '      meltponds fraction and depth    = ', TRIM(sn_snd_mpnd % cldes), ' (', TRIM(sn_snd_mpnd % clcat), ')'
-      WRITE(numout, FMT = *) '      sea surface freezing temp       = ', TRIM(sn_snd_sstfrz % cldes), ' (', TRIM(sn_snd_sstfrz % clcat), ')'
-      WRITE(numout, FMT = *) '      water level                     = ', TRIM(sn_snd_wlev % cldes), ' (', TRIM(sn_snd_wlev % clcat), ')'
-      WRITE(numout, FMT = *) '      mean sea level pressure         = ', TRIM(sn_rcv_mslp % cldes), ' (', TRIM(sn_rcv_mslp % clcat), ')'
-      WRITE(numout, FMT = *) '      surface current to waves        = ', TRIM(sn_snd_crtw % cldes), ' (', TRIM(sn_snd_crtw % clcat), ')'
+      WRITE(numout, FMT = *) '      oce co2 flux                    = ', TRIM(sn_snd_co2 % cldes), ' (', TRIM(sn_snd_co2 % clcat), &
+&')'
+      WRITE(numout, FMT = *) '      ice effective conductivity      = ', TRIM(sn_snd_cond % cldes), ' (', TRIM(sn_snd_cond % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      meltponds fraction and depth    = ', TRIM(sn_snd_mpnd % cldes), ' (', TRIM(sn_snd_mpnd % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      sea surface freezing temp       = ', TRIM(sn_snd_sstfrz % cldes), ' (', TRIM(sn_snd_sstfrz % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      water level                     = ', TRIM(sn_snd_wlev % cldes), ' (', TRIM(sn_snd_wlev % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      mean sea level pressure         = ', TRIM(sn_rcv_mslp % cldes), ' (', TRIM(sn_rcv_mslp % &
+&clcat), ')'
+      WRITE(numout, FMT = *) '      surface current to waves        = ', TRIM(sn_snd_crtw % cldes), ' (', TRIM(sn_snd_crtw % &
+&clcat), ')'
       WRITE(numout, FMT = *) '                      - referential   = ', sn_snd_crtw % clvref
       WRITE(numout, FMT = *) '                      - orientation   = ', sn_snd_crtw % clvor
       WRITE(numout, FMT = *) '                      - mesh          = ', sn_snd_crtw % clvgrd
@@ -242,11 +274,9 @@ MODULE sbccpl
       WRITE(numout, FMT = *) '  nn_cats_cpl                         = ', nn_cats_cpl
     END IF
     IF (sbc_cpl_alloc() /= 0) CALL ctl_stop('STOP', 'sbc_cpl_alloc : unable to allocate arrays')
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     nrcvinfo(:) = OASIS_idle
     !$ACC END KERNELS
-    CALL profile_psy_data1 % PreStart('sbc_cpl_init', 'r1', 0, 0)
     srcv(:) % laction = .FALSE.
     srcv(:) % clgrid = 'T'
     srcv(:) % nsgn = 1.
@@ -380,7 +410,8 @@ MODULE sbccpl
     CASE DEFAULT
       CALL ctl_stop('sbc_cpl_init: wrong definition of sn_rcv_qns%cldes')
     END SELECT
-    IF (TRIM(sn_rcv_qns % cldes) == 'mixed oce-ice' .AND. nn_cats_cpl > 1) CALL ctl_stop('sbc_cpl_init: sn_rcv_qns%cldes not currently allowed to be mixed oce-ice for multi-category ice')
+    IF (TRIM(sn_rcv_qns % cldes) == 'mixed oce-ice' .AND. nn_cats_cpl > 1) CALL ctl_stop('sbc_cpl_init: sn_rcv_qns%cldes not &
+&currently allowed to be mixed oce-ice for multi-category ice')
     srcv(jpr_qsroce) % clname = 'O_QsrOce'
     srcv(jpr_qsrice) % clname = 'O_QsrIce'
     srcv(jpr_qsrmix) % clname = 'O_QsrMix'
@@ -397,10 +428,12 @@ MODULE sbccpl
     CASE DEFAULT
       CALL ctl_stop('sbc_cpl_init: wrong definition of sn_rcv_qsr%cldes')
     END SELECT
-    IF (TRIM(sn_rcv_qsr % cldes) == 'mixed oce-ice' .AND. nn_cats_cpl > 1) CALL ctl_stop('sbc_cpl_init: sn_rcv_qsr%cldes not currently allowed to be mixed oce-ice for multi-category ice')
+    IF (TRIM(sn_rcv_qsr % cldes) == 'mixed oce-ice' .AND. nn_cats_cpl > 1) CALL ctl_stop('sbc_cpl_init: sn_rcv_qsr%cldes not &
+&currently allowed to be mixed oce-ice for multi-category ice')
     srcv(jpr_dqnsdt) % clname = 'O_dQnsdT'
     IF (TRIM(sn_rcv_dqnsdt % cldes) == 'coupled') srcv(jpr_dqnsdt) % laction = .TRUE.
-    IF (TRIM(sn_rcv_dqnsdt % cldes) == 'none' .AND. TRIM(sn_rcv_qns % cldes) == 'mixed oce-ice') CALL ctl_stop('sbc_cpl_init: namsbc_cpl namelist mismatch between sn_rcv_qns%cldes and sn_rcv_dqnsdt%cldes')
+    IF (TRIM(sn_rcv_dqnsdt % cldes) == 'none' .AND. TRIM(sn_rcv_qns % cldes) == 'mixed oce-ice') CALL ctl_stop('sbc_cpl_init: &
+&namsbc_cpl namelist mismatch between sn_rcv_qns%cldes and sn_rcv_dqnsdt%cldes')
     srcv(jpr_w10m) % clname = 'O_Wind10'
     IF (TRIM(sn_rcv_w10m % cldes) == 'coupled') srcv(jpr_w10m) % laction = .TRUE.
     srcv(jpr_taum) % clname = 'O_TauMod'
@@ -482,7 +515,8 @@ MODULE sbccpl
       srcv(jpr_wdrag) % laction = .TRUE.
       cpl_wdrag = .TRUE.
     END IF
-    IF (srcv(jpr_tauwoc) % laction .AND. srcv(jpr_tauwx) % laction .AND. srcv(jpr_tauwy) % laction) CALL ctl_stop('More than one method for modifying the ocean stress has been selected ', '(sn_rcv_tauwoc=coupled and sn_rcv_tauw=coupled)')
+    IF (srcv(jpr_tauwoc) % laction .AND. srcv(jpr_tauwx) % laction .AND. srcv(jpr_tauwy) % laction) CALL ctl_stop('More than one &
+&method for modifying the ocean stress has been selected ', '(sn_rcv_tauwoc=coupled and sn_rcv_tauw=coupled)')
     srcv(jpr_sflx) % clname = 'O_SFLX'
     srcv(jpr_fice) % clname = 'RIceFrc'
     IF (nn_components == jp_iam_opa) THEN
@@ -593,14 +627,12 @@ MODULE sbccpl
     CASE DEFAULT
       CALL ctl_stop('sbc_cpl_init: wrong definition of sn_snd_alb%cldes')
     END SELECT
-    CALL profile_psy_data1 % PostEnd
     IF (TRIM(sn_snd_alb % cldes) == 'mixed oce-ice' .OR. TRIM(sn_rcv_qsr % cldes) == 'mixed oce-ice') THEN
       CALL oce_alb(zaos, zacs)
       !$ACC KERNELS
       alb_oce_mix(:, :) = (zacs(:, :) + zaos(:, :)) * 0.5
       !$ACC END KERNELS
     END IF
-    CALL profile_psy_data2 % PreStart('sbc_cpl_init', 'r2', 0, 0)
     ssnd(jps_fice) % clname = 'OIceFrc'
     ssnd(jps_ficet) % clname = 'OIceFrcT'
     ssnd(jps_hice) % clname = 'OIceTck'
@@ -805,16 +837,14 @@ MODULE sbccpl
       END IF
     END IF
     CALL cpl_define(jprcv, jpsnd, nn_cplmodel)
-    CALL profile_psy_data2 % PostEnd
     IF (ln_usecplmask) THEN
       !$ACC KERNELS
       xcplmask(:, :, :) = 0.
       !$ACC END KERNELS
-      CALL profile_psy_data3 % PreStart('sbc_cpl_init', 'r3', 0, 0)
       CALL iom_open('cplmask', inum)
-      CALL iom_get(inum, jpdom_unknown, 'cplmask', xcplmask(1 : nlci, 1 : nlcj, 1 : nn_cplmodel), kstart = (/mig(1), mjg(1), 1/), kcount = (/nlci, nlcj, nn_cplmodel/))
+      CALL iom_get(inum, jpdom_unknown, 'cplmask', xcplmask(1 : nlci, 1 : nlcj, 1 : nn_cplmodel), kstart = (/mig(1), mjg(1), 1/), &
+&kcount = (/nlci, nlcj, nn_cplmodel/))
       CALL iom_close(inum)
-      CALL profile_psy_data3 % PostEnd
     ELSE
       !$ACC KERNELS
       xcplmask(:, :, :) = 1.
@@ -823,11 +853,10 @@ MODULE sbccpl
     !$ACC KERNELS
     xcplmask(:, :, 0) = 1. - SUM(xcplmask(:, :, 1 : nn_cplmodel), dim = 3)
     !$ACC END KERNELS
-    CALL profile_psy_data4 % PreStart('sbc_cpl_init', 'r4', 0, 0)
     ncpl_qsr_freq = cpl_freq('O_QsrOce') + cpl_freq('O_QsrMix') + cpl_freq('I_QsrOce') + cpl_freq('I_QsrMix')
-    IF (ln_dm2dc .AND. ln_cpl .AND. ncpl_qsr_freq /= 86400) CALL ctl_stop('sbc_cpl_init: diurnal cycle reconstruction (ln_dm2dc) needs daily couping for solar radiation')
+    IF (ln_dm2dc .AND. ln_cpl .AND. ncpl_qsr_freq /= 86400) CALL ctl_stop('sbc_cpl_init: diurnal cycle reconstruction (ln_dm2dc) &
+&needs daily couping for solar radiation')
     IF (ln_dm2dc .AND. ln_cpl) ncpl_qsr_freq = 86400 / ncpl_qsr_freq
-    CALL profile_psy_data4 % PostEnd
   END SUBROUTINE sbc_cpl_init
   SUBROUTINE sbc_cpl_rcv(kt, k_fsbc, k_ice)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
@@ -873,11 +902,13 @@ MODULE sbccpl
     IF (srcv(jpr_otx1) % laction) THEN
       IF (nrcvinfo(jpr_otx1) == OASIS_Rcv) THEN
         IF (TRIM(sn_rcv_tau % clvref) == 'cartesian') THEN
-          CALL geo2oce(frcv(jpr_otx1) % z3(:, :, 1), frcv(jpr_oty1) % z3(:, :, 1), frcv(jpr_otz1) % z3(:, :, 1), srcv(jpr_otx1) % clgrid, ztx, zty)
+          CALL geo2oce(frcv(jpr_otx1) % z3(:, :, 1), frcv(jpr_oty1) % z3(:, :, 1), frcv(jpr_otz1) % z3(:, :, 1), &
+&srcv(jpr_otx1) % clgrid, ztx, zty)
           frcv(jpr_otx1) % z3(:, :, 1) = ztx(:, :)
           frcv(jpr_oty1) % z3(:, :, 1) = zty(:, :)
           IF (srcv(jpr_otx2) % laction) THEN
-            CALL geo2oce(frcv(jpr_otx2) % z3(:, :, 1), frcv(jpr_oty2) % z3(:, :, 1), frcv(jpr_otz2) % z3(:, :, 1), srcv(jpr_otx2) % clgrid, ztx, zty)
+            CALL geo2oce(frcv(jpr_otx2) % z3(:, :, 1), frcv(jpr_oty2) % z3(:, :, 1), frcv(jpr_otz2) % z3(:, :, 1), &
+&srcv(jpr_otx2) % clgrid, ztx, zty)
             frcv(jpr_otx2) % z3(:, :, 1) = ztx(:, :)
             frcv(jpr_oty2) % z3(:, :, 1) = zty(:, :)
           END IF
@@ -977,7 +1008,8 @@ MODULE sbccpl
       IF (srcv(jpr_hsig) % laction) hsw(:, :) = frcv(jpr_hsig) % z3(:, :, 1)
       IF (srcv(jpr_wfreq) % laction) wfreq(:, :) = frcv(jpr_wfreq) % z3(:, :, 1)
       IF (srcv(jpr_wnum) % laction .AND. ln_zdfswm) wnum(:, :) = frcv(jpr_wnum) % z3(:, :, 1)
-      IF (srcv(jpr_sdrftx) % laction .OR. srcv(jpr_sdrfty) % laction .OR. srcv(jpr_wper) % laction .OR. srcv(jpr_hsig) % laction .OR. srcv(jpr_wfreq) % laction) THEN
+      IF (srcv(jpr_sdrftx) % laction .OR. srcv(jpr_sdrfty) % laction .OR. srcv(jpr_wper) % laction .OR. srcv(jpr_hsig) % laction &
+&.OR. srcv(jpr_wfreq) % laction) THEN
         CALL sbc_stokes
       END IF
     END IF
@@ -1156,11 +1188,13 @@ MODULE sbccpl
     IF (nrcvinfo(itx) == OASIS_Rcv) THEN
       IF (srcv(jpr_itx1) % laction) THEN
         IF (TRIM(sn_rcv_tau % clvref) == 'cartesian') THEN
-          CALL geo2oce(frcv(jpr_itx1) % z3(:, :, 1), frcv(jpr_ity1) % z3(:, :, 1), frcv(jpr_itz1) % z3(:, :, 1), srcv(jpr_itx1) % clgrid, ztx, zty)
+          CALL geo2oce(frcv(jpr_itx1) % z3(:, :, 1), frcv(jpr_ity1) % z3(:, :, 1), frcv(jpr_itz1) % z3(:, :, 1), &
+&srcv(jpr_itx1) % clgrid, ztx, zty)
           frcv(jpr_itx1) % z3(:, :, 1) = ztx(:, :)
           frcv(jpr_ity1) % z3(:, :, 1) = zty(:, :)
           IF (srcv(jpr_itx2) % laction) THEN
-            CALL geo2oce(frcv(jpr_itx2) % z3(:, :, 1), frcv(jpr_ity2) % z3(:, :, 1), frcv(jpr_itz2) % z3(:, :, 1), srcv(jpr_itx2) % clgrid, ztx, zty)
+            CALL geo2oce(frcv(jpr_itx2) % z3(:, :, 1), frcv(jpr_ity2) % z3(:, :, 1), frcv(jpr_itz2) % z3(:, :, 1), &
+&srcv(jpr_itx2) % clgrid, ztx, zty)
             frcv(jpr_itx2) % z3(:, :, 1) = ztx(:, :)
             frcv(jpr_ity2) % z3(:, :, 1) = zty(:, :)
           END IF
@@ -1299,7 +1333,8 @@ MODULE sbccpl
     IF (iom_use('snow_ao_cea')) CALL iom_put('snow_ao_cea', sprecip(:, :) * (1._wp - zsnw(:, :)))
     IF (iom_use('snow_ai_cea')) CALL iom_put('snow_ai_cea', sprecip(:, :) * zsnw(:, :))
     IF (iom_use('subl_ai_cea')) CALL iom_put('subl_ai_cea', frcv(jpr_ievp) % z3(:, :, 1) * picefr(:, :) * tmask(:, :, 1))
-    IF (iom_use('evap_ao_cea')) CALL iom_put('evap_ao_cea', (frcv(jpr_tevp) % z3(:, :, 1) - frcv(jpr_ievp) % z3(:, :, 1) * picefr(:, :)) * tmask(:, :, 1))
+    IF (iom_use('evap_ao_cea')) CALL iom_put('evap_ao_cea', (frcv(jpr_tevp) % z3(:, :, 1) - frcv(jpr_ievp) % z3(:, :, 1) * &
+&picefr(:, :)) * tmask(:, :, 1))
     SELECT CASE (TRIM(sn_rcv_qns % cldes))
     CASE ('oce only')
       zqns_tot(:, :) = frcv(jpr_qnsoce) % z3(:, :, 1)
@@ -1328,7 +1363,8 @@ MODULE sbccpl
       END IF
     CASE ('mixed oce-ice')
       zqns_tot(:, :) = frcv(jpr_qnsmix) % z3(:, :, 1)
-      zqns_ice(:, :, 1) = frcv(jpr_qnsmix) % z3(:, :, 1) + frcv(jpr_dqnsdt) % z3(:, :, 1) * (pist(:, :, 1) - ((rt0 + psst(:, :)) * ziceld(:, :) + pist(:, :, 1) * picefr(:, :)))
+      zqns_ice(:, :, 1) = frcv(jpr_qnsmix) % z3(:, :, 1) + frcv(jpr_dqnsdt) % z3(:, :, 1) * (pist(:, :, 1) - ((rt0 + psst(:, :)) * &
+&ziceld(:, :) + pist(:, :, 1) * picefr(:, :)))
     END SELECT
     IF (srcv(jpr_cal) % laction) zqns_tot(:, :) = zqns_tot(:, :) - frcv(jpr_cal) % z3(:, :, 1) * rLfus
     IF (srcv(jpr_icb) % laction) zqns_tot(:, :) = zqns_tot(:, :) - frcv(jpr_icb) % z3(:, :, 1) * rLfus
@@ -1356,9 +1392,11 @@ MODULE sbccpl
     IF (srcv(jpr_cal) % laction) CALL iom_put('hflx_cal_cea', - frcv(jpr_cal) % z3(:, :, 1) * rLfus)
     IF (srcv(jpr_icb) % laction) CALL iom_put('hflx_icb_cea', - frcv(jpr_icb) % z3(:, :, 1) * rLfus)
     IF (iom_use('hflx_rain_cea')) CALL iom_put('hflx_rain_cea', (tprecip(:, :) - sprecip(:, :)) * zcptrain(:, :))
-    IF (iom_use('hflx_evap_cea')) CALL iom_put('hflx_evap_cea', (frcv(jpr_tevp) % z3(:, :, 1) - frcv(jpr_ievp) % z3(:, :, 1) * picefr(:, :)) * zcptn(:, :) * tmask(:, :, 1))
+    IF (iom_use('hflx_evap_cea')) CALL iom_put('hflx_evap_cea', (frcv(jpr_tevp) % z3(:, :, 1) - frcv(jpr_ievp) % z3(:, :, 1) * &
+&picefr(:, :)) * zcptn(:, :) * tmask(:, :, 1))
     IF (iom_use('hflx_snow_cea')) CALL iom_put('hflx_snow_cea', sprecip(:, :) * (zcptsnw(:, :) - rLfus))
-    IF (iom_use('hflx_snow_ao_cea')) CALL iom_put('hflx_snow_ao_cea', sprecip(:, :) * (zcptsnw(:, :) - rLfus) * (1._wp - zsnw(:, :)))
+    IF (iom_use('hflx_snow_ao_cea')) CALL iom_put('hflx_snow_ao_cea', sprecip(:, :) * (zcptsnw(:, :) - rLfus) * (1._wp - zsnw(:, &
+&:)))
     IF (iom_use('hflx_snow_ai_cea')) CALL iom_put('hflx_snow_ai_cea', sprecip(:, :) * (zcptsnw(:, :) - rLfus) * zsnw(:, :))
     SELECT CASE (TRIM(sn_rcv_qsr % cldes))
     CASE ('oce only')
@@ -1390,7 +1428,8 @@ MODULE sbccpl
       END IF
     CASE ('mixed oce-ice')
       zqsr_tot(:, :) = frcv(jpr_qsrmix) % z3(:, :, 1)
-      zqsr_ice(:, :, 1) = frcv(jpr_qsrmix) % z3(:, :, 1) * (1. - palbi(:, :, 1)) / (1. - (alb_oce_mix(:, :) * ziceld(:, :) + palbi(:, :, 1) * picefr(:, :)))
+      zqsr_ice(:, :, 1) = frcv(jpr_qsrmix) % z3(:, :, 1) * (1. - palbi(:, :, 1)) / (1. - (alb_oce_mix(:, :) * ziceld(:, :) + &
+&palbi(:, :, 1) * picefr(:, :)))
     END SELECT
     IF (ln_dm2dc .AND. ln_cpl) THEN
       zqsr_tot(:, :) = sbc_dcy(zqsr_tot(:, :))
@@ -1742,8 +1781,10 @@ MODULE sbccpl
           !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
-              zotx1(ji, jj) = 0.5 * (un(ji, jj, 1) + un(ji - 1, jj, 1)) * zfr_l(ji, jj) + 0.5 * (u_ice(ji, jj) + u_ice(ji - 1, jj)) * fr_i(ji, jj)
-              zoty1(ji, jj) = 0.5 * (vn(ji, jj, 1) + vn(ji, jj - 1, 1)) * zfr_l(ji, jj) + 0.5 * (v_ice(ji, jj) + v_ice(ji, jj - 1)) * fr_i(ji, jj)
+              zotx1(ji, jj) = 0.5 * (un(ji, jj, 1) + un(ji - 1, jj, 1)) * zfr_l(ji, jj) + 0.5 * (u_ice(ji, jj) + u_ice(ji - 1, &
+&jj)) * fr_i(ji, jj)
+              zoty1(ji, jj) = 0.5 * (vn(ji, jj, 1) + vn(ji, jj - 1, 1)) * zfr_l(ji, jj) + 0.5 * (v_ice(ji, jj) + v_ice(ji, jj - &
+&1)) * fr_i(ji, jj)
             END DO
           END DO
           !$ACC END KERNELS
@@ -1823,8 +1864,10 @@ MODULE sbccpl
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            zotx1(ji, jj) = 0.5 * (un(ji, jj, 1) + un(ji - 1, jj, 1)) * zfr_l(ji, jj) + 0.5 * (u_ice(ji, jj) + u_ice(ji - 1, jj)) * fr_i(ji, jj)
-            zoty1(ji, jj) = 0.5 * (vn(ji, jj, 1) + vn(ji, jj - 1, 1)) * zfr_l(ji, jj) + 0.5 * (v_ice(ji, jj) + v_ice(ji, jj - 1)) * fr_i(ji, jj)
+            zotx1(ji, jj) = 0.5 * (un(ji, jj, 1) + un(ji - 1, jj, 1)) * zfr_l(ji, jj) + 0.5 * (u_ice(ji, jj) + u_ice(ji - 1, jj)) &
+&* fr_i(ji, jj)
+            zoty1(ji, jj) = 0.5 * (vn(ji, jj, 1) + vn(ji, jj - 1, 1)) * zfr_l(ji, jj) + 0.5 * (v_ice(ji, jj) + v_ice(ji, jj - 1)) &
+&* fr_i(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS

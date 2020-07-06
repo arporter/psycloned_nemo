@@ -106,7 +106,8 @@ MODULE zdftke
         DO ji = 2, jpim1
           zmsku = (2. - umask(ji - 1, jj, mbkt(ji, jj)) * umask(ji, jj, mbkt(ji, jj)))
           zmskv = (2. - vmask(ji, jj - 1, mbkt(ji, jj)) * vmask(ji, jj, mbkt(ji, jj)))
-          zebot = - 0.001875_wp * rCdU_bot(ji, jj) * SQRT((zmsku * (ub(ji, jj, mbkt(ji, jj)) + ub(ji - 1, jj, mbkt(ji, jj)))) ** 2 + (zmskv * (vb(ji, jj, mbkt(ji, jj)) + vb(ji, jj - 1, mbkt(ji, jj)))) ** 2)
+          zebot = - 0.001875_wp * rCdU_bot(ji, jj) * SQRT((zmsku * (ub(ji, jj, mbkt(ji, jj)) + ub(ji - 1, jj, mbkt(ji, jj)))) ** 2 &
+&+ (zmskv * (vb(ji, jj, mbkt(ji, jj)) + vb(ji, jj - 1, mbkt(ji, jj)))) ** 2)
           en(ji, jj, mbkt(ji, jj) + 1) = MAX(zebot, rn_emin) * ssmask(ji, jj)
         END DO
       END DO
@@ -118,7 +119,8 @@ MODULE zdftke
           DO ji = 2, jpim1
             zmsku = (2. - umask(ji - 1, jj, mikt(ji, jj)) * umask(ji, jj, mikt(ji, jj)))
             zmskv = (2. - vmask(ji, jj - 1, mikt(ji, jj)) * vmask(ji, jj, mikt(ji, jj)))
-            zetop = - 0.001875_wp * rCdU_top(ji, jj) * SQRT((zmsku * (ub(ji, jj, mikt(ji, jj)) + ub(ji - 1, jj, mikt(ji, jj)))) ** 2 + (zmskv * (vb(ji, jj, mikt(ji, jj)) + vb(ji, jj - 1, mikt(ji, jj)))) ** 2)
+            zetop = - 0.001875_wp * rCdU_top(ji, jj) * SQRT((zmsku * (ub(ji, jj, mikt(ji, jj)) + ub(ji - 1, jj, mikt(ji, jj)))) ** &
+&2 + (zmskv * (vb(ji, jj, mikt(ji, jj)) + vb(ji, jj - 1, mikt(ji, jj)))) ** 2)
             en(ji, jj, mikt(ji, jj)) = MAX(zetop, rn_emin) * (1._wp - tmask(ji, jj, 1))
           END DO
         END DO
@@ -156,7 +158,8 @@ MODULE zdftke
             zus = zcof * SQRT(taum(ji, jj))
             zind = 0.5 - SIGN(0.5, pdepw(ji, jj, jk) - zhlc(ji, jj))
             zwlc = zind * rn_lc * zus * SIN(rpi * pdepw(ji, jj, jk) / zhlc(ji, jj))
-            en(ji, jj, jk) = en(ji, jj, jk) + rdt * MAX(0., 1._wp - 4. * fr_i(ji, jj)) * (zwlc * zwlc * zwlc) / zhlc(ji, jj) * wmask(ji, jj, jk) * tmask(ji, jj, 1)
+            en(ji, jj, jk) = en(ji, jj, jk) + rdt * MAX(0., 1._wp - 4. * fr_i(ji, jj)) * (zwlc * zwlc * zwlc) / zhlc(ji, jj) * &
+&wmask(ji, jj, jk) * tmask(ji, jj, 1)
           END DO
         END DO
       END DO
@@ -184,7 +187,8 @@ MODULE zdftke
           zd_up(ji, jj, jk) = zzd_up
           zd_lw(ji, jj, jk) = zzd_lw
           zdiag(ji, jj, jk) = 1._wp - zzd_lw - zzd_up + zfact2 * dissl(ji, jj, jk) * wmask(ji, jj, jk)
-          en(ji, jj, jk) = en(ji, jj, jk) + rdt * (p_sh2(ji, jj, jk) - p_avt(ji, jj, jk) * rn2(ji, jj, jk) + zfact3 * dissl(ji, jj, jk) * en(ji, jj, jk)) * wmask(ji, jj, jk)
+          en(ji, jj, jk) = en(ji, jj, jk) + rdt * (p_sh2(ji, jj, jk) - p_avt(ji, jj, jk) * rn2(ji, jj, jk) + zfact3 * dissl(ji, &
+&jj, jk) * en(ji, jj, jk)) * wmask(ji, jj, jk)
         END DO
       END DO
     END DO
@@ -237,7 +241,8 @@ MODULE zdftke
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            en(ji, jj, jk) = en(ji, jj, jk) + rn_efr * en(ji, jj, 1) * EXP(- pdepw(ji, jj, jk) / htau(ji, jj)) * MAX(0., 1._wp - rn_eice * fr_i(ji, jj)) * wmask(ji, jj, jk) * tmask(ji, jj, 1)
+            en(ji, jj, jk) = en(ji, jj, jk) + rn_efr * en(ji, jj, 1) * EXP(- pdepw(ji, jj, jk) / htau(ji, jj)) * MAX(0., 1._wp - &
+&rn_eice * fr_i(ji, jj)) * wmask(ji, jj, jk) * tmask(ji, jj, 1)
           END DO
         END DO
       END DO
@@ -246,7 +251,8 @@ MODULE zdftke
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           jk = nmln(ji, jj)
-          en(ji, jj, jk) = en(ji, jj, jk) + rn_efr * en(ji, jj, 1) * EXP(- pdepw(ji, jj, jk) / htau(ji, jj)) * MAX(0., 1._wp - rn_eice * fr_i(ji, jj)) * wmask(ji, jj, jk) * tmask(ji, jj, 1)
+          en(ji, jj, jk) = en(ji, jj, jk) + rn_efr * en(ji, jj, 1) * EXP(- pdepw(ji, jj, jk) / htau(ji, jj)) * MAX(0., 1._wp - &
+&rn_eice * fr_i(ji, jj)) * wmask(ji, jj, jk) * tmask(ji, jj, 1)
         END DO
       END DO
     ELSE IF (nn_etau == 3) THEN
@@ -259,7 +265,8 @@ MODULE zdftke
             ztau = 0.5_wp * SQRT(ztx2 * ztx2 + zty2 * zty2) * tmask(ji, jj, 1)
             zdif = taum(ji, jj) - ztau
             zdif = rhftau_scl * MAX(0._wp, zdif + rhftau_add)
-            en(ji, jj, jk) = en(ji, jj, jk) + zbbrau * zdif * EXP(- pdepw(ji, jj, jk) / htau(ji, jj)) * MAX(0., 1._wp - rn_eice * fr_i(ji, jj)) * wmask(ji, jj, jk) * tmask(ji, jj, 1)
+            en(ji, jj, jk) = en(ji, jj, jk) + zbbrau * zdif * EXP(- pdepw(ji, jj, jk) / htau(ji, jj)) * MAX(0., 1._wp - rn_eice * &
+&fr_i(ji, jj)) * wmask(ji, jj, jk) * tmask(ji, jj, 1)
           END DO
         END DO
       END DO
@@ -315,7 +322,8 @@ MODULE zdftke
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            zemxl = MIN(pdepw(ji, jj, jk) - pdepw(ji, jj, mikt(ji, jj)), zmxlm(ji, jj, jk), pdepw(ji, jj, mbkt(ji, jj) + 1) - pdepw(ji, jj, jk))
+            zemxl = MIN(pdepw(ji, jj, jk) - pdepw(ji, jj, mikt(ji, jj)), zmxlm(ji, jj, jk), pdepw(ji, jj, mbkt(ji, jj) + 1) - &
+&pdepw(ji, jj, jk))
             zmxlm(ji, jj, jk) = zemxl * wmask(ji, jj, jk) + MIN(zmxlm(ji, jj, jk), p_e3w(ji, jj, jk)) * (1 - wmask(ji, jj, jk))
             zmxld(ji, jj, jk) = zemxl * wmask(ji, jj, jk) + MIN(zmxlm(ji, jj, jk), p_e3w(ji, jj, jk)) * (1 - wmask(ji, jj, jk))
           END DO
@@ -411,14 +419,11 @@ MODULE zdftke
     CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tke_avn
   SUBROUTINE zdf_tke_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE zdf_oce, ONLY: ln_zdfiwm
     INTEGER :: ji, jj, jk
     INTEGER :: ios
-    NAMELIST /namzdf_tke/ rn_ediff, rn_ediss, rn_ebb, rn_emin, rn_emin0, rn_bshear, nn_mxl, ln_mxl0, rn_mxl0, nn_pdl, ln_drg, ln_lc, rn_lc, nn_etau, nn_htau, rn_efr, rn_eice
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    CALL profile_psy_data0 % PreStart('zdf_tke_init', 'r0', 0, 0)
+    NAMELIST /namzdf_tke/ rn_ediff, rn_ediss, rn_ebb, rn_emin, rn_emin0, rn_bshear, nn_mxl, ln_mxl0, rn_mxl0, nn_pdl, ln_drg, &
+&ln_lc, rn_lc, nn_etau, nn_htau, rn_efr, rn_eice
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namzdf_tke, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namzdf_tke in reference namelist', lwp)
@@ -479,7 +484,6 @@ MODULE zdftke
       rn_mxl0 = rmxl_min
     END IF
     IF (nn_etau == 2) CALL zdf_mxl(nit000)
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     IF (nn_etau /= 0) THEN
       SELECT CASE (nn_htau)
@@ -501,7 +505,6 @@ MODULE zdftke
       END SELECT
     END IF
     !$ACC END KERNELS
-    CALL profile_psy_data1 % PreStart('zdf_tke_init', 'r1', 0, 0)
     CALL tke_rst(nit000, 'READ')
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('en')
@@ -509,57 +512,41 @@ MODULE zdftke
       CALL iom_set_rstw_var_active('avm_k')
       CALL iom_set_rstw_var_active('dissl')
     END IF
-    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE zdf_tke_init
   SUBROUTINE tke_rst(kt, cdrw)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE zdf_oce, ONLY: en, avt_k, avm_k
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
     INTEGER :: jit, jk
     INTEGER :: id1, id2, id3, id4
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
     IF (TRIM(cdrw) == 'READ') THEN
       IF (ln_rstart) THEN
-        CALL profile_psy_data0 % PreStart('tke_rst', 'r0', 0, 0)
         id1 = iom_varid(numror, 'en', ldstop = .FALSE.)
         id2 = iom_varid(numror, 'avt_k', ldstop = .FALSE.)
         id3 = iom_varid(numror, 'avm_k', ldstop = .FALSE.)
         id4 = iom_varid(numror, 'dissl', ldstop = .FALSE.)
-        CALL profile_psy_data0 % PostEnd
         IF (MIN(id1, id2, id3, id4) > 0) THEN
-          CALL profile_psy_data1 % PreStart('tke_rst', 'r1', 0, 0)
           CALL iom_get(numror, jpdom_autoglo, 'en', en, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'avt_k', avt_k, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'avm_k', avm_k, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'dissl', dissl, ldxios = lrxios)
-          CALL profile_psy_data1 % PostEnd
         ELSE
-          CALL profile_psy_data2 % PreStart('tke_rst', 'r2', 0, 0)
           IF (lwp) WRITE(numout, FMT = *)
           IF (lwp) WRITE(numout, FMT = *) '   ==>>>   previous run without TKE scheme, set en to background values'
-          CALL profile_psy_data2 % PostEnd
           !$ACC KERNELS
           en(:, :, :) = rn_emin * wmask(:, :, :)
           dissl(:, :, :) = 1.E-12_wp
           !$ACC END KERNELS
         END IF
       ELSE
-        CALL profile_psy_data3 % PreStart('tke_rst', 'r3', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   start from rest: set en to the background value'
-        CALL profile_psy_data3 % PostEnd
         !$ACC KERNELS
         en(:, :, :) = rn_emin * wmask(:, :, :)
         dissl(:, :, :) = 1.E-12_wp
         !$ACC END KERNELS
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
-      CALL profile_psy_data4 % PreStart('tke_rst', 'r4', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '---- tke_rst ----'
       IF (lwxios) CALL iom_swap(cwxios_context)
       CALL iom_rstput(kt, nitrst, numrow, 'en', en, ldxios = lwxios)
@@ -567,7 +554,6 @@ MODULE zdftke
       CALL iom_rstput(kt, nitrst, numrow, 'avm_k', avm_k, ldxios = lwxios)
       CALL iom_rstput(kt, nitrst, numrow, 'dissl', dissl, ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
-      CALL profile_psy_data4 % PostEnd
     END IF
   END SUBROUTINE tke_rst
 END MODULE zdftke

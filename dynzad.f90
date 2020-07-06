@@ -85,7 +85,8 @@ MODULE dynzad
       CALL profile_psy_data1 % PostEnd
     END IF
     CALL profile_psy_data2 % PreStart('dyn_zad', 'r2', 0, 0)
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' zad  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' zad  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = &
+&vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_zad')
     CALL profile_psy_data2 % PostEnd
   END SUBROUTINE dyn_zad

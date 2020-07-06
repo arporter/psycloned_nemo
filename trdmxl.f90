@@ -416,7 +416,6 @@ MODULE trdmxl
     IF (lrst_oce) CALL trd_mxl_rst_write(kt)
   END SUBROUTINE trd_mxl
   SUBROUTINE trd_mxl_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jl
     INTEGER :: inum
     INTEGER :: ios
@@ -424,9 +423,6 @@ MODULE trdmxl
     CHARACTER(LEN = 40) :: clop
     CHARACTER(LEN = 12) :: clmxl, cltu, clsu
     NAMELIST /namtrd_mxl/ nn_trd, cn_trdrst_in, ln_trdmxl_restart, nn_ctls, cn_trdrst_out, ln_trdmxl_instant, rn_ucf, rn_rho_c
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    CALL profile_psy_data0 % PreStart('trd_mxl_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namtrd_mxl, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namtrd_mxl in reference namelist', lwp)
@@ -447,7 +443,8 @@ MODULE trdmxl
       WRITE(numout, FMT = *) '      unit conversion factor                     rn_ucf             = ', rn_ucf
       WRITE(numout, FMT = *) '      criteria to compute the MLD                rn_rho_c           = ', rn_rho_c
     END IF
-    IF (rn_rho_c /= rho_c) CALL ctl_warn('Unless you have good reason to do so, you should use the value ', 'defined in zdfmxl.F90 module to calculate the mixed layer depth')
+    IF (rn_rho_c /= rho_c) CALL ctl_warn('Unless you have good reason to do so, you should use the value ', 'defined in zdfmxl.F90 &
+&module to calculate the mixed layer depth')
     IF (MOD(nitend, nn_trd) /= 0) THEN
       WRITE(numout, cform_err)
       WRITE(numout, FMT = *) '                Your nitend parameter, nitend = ', nitend
@@ -462,7 +459,6 @@ MODULE trdmxl
     END IF
     IF (trd_mxl_alloc() /= 0) CALL ctl_stop('STOP', 'trd_mxl_init : unable to allocate trdmxl     arrays')
     IF (trdmxl_oce_alloc() /= 0) CALL ctl_stop('STOP', 'trd_mxl_init : unable to allocate trdmxl_oce arrays')
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     nkstp = nit000 - 1
     nmoymltrd = 0
@@ -499,7 +495,6 @@ MODULE trdmxl
       smltrd_atf_sumb(:, :) = 0.E0
       !$ACC END KERNELS
     END IF
-    CALL profile_psy_data1 % PreStart('trd_mxl_init', 'r1', 0, 0)
     icount = 1
     ionce = 1
     IF (nn_ctls == 1) THEN
@@ -546,6 +541,5 @@ MODULE trdmxl
       cltu = "unknown?"
       clsu = "unknown?"
     END IF
-    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE trd_mxl_init
 END MODULE trdmxl

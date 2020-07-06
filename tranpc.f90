@@ -91,7 +91,8 @@ MODULE tranpc
                       WRITE(numout, FMT = *)
                       WRITE(numout, FMT = *) 'Time step = ', kt, ' !!!'
                     END IF
-                    WRITE(numout, FMT = *) ' * Iteration #', jiter, ': found instable portion #', ilayer, ' in column! Starting at ikp =', ikp
+                    WRITE(numout, FMT = *) ' * Iteration #', jiter, ': found instable portion #', ilayer, ' in column! Starting at &
+&ikp =', ikp
                     WRITE(numout, FMT = *) ' *** N2 for point (i,j) = ', ji, ' , ', jj
                     DO jk = 1, klc1
                       WRITE(numout, FMT = *) jk, zvn2(jk)
@@ -133,7 +134,8 @@ MODULE tranpc
                   zalfa = zsum_alfa / zsum_z
                   zbeta = zsum_beta / zsum_z
                   IF (lp_monitor_point) THEN
-                    WRITE(numout, FMT = *) 'MIXED T, S, alfa and beta between ikup =', ikup, ' and ikdown =', ikdown, ', in layer #', ilayer
+                    WRITE(numout, FMT = *) 'MIXED T, S, alfa and beta between ikup =', ikup, ' and ikdown =', ikdown, ', in layer &
+&#', ilayer
                     WRITE(numout, FMT = *) '  => Mean temp. in that portion =', zta
                     WRITE(numout, FMT = *) '  => Mean sali. in that portion =', zsa
                     WRITE(numout, FMT = *) '  => Mean Alfa  in that portion =', zalfa
@@ -151,7 +153,8 @@ MODULE tranpc
                     zrw = (gdepw_n(ji, jj, jk) - gdept_n(ji, jj, jk)) / (gdept_n(ji, jj, jk - 1) - gdept_n(ji, jj, jk))
                     zaw = zvab(jk, jp_tem) * (1._wp - zrw) + zvab(jk - 1, jp_tem) * zrw
                     zbw = zvab(jk, jp_sal) * (1._wp - zrw) + zvab(jk - 1, jp_sal) * zrw
-                    zvn2(jk) = grav * (zaw * (zvts(jk - 1, jp_tem) - zvts(jk, jp_tem)) - zbw * (zvts(jk - 1, jp_sal) - zvts(jk, jp_sal))) / e3w_n(ji, jj, jk) * tmask(ji, jj, jk)
+                    zvn2(jk) = grav * (zaw * (zvts(jk - 1, jp_tem) - zvts(jk, jp_tem)) - zbw * (zvts(jk - 1, jp_sal) - zvts(jk, &
+&jp_sal))) / e3w_n(ji, jj, jk) * tmask(ji, jj, jk)
                   END DO
                   ikp = MIN(ikdown + 1, ikbot)
                 END IF

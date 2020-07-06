@@ -45,10 +45,7 @@ MODULE nemogcm
   CHARACTER(LEN = lc) :: cform_aaa = "( /, 'AAAAAAAA', / ) "
   CONTAINS
   SUBROUTINE nemo_gcm
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: istp
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('nemo_gcm', 'r0', 0, 0)
     CALL nemo_init
     IF (lk_mpp) CALL mpp_max(nstop)
     IF (lwp) WRITE(numout, cform_aaa)
@@ -79,17 +76,13 @@ MODULE nemogcm
     ELSE IF (lk_mpp) THEN
       CALL mppstop
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE nemo_gcm
   SUBROUTINE nemo_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji
     INTEGER :: ios, ilocal_comm
     CHARACTER(LEN = 120), DIMENSION(60) :: cltxt, cltxt2, clnam
     NAMELIST /namctl/ ln_ctl, nn_print, nn_ictls, nn_ictle, nn_isplt, nn_jsplt, nn_jctls, nn_jctle, ln_timing, ln_diacfl
     NAMELIST /namcfg/ ln_read_cfg, cn_domcfg, ln_closea, ln_write_cfg, cn_domcfg_out, ln_use_jattr
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('nemo_init', 'r0', 0, 0)
     cltxt = ''
     cltxt2 = ''
     clnam = ''
@@ -215,7 +208,6 @@ MODULE nemogcm
     IF (lk_asminc) CALL asm_inc_init
     IF (lwp) WRITE(numout, cform_aaa)
     IF (ln_timing) CALL timing_stop('nemo_init')
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE nemo_init
   SUBROUTINE nemo_ctl
     IF (lwp) THEN
@@ -287,7 +279,8 @@ MODULE nemogcm
         END IF
       END IF
     END IF
-    IF (1._wp /= SIGN(1._wp, - 0._wp)) CALL ctl_stop('nemo_ctl: The intrinsec SIGN function follows f2003 standard.', 'Compile with key_nosignedzero enabled')
+    IF (1._wp /= SIGN(1._wp, - 0._wp)) CALL ctl_stop('nemo_ctl: The intrinsec SIGN function follows f2003 standard.', 'Compile &
+&with key_nosignedzero enabled')
   END SUBROUTINE nemo_ctl
   SUBROUTINE nemo_closefile
     IF (lk_mpp) CALL mppsync
@@ -308,14 +301,11 @@ MODULE nemogcm
     numout = 6
   END SUBROUTINE nemo_closefile
   SUBROUTINE nemo_alloc
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE diawri, ONLY: dia_wri_alloc
     USE dom_oce, ONLY: dom_oce_alloc
     USE trc_oce, ONLY: trc_oce_alloc
     USE bdy_oce, ONLY: bdy_oce_alloc
     INTEGER :: ierr
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('nemo_alloc', 'r0', 0, 0)
     ierr = oce_alloc()
     ierr = ierr + dia_wri_alloc()
     ierr = ierr + dom_oce_alloc()
@@ -324,6 +314,5 @@ MODULE nemogcm
     ierr = ierr + bdy_oce_alloc()
     IF (lk_mpp) CALL mpp_sum(ierr)
     IF (ierr /= 0) CALL ctl_stop('STOP', 'nemo_alloc: unable to allocate standard ocean arrays')
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE nemo_alloc
 END MODULE nemogcm

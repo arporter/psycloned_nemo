@@ -136,7 +136,8 @@ MODULE dynvor
       CALL profile_psy_data2 % PostEnd
     END IF
     CALL profile_psy_data3 % PreStart('dyn_vor', 'r3', 0, 0)
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' vor  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' vor  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = &
+&vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_vor')
     CALL profile_psy_data3 % PostEnd
   END SUBROUTINE dyn_vor
@@ -168,7 +169,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (e2v(ji + 1, jj) * pv(ji + 1, jj, jk) - e2v(ji, jj) * pv(ji, jj, jk) - e1u(ji, jj + 1) * pu(ji, jj + 1, jk) + e1u(ji, jj) * pu(ji, jj, jk)) * r1_e1e2f(ji, jj)
+            zwz(ji, jj) = (e2v(ji + 1, jj) * pv(ji + 1, jj, jk) - e2v(ji, jj) * pv(ji, jj, jk) - e1u(ji, jj + 1) * pu(ji, jj + 1, &
+&jk) + e1u(ji, jj) * pu(ji, jj, jk)) * r1_e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -187,7 +189,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpj
           DO ji = 2, jpi
-            zwt(ji, jj) = r1_4 * (zwz(ji - 1, jj) + zwz(ji, jj) + zwz(ji - 1, jj - 1) + zwz(ji, jj - 1)) * e1e2t(ji, jj) * e3t_n(ji, jj, jk)
+            zwt(ji, jj) = r1_4 * (zwz(ji - 1, jj) + zwz(ji, jj) + zwz(ji - 1, jj - 1) + zwz(ji, jj - 1)) * e1e2t(ji, jj) * &
+&e3t_n(ji, jj, jk)
           END DO
         END DO
         !$ACC END KERNELS
@@ -196,7 +199,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpj
           DO ji = 2, jpi
-            zwt(ji, jj) = ((pv(ji, jj, jk) + pv(ji, jj - 1, jk)) * di_e2u_2(ji, jj) - (pu(ji, jj, jk) + pu(ji - 1, jj, jk)) * dj_e1v_2(ji, jj)) * e3t_n(ji, jj, jk)
+            zwt(ji, jj) = ((pv(ji, jj, jk) + pv(ji, jj - 1, jk)) * di_e2u_2(ji, jj) - (pu(ji, jj, jk) + pu(ji - 1, jj, jk)) * &
+&dj_e1v_2(ji, jj)) * e3t_n(ji, jj, jk)
           END DO
         END DO
         !$ACC END KERNELS
@@ -205,7 +209,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (e2v(ji + 1, jj) * pv(ji + 1, jj, jk) - e2v(ji, jj) * pv(ji, jj, jk) - e1u(ji, jj + 1) * pu(ji, jj + 1, jk) + e1u(ji, jj) * pu(ji, jj, jk)) * r1_e1e2f(ji, jj)
+            zwz(ji, jj) = (e2v(ji + 1, jj) * pv(ji + 1, jj, jk) - e2v(ji, jj) * pv(ji, jj, jk) - e1u(ji, jj + 1) * pu(ji, jj + 1, &
+&jk) + e1u(ji, jj) * pu(ji, jj, jk)) * r1_e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -224,7 +229,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpj
           DO ji = 2, jpi
-            zwt(ji, jj) = (ff_t(ji, jj) + r1_4 * (zwz(ji - 1, jj) + zwz(ji, jj) + zwz(ji - 1, jj - 1) + zwz(ji, jj - 1))) * e1e2t(ji, jj) * e3t_n(ji, jj, jk)
+            zwt(ji, jj) = (ff_t(ji, jj) + r1_4 * (zwz(ji - 1, jj) + zwz(ji, jj) + zwz(ji - 1, jj - 1) + zwz(ji, jj - 1))) * &
+&e1e2t(ji, jj) * e3t_n(ji, jj, jk)
           END DO
         END DO
         !$ACC END KERNELS
@@ -233,7 +239,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpj
           DO ji = 2, jpi
-            zwt(ji, jj) = (ff_t(ji, jj) * e1e2t(ji, jj) + (pv(ji, jj, jk) + pv(ji, jj - 1, jk)) * di_e2u_2(ji, jj) - (pu(ji, jj, jk) + pu(ji - 1, jj, jk)) * dj_e1v_2(ji, jj)) * e3t_n(ji, jj, jk)
+            zwt(ji, jj) = (ff_t(ji, jj) * e1e2t(ji, jj) + (pv(ji, jj, jk) + pv(ji, jj - 1, jk)) * di_e2u_2(ji, jj) - (pu(ji, jj, &
+&jk) + pu(ji - 1, jj, jk)) * dj_e1v_2(ji, jj)) * e3t_n(ji, jj, jk)
           END DO
         END DO
         !$ACC END KERNELS
@@ -244,8 +251,10 @@ MODULE dynvor
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          pu_rhs(ji, jj, jk) = pu_rhs(ji, jj, jk) + r1_4 * r1_e1e2u(ji, jj) / e3u_n(ji, jj, jk) * (zwt(ji + 1, jj) * (pv(ji + 1, jj, jk) + pv(ji + 1, jj - 1, jk)) + zwt(ji, jj) * (pv(ji, jj, jk) + pv(ji, jj - 1, jk)))
-          pv_rhs(ji, jj, jk) = pv_rhs(ji, jj, jk) - r1_4 * r1_e1e2v(ji, jj) / e3v_n(ji, jj, jk) * (zwt(ji, jj + 1) * (pu(ji, jj + 1, jk) + pu(ji - 1, jj + 1, jk)) + zwt(ji, jj) * (pu(ji, jj, jk) + pu(ji - 1, jj, jk)))
+          pu_rhs(ji, jj, jk) = pu_rhs(ji, jj, jk) + r1_4 * r1_e1e2u(ji, jj) / e3u_n(ji, jj, jk) * (zwt(ji + 1, jj) * (pv(ji + 1, &
+&jj, jk) + pv(ji + 1, jj - 1, jk)) + zwt(ji, jj) * (pv(ji, jj, jk) + pv(ji, jj - 1, jk)))
+          pv_rhs(ji, jj, jk) = pv_rhs(ji, jj, jk) - r1_4 * r1_e1e2v(ji, jj) / e3v_n(ji, jj, jk) * (zwt(ji, jj + 1) * (pu(ji, jj + &
+&1, jk) + pu(ji - 1, jj + 1, jk)) + zwt(ji, jj) * (pu(ji, jj, jk) + pu(ji - 1, jj, jk)))
         END DO
       END DO
       !$ACC END KERNELS
@@ -279,7 +288,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)
+            zwz(ji, jj) = (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + &
+&1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -288,7 +298,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)
+            zwz(ji, jj) = (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, &
+&jk)) * dj_e1u_2e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -297,7 +308,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = ff_f(ji, jj) + (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)
+            zwz(ji, jj) = ff_f(ji, jj) + (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) &
+&* pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -306,7 +318,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = ff_f(ji, jj) + (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)
+            zwz(ji, jj) = ff_f(ji, jj) + (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + &
+&pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -378,7 +391,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)
+            zwz(ji, jj) = (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + &
+&1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -387,7 +401,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)
+            zwz(ji, jj) = (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, &
+&jk)) * dj_e1u_2e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -396,7 +411,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = ff_f(ji, jj) + (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)
+            zwz(ji, jj) = ff_f(ji, jj) + (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) &
+&* pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -405,7 +421,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = ff_f(ji, jj) + (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)
+            zwz(ji, jj) = ff_f(ji, jj) + (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + &
+&pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -474,7 +491,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            ze3f = (e3t_n(ji, jj + 1, jk) * tmask(ji, jj + 1, jk) + e3t_n(ji + 1, jj + 1, jk) * tmask(ji + 1, jj + 1, jk) + e3t_n(ji, jj, jk) * tmask(ji, jj, jk) + e3t_n(ji + 1, jj, jk) * tmask(ji + 1, jj, jk))
+            ze3f = (e3t_n(ji, jj + 1, jk) * tmask(ji, jj + 1, jk) + e3t_n(ji + 1, jj + 1, jk) * tmask(ji + 1, jj + 1, jk) + &
+&e3t_n(ji, jj, jk) * tmask(ji, jj, jk) + e3t_n(ji + 1, jj, jk) * tmask(ji + 1, jj, jk))
             IF (ze3f /= 0._wp) THEN
               z1_e3f(ji, jj) = 4._wp / ze3f
             ELSE
@@ -486,7 +504,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            ze3f = (e3t_n(ji, jj + 1, jk) * tmask(ji, jj + 1, jk) + e3t_n(ji + 1, jj + 1, jk) * tmask(ji + 1, jj + 1, jk) + e3t_n(ji, jj, jk) * tmask(ji, jj, jk) + e3t_n(ji + 1, jj, jk) * tmask(ji + 1, jj, jk))
+            ze3f = (e3t_n(ji, jj + 1, jk) * tmask(ji, jj + 1, jk) + e3t_n(ji + 1, jj + 1, jk) * tmask(ji + 1, jj + 1, jk) + &
+&e3t_n(ji, jj, jk) * tmask(ji, jj, jk) + e3t_n(ji + 1, jj, jk) * tmask(ji + 1, jj, jk))
             zmsk = (tmask(ji, jj + 1, jk) + tmask(ji + 1, jj + 1, jk) + tmask(ji, jj, jk) + tmask(ji + 1, jj, jk))
             IF (ze3f /= 0._wp) THEN
               z1_e3f(ji, jj) = zmsk / ze3f
@@ -512,7 +531,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj) * z1_e3f(ji, jj)
+            zwz(ji, jj) = (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + &
+&1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj) * z1_e3f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -521,7 +541,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = ((pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)) * z1_e3f(ji, jj)
+            zwz(ji, jj) = ((pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, &
+&jk)) * dj_e1u_2e1e2f(ji, jj)) * z1_e3f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -530,7 +551,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (ff_f(ji, jj) + (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)) * z1_e3f(ji, jj)
+            zwz(ji, jj) = (ff_f(ji, jj) + (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) &
+&* pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)) * z1_e3f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -539,7 +561,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (ff_f(ji, jj) + (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)) * z1_e3f(ji, jj)
+            zwz(ji, jj) = (ff_f(ji, jj) + (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + &
+&pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)) * z1_e3f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -583,8 +606,10 @@ MODULE dynvor
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          zua = + r1_12 * r1_e1u(ji, jj) * (ztne(ji, jj) * zwy(ji, jj) + ztnw(ji + 1, jj) * zwy(ji + 1, jj) + ztse(ji, jj) * zwy(ji, jj - 1) + ztsw(ji + 1, jj) * zwy(ji + 1, jj - 1))
-          zva = - r1_12 * r1_e2v(ji, jj) * (ztsw(ji, jj + 1) * zwx(ji - 1, jj + 1) + ztse(ji, jj + 1) * zwx(ji, jj + 1) + ztnw(ji, jj) * zwx(ji - 1, jj) + ztne(ji, jj) * zwx(ji, jj))
+          zua = + r1_12 * r1_e1u(ji, jj) * (ztne(ji, jj) * zwy(ji, jj) + ztnw(ji + 1, jj) * zwy(ji + 1, jj) + ztse(ji, jj) * &
+&zwy(ji, jj - 1) + ztsw(ji + 1, jj) * zwy(ji + 1, jj - 1))
+          zva = - r1_12 * r1_e2v(ji, jj) * (ztsw(ji, jj + 1) * zwx(ji - 1, jj + 1) + ztse(ji, jj + 1) * zwx(ji, jj + 1) + ztnw(ji, &
+&jj) * zwx(ji - 1, jj) + ztne(ji, jj) * zwx(ji, jj))
           pua(ji, jj, jk) = pua(ji, jj, jk) + zua
           pva(ji, jj, jk) = pva(ji, jj, jk) + zva
         END DO
@@ -628,7 +653,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)
+            zwz(ji, jj) = (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + &
+&1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -637,7 +663,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)
+            zwz(ji, jj) = (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, &
+&jk)) * dj_e1u_2e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -646,7 +673,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = (ff_f(ji, jj) + (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) * pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj))
+            zwz(ji, jj) = (ff_f(ji, jj) + (e2v(ji + 1, jj) * pvn(ji + 1, jj, jk) - e2v(ji, jj) * pvn(ji, jj, jk) - e1u(ji, jj + 1) &
+&* pun(ji, jj + 1, jk) + e1u(ji, jj) * pun(ji, jj, jk)) * r1_e1e2f(ji, jj))
           END DO
         END DO
         !$ACC END KERNELS
@@ -655,7 +683,8 @@ MODULE dynvor
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            zwz(ji, jj) = ff_f(ji, jj) + (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)
+            zwz(ji, jj) = ff_f(ji, jj) + (pvn(ji + 1, jj, jk) + pvn(ji, jj, jk)) * di_e2v_2e1e2f(ji, jj) - (pun(ji, jj + 1, jk) + &
+&pun(ji, jj, jk)) * dj_e1u_2e1e2f(ji, jj)
           END DO
         END DO
         !$ACC END KERNELS
@@ -701,8 +730,10 @@ MODULE dynvor
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          zua = + r1_12 * r1_e1u(ji, jj) * (ztne(ji, jj) * zwy(ji, jj) + ztnw(ji + 1, jj) * zwy(ji + 1, jj) + ztse(ji, jj) * zwy(ji, jj - 1) + ztsw(ji + 1, jj) * zwy(ji + 1, jj - 1))
-          zva = - r1_12 * r1_e2v(ji, jj) * (ztsw(ji, jj + 1) * zwx(ji - 1, jj + 1) + ztse(ji, jj + 1) * zwx(ji, jj + 1) + ztnw(ji, jj) * zwx(ji - 1, jj) + ztne(ji, jj) * zwx(ji, jj))
+          zua = + r1_12 * r1_e1u(ji, jj) * (ztne(ji, jj) * zwy(ji, jj) + ztnw(ji + 1, jj) * zwy(ji + 1, jj) + ztse(ji, jj) * &
+&zwy(ji, jj - 1) + ztsw(ji + 1, jj) * zwy(ji + 1, jj - 1))
+          zva = - r1_12 * r1_e2v(ji, jj) * (ztsw(ji, jj + 1) * zwx(ji - 1, jj + 1) + ztse(ji, jj + 1) * zwx(ji, jj + 1) + ztnw(ji, &
+&jj) * zwx(ji - 1, jj) + ztne(ji, jj) * zwx(ji, jj))
           pua(ji, jj, jk) = pua(ji, jj, jk) + zua
           pva(ji, jj, jk) = pva(ji, jj, jk) + zva
         END DO
@@ -711,16 +742,10 @@ MODULE dynvor
     END DO
   END SUBROUTINE vor_eeT
   SUBROUTINE dyn_vor_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: ioptio, ios
-    NAMELIST /namdyn_vor/ ln_dynvor_ens, ln_dynvor_ene, ln_dynvor_enT, ln_dynvor_eeT, ln_dynvor_een, nn_een_e3f, ln_dynvor_mix, ln_dynvor_msk
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
-    CALL profile_psy_data0 % PreStart('dyn_vor_init', 'r0', 0, 0)
+    NAMELIST /namdyn_vor/ ln_dynvor_ens, ln_dynvor_ene, ln_dynvor_enT, ln_dynvor_eeT, ln_dynvor_een, nn_een_e3f, ln_dynvor_mix, &
+&ln_dynvor_msk
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dyn_vor_init : vorticity term : read namelist and control the consistency'
@@ -748,13 +773,17 @@ MODULE dynvor
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) '      change fmask value in the angles (T)           ln_vorlat = ', ln_vorlat
     IF (ln_vorlat .AND. (ln_dynvor_ene .OR. ln_dynvor_ens .OR. ln_dynvor_mix)) THEN
+      !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
-            IF (tmask(ji, jj + 1, jk) + tmask(ji + 1, jj + 1, jk) + tmask(ji, jj, jk) + tmask(ji + 1, jj + 1, jk) == 3._wp) fmask(ji, jj, jk) = 1._wp
+            IF (tmask(ji, jj + 1, jk) + tmask(ji + 1, jj + 1, jk) + tmask(ji, jj, jk) + tmask(ji + 1, jj + 1, jk) == 3._wp) &
+&fmask(ji, jj, jk) = 1._wp
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
       CALL lbc_lnk(fmask, 'F', 1._wp)
     END IF
     ioptio = 0
@@ -785,26 +814,19 @@ MODULE dynvor
     IF (ioptio /= 1) CALL ctl_stop(' use ONE and ONLY one vorticity scheme')
     IF (lwp) WRITE(numout, FMT = *)
     ncor = np_COR
-    CALL profile_psy_data0 % PostEnd
     SELECT CASE (n_dynadv)
     CASE (np_LIN_dyn)
-      CALL profile_psy_data1 % PreStart('dyn_vor_init', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   linear dynamics : total vorticity = Coriolis'
       nrvm = np_COR
       ntot = np_COR
-      CALL profile_psy_data1 % PostEnd
     CASE (np_VEC_c2)
-      CALL profile_psy_data2 % PreStart('dyn_vor_init', 'r2', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   vector form dynamics : total vorticity = Coriolis + relative vorticity'
       nrvm = np_RVO
       ntot = np_CRV
-      CALL profile_psy_data2 % PostEnd
     CASE (np_FLX_c2, np_FLX_ubs)
-      CALL profile_psy_data3 % PreStart('dyn_vor_init', 'r3', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   flux form dynamics : total vorticity = Coriolis + metric term'
       nrvm = np_MET
       ntot = np_CME
-      CALL profile_psy_data3 % PostEnd
       SELECT CASE (nvor_scheme)
       CASE (np_ENT)
         ALLOCATE(di_e2u_2(jpi, jpj), dj_e1v_2(jpi, jpj))
@@ -832,7 +854,6 @@ MODULE dynvor
         CALL lbc_lnk_multi(di_e2v_2e1e2f, 'F', - 1., dj_e1u_2e1e2f, 'F', - 1.)
       END SELECT
     END SELECT
-    CALL profile_psy_data4 % PreStart('dyn_vor_init', 'r4', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       SELECT CASE (nvor_scheme)
@@ -850,6 +871,5 @@ MODULE dynvor
         WRITE(numout, FMT = *) '   ==>>>   mixed enstrophy/energy conserving scheme (MIX)'
       END SELECT
     END IF
-    CALL profile_psy_data4 % PostEnd
   END SUBROUTINE dyn_vor_init
 END MODULE dynvor

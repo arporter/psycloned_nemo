@@ -139,7 +139,8 @@ MODULE geo2ocean
     REAL(KIND = wp) :: zxuuf, zyuuf, znuuf
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     CALL profile_psy_data0 % PreStart('angle', 'r0', 0, 0)
-    ALLOCATE(gsint(jpi, jpj), gcost(jpi, jpj), gsinu(jpi, jpj), gcosu(jpi, jpj), gsinv(jpi, jpj), gcosv(jpi, jpj), gsinf(jpi, jpj), gcosf(jpi, jpj), STAT = ierr)
+    ALLOCATE(gsint(jpi, jpj), gcost(jpi, jpj), gsinu(jpi, jpj), gcosu(jpi, jpj), gsinv(jpi, jpj), gcosv(jpi, jpj), gsinf(jpi, &
+&jpj), gcosf(jpi, jpj), STAT = ierr)
     IF (lk_mpp) CALL mpp_sum(ierr)
     IF (ierr /= 0) CALL ctl_stop('angle: unable to allocate arrays')
     CALL profile_psy_data0 % PostEnd
@@ -231,7 +232,8 @@ MODULE geo2ocean
       END DO
     END DO
     !$ACC END KERNELS
-    CALL lbc_lnk_multi(gcost, 'T', - 1., gsint, 'T', - 1., gcosu, 'U', - 1., gsinu, 'U', - 1., gcosv, 'V', - 1., gsinv, 'V', - 1., gcosf, 'F', - 1., gsinf, 'F', - 1.)
+    CALL lbc_lnk_multi(gcost, 'T', - 1., gsint, 'T', - 1., gcosu, 'U', - 1., gsinu, 'U', - 1., gcosv, 'V', - 1., gsinv, 'V', - 1., &
+&gcosf, 'F', - 1., gsinf, 'F', - 1.)
   END SUBROUTINE angle
   SUBROUTINE geo2oce(pxx, pyy, pzz, cgrid, pte, ptn)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType

@@ -59,7 +59,9 @@ MODULE trdken
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj
         DO ji = 2, jpi
-          zke(ji, jj, jk) = 0.5_wp * rau0 * (un(ji, jj, jk) * putrd(ji, jj, jk) * bu(ji, jj, jk) + un(ji - 1, jj, jk) * putrd(ji - 1, jj, jk) * bu(ji - 1, jj, jk) + vn(ji, jj, jk) * pvtrd(ji, jj, jk) * bv(ji, jj, jk) + vn(ji, jj - 1, jk) * pvtrd(ji, jj - 1, jk) * bv(ji, jj - 1, jk)) * r1_bt(ji, jj, jk)
+          zke(ji, jj, jk) = 0.5_wp * rau0 * (un(ji, jj, jk) * putrd(ji, jj, jk) * bu(ji, jj, jk) + un(ji - 1, jj, jk) * putrd(ji - &
+&1, jj, jk) * bu(ji - 1, jj, jk) + vn(ji, jj, jk) * pvtrd(ji, jj, jk) * bv(ji, jj, jk) + vn(ji, jj - 1, jk) * pvtrd(ji, jj - 1, &
+&jk) * bv(ji, jj - 1, jk)) * r1_bt(ji, jj, jk)
         END DO
       END DO
     END DO
@@ -140,16 +142,12 @@ MODULE trdken
     !$ACC END KERNELS
   END SUBROUTINE ken_p2k
   SUBROUTINE trd_ken_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('trd_ken_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'trd_ken_init : 3D Kinetic Energy trends'
       WRITE(numout, FMT = *) '~~~~~~~~~~~~~'
     END IF
     IF (trd_ken_alloc() /= 0) CALL ctl_stop('trd_ken_alloc: failed to allocate arrays')
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE trd_ken_init
 END MODULE trdken

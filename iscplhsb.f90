@@ -35,6 +35,7 @@ MODULE iscplhsb
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
     !$ACC KERNELS
     zde3t = 0._wp
     zdsal = 0._wp
@@ -55,8 +56,10 @@ MODULE iscplhsb
         DO ji = 2, jpim1
           IF (tmask_h(ji, jj) == 1._wp) THEN
             zde3t = e3t_n(ji, jj, jk) * tmask(ji, jj, jk) - pe3t_b(ji, jj, jk) * ptmask_b(ji, jj, jk)
-            zdtem = tsn(ji, jj, jk, jp_tem) * e3t_n(ji, jj, jk) * tmask(ji, jj, jk) - tsb(ji, jj, jk, jp_tem) * pe3t_b(ji, jj, jk) * ptmask_b(ji, jj, jk)
-            zdsal = tsn(ji, jj, jk, jp_sal) * e3t_n(ji, jj, jk) * tmask(ji, jj, jk) - tsb(ji, jj, jk, jp_sal) * pe3t_b(ji, jj, jk) * ptmask_b(ji, jj, jk)
+            zdtem = tsn(ji, jj, jk, jp_tem) * e3t_n(ji, jj, jk) * tmask(ji, jj, jk) - tsb(ji, jj, jk, jp_tem) * pe3t_b(ji, jj, jk) &
+&* ptmask_b(ji, jj, jk)
+            zdsal = tsn(ji, jj, jk, jp_sal) * e3t_n(ji, jj, jk) * tmask(ji, jj, jk) - tsb(ji, jj, jk, jp_sal) * pe3t_b(ji, jj, jk) &
+&* ptmask_b(ji, jj, jk)
             IF (ptmask_b(ji, jj, jk) == 1._wp .OR. tmask(ji, jj, jk) == 1._wp) THEN
               zde3t = zde3t + zdssh(ji, jj)
               zdssh(ji, jj) = 0._wp
@@ -69,7 +72,8 @@ MODULE iscplhsb
               jim1 = ji - 1
               jjp1 = jj + 1
               jjm1 = jj - 1
-              zsum = e1e2t(ji, jjp1) * tmask(ji, jjp1, jk) + e1e2t(ji, jjm1) * tmask(ji, jjm1, jk) + e1e2t(jim1, jj) * tmask(jim1, jj, jk) + e1e2t(jip1, jj) * tmask(jip1, jj, jk)
+              zsum = e1e2t(ji, jjp1) * tmask(ji, jjp1, jk) + e1e2t(ji, jjm1) * tmask(ji, jjm1, jk) + e1e2t(jim1, jj) * tmask(jim1, &
+&jj, jk) + e1e2t(jip1, jj) * tmask(jip1, jj, jk)
               IF (zsum /= 0._wp) THEN
                 zjip1_ratio = e1e2t(jip1, jj) * tmask(jip1, jj, jk) / zsum
                 zjim1_ratio = e1e2t(jim1, jj) * tmask(jim1, jj, jk) / zsum
@@ -122,7 +126,8 @@ MODULE iscplhsb
     DO jk = 1, jpk - 1
       DO jj = 2, jpj - 1
         DO ji = 2, jpim1
-          IF (ptmask_b(ji, jj, jk) == 1._wp .AND. tmask(ji, jj, jk + 1) == 0._wp .AND. tmask_h(ji, jj) == 1._wp .AND. SUM(tmask(ji - 1 : ji + 1, jj, jk)) + SUM(tmask(ji, jj - 1 : jj + 1, jk)) == 0._wp) THEN
+          IF (ptmask_b(ji, jj, jk) == 1._wp .AND. tmask(ji, jj, jk + 1) == 0._wp .AND. tmask_h(ji, jj) == 1._wp .AND. SUM(tmask(ji &
+&- 1 : ji + 1, jj, jk)) + SUM(tmask(ji, jj - 1 : jj + 1, jk)) == 0._wp) THEN
             inpts(narea) = inpts(narea) + 1
           END IF
         END DO
@@ -147,7 +152,8 @@ MODULE iscplhsb
     DO jk = 1, jpk - 1
       DO jj = 2, jpj - 1
         DO ji = 2, jpim1
-          IF (ptmask_b(ji, jj, jk) == 1._wp .AND. tmask(ji, jj, jk + 1) == 0._wp .AND. tmask_h(ji, jj) == 1._wp .AND. SUM(tmask(ji - 1 : ji + 1, jj, jk)) + SUM(tmask(ji, jj - 1 : jj + 1, jk)) == 0._wp) THEN
+          IF (ptmask_b(ji, jj, jk) == 1._wp .AND. tmask(ji, jj, jk + 1) == 0._wp .AND. tmask_h(ji, jj) == 1._wp .AND. SUM(tmask(ji &
+&- 1 : ji + 1, jj, jk)) + SUM(tmask(ji, jj - 1 : jj + 1, jk)) == 0._wp) THEN
             jpts = jpts + 1
             ixpts(jpts) = ji
             iypts(jpts) = jj
@@ -170,8 +176,11 @@ MODULE iscplhsb
     CALL mpp_max(zcorr_vol, npts)
     CALL mpp_max(zcorr_sal, npts)
     CALL mpp_max(zcorr_tem, npts)
+    CALL profile_psy_data2 % PostEnd
     DO jpts = 1, npts
       CALL dom_ngb(zlon(jpts), zlat(jpts), ixpts(jpts), iypts(jpts), 'T', izpts(jpts))
+      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = mj0(iypts(jpts)), mj1(iypts(jpts))
         DO ji = mi0(ixpts(jpts)), mi1(ixpts(jpts))
           jk = izpts(jpts)
@@ -185,10 +194,12 @@ MODULE iscplhsb
           END IF
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
+    CALL profile_psy_data3 % PreStart('iscpl_cons', 'r3', 0, 0)
     DEALLOCATE(inpts)
     DEALLOCATE(ixpts, iypts, izpts, zcorr_vol, zcorr_sal, zcorr_tem, zlon, zlat)
-    CALL profile_psy_data2 % PostEnd
+    CALL profile_psy_data3 % PostEnd
     !$ACC KERNELS
     pvol_flx(:, :, :) = pvol_flx(:, :, :) * tmask(:, :, :)
     pts_flx(:, :, :, jp_sal) = pts_flx(:, :, :, jp_sal) * tmask(:, :, :)

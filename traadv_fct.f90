@@ -56,7 +56,8 @@ MODULE traadv_fct
     l_ptr = .FALSE.
     IF ((cdtype == 'TRA' .AND. l_trdtra) .OR. (cdtype == 'TRC' .AND. l_trdtrc)) l_trd = .TRUE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
-    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. &
+&iom_use("vadv_salttr"))) l_hst = .TRUE.
     CALL profile_psy_data0 % PostEnd
     IF (l_trd .OR. l_hst) THEN
       ALLOCATE(ztrdx(jpi, jpj, jpk), ztrdy(jpi, jpj, jpk), ztrdz(jpi, jpj, jpk))
@@ -126,7 +127,8 @@ MODULE traadv_fct
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            ztra = - (zwx(ji, jj, jk) - zwx(ji - 1, jj, jk) + zwy(ji, jj, jk) - zwy(ji, jj - 1, jk) + zwz(ji, jj, jk) - zwz(ji, jj, jk + 1)) * r1_e1e2t(ji, jj)
+            ztra = - (zwx(ji, jj, jk) - zwx(ji - 1, jj, jk) + zwy(ji, jj, jk) - zwy(ji, jj - 1, jk) + zwz(ji, jj, jk) - zwz(ji, &
+&jj, jk + 1)) * r1_e1e2t(ji, jj)
             pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + ztra / e3t_n(ji, jj, jk) * tmask(ji, jj, jk)
             zwi(ji, jj, jk) = (e3t_b(ji, jj, jk) * ptb(ji, jj, jk, jn) + p2dt * ztra) / e3t_a(ji, jj, jk) * tmask(ji, jj, jk)
           END DO
@@ -230,7 +232,8 @@ MODULE traadv_fct
           !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
-              zwz(ji, jj, jk) = (pwn(ji, jj, jk) * 0.5_wp * (ptn(ji, jj, jk, jn) + ptn(ji, jj, jk - 1, jn)) - zwz(ji, jj, jk)) * wmask(ji, jj, jk)
+              zwz(ji, jj, jk) = (pwn(ji, jj, jk) * 0.5_wp * (ptn(ji, jj, jk, jn) + ptn(ji, jj, jk - 1, jn)) - zwz(ji, jj, jk)) * &
+&wmask(ji, jj, jk)
             END DO
           END DO
         END DO
@@ -262,7 +265,8 @@ MODULE traadv_fct
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (zwx(ji, jj, jk) - zwx(ji - 1, jj, jk) + zwy(ji, jj, jk) - zwy(ji, jj - 1, jk) + zwz(ji, jj, jk) - zwz(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
+            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (zwx(ji, jj, jk) - zwx(ji - 1, jj, jk) + zwy(ji, jj, jk) - zwy(ji, jj - 1, &
+&jk) + zwz(ji, jj, jk) - zwz(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
           END DO
         END DO
       END DO
@@ -319,10 +323,14 @@ MODULE traadv_fct
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          zup = MAX(zbup(ji, jj, jk), zbup(ji - 1, jj, jk), zbup(ji + 1, jj, jk), zbup(ji, jj - 1, jk), zbup(ji, jj + 1, jk), zbup(ji, jj, ikm1), zbup(ji, jj, jk + 1))
-          zdo = MIN(zbdo(ji, jj, jk), zbdo(ji - 1, jj, jk), zbdo(ji + 1, jj, jk), zbdo(ji, jj - 1, jk), zbdo(ji, jj + 1, jk), zbdo(ji, jj, ikm1), zbdo(ji, jj, jk + 1))
-          zpos = MAX(0., paa(ji - 1, jj, jk)) - MIN(0., paa(ji, jj, jk)) + MAX(0., pbb(ji, jj - 1, jk)) - MIN(0., pbb(ji, jj, jk)) + MAX(0., pcc(ji, jj, jk + 1)) - MIN(0., pcc(ji, jj, jk))
-          zneg = MAX(0., paa(ji, jj, jk)) - MIN(0., paa(ji - 1, jj, jk)) + MAX(0., pbb(ji, jj, jk)) - MIN(0., pbb(ji, jj - 1, jk)) + MAX(0., pcc(ji, jj, jk)) - MIN(0., pcc(ji, jj, jk + 1))
+          zup = MAX(zbup(ji, jj, jk), zbup(ji - 1, jj, jk), zbup(ji + 1, jj, jk), zbup(ji, jj - 1, jk), zbup(ji, jj + 1, jk), &
+&zbup(ji, jj, ikm1), zbup(ji, jj, jk + 1))
+          zdo = MIN(zbdo(ji, jj, jk), zbdo(ji - 1, jj, jk), zbdo(ji + 1, jj, jk), zbdo(ji, jj - 1, jk), zbdo(ji, jj + 1, jk), &
+&zbdo(ji, jj, ikm1), zbdo(ji, jj, jk + 1))
+          zpos = MAX(0., paa(ji - 1, jj, jk)) - MIN(0., paa(ji, jj, jk)) + MAX(0., pbb(ji, jj - 1, jk)) - MIN(0., pbb(ji, jj, jk)) &
+&+ MAX(0., pcc(ji, jj, jk + 1)) - MIN(0., pcc(ji, jj, jk))
+          zneg = MAX(0., paa(ji, jj, jk)) - MIN(0., paa(ji - 1, jj, jk)) + MAX(0., pbb(ji, jj, jk)) - MIN(0., pbb(ji, jj - 1, jk)) &
+&+ MAX(0., pcc(ji, jj, jk)) - MIN(0., pcc(ji, jj, jk + 1))
           zbt = e1e2t(ji, jj) * e3t_n(ji, jj, jk) / p2dt
           zbetup(ji, jj, jk) = (zup - paft(ji, jj, jk)) / (zpos + zrtrn) * zbt
           zbetdo(ji, jj, jk) = (paft(ji, jj, jk) - zdo) / (zneg + zrtrn) * zbt
@@ -355,14 +363,13 @@ MODULE traadv_fct
     CALL lbc_lnk_multi(paa, 'U', - 1., pbb, 'V', - 1.)
   END SUBROUTINE nonosc
   SUBROUTINE interp_4th_cpt_org(pt_in, pt_out)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: pt_in
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(OUT) :: pt_out
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwd, zwi, zws, zwrm, zwt
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('interp_4th_cpt_org', 'r0', 0, 0)
+    !$ACC KERNELS
     DO jk = 3, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zwd(ji, jj, jk) = 4._wp
@@ -378,8 +385,6 @@ MODULE traadv_fct
         END DO
       END DO
     END DO
-    CALL profile_psy_data0 % PostEnd
-    !$ACC KERNELS
     jk = 2
     !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj

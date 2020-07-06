@@ -132,16 +132,15 @@ MODULE traadv
       CALL profile_psy_data2 % PostEnd
     END IF
     CALL profile_psy_data3 % PreStart('tra_adv', 'r3', 0, 0)
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' adv  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' adv  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, &
+&jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_adv')
     CALL profile_psy_data3 % PostEnd
   END SUBROUTINE tra_adv
   SUBROUTINE tra_adv_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ioptio, ios
-    NAMELIST /namtra_adv/ ln_traadv_OFF, ln_traadv_cen, nn_cen_h, nn_cen_v, ln_traadv_fct, nn_fct_h, nn_fct_v, ln_traadv_mus, ln_mus_ups, ln_traadv_ubs, nn_ubs_v, ln_traadv_qck
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('tra_adv_init', 'r0', 0, 0)
+    NAMELIST /namtra_adv/ ln_traadv_OFF, ln_traadv_cen, nn_cen_h, nn_cen_v, ln_traadv_fct, nn_fct_h, nn_fct_v, ln_traadv_mus, &
+&ln_mus_ups, ln_traadv_ubs, nn_ubs_v, ln_traadv_qck
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namtra_adv, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namtra_adv in reference namelist', lwp)
@@ -206,7 +205,8 @@ MODULE traadv
       CALL ctl_warn('tra_adv_init: UBS scheme, only 2nd FCT scheme available on the vertical. It will be used')
     END IF
     IF (ln_isfcav) THEN
-      IF (ln_traadv_cen .AND. nn_cen_v == 4 .OR. ln_traadv_fct .AND. nn_fct_v == 4) CALL ctl_stop('tra_adv_init: 4th order COMPACT scheme not allowed with ISF')
+      IF (ln_traadv_cen .AND. nn_cen_v == 4 .OR. ln_traadv_fct .AND. nn_fct_v == 4) CALL ctl_stop('tra_adv_init: 4th order COMPACT &
+&scheme not allowed with ISF')
     END IF
     IF (lwp) THEN
       WRITE(numout, FMT = *)
@@ -226,6 +226,5 @@ MODULE traadv
       END SELECT
     END IF
     CALL tra_mle_init
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tra_adv_init
 END MODULE traadv

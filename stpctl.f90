@@ -66,9 +66,11 @@ MODULE stpctl
       nstop = NINT(zmax(5))
     END IF
     IF (MOD(kt, nwrite) == 1 .AND. lwp) THEN
-      WRITE(numout, FMT = *) ' ==>> time-step= ', kt, ' |ssh| max: ', zmax(1), ' |U| max: ', zmax(2), ' S min: ', - zmax(3), ' S max: ', zmax(4)
+      WRITE(numout, FMT = *) ' ==>> time-step= ', kt, ' |ssh| max: ', zmax(1), ' |U| max: ', zmax(2), ' S min: ', - zmax(3), ' S &
+&max: ', zmax(4)
     END IF
-    IF (zmax(1) > 15._wp .OR. zmax(2) > 10._wp .OR. zmax(3) >= 0._wp .OR. zmax(4) >= 100._wp .OR. zmax(4) < 0._wp .OR. ieee_is_nan(zmax(1) + zmax(2) + zmax(3))) THEN
+    IF (zmax(1) > 15._wp .OR. zmax(2) > 10._wp .OR. zmax(3) >= 0._wp .OR. zmax(4) >= 100._wp .OR. zmax(4) < 0._wp .OR. &
+&ieee_is_nan(zmax(1) + zmax(2) + zmax(3))) THEN
       IF (lk_mpp) THEN
         CALL mpp_maxloc(ABS(sshn), ssmask(:, :), zzz, iih, ijh)
         CALL mpp_maxloc(ABS(un), umask(:, :, :), zzz, iiu, iju, iku)

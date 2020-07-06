@@ -117,8 +117,10 @@ MODULE dynzdf
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ze3ua = (1._wp - r_vvl) * e3u_n(ji, jj, jk) + r_vvl * e3u_a(ji, jj, jk)
-            zzwi = - zdt * (avm(ji + 1, jj, jk) + avm(ji, jj, jk) + akzu(ji, jj, jk)) / (ze3ua * e3uw_n(ji, jj, jk)) * wumask(ji, jj, jk)
-            zzws = - zdt * (avm(ji + 1, jj, jk + 1) + avm(ji, jj, jk + 1) + akzu(ji, jj, jk + 1)) / (ze3ua * e3uw_n(ji, jj, jk + 1)) * wumask(ji, jj, jk + 1)
+            zzwi = - zdt * (avm(ji + 1, jj, jk) + avm(ji, jj, jk) + akzu(ji, jj, jk)) / (ze3ua * e3uw_n(ji, jj, jk)) * wumask(ji, &
+&jj, jk)
+            zzws = - zdt * (avm(ji + 1, jj, jk + 1) + avm(ji, jj, jk + 1) + akzu(ji, jj, jk + 1)) / (ze3ua * e3uw_n(ji, jj, jk + &
+&1)) * wumask(ji, jj, jk + 1)
             zwi(ji, jj, jk) = zzwi
             zws(ji, jj, jk) = zzws
             zwd(ji, jj, jk) = 1._wp - zzwi - zzws
@@ -132,7 +134,8 @@ MODULE dynzdf
           DO ji = 2, jpim1
             ze3ua = (1._wp - r_vvl) * e3u_n(ji, jj, jk) + r_vvl * e3u_a(ji, jj, jk)
             zzwi = - zdt * (avm(ji + 1, jj, jk) + avm(ji, jj, jk)) / (ze3ua * e3uw_n(ji, jj, jk)) * wumask(ji, jj, jk)
-            zzws = - zdt * (avm(ji + 1, jj, jk + 1) + avm(ji, jj, jk + 1)) / (ze3ua * e3uw_n(ji, jj, jk + 1)) * wumask(ji, jj, jk + 1)
+            zzws = - zdt * (avm(ji + 1, jj, jk + 1) + avm(ji, jj, jk + 1)) / (ze3ua * e3uw_n(ji, jj, jk + 1)) * wumask(ji, jj, jk &
+&+ 1)
             zwi(ji, jj, jk) = zzwi
             zws(ji, jj, jk) = zzws
             zwd(ji, jj, jk) = 1._wp - zzwi - zzws
@@ -218,8 +221,10 @@ MODULE dynzdf
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ze3va = (1._wp - r_vvl) * e3v_n(ji, jj, jk) + r_vvl * e3v_a(ji, jj, jk)
-            zzwi = - zdt * (avm(ji, jj + 1, jk) + avm(ji, jj, jk) + akzv(ji, jj, jk)) / (ze3va * e3vw_n(ji, jj, jk)) * wvmask(ji, jj, jk)
-            zzws = - zdt * (avm(ji, jj + 1, jk + 1) + avm(ji, jj, jk + 1) + akzv(ji, jj, jk + 1)) / (ze3va * e3vw_n(ji, jj, jk + 1)) * wvmask(ji, jj, jk + 1)
+            zzwi = - zdt * (avm(ji, jj + 1, jk) + avm(ji, jj, jk) + akzv(ji, jj, jk)) / (ze3va * e3vw_n(ji, jj, jk)) * wvmask(ji, &
+&jj, jk)
+            zzws = - zdt * (avm(ji, jj + 1, jk + 1) + avm(ji, jj, jk + 1) + akzv(ji, jj, jk + 1)) / (ze3va * e3vw_n(ji, jj, jk + &
+&1)) * wvmask(ji, jj, jk + 1)
             zwi(ji, jj, jk) = zzwi * wvmask(ji, jj, jk)
             zws(ji, jj, jk) = zzws * wvmask(ji, jj, jk + 1)
             zwd(ji, jj, jk) = 1._wp - zzwi - zzws
@@ -233,7 +238,8 @@ MODULE dynzdf
           DO ji = 2, jpim1
             ze3va = (1._wp - r_vvl) * e3v_n(ji, jj, jk) + r_vvl * e3v_a(ji, jj, jk)
             zzwi = - zdt * (avm(ji, jj + 1, jk) + avm(ji, jj, jk)) / (ze3va * e3vw_n(ji, jj, jk)) * wvmask(ji, jj, jk)
-            zzws = - zdt * (avm(ji, jj + 1, jk + 1) + avm(ji, jj, jk + 1)) / (ze3va * e3vw_n(ji, jj, jk + 1)) * wvmask(ji, jj, jk + 1)
+            zzws = - zdt * (avm(ji, jj + 1, jk + 1) + avm(ji, jj, jk + 1)) / (ze3va * e3vw_n(ji, jj, jk + 1)) * wvmask(ji, jj, jk &
+&+ 1)
             zwi(ji, jj, jk) = zzwi * wvmask(ji, jj, jk)
             zws(ji, jj, jk) = zzws * wvmask(ji, jj, jk + 1)
             zwd(ji, jj, jk) = 1._wp - zzwi - zzws
@@ -323,7 +329,8 @@ MODULE dynzdf
       CALL profile_psy_data1 % PostEnd
     END IF
     CALL profile_psy_data2 % PreStart('dyn_zdf', 'r2', 0, 0)
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' zdf  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' zdf  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = &
+&vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_zdf')
     CALL profile_psy_data2 % PostEnd
   END SUBROUTINE dyn_zdf

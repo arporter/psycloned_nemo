@@ -145,7 +145,8 @@ MODULE sbcblk_algo_ncar
         zx2 = MAX(zx2, 1.)
         zx = SQRT(zx2)
         zstab = 0.5 + SIGN(0.5, pzeta(ji, jj))
-        psi_m(ji, jj) = zstab * (- 5. * pzeta(ji, jj)) + (1. - zstab) * (2. * LOG((1. + zx) * 0.5) + LOG((1. + zx2) * 0.5) - 2. * ATAN(zx) + rpi * 0.5)
+        psi_m(ji, jj) = zstab * (- 5. * pzeta(ji, jj)) + (1. - zstab) * (2. * LOG((1. + zx) * 0.5) + LOG((1. + zx2) * 0.5) - 2. * &
+&ATAN(zx) + rpi * 0.5)
       END DO
     END DO
     !$ACC END KERNELS

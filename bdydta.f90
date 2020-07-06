@@ -149,11 +149,14 @@ MODULE bdydta
               IF (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3) THEN
                 jend = jstart + dta % nread(2) - 1
                 IF (ln_full_vel_array(jbdy)) THEN
-                  CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kit = jit, kt_offset = time_offset, jpk_bdy = nb_jpk_bdy, fvl = ln_full_vel_array(jbdy))
+                  CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kit = jit, &
+&kt_offset = time_offset, jpk_bdy = nb_jpk_bdy, fvl = ln_full_vel_array(jbdy))
                 ELSE
-                  CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kit = jit, kt_offset = time_offset)
+                  CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kit = jit, &
+&kt_offset = time_offset)
                 END IF
-                IF (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3 .OR. nn_dyn3d_dta(jbdy) == 1)) THEN
+                IF (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3 .OR. nn_dyn3d_dta(jbdy) == &
+&1)) THEN
                   igrd = 2
                   dta % u2d(:) = 0._wp
                   DO ib = 1, idx_bdy(jbdy) % nblen(igrd)
@@ -205,9 +208,11 @@ MODULE bdydta
             END IF
             IF (dta % nread(1) .GT. 0) THEN
               jend = jstart + dta % nread(1) - 1
-              CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kt_offset = time_offset, jpk_bdy = nb_jpk_bdy, fvl = ln_full_vel_array(jbdy))
+              CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kt_offset = time_offset, &
+&jpk_bdy = nb_jpk_bdy, fvl = ln_full_vel_array(jbdy))
             END IF
-            IF (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3 .OR. nn_dyn3d_dta(jbdy) == 1)) THEN
+            IF (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3 .OR. nn_dyn3d_dta(jbdy) == 1)) &
+&THEN
               igrd = 2
               dta % u2d(:) = 0._wp
               DO ib = 1, idx_bdy(jbdy) % nblen(igrd)
@@ -286,7 +291,6 @@ MODULE bdydta
     CALL profile_psy_data7 % PostEnd
   END SUBROUTINE bdy_dta
   SUBROUTINE bdy_dta_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jbdy, jfld, jstart, jend, ierror, ios
     CHARACTER(LEN = 100) :: cn_dir
     CHARACTER(LEN = 100), DIMENSION(nb_bdy) :: cn_dir_array
@@ -303,9 +307,6 @@ MODULE bdydta
     TYPE(FLD_N) :: bn_ssh, bn_u2d, bn_v2d
     NAMELIST /nambdy_dta/ cn_dir, bn_tem, bn_sal, bn_u3d, bn_v3d, bn_ssh, bn_u2d, bn_v2d
     NAMELIST /nambdy_dta/ ln_full_vel, nb_jpk_bdy
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    CALL profile_psy_data0 % PreStart('bdy_dta_init', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'bdy_dta_ini : initialization of data at the open boundaries'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~'
@@ -315,11 +316,9 @@ MODULE bdydta
       IF (nn_dta(jbdy) > 1) nn_dta(jbdy) = 1
     END DO
     ALLOCATE(nb_bdy_fld(nb_bdy))
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     nb_bdy_fld(:) = 0
     !$ACC END KERNELS
-    CALL profile_psy_data1 % PreStart('bdy_dta_init', 'r1', 0, 0)
     DO jbdy = 1, nb_bdy
       IF (cn_dyn2d(jbdy) /= 'none' .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3)) THEN
         nb_bdy_fld(jbdy) = nb_bdy_fld(jbdy) + 3
@@ -399,7 +398,8 @@ MODULE bdydta
             dta % nread(2) = dta % nread(2) + 1
           END IF
         END IF
-        IF (nn_dyn3d_dta(jbdy) == 1 .OR. (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3))) THEN
+        IF (nn_dyn3d_dta(jbdy) == 1 .OR. (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3))) &
+&THEN
           IF (dta % ll_u3d .OR. (ln_full_vel_array(jbdy) .AND. dta % ll_u2d)) THEN
             IF (lwp) WRITE(numout, FMT = *) '++++++ reading in u3d field'
             jfld = jfld + 1
@@ -461,7 +461,8 @@ MODULE bdydta
     jstart = 1
     DO jbdy = 1, nb_bdy
       jend = jstart - 1 + nb_bdy_fld(jbdy)
-      CALL fld_fill(bf(jstart : jend), blf_i(jstart : jend), cn_dir_array(jbdy), 'bdy_dta', 'open boundary conditions', 'nambdy_dta')
+      CALL fld_fill(bf(jstart : jend), blf_i(jstart : jend), cn_dir_array(jbdy), 'bdy_dta', 'open boundary conditions', &
+&'nambdy_dta')
       jstart = jend + 1
     END DO
     DO jfld = 1, nb_bdy_fld_sum
@@ -548,6 +549,5 @@ MODULE bdydta
         END IF
       END IF
     END DO
-    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE bdy_dta_init
 END MODULE bdydta

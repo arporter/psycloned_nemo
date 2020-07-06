@@ -163,7 +163,8 @@ MODULE bdydyn2d
         zcoef2 = bdytmask(ii, ij - 1) + bdytmask(ii, ij + 1)
         IF (zcoef1 + zcoef2 == 0) THEN
           zcoef = bdytmask(ii - 1, ij) + bdytmask(ii + 1, ij) + bdytmask(ii, ij - 1) + bdytmask(ii, ij + 1)
-          zssh(ii, ij) = zssh(ii - 1, ij) * bdytmask(ii - 1, ij) + zssh(ii + 1, ij) * bdytmask(ii + 1, ij) + zssh(ii, ij - 1) * bdytmask(ii, ij - 1) + zssh(ii, ij + 1) * bdytmask(ii, ij + 1)
+          zssh(ii, ij) = zssh(ii - 1, ij) * bdytmask(ii - 1, ij) + zssh(ii + 1, ij) * bdytmask(ii + 1, ij) + zssh(ii, ij - 1) * &
+&bdytmask(ii, ij - 1) + zssh(ii, ij + 1) * bdytmask(ii, ij + 1)
           zssh(ii, ij) = (zssh(ii, ij) / MAX(1, zcoef)) * tmask(ii, ij, 1)
         ELSE
           ip = bdytmask(ii + 1, ij) - bdytmask(ii - 1, ij)

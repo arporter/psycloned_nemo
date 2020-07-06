@@ -20,7 +20,8 @@ MODULE obs_rot_vel
     INTEGER, INTENT(IN) :: k2dint
     REAL(KIND = wp), DIMENSION(*) :: pu, pv
     REAL(KIND = wp), DIMENSION(2, 2, 1) :: zweig
-    REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: zmasku, zmaskv, zcoslu, zsinlu, zcoslv, zsinlv, zglamu, zgphiu, zglamv, zgphiv
+    REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: zmasku, zmaskv, zcoslu, zsinlu, zcoslv, zsinlv, zglamu, zgphiu, zglamv, &
+&zgphiv
     REAL(KIND = wp), DIMENSION(1) :: zsinu, zcosu, zsinv, zcosv
     REAL(KIND = wp) :: zsin
     REAL(KIND = wp) :: zcos
@@ -31,7 +32,10 @@ MODULE obs_rot_vel
     INTEGER :: jk
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     CALL profile_psy_data0 % PreStart('obs_rotvel', 'r0', 0, 0)
-    ALLOCATE(igrdiu(2, 2, profdata % nprof), igrdju(2, 2, profdata % nprof), zglamu(2, 2, profdata % nprof), zgphiu(2, 2, profdata % nprof), zmasku(2, 2, profdata % nprof), zcoslu(2, 2, profdata % nprof), zsinlu(2, 2, profdata % nprof), igrdiv(2, 2, profdata % nprof), igrdjv(2, 2, profdata % nprof), zglamv(2, 2, profdata % nprof), zgphiv(2, 2, profdata % nprof), zmaskv(2, 2, profdata % nprof), zcoslv(2, 2, profdata % nprof), zsinlv(2, 2, profdata % nprof))
+    ALLOCATE(igrdiu(2, 2, profdata % nprof), igrdju(2, 2, profdata % nprof), zglamu(2, 2, profdata % nprof), zgphiu(2, 2, profdata &
+&% nprof), zmasku(2, 2, profdata % nprof), zcoslu(2, 2, profdata % nprof), zsinlu(2, 2, profdata % nprof), igrdiv(2, 2, profdata % &
+&nprof), igrdjv(2, 2, profdata % nprof), zglamv(2, 2, profdata % nprof), zgphiv(2, 2, profdata % nprof), zmaskv(2, 2, profdata % &
+&nprof), zcoslv(2, 2, profdata % nprof), zsinlv(2, 2, profdata % nprof))
     CALL obs_rot(zsingu, zcosgu, zsingv, zcosgv)
     DO ji = 1, profdata % nprof
       igrdiu(1, 1, ji) = profdata % mi(ji, 1) - 1
@@ -62,10 +66,12 @@ MODULE obs_rot_vel
     CALL obs_int_comm_2d(2, 2, profdata % nprof, jpi, jpj, igrdiv, igrdjv, zsingv, zsinlv)
     CALL obs_int_comm_2d(2, 2, profdata % nprof, jpi, jpj, igrdiv, igrdjv, zcosgv, zcoslv)
     DO ji = 1, profdata % nprof
-      CALL obs_int_h2d_init(1, 1, k2dint, profdata % rlam(ji), profdata % rphi(ji), zglamu(:, :, ji), zgphiu(:, :, ji), zmasku(:, :, ji), zweig, zobsmask)
+      CALL obs_int_h2d_init(1, 1, k2dint, profdata % rlam(ji), profdata % rphi(ji), zglamu(:, :, ji), zgphiu(:, :, ji), zmasku(:, &
+&:, ji), zweig, zobsmask)
       CALL obs_int_h2d(1, 1, zweig, zsinlu(:, :, ji), zsinu)
       CALL obs_int_h2d(1, 1, zweig, zcoslu(:, :, ji), zcosu)
-      CALL obs_int_h2d_init(1, 1, k2dint, profdata % rlam(ji), profdata % rphi(ji), zglamv(:, :, ji), zgphiv(:, :, ji), zmaskv(:, :, ji), zweig, zobsmask)
+      CALL obs_int_h2d_init(1, 1, k2dint, profdata % rlam(ji), profdata % rphi(ji), zglamv(:, :, ji), zgphiv(:, :, ji), zmaskv(:, &
+&:, ji), zweig, zobsmask)
       CALL obs_int_h2d(1, 1, zweig, zsinlv(:, :, ji), zsinv)
       CALL obs_int_h2d(1, 1, zweig, zcoslv(:, :, ji), zcosv)
       zcos = 0.5_wp * (zcosu(1) + zcosv(1))

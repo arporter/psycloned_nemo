@@ -78,7 +78,8 @@ MODULE zdfgls
   REAL(KIND = wp) :: r2_3 = 2._wp / 3._wp
   CONTAINS
   INTEGER FUNCTION zdf_gls_alloc()
-    ALLOCATE(hmxl_n(jpi, jpj, jpk), ustar2_surf(jpi, jpj), zwall(jpi, jpj, jpk), ustar2_top(jpi, jpj), ustar2_bot(jpi, jpj), STAT = zdf_gls_alloc)
+    ALLOCATE(hmxl_n(jpi, jpj, jpk), ustar2_surf(jpi, jpj), zwall(jpi, jpj, jpk), ustar2_top(jpi, jpj), ustar2_bot(jpi, jpj), STAT &
+&= zdf_gls_alloc)
     IF (lk_mpp) CALL mpp_sum(zdf_gls_alloc)
     IF (zdf_gls_alloc /= 0) CALL ctl_warn('zdf_gls_alloc: failed to allocate arrays')
   END FUNCTION zdf_gls_alloc
@@ -123,7 +124,8 @@ MODULE zdfgls
         ustar2_surf(ji, jj) = r1_rau0 * taum(ji, jj) * tmask(ji, jj, 1)
         zmsku = (2._wp - umask(ji - 1, jj, mbkt(ji, jj)) * umask(ji, jj, mbkt(ji, jj)))
         zmskv = (2._wp - vmask(ji, jj - 1, mbkt(ji, jj)) * vmask(ji, jj, mbkt(ji, jj)))
-        ustar2_bot(ji, jj) = - rCdU_bot(ji, jj) * SQRT((zmsku * (ub(ji, jj, mbkt(ji, jj)) + ub(ji - 1, jj, mbkt(ji, jj)))) ** 2 + (zmskv * (vb(ji, jj, mbkt(ji, jj)) + vb(ji, jj - 1, mbkt(ji, jj)))) ** 2)
+        ustar2_bot(ji, jj) = - rCdU_bot(ji, jj) * SQRT((zmsku * (ub(ji, jj, mbkt(ji, jj)) + ub(ji - 1, jj, mbkt(ji, jj)))) ** 2 + &
+&(zmskv * (vb(ji, jj, mbkt(ji, jj)) + vb(ji, jj - 1, mbkt(ji, jj)))) ** 2)
       END DO
     END DO
     !$ACC END KERNELS
@@ -134,7 +136,8 @@ MODULE zdfgls
         DO ji = 2, jpim1
           zmsku = (2. - umask(ji - 1, jj, mikt(ji, jj)) * umask(ji, jj, mikt(ji, jj)))
           zmskv = (2. - vmask(ji, jj - 1, mikt(ji, jj)) * vmask(ji, jj, mikt(ji, jj)))
-          ustar2_top(ji, jj) = - rCdU_top(ji, jj) * SQRT((zmsku * (ub(ji, jj, mikt(ji, jj)) + ub(ji - 1, jj, mikt(ji, jj)))) ** 2 + (zmskv * (vb(ji, jj, mikt(ji, jj)) + vb(ji, jj - 1, mikt(ji, jj)))) ** 2)
+          ustar2_top(ji, jj) = - rCdU_top(ji, jj) * SQRT((zmsku * (ub(ji, jj, mikt(ji, jj)) + ub(ji - 1, jj, mikt(ji, jj)))) ** 2 &
+&+ (zmskv * (vb(ji, jj, mikt(ji, jj)) + vb(ji, jj - 1, mikt(ji, jj)))) ** 2)
         END DO
       END DO
       !$ACC END KERNELS
@@ -209,7 +212,8 @@ MODULE zdfgls
       zd_lw(:, :, 1) = en(:, :, 1)
       zd_up(:, :, 1) = 0._wp
       zdiag(:, :, 1) = 1._wp
-      en(:, :, 2) = MAX(rc02r * ustar2_surf(:, :) * (1._wp + rsbc_tke1 * ((zhsro(:, :) + gdepw_n(:, :, 2)) / zhsro(:, :)) ** (1.5_wp * ra_sf)) ** (2._wp / 3._wp), rn_emin)
+      en(:, :, 2) = MAX(rc02r * ustar2_surf(:, :) * (1._wp + rsbc_tke1 * ((zhsro(:, :) + gdepw_n(:, :, 2)) / zhsro(:, :)) ** &
+&(1.5_wp * ra_sf)) ** (2._wp / 3._wp), rn_emin)
       zd_lw(:, :, 2) = 0._wp
       zd_up(:, :, 2) = 0._wp
       zdiag(:, :, 2) = 1._wp
@@ -221,7 +225,8 @@ MODULE zdfgls
       zdiag(:, :, 2) = zdiag(:, :, 2) + zd_lw(:, :, 2)
       zd_lw(:, :, 2) = 0._wp
       zkar(:, :) = (rl_sf + (vkarmn - rl_sf) * (1. - EXP(- rtrans * gdept_n(:, :, 1) / zhsro(:, :))))
-      zflxs(:, :) = rsbc_tke2 * ustar2_surf(:, :) ** 1.5_wp * zkar(:, :) * ((zhsro(:, :) + gdept_n(:, :, 1)) / zhsro(:, :)) ** (1.5_wp * ra_sf)
+      zflxs(:, :) = rsbc_tke2 * ustar2_surf(:, :) ** 1.5_wp * zkar(:, :) * ((zhsro(:, :) + gdept_n(:, :, 1)) / zhsro(:, :)) ** &
+&(1.5_wp * ra_sf)
       en(:, :, 2) = en(:, :, 2) + zflxs(:, :) / e3w_n(:, :, 2)
     END SELECT
     !$ACC END KERNELS
@@ -408,8 +413,10 @@ MODULE zdfgls
       zd_lw(:, :, 2) = 0._wp
       zkar(:, :) = rl_sf + (vkarmn - rl_sf) * (1._wp - EXP(- rtrans * gdept_n(:, :, 1) / zhsro(:, :)))
       zdep(:, :) = ((zhsro(:, :) + gdept_n(:, :, 1)) / zhsro(:, :)) ** (rmm * ra_sf)
-      zflxs(:, :) = (rnn + rsbc_tke1 * (rnn + rmm * ra_sf) * zdep(:, :)) * (1._wp + rsbc_tke1 * zdep(:, :)) ** (2._wp * rmm / 3._wp - 1_wp)
-      zdep(:, :) = rsbc_psi1 * (zwall_psi(:, :, 1) * p_avm(:, :, 1) + zwall_psi(:, :, 2) * p_avm(:, :, 2)) * ustar2_surf(:, :) ** rmm * zkar(:, :) ** rnn * (zhsro(:, :) + gdept_n(:, :, 1)) ** (rnn - 1.)
+      zflxs(:, :) = (rnn + rsbc_tke1 * (rnn + rmm * ra_sf) * zdep(:, :)) * (1._wp + rsbc_tke1 * zdep(:, :)) ** (2._wp * rmm / &
+&3._wp - 1_wp)
+      zdep(:, :) = rsbc_psi1 * (zwall_psi(:, :, 1) * p_avm(:, :, 1) + zwall_psi(:, :, 2) * p_avm(:, :, 2)) * ustar2_surf(:, :) ** &
+&rmm * zkar(:, :) ** rnn * (zhsro(:, :) + gdept_n(:, :, 1)) ** (rnn - 1.)
       zflxs(:, :) = zdep(:, :) * zflxs(:, :)
       psi(:, :, 2) = psi(:, :, 2) + zflxs(:, :) / e3w_n(:, :, 2)
     END SELECT
@@ -446,7 +453,8 @@ MODULE zdfgls
           zdiag(ji, jj, ibotm1) = zdiag(ji, jj, ibotm1) + zd_up(ji, jj, ibotm1)
           zd_up(ji, jj, ibotm1) = 0.
           zdep(ji, jj) = r_z0_bot + 0.5_wp * e3t_n(ji, jj, ibotm1)
-          zflxb = rsbc_psi2 * (p_avm(ji, jj, ibot) + p_avm(ji, jj, ibotm1)) * (0.5_wp * (en(ji, jj, ibot) + en(ji, jj, ibotm1))) ** rmm * zdep(ji, jj) ** (rnn - 1._wp)
+          zflxb = rsbc_psi2 * (p_avm(ji, jj, ibot) + p_avm(ji, jj, ibotm1)) * (0.5_wp * (en(ji, jj, ibot) + en(ji, jj, ibotm1))) &
+&** rmm * zdep(ji, jj) ** (rnn - 1._wp)
           psi(ji, jj, ibotm1) = psi(ji, jj, ibotm1) + zflxb / e3w_n(ji, jj, ibotm1)
         END DO
       END DO
@@ -541,7 +549,8 @@ MODULE zdfgls
             gh = MIN(gh, rgh0)
             gh = MAX(gh, rghmin)
             sh = ra2 * (1._wp - 6._wp * ra1 / rb1) / (1. - 3. * ra2 * gh * (6. * ra1 + rb2 * (1._wp - rc3)))
-            sm = (rb1 ** (- 1._wp / 3._wp) + (18._wp * ra1 * ra1 + 9._wp * ra1 * ra2 * (1._wp - rc2)) * sh * gh) / (1._wp - 9._wp * ra1 * ra2 * gh)
+            sm = (rb1 ** (- 1._wp / 3._wp) + (18._wp * ra1 * ra1 + 9._wp * ra1 * ra2 * (1._wp - rc2)) * sh * gh) / (1._wp - 9._wp &
+&* ra1 * ra2 * gh)
             zstt(ji, jj, jk) = rc_diff * sh * tmask(ji, jj, jk)
             zstm(ji, jj, jk) = rc_diff * sm * tmask(ji, jj, jk)
           END DO
@@ -599,14 +608,11 @@ MODULE zdfgls
     CALL profile_psy_data2 % PostEnd
   END SUBROUTINE zdf_gls
   SUBROUTINE zdf_gls_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jk
     INTEGER :: ios
     REAL(KIND = wp) :: zcr
-    NAMELIST /namzdf_gls/ rn_emin, rn_epsmin, ln_length_lim, rn_clim_galp, ln_sigpsi, rn_hsro, rn_crban, rn_charn, rn_frac_hs, nn_bc_surf, nn_bc_bot, nn_z0_met, nn_stab_func, nn_clos
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    CALL profile_psy_data0 % PreStart('zdf_gls_init', 'r0', 0, 0)
+    NAMELIST /namzdf_gls/ rn_emin, rn_epsmin, ln_length_lim, rn_clim_galp, ln_sigpsi, rn_hsro, rn_crban, rn_charn, rn_frac_hs, &
+&nn_bc_surf, nn_bc_bot, nn_z0_met, nn_stab_func, nn_clos
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namzdf_gls, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namzdf_gls in reference namelist', lwp)
@@ -752,7 +758,8 @@ MODULE zdfgls
       rs2 = - (3._wp / 8._wp) * rl1 * (rl6 * rl6 - rl7 * rl7)
       rs4 = 2._wp * rl5
       rs5 = 2._wp * rl4
-      rs6 = (2._wp / 3._wp) * rl5 * (3._wp * rl3 * rl3 - rl2 * rl2) - 0.5_wp * rl5 * rl1 * (3._wp * rl3 - rl2) + 0.75_wp * rl1 * (rl6 - rl7)
+      rs6 = (2._wp / 3._wp) * rl5 * (3._wp * rl3 * rl3 - rl2 * rl2) - 0.5_wp * rl5 * rl1 * (3._wp * rl3 - rl2) + 0.75_wp * rl1 * &
+&(rl6 - rl7)
       rd0 = 3._wp * rl5 * rl5
       rd1 = rl5 * (7._wp * rl4 + 3._wp * rl8)
       rd2 = rl5 * rl5 * (3._wp * rl3 * rl3 - rl2 * rl2) - 0.75_wp * (rl6 * rl6 - rl7 * rl7)
@@ -773,7 +780,8 @@ MODULE zdfgls
       rs2 = - (3._wp / 8._wp) * rm1 * (rm6 * rm6 - rm7 * rm7)
       rs4 = 2._wp * rm5
       rs5 = 2._wp * rm4
-      rs6 = (2._wp / 3._wp) * rm5 * (3._wp * rm3 * rm3 - rm2 * rm2) - 0.5_wp * rm5 * rm1 * (3._wp * rm3 - rm2) + 0.75_wp * rm1 * (rm6 - rm7)
+      rs6 = (2._wp / 3._wp) * rm5 * (3._wp * rm3 * rm3 - rm2 * rm2) - 0.5_wp * rm5 * rm1 * (3._wp * rm3 - rm2) + 0.75_wp * rm1 * &
+&(rm6 - rm7)
       rd0 = 3._wp * rm5 * rm5
       rd1 = rm5 * (7._wp * rm4 + 3._wp * rm8)
       rd2 = rm5 * rm5 * (3._wp * rm3 * rm3 - rm2 * rm2) - 0.75_wp * (rm6 * rm6 - rm7 * rm7)
@@ -798,7 +806,8 @@ MODULE zdfgls
     IF (rn_crban == 0._wp) THEN
       rl_sf = vkarmn
     ELSE
-      rl_sf = rc0 * SQRT(rc0 / rcm_sf) * SQRT(((1._wp + 4._wp * rmm + 8._wp * rmm ** 2_wp) * rsc_tke + 12._wp * rsc_psi0 * rpsi2 - (1._wp + 4._wp * rmm) * SQRT(rsc_tke * (rsc_tke + 24._wp * rsc_psi0 * rpsi2))) / (12._wp * rnn ** 2.))
+      rl_sf = rc0 * SQRT(rc0 / rcm_sf) * SQRT(((1._wp + 4._wp * rmm + 8._wp * rmm ** 2_wp) * rsc_tke + 12._wp * rsc_psi0 * rpsi2 - &
+&(1._wp + 4._wp * rmm) * SQRT(rsc_tke * (rsc_tke + 24._wp * rsc_psi0 * rpsi2))) / (12._wp * rnn ** 2.))
     END IF
     IF (lwp) THEN
       WRITE(numout, FMT = *)
@@ -820,7 +829,6 @@ MODULE zdfgls
       WRITE(numout, FMT = *) '      ra_sf    = ', ra_sf
       WRITE(numout, FMT = *) '      rl_sf    = ', rl_sf
     END IF
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     rc02 = rc0 * rc0
     rc02r = 1. / rc02
@@ -838,7 +846,6 @@ MODULE zdfgls
     rfact_psi = - 0.5_wp / rsc_psi * rdt
     zwall(:, :, :) = 1._wp * tmask(:, :, :)
     !$ACC END KERNELS
-    CALL profile_psy_data1 % PreStart('zdf_gls_init', 'r1', 0, 0)
     CALL gls_rst(nit000, 'READ')
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('en')
@@ -846,10 +853,8 @@ MODULE zdfgls
       CALL iom_set_rstw_var_active('avm_k')
       CALL iom_set_rstw_var_active('hmxl_n')
     END IF
-    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE zdf_gls_init
   SUBROUTINE gls_rst(kt, cdrw)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE zdf_oce, ONLY: en, avt_k, avm_k
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
@@ -857,48 +862,34 @@ MODULE zdfgls
     INTEGER :: id1, id2, id3, id4
     INTEGER :: ji, jj, ikbu, ikbv
     REAL(KIND = wp) :: cbx, cby
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
     IF (TRIM(cdrw) == 'READ') THEN
       IF (ln_rstart) THEN
-        CALL profile_psy_data0 % PreStart('gls_rst', 'r0', 0, 0)
         id1 = iom_varid(numror, 'en', ldstop = .FALSE.)
         id2 = iom_varid(numror, 'avt_k', ldstop = .FALSE.)
         id3 = iom_varid(numror, 'avm_k', ldstop = .FALSE.)
         id4 = iom_varid(numror, 'hmxl_n', ldstop = .FALSE.)
-        CALL profile_psy_data0 % PostEnd
         IF (MIN(id1, id2, id3, id4) > 0) THEN
-          CALL profile_psy_data1 % PreStart('gls_rst', 'r1', 0, 0)
           CALL iom_get(numror, jpdom_autoglo, 'en', en, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'avt_k', avt_k, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'avm_k', avm_k, ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'hmxl_n', hmxl_n, ldxios = lrxios)
-          CALL profile_psy_data1 % PostEnd
         ELSE
-          CALL profile_psy_data2 % PreStart('gls_rst', 'r2', 0, 0)
           IF (lwp) WRITE(numout, FMT = *)
           IF (lwp) WRITE(numout, FMT = *) '   ==>>   previous run without GLS scheme, set en and hmxl_n to background values'
-          CALL profile_psy_data2 % PostEnd
           !$ACC KERNELS
           en(:, :, :) = rn_emin
           hmxl_n(:, :, :) = 0.05_wp
           !$ACC END KERNELS
         END IF
       ELSE
-        CALL profile_psy_data3 % PreStart('gls_rst', 'r3', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>   start from rest, set en and hmxl_n by background values'
-        CALL profile_psy_data3 % PostEnd
         !$ACC KERNELS
         en(:, :, :) = rn_emin
         hmxl_n(:, :, :) = 0.05_wp
         !$ACC END KERNELS
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
-      CALL profile_psy_data4 % PreStart('gls_rst', 'r4', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '---- gls-rst ----'
       IF (lwxios) CALL iom_swap(cwxios_context)
       CALL iom_rstput(kt, nitrst, numrow, 'en', en, ldxios = lwxios)
@@ -906,7 +897,6 @@ MODULE zdfgls
       CALL iom_rstput(kt, nitrst, numrow, 'avm_k', avm_k, ldxios = lwxios)
       CALL iom_rstput(kt, nitrst, numrow, 'hmxl_n', hmxl_n, ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
-      CALL profile_psy_data4 % PostEnd
     END IF
   END SUBROUTINE gls_rst
 END MODULE zdfgls

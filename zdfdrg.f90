@@ -141,15 +141,13 @@ MODULE zdfdrg
       DEALLOCATE(ztrdu, ztrdv)
       CALL profile_psy_data1 % PostEnd
     END IF
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = pua, clinfo1 = ' bfr  - Ua: ', mask1 = umask, tab3d_2 = pva, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = pua, clinfo1 = ' bfr  - Ua: ', mask1 = umask, tab3d_2 = pva, clinfo2 = ' Va: ', mask2 = &
+&vmask, clinfo3 = 'dyn')
   END SUBROUTINE zdf_drg_exp
   SUBROUTINE zdf_drg_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj
     INTEGER :: ios, ioptio
     NAMELIST /namdrg/ ln_OFF, ln_lin, ln_non_lin, ln_loglayer, ln_drgimp
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('zdf_drg_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namdrg, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namdrg in reference namelist', lwp)
@@ -192,10 +190,8 @@ MODULE zdfdrg
       ALLOCATE(rCd0_top(jpi, jpj), rCdU_top(jpi, jpj))
       CALL drg_init('TOP   ', mikt, r_Cdmin_top, r_Cdmax_top, r_z0_top, r_ke0_top, rCd0_top, rCdU_top)
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE zdf_drg_init
   SUBROUTINE drg_init(cd_topbot, k_mk, pCdmin, pCdmax, pz0, pke0, pCd0, pCdU)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = 6), INTENT(IN) :: cd_topbot
     INTEGER, DIMENSION(:, :), INTENT(IN) :: k_mk
     REAL(KIND = wp), INTENT(OUT) :: pCdmin, pCdmax
@@ -211,15 +207,6 @@ MODULE zdfdrg
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zmsk_boost
     NAMELIST /namdrg_top/ rn_Cd0, rn_Uc0, rn_Cdmax, rn_ke0, rn_z0, ln_boost, rn_boost
     NAMELIST /namdrg_bot/ rn_Cd0, rn_Uc0, rn_Cdmax, rn_ke0, rn_z0, ln_boost, rn_boost
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
-    CALL profile_psy_data0 % PreStart('drg_init', 'r0', 0, 0)
     ll_top = .FALSE.
     ll_bot = .FALSE.
     SELECT CASE (cd_topbot)
@@ -265,16 +252,13 @@ MODULE zdfdrg
     pCdmax = rn_Cdmax
     pz0 = rn_z0
     pke0 = rn_ke0
-    CALL profile_psy_data0 % PostEnd
     IF (ln_boost) THEN
-      CALL profile_psy_data1 % PreStart('drg_init', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   use a regional boost read in ', TRIM(cl_file), ' file'
       IF (lwp) WRITE(numout, FMT = *) '           using enhancement factor of ', rn_boost
       CALL iom_open(TRIM(cl_file), inum)
       CALL iom_get(inum, jpdom_data, TRIM(cl_varname), zmsk_boost, 1)
       CALL iom_close(inum)
-      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       zmsk_boost(:, :) = 1._wp + rn_boost * zmsk_boost(:, :)
       !$ACC END KERNELS
@@ -289,39 +273,33 @@ MODULE zdfdrg
     !$ACC END KERNELS
     SELECT CASE (ndrg)
     CASE (np_OFF)
-      CALL profile_psy_data2 % PreStart('drg_init', 'r2', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   ', TRIM(cd_topbot), ' free-slip, friction set to zero'
-      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       l_zdfdrg = .FALSE.
       pCdU(:, :) = 0._wp
       pCd0(:, :) = 0._wp
       !$ACC END KERNELS
     CASE (np_lin)
-      CALL profile_psy_data3 % PreStart('drg_init', 'r3', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
-      IF (lwp) WRITE(numout, FMT = *) '   ==>>>   linear ', TRIM(cd_topbot), ' friction (constant coef = Cd0*Uc0 = ', rn_Cd0 * rn_Uc0, ')'
-      CALL profile_psy_data3 % PostEnd
+      IF (lwp) WRITE(numout, FMT = *) '   ==>>>   linear ', TRIM(cd_topbot), ' friction (constant coef = Cd0*Uc0 = ', rn_Cd0 * &
+&rn_Uc0, ')'
       !$ACC KERNELS
       l_zdfdrg = .FALSE.
       pCd0(:, :) = rn_Cd0 * zmsk_boost(:, :)
       pCdU(:, :) = - pCd0(:, :) * rn_Uc0
       !$ACC END KERNELS
     CASE (np_non_lin)
-      CALL profile_psy_data4 % PreStart('drg_init', 'r4', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   quadratic ', TRIM(cd_topbot), ' friction (propotional to module of the velocity)'
       IF (lwp) WRITE(numout, FMT = *) '   with    a drag coefficient Cd0 = ', rn_Cd0, ', and'
       IF (lwp) WRITE(numout, FMT = *) '           a background velocity module of (rn_ke0)^1/2 = ', SQRT(rn_ke0), 'm/s)'
-      CALL profile_psy_data4 % PostEnd
       !$ACC KERNELS
       l_zdfdrg = .TRUE.
       pCd0(:, :) = rn_Cd0 * zmsk_boost(:, :)
       pCdU(:, :) = 0._wp
       !$ACC END KERNELS
     CASE (np_loglayer)
-      CALL profile_psy_data5 % PreStart('drg_init', 'r5', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   quadratic ', TRIM(cd_topbot), ' drag (propotional to module of the velocity)'
       IF (lwp) WRITE(numout, FMT = *) '   with   a logarithmic Cd0 formulation Cd0 = ( vkarman log(z/z0) )^2 ,'
@@ -329,12 +307,9 @@ MODULE zdfdrg
       IF (lwp) WRITE(numout, FMT = *) '          a logarithmic formulation: a roughness of ', pz0, ' meters,   and '
       IF (lwp) WRITE(numout, FMT = *) '          a proportionality factor bounded by min/max values of ', pCdmin, pCdmax
       l_zdfdrg = .TRUE.
-      CALL profile_psy_data5 % PostEnd
       IF (ln_linssh) THEN
-        CALL profile_psy_data6 % PreStart('drg_init', 'r6', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   N.B.   linear free surface case, Cd0 computed one for all'
-        CALL profile_psy_data6 % PostEnd
         !$ACC KERNELS
         l_log_not_linssh = .FALSE.
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
@@ -347,10 +322,8 @@ MODULE zdfdrg
         END DO
         !$ACC END KERNELS
       ELSE
-        CALL profile_psy_data7 % PreStart('drg_init', 'r7', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) '   N.B.   non-linear free surface case, Cd0 updated at each time-step '
-        CALL profile_psy_data7 % PostEnd
         !$ACC KERNELS
         l_log_not_linssh = .TRUE.
         pCd0(:, :) = zmsk_boost(:, :)

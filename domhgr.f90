@@ -30,11 +30,13 @@ MODULE domhgr
     IF (ln_read_cfg) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   read horizontal mesh in ', TRIM(cn_domcfg), ' file'
-      CALL hgr_read(glamt, glamu, glamv, glamf, gphit, gphiu, gphiv, gphif, iff, ff_f, ff_t, e1t, e1u, e1v, e1f, e2t, e2u, e2v, e2f, ie1e2u_v, e1e2u, e1e2v)
+      CALL hgr_read(glamt, glamu, glamv, glamf, gphit, gphiu, gphiv, gphif, iff, ff_f, ff_t, e1t, e1u, e1v, e1f, e2t, e2u, e2v, &
+&e2f, ie1e2u_v, e1e2u, e1e2v)
     ELSE
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '          User defined horizontal mesh (usr_def_hgr)'
-      CALL usr_def_hgr(glamt, glamu, glamv, glamf, gphit, gphiu, gphiv, gphif, iff, ff_f, ff_t, e1t, e1u, e1v, e1f, e2t, e2u, e2v, e2f, ie1e2u_v, e1e2u, e1e2v)
+      CALL usr_def_hgr(glamt, glamu, glamv, glamf, gphit, gphiu, gphiv, gphif, iff, ff_f, ff_t, e1t, e1u, e1v, e1f, e2t, e2u, e2v, &
+&e2f, ie1e2u_v, e1e2u, e1e2v)
     END IF
     CALL profile_psy_data0 % PostEnd
     IF (iff == 0) THEN
@@ -86,7 +88,8 @@ MODULE domhgr
     !$ACC END KERNELS
     IF (ln_timing) CALL timing_stop('dom_hgr')
   END SUBROUTINE dom_hgr
-  SUBROUTINE hgr_read(plamt, plamu, plamv, plamf, pphit, pphiu, pphiv, pphif, kff, pff_f, pff_t, pe1t, pe1u, pe1v, pe1f, pe2t, pe2u, pe2v, pe2f, ke1e2u_v, pe1e2u, pe1e2v)
+  SUBROUTINE hgr_read(plamt, plamu, plamv, plamf, pphit, pphiu, pphiv, pphif, kff, pff_f, pff_t, pe1t, pe1u, pe1v, pe1f, pe2t, &
+&pe2u, pe2v, pe2f, ke1e2u_v, pe1e2u, pe1e2v)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: plamt, plamu, plamv, plamf
     REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: pphit, pphiu, pphiv, pphif

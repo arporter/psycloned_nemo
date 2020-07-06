@@ -114,7 +114,8 @@ MODULE closea
           IF (jncsr > 0) THEN
             IF (lwp) WRITE(numout, FMT = *) 'Number of closed seas rnf mappings : ', jncsr
           ELSE
-            CALL ctl_stop('Problem with closea_mask_rnf field in domain_cfg file. Has no values > 0 so no closed seas rnf mappings defined.')
+            CALL ctl_stop('Problem with closea_mask_rnf field in domain_cfg file. Has no values > 0 so no closed seas rnf mappings &
+&defined.')
           END IF
           CALL profile_psy_data8 % PostEnd
         ELSE
@@ -142,12 +143,14 @@ MODULE closea
           IF (jncse > 0) THEN
             IF (lwp) WRITE(numout, FMT = *) 'Number of closed seas empmr mappings : ', jncse
           ELSE
-            CALL ctl_stop('Problem with closea_mask_empmr field in domain_cfg file. Has no values > 0 so no closed seas empmr mappings defined.')
+            CALL ctl_stop('Problem with closea_mask_empmr field in domain_cfg file. Has no values > 0 so no closed seas empmr &
+&mappings defined.')
           END IF
           CALL profile_psy_data12 % PostEnd
         ELSE
           CALL profile_psy_data13 % PreStart('dom_clo', 'r13', 0, 0)
-          IF (lwp) WRITE(numout, FMT = *) 'closea_mask_empmr field not found in domain_cfg file. No closed seas empmr mappings defined.'
+          IF (lwp) WRITE(numout, FMT = *) 'closea_mask_empmr field not found in domain_cfg file. No closed seas empmr mappings &
+&defined.'
           jncse = 0
           CALL profile_psy_data13 % PostEnd
         END IF
@@ -291,7 +294,8 @@ MODULE closea
       DO jcr = 1, jncsr
         !$ACC KERNELS
         ztmp2d(:, :) = 0.E0_wp
-        WHERE (closea_mask_rnf(:, :) == jcr .AND. closea_mask(:, :) > 0) ztmp2d(:, :) = e1e2t(:, :) * (emp(:, :) - rnf(:, :)) * tmask_i(:, :)
+        WHERE (closea_mask_rnf(:, :) == jcr .AND. closea_mask(:, :) > 0) ztmp2d(:, :) = e1e2t(:, :) * (emp(:, :) - rnf(:, :)) * &
+&tmask_i(:, :)
         !$ACC END KERNELS
         CALL profile_psy_data11 % PreStart('sbc_clo', 'r11', 0, 0)
         zfwfr(jcr) = glob_sum(ztmp2d(:, :))
@@ -318,7 +322,8 @@ MODULE closea
       DO jce = 1, jncse
         !$ACC KERNELS
         ztmp2d(:, :) = 0.E0_wp
-        WHERE (closea_mask_empmr(:, :) == jce .AND. closea_mask(:, :) > 0) ztmp2d(:, :) = e1e2t(:, :) * (emp(:, :) - rnf(:, :)) * tmask_i(:, :)
+        WHERE (closea_mask_empmr(:, :) == jce .AND. closea_mask(:, :) > 0) ztmp2d(:, :) = e1e2t(:, :) * (emp(:, :) - rnf(:, :)) * &
+&tmask_i(:, :)
         !$ACC END KERNELS
         CALL profile_psy_data12 % PreStart('sbc_clo', 'r12', 0, 0)
         zfwfe(jce) = glob_sum(ztmp2d(:, :))

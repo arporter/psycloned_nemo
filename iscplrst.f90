@@ -71,7 +71,6 @@ MODULE iscplrst
     !$ACC END KERNELS
   END SUBROUTINE iscpl_stp
   SUBROUTINE iscpl_rst_interpol(ptmask_b, pumask_b, pvmask_b, psmask_b, pe3t_b, pe3u_b, pe3v_b, pdepw_b)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: ptmask_b, pumask_b, pvmask_b
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: pe3t_b, pe3u_b, pe3v_b
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: pdepw_b
@@ -85,10 +84,6 @@ MODULE iscplrst
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ztmask0, zwmaskn, ztrp
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ztmask1, zwmaskb, ztmp3d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts) :: zts0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
     !$ACC KERNELS
     tsn(:, :, :, jp_tem) = tsn(:, :, :, jp_tem) * ptmask_b(:, :, :)
     tsn(:, :, :, jp_sal) = tsn(:, :, :, jp_sal) * ptmask_b(:, :, :)
@@ -119,17 +114,16 @@ MODULE iscplrst
           jjm1 = jj - 1
           summsk = (zsmask0(jip1, jj) + zsmask0(jim1, jj) + zsmask0(ji, jjp1) + zsmask0(ji, jjm1))
           IF (zdsmask(ji, jj) == 1._wp .AND. summsk /= 0._wp) THEN
-            sshn(ji, jj) = (zssh0(jip1, jj) * zsmask0(jip1, jj) + zssh0(jim1, jj) * zsmask0(jim1, jj) + zssh0(ji, jjp1) * zsmask0(ji, jjp1) + zssh0(ji, jjm1) * zsmask0(ji, jjm1)) / summsk
+            sshn(ji, jj) = (zssh0(jip1, jj) * zsmask0(jip1, jj) + zssh0(jim1, jj) * zsmask0(jim1, jj) + zssh0(ji, jjp1) * &
+&zsmask0(ji, jjp1) + zssh0(ji, jjm1) * zsmask0(ji, jjm1)) / summsk
             zsmask1(ji, jj) = 1._wp
           END IF
         END DO
       END DO
       !$ACC END KERNELS
-      CALL profile_psy_data0 % PreStart('iscpl_rst_interpol', 'r0', 0, 0)
       CALL lbc_lnk_multi(sshn, 'T', 1., zsmask1, 'T', 1.)
       zssh0 = sshn
       zsmask0 = zsmask1
-      CALL profile_psy_data0 % PostEnd
     END DO
     !$ACC KERNELS
     sshn(:, :) = sshn(:, :) * ssmask(:, :)
@@ -141,20 +135,19 @@ MODULE iscplrst
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (tmask(ji, jj, 1) == 0._wp .OR. ptmask_b(ji, jj, 1) == 0._wp) THEN
-              e3t_n(ji, jj, jk) = e3t_0(ji, jj, jk) * (1._wp + sshn(ji, jj) / (ht_0(ji, jj) + 1._wp - ssmask(ji, jj)) * tmask(ji, jj, jk))
+              e3t_n(ji, jj, jk) = e3t_0(ji, jj, jk) * (1._wp + sshn(ji, jj) / (ht_0(ji, jj) + 1._wp - ssmask(ji, jj)) * tmask(ji, &
+&jj, jk))
             END IF
           END DO
         END DO
       END DO
       !$ACC END KERNELS
-      CALL profile_psy_data1 % PreStart('iscpl_rst_interpol', 'r1', 0, 0)
       CALL dom_vvl_interpol(e3t_n(:, :, :), e3u_n(:, :, :), 'U')
       CALL dom_vvl_interpol(e3t_n(:, :, :), e3v_n(:, :, :), 'V')
       CALL dom_vvl_interpol(e3u_n(:, :, :), e3f_n(:, :, :), 'F')
       CALL dom_vvl_interpol(e3t_n(:, :, :), e3w_n(:, :, :), 'W')
       CALL dom_vvl_interpol(e3u_n(:, :, :), e3uw_n(:, :, :), 'UW')
       CALL dom_vvl_interpol(e3v_n(:, :, :), e3vw_n(:, :, :), 'VW')
-      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       gdept_n(:, :, 1) = 0.5_wp * e3w_n(:, :, 1)
       gdepw_n(:, :, 1) = 0.0_wp
@@ -256,7 +249,6 @@ MODULE iscplrst
     ztmask0(:, :, :) = ptmask_b(:, :, :)
     !$ACC END KERNELS
     DO iz = 1, nn_drown
-      CALL profile_psy_data2 % PreStart('iscpl_rst_interpol', 'r2', 0, 0)
       DO jk = 1, jpk - 1
         zdmask = tmask(:, :, jk) - ztmask0(:, :, jk)
         DO jj = 2, jpj - 1
@@ -267,16 +259,20 @@ MODULE iscplrst
             jjm1 = jj - 1
             summsk = (ztmask0(jip1, jj, jk) + ztmask0(jim1, jj, jk) + ztmask0(ji, jjp1, jk) + ztmask0(ji, jjm1, jk))
             IF (zdmask(ji, jj) == 1._wp .AND. summsk /= 0._wp) THEN
-              tsn(ji, jj, jk, 1) = (zts0(jip1, jj, jk, 1) * ztmask0(jip1, jj, jk) + zts0(jim1, jj, jk, 1) * ztmask0(jim1, jj, jk) + zts0(ji, jjp1, jk, 1) * ztmask0(ji, jjp1, jk) + zts0(ji, jjm1, jk, 1) * ztmask0(ji, jjm1, jk)) / summsk
-              tsn(ji, jj, jk, 2) = (zts0(jip1, jj, jk, 2) * ztmask0(jip1, jj, jk) + zts0(jim1, jj, jk, 2) * ztmask0(jim1, jj, jk) + zts0(ji, jjp1, jk, 2) * ztmask0(ji, jjp1, jk) + zts0(ji, jjm1, jk, 2) * ztmask0(ji, jjm1, jk)) / summsk
+              tsn(ji, jj, jk, 1) = (zts0(jip1, jj, jk, 1) * ztmask0(jip1, jj, jk) + zts0(jim1, jj, jk, 1) * ztmask0(jim1, jj, jk) &
+&+ zts0(ji, jjp1, jk, 1) * ztmask0(ji, jjp1, jk) + zts0(ji, jjm1, jk, 1) * ztmask0(ji, jjm1, jk)) / summsk
+              tsn(ji, jj, jk, 2) = (zts0(jip1, jj, jk, 2) * ztmask0(jip1, jj, jk) + zts0(jim1, jj, jk, 2) * ztmask0(jim1, jj, jk) &
+&+ zts0(ji, jjp1, jk, 2) * ztmask0(ji, jjp1, jk) + zts0(ji, jjm1, jk, 2) * ztmask0(ji, jjm1, jk)) / summsk
               ztmask1(ji, jj, jk) = 1
             ELSE IF (zdmask(ji, jj) == 1._wp .AND. summsk == 0._wp) THEN
               jkm1 = MAX(1, jk - 1)
               jkp1 = MIN(jpk, jk + 1)
               summsk = (ztmask0(ji, jj, jkm1) + ztmask0(ji, jj, jkp1))
               IF (zdmask(ji, jj) == 1._wp .AND. summsk /= 0._wp) THEN
-                tsn(ji, jj, jk, 1) = (zts0(ji, jj, jkp1, 1) * ztmask0(ji, jj, jkp1) + zts0(ji, jj, jkm1, 1) * ztmask0(ji, jj, jkm1)) / summsk
-                tsn(ji, jj, jk, 2) = (zts0(ji, jj, jkp1, 2) * ztmask0(ji, jj, jkp1) + zts0(ji, jj, jkm1, 2) * ztmask0(ji, jj, jkm1)) / summsk
+                tsn(ji, jj, jk, 1) = (zts0(ji, jj, jkp1, 1) * ztmask0(ji, jj, jkp1) + zts0(ji, jj, jkm1, 1) * ztmask0(ji, jj, &
+&jkm1)) / summsk
+                tsn(ji, jj, jk, 2) = (zts0(ji, jj, jkp1, 2) * ztmask0(ji, jj, jkp1) + zts0(ji, jj, jkm1, 2) * ztmask0(ji, jj, &
+&jkm1)) / summsk
                 ztmask1(ji, jj, jk) = 1._wp
               END IF
             END IF
@@ -284,7 +280,6 @@ MODULE iscplrst
         END DO
       END DO
       CALL lbc_lnk_multi(tsn(:, :, :, jp_tem), 'T', 1., tsn(:, :, :, jp_sal), 'T', 1., ztmask1, 'T', 1.)
-      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       zts0(:, :, :, :) = tsn(:, :, :, :)
       ztmask0 = ztmask1
@@ -294,26 +289,27 @@ MODULE iscplrst
     tsn(:, :, :, jp_tem) = tsn(:, :, :, jp_tem) * tmask(:, :, :)
     tsn(:, :, :, jp_sal) = tsn(:, :, :, jp_sal) * tmask(:, :, :)
     !$ACC END KERNELS
-    CALL profile_psy_data3 % PreStart('iscpl_rst_interpol', 'r3', 0, 0)
     IF (.NOT. ln_linssh) THEN
       DO jk = 2, jpk - 1
         DO jj = 1, jpj
           DO ji = 1, jpi
-            IF (zwmaskn(ji, jj, jk) * zwmaskb(ji, jj, jk) == 1._wp .AND. (tmask(ji, jj, 1) == 0._wp .OR. ptmask_b(ji, jj, 1) == 0._wp)) THEN
+            IF (zwmaskn(ji, jj, jk) * zwmaskb(ji, jj, jk) == 1._wp .AND. (tmask(ji, jj, 1) == 0._wp .OR. ptmask_b(ji, jj, 1) == &
+&0._wp)) THEN
               zdzp1 = MAX(0._wp, gdepw_n(ji, jj, jk + 1) - pdepw_b(ji, jj, jk + 1))
               zdz = gdepw_n(ji, jj, jk + 1) - pdepw_b(ji, jj, jk)
               zdzm1 = MAX(0._wp, pdepw_b(ji, jj, jk) - gdepw_n(ji, jj, jk))
               IF (zdz .LT. 0._wp) THEN
                 CALL ctl_stop('STOP', 'rst_iscpl : unable to compute the interpolation')
               END IF
-              tsn(ji, jj, jk, jp_tem) = (zdzp1 * tsb(ji, jj, jk + 1, jp_tem) + zdz * tsb(ji, jj, jk, jp_tem) + zdzm1 * tsb(ji, jj, jk - 1, jp_tem)) / e3t_n(ji, jj, jk)
-              tsn(ji, jj, jk, jp_sal) = (zdzp1 * tsb(ji, jj, jk + 1, jp_sal) + zdz * tsb(ji, jj, jk, jp_sal) + zdzm1 * tsb(ji, jj, jk - 1, jp_sal)) / e3t_n(ji, jj, jk)
+              tsn(ji, jj, jk, jp_tem) = (zdzp1 * tsb(ji, jj, jk + 1, jp_tem) + zdz * tsb(ji, jj, jk, jp_tem) + zdzm1 * tsb(ji, jj, &
+&jk - 1, jp_tem)) / e3t_n(ji, jj, jk)
+              tsn(ji, jj, jk, jp_sal) = (zdzp1 * tsb(ji, jj, jk + 1, jp_sal) + zdz * tsb(ji, jj, jk, jp_sal) + zdzm1 * tsb(ji, jj, &
+&jk - 1, jp_sal)) / e3t_n(ji, jj, jk)
             END IF
           END DO
         END DO
       END DO
     END IF
-    CALL profile_psy_data3 % PostEnd
     !$ACC KERNELS
     WHERE (tmask(:, :, :) == 1._wp .AND. tsn(:, :, :, 2) == 0._wp)
       tsn(:, :, :, 2) = - 99._wp

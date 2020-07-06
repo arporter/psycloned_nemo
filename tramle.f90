@@ -105,16 +105,20 @@ MODULE tramle
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
-          zpsim_u(ji, jj) = rn_ce * zhu(ji, jj) * zhu(ji, jj) * e2_e1u(ji, jj) * (zbm(ji + 1, jj) - zbm(ji, jj)) * MIN(111.E3_wp, e1u(ji, jj)) / (MAX(rn_lf * rfu(ji, jj), SQRT(rb_c * zhu(ji, jj))))
-          zpsim_v(ji, jj) = rn_ce * zhv(ji, jj) * zhv(ji, jj) * e1_e2v(ji, jj) * (zbm(ji, jj + 1) - zbm(ji, jj)) * MIN(111.E3_wp, e2v(ji, jj)) / (MAX(rn_lf * rfv(ji, jj), SQRT(rb_c * zhv(ji, jj))))
+          zpsim_u(ji, jj) = rn_ce * zhu(ji, jj) * zhu(ji, jj) * e2_e1u(ji, jj) * (zbm(ji + 1, jj) - zbm(ji, jj)) * MIN(111.E3_wp, &
+&e1u(ji, jj)) / (MAX(rn_lf * rfu(ji, jj), SQRT(rb_c * zhu(ji, jj))))
+          zpsim_v(ji, jj) = rn_ce * zhv(ji, jj) * zhv(ji, jj) * e1_e2v(ji, jj) * (zbm(ji, jj + 1) - zbm(ji, jj)) * MIN(111.E3_wp, &
+&e2v(ji, jj)) / (MAX(rn_lf * rfv(ji, jj), SQRT(rb_c * zhv(ji, jj))))
         END DO
       END DO
     ELSE IF (nn_mle == 1) THEN
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
-          zpsim_u(ji, jj) = rc_f * zhu(ji, jj) * zhu(ji, jj) * e2_e1u(ji, jj) * (zbm(ji + 1, jj) - zbm(ji, jj)) * MIN(111.E3_wp, e1u(ji, jj))
-          zpsim_v(ji, jj) = rc_f * zhv(ji, jj) * zhv(ji, jj) * e1_e2v(ji, jj) * (zbm(ji, jj + 1) - zbm(ji, jj)) * MIN(111.E3_wp, e2v(ji, jj))
+          zpsim_u(ji, jj) = rc_f * zhu(ji, jj) * zhu(ji, jj) * e2_e1u(ji, jj) * (zbm(ji + 1, jj) - zbm(ji, jj)) * MIN(111.E3_wp, &
+&e1u(ji, jj))
+          zpsim_v(ji, jj) = rc_f * zhv(ji, jj) * zhv(ji, jj) * e1_e2v(ji, jj) * (zbm(ji, jj + 1) - zbm(ji, jj)) * MIN(111.E3_wp, &
+&e2v(ji, jj))
         END DO
       END DO
     END IF
@@ -164,7 +168,8 @@ MODULE tramle
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          pw(ji, jj, jk) = pw(ji, jj, jk) - (zpsi_uw(ji, jj, jk) - zpsi_uw(ji - 1, jj, jk) + zpsi_vw(ji, jj, jk) - zpsi_vw(ji, jj - 1, jk))
+          pw(ji, jj, jk) = pw(ji, jj, jk) - (zpsi_uw(ji, jj, jk) - zpsi_uw(ji - 1, jj, jk) + zpsi_vw(ji, jj, jk) - zpsi_vw(ji, jj &
+&- 1, jk))
         END DO
       END DO
       !$ACC END KERNELS
@@ -187,18 +192,11 @@ MODULE tramle
     END IF
   END SUBROUTINE tra_mle_trp
   SUBROUTINE tra_mle_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: ierr
     INTEGER :: ios
     REAL(KIND = wp) :: z1_t2, zfu, zfv
     NAMELIST /namtra_mle/ ln_mle, nn_mle, rn_ce, rn_lf, rn_time, rn_lat, nn_mld_uv, nn_conv, rn_rho_c_mle
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
-    CALL profile_psy_data0 % PreStart('tra_mle_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namtra_mle, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namtra_mle in reference namelist', lwp)
@@ -231,19 +229,14 @@ MODULE tramle
         WRITE(numout, FMT = *) '   ==>>>   Mixed Layer Eddy parametrisation NOT used'
       END IF
     END IF
-    CALL profile_psy_data0 % PostEnd
     IF (ln_mle) THEN
-      CALL profile_psy_data1 % PreStart('tra_mle_init', 'r1', 0, 0)
       rb_c = grav * rn_rho_c_mle / rau0
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '      ML buoyancy criteria = ', rb_c, ' m/s2 '
       IF (lwp) WRITE(numout, FMT = *) '      associated ML density criteria defined in zdfmxl = ', rho_c, 'kg/m3'
-      CALL profile_psy_data1 % PostEnd
       IF (nn_mle == 0) THEN
-        CALL profile_psy_data2 % PreStart('tra_mle_init', 'r2', 0, 0)
         ALLOCATE(rfu(jpi, jpj), rfv(jpi, jpj), STAT = ierr)
         IF (ierr /= 0) CALL ctl_stop('tra_adv_mle_init: failed to allocate arrays')
-        CALL profile_psy_data2 % PostEnd
         !$ACC KERNELS
         z1_t2 = 1._wp / (rn_time * rn_time)
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
@@ -258,14 +251,10 @@ MODULE tramle
         !$ACC END KERNELS
         CALL lbc_lnk_multi(rfu, 'U', 1., rfv, 'V', 1.)
       ELSE IF (nn_mle == 1) THEN
-        CALL profile_psy_data3 % PreStart('tra_mle_init', 'r3', 0, 0)
         rc_f = rn_ce / (5.E3_wp * 2._wp * omega * SIN(rad * rn_lat))
-        CALL profile_psy_data3 % PostEnd
       END IF
-      CALL profile_psy_data4 % PreStart('tra_mle_init', 'r4', 0, 0)
       ALLOCATE(r1_ft(jpi, jpj), STAT = ierr)
       IF (ierr /= 0) CALL ctl_stop('tra_adv_mle_init: failed to allocate r1_ft array')
-      CALL profile_psy_data4 % PostEnd
       !$ACC KERNELS
       z1_t2 = 1._wp / (rn_time * rn_time)
       r1_ft(:, :) = 1._wp / SQRT(ff_t(:, :) * ff_t(:, :) + z1_t2)

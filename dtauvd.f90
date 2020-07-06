@@ -15,15 +15,12 @@ MODULE dtauvd
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_uvd
   CONTAINS
   SUBROUTINE dta_uvd_init(ld_dyndmp)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     LOGICAL, INTENT(IN), OPTIONAL :: ld_dyndmp
     INTEGER :: ios, ierr0, ierr1, ierr2, ierr3
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N), DIMENSION(2) :: suv_i
     TYPE(FLD_N) :: sn_ucur, sn_vcur
     NAMELIST /namc1d_uvd/ ln_uvd_init, ln_uvd_dyndmp, cn_dir, sn_ucur, sn_vcur
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('dta_uvd_init', 'r0', 0, 0)
     ierr0 = 0
     ierr1 = 0
     ierr2 = 0
@@ -50,7 +47,8 @@ MODULE dtauvd
       END IF
     END IF
     IF (ln_rstart .AND. ln_uvd_init) THEN
-      CALL ctl_warn('dta_uvd_init: ocean restart and U & V current data initialization, ', 'we keep the restart U & V current values and set ln_uvd_init to FALSE')
+      CALL ctl_warn('dta_uvd_init: ocean restart and U & V current data initialization, ', &
+&'we keep the restart U & V current values and set ln_uvd_init to FALSE')
       ln_uvd_init = .FALSE.
     END IF
     IF (ln_uvd_init .OR. ln_uvd_dyndmp) THEN
@@ -71,7 +69,6 @@ MODULE dtauvd
       suv_i(2) = sn_vcur
       CALL fld_fill(sf_uvd, suv_i, cn_dir, 'dta_uvd', 'U & V current data', 'namc1d_uvd')
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dta_uvd_init
   SUBROUTINE dta_uvd(kt, puvd)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType

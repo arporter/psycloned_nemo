@@ -46,7 +46,8 @@ MODULE traldf_lap_blp
     l_hst = .FALSE.
     l_ptr = .FALSE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
-    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. &
+&iom_use("vadv_salttr"))) l_hst = .TRUE.
     CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     IF (kpass == 1) THEN
@@ -103,7 +104,8 @@ MODULE traldf_lap_blp
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + (ztu(ji, jj, jk) - ztu(ji - 1, jj, jk) + ztv(ji, jj, jk) - ztv(ji, jj - 1, jk)) / (e1e2t(ji, jj) * e3t_n(ji, jj, jk))
+            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + (ztu(ji, jj, jk) - ztu(ji - 1, jj, jk) + ztv(ji, jj, jk) - ztv(ji, jj - 1, &
+&jk)) / (e1e2t(ji, jj) * e3t_n(ji, jj, jk))
           END DO
         END DO
       END DO

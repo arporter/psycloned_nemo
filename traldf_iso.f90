@@ -56,7 +56,8 @@ MODULE traldf_iso
     l_hst = .FALSE.
     l_ptr = .FALSE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
-    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. &
+&iom_use("vadv_salttr"))) l_hst = .TRUE.
     IF (neuler == 0 .AND. kt == nit000) THEN
       z2dt = rdt
     ELSE
@@ -75,8 +76,10 @@ MODULE traldf_iso
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            zmsku = wmask(ji, jj, jk) / MAX(umask(ji, jj, jk - 1) + umask(ji - 1, jj, jk) + umask(ji - 1, jj, jk - 1) + umask(ji, jj, jk), 1._wp)
-            zmskv = wmask(ji, jj, jk) / MAX(vmask(ji, jj, jk - 1) + vmask(ji, jj - 1, jk) + vmask(ji, jj - 1, jk - 1) + vmask(ji, jj, jk), 1._wp)
+            zmsku = wmask(ji, jj, jk) / MAX(umask(ji, jj, jk - 1) + umask(ji - 1, jj, jk) + umask(ji - 1, jj, jk - 1) + umask(ji, &
+&jj, jk), 1._wp)
+            zmskv = wmask(ji, jj, jk) / MAX(vmask(ji, jj, jk - 1) + vmask(ji, jj - 1, jk) + vmask(ji, jj - 1, jk - 1) + vmask(ji, &
+&jj, jk), 1._wp)
             zahu_w = (pahu(ji, jj, jk - 1) + pahu(ji - 1, jj, jk) + pahu(ji - 1, jj, jk - 1) + pahu(ji, jj, jk)) * zmsku
             zahv_w = (pahv(ji, jj, jk - 1) + pahv(ji, jj - 1, jk) + pahv(ji, jj - 1, jk - 1) + pahv(ji, jj, jk)) * zmskv
             ah_wslp2(ji, jj, jk) = zahu_w * wslpi(ji, jj, jk) * wslpi(ji, jj, jk) + zahv_w * wslpj(ji, jj, jk) * wslpj(ji, jj, jk)
@@ -90,7 +93,9 @@ MODULE traldf_iso
           !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
-              akz(ji, jj, jk) = 0.25_wp * ((pahu(ji, jj, jk) + pahu(ji, jj, jk - 1)) / (e1u(ji, jj) * e1u(ji, jj)) + (pahu(ji - 1, jj, jk) + pahu(ji - 1, jj, jk - 1)) / (e1u(ji - 1, jj) * e1u(ji - 1, jj)) + (pahv(ji, jj, jk) + pahv(ji, jj, jk - 1)) / (e2v(ji, jj) * e2v(ji, jj)) + (pahv(ji, jj - 1, jk) + pahv(ji, jj - 1, jk - 1)) / (e2v(ji, jj - 1) * e2v(ji, jj - 1)))
+              akz(ji, jj, jk) = 0.25_wp * ((pahu(ji, jj, jk) + pahu(ji, jj, jk - 1)) / (e1u(ji, jj) * e1u(ji, jj)) + (pahu(ji - 1, &
+&jj, jk) + pahu(ji - 1, jj, jk - 1)) / (e1u(ji - 1, jj) * e1u(ji - 1, jj)) + (pahv(ji, jj, jk) + pahv(ji, jj, jk - 1)) / (e2v(ji, &
+&jj) * e2v(ji, jj)) + (pahv(ji, jj - 1, jk) + pahv(ji, jj - 1, jk - 1)) / (e2v(ji, jj - 1) * e2v(ji, jj - 1)))
             END DO
           END DO
         END DO
@@ -101,7 +106,8 @@ MODULE traldf_iso
             !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 1, jpim1
-                akz(ji, jj, jk) = 16._wp * ah_wslp2(ji, jj, jk) * (akz(ji, jj, jk) + ah_wslp2(ji, jj, jk) / (e3w_n(ji, jj, jk) * e3w_n(ji, jj, jk)))
+                akz(ji, jj, jk) = 16._wp * ah_wslp2(ji, jj, jk) * (akz(ji, jj, jk) + ah_wslp2(ji, jj, jk) / (e3w_n(ji, jj, jk) * &
+&e3w_n(ji, jj, jk)))
               END DO
             END DO
           END DO
@@ -181,14 +187,17 @@ MODULE traldf_iso
             zmskv = 1. / MAX(wmask(ji, jj + 1, jk) + wmask(ji, jj, jk + 1) + wmask(ji, jj + 1, jk + 1) + wmask(ji, jj, jk), 1.)
             zcof1 = - pahu(ji, jj, jk) * e2u(ji, jj) * uslp(ji, jj, jk) * zmsku
             zcof2 = - pahv(ji, jj, jk) * e1v(ji, jj) * vslp(ji, jj, jk) * zmskv
-            zftu(ji, jj, jk) = (zabe1 * zdit(ji, jj, jk) + zcof1 * (zdkt(ji + 1, jj) + zdk1t(ji, jj) + zdk1t(ji + 1, jj) + zdkt(ji, jj))) * umask(ji, jj, jk)
-            zftv(ji, jj, jk) = (zabe2 * zdjt(ji, jj, jk) + zcof2 * (zdkt(ji, jj + 1) + zdk1t(ji, jj) + zdk1t(ji, jj + 1) + zdkt(ji, jj))) * vmask(ji, jj, jk)
+            zftu(ji, jj, jk) = (zabe1 * zdit(ji, jj, jk) + zcof1 * (zdkt(ji + 1, jj) + zdk1t(ji, jj) + zdk1t(ji + 1, jj) + &
+&zdkt(ji, jj))) * umask(ji, jj, jk)
+            zftv(ji, jj, jk) = (zabe2 * zdjt(ji, jj, jk) + zcof2 * (zdkt(ji, jj + 1) + zdk1t(ji, jj) + zdk1t(ji, jj + 1) + &
+&zdkt(ji, jj))) * vmask(ji, jj, jk)
           END DO
         END DO
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (zftu(ji, jj, jk) - zftu(ji - 1, jj, jk) + zftv(ji, jj, jk) - zftv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
+            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (zftu(ji, jj, jk) - zftu(ji - 1, jj, jk) + zftv(ji, jj, jk) - &
+&zftv(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
           END DO
         END DO
         !$ACC END KERNELS
@@ -202,13 +211,16 @@ MODULE traldf_iso
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            zmsku = wmask(ji, jj, jk) / MAX(umask(ji, jj, jk - 1) + umask(ji - 1, jj, jk) + umask(ji - 1, jj, jk - 1) + umask(ji, jj, jk), 1._wp)
-            zmskv = wmask(ji, jj, jk) / MAX(vmask(ji, jj, jk - 1) + vmask(ji, jj - 1, jk) + vmask(ji, jj - 1, jk - 1) + vmask(ji, jj, jk), 1._wp)
+            zmsku = wmask(ji, jj, jk) / MAX(umask(ji, jj, jk - 1) + umask(ji - 1, jj, jk) + umask(ji - 1, jj, jk - 1) + umask(ji, &
+&jj, jk), 1._wp)
+            zmskv = wmask(ji, jj, jk) / MAX(vmask(ji, jj, jk - 1) + vmask(ji, jj - 1, jk) + vmask(ji, jj - 1, jk - 1) + vmask(ji, &
+&jj, jk), 1._wp)
             zahu_w = (pahu(ji, jj, jk - 1) + pahu(ji - 1, jj, jk) + pahu(ji - 1, jj, jk - 1) + pahu(ji, jj, jk)) * zmsku
             zahv_w = (pahv(ji, jj, jk - 1) + pahv(ji, jj - 1, jk) + pahv(ji, jj - 1, jk - 1) + pahv(ji, jj, jk)) * zmskv
             zcoef3 = - zahu_w * e2t(ji, jj) * zmsku * wslpi(ji, jj, jk)
             zcoef4 = - zahv_w * e1t(ji, jj) * zmskv * wslpj(ji, jj, jk)
-            ztfw(ji, jj, jk) = zcoef3 * (zdit(ji, jj, jk - 1) + zdit(ji - 1, jj, jk) + zdit(ji - 1, jj, jk - 1) + zdit(ji, jj, jk)) + zcoef4 * (zdjt(ji, jj, jk - 1) + zdjt(ji, jj - 1, jk) + zdjt(ji, jj - 1, jk - 1) + zdjt(ji, jj, jk))
+            ztfw(ji, jj, jk) = zcoef3 * (zdit(ji, jj, jk - 1) + zdit(ji - 1, jj, jk) + zdit(ji - 1, jj, jk - 1) + zdit(ji, jj, &
+&jk)) + zcoef4 * (zdjt(ji, jj, jk - 1) + zdjt(ji, jj - 1, jk) + zdjt(ji, jj - 1, jk - 1) + zdjt(ji, jj, jk))
           END DO
         END DO
       END DO
@@ -219,7 +231,8 @@ MODULE traldf_iso
           !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 2, jpim1
-              ztfw(ji, jj, jk) = ztfw(ji, jj, jk) + e1e2t(ji, jj) / e3w_n(ji, jj, jk) * wmask(ji, jj, jk) * (ah_wslp2(ji, jj, jk) - akz(ji, jj, jk)) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn))
+              ztfw(ji, jj, jk) = ztfw(ji, jj, jk) + e1e2t(ji, jj) / e3w_n(ji, jj, jk) * wmask(ji, jj, jk) * (ah_wslp2(ji, jj, jk) &
+&- akz(ji, jj, jk)) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn))
             END DO
           END DO
         END DO
@@ -232,7 +245,8 @@ MODULE traldf_iso
             !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
-                ztfw(ji, jj, jk) = ztfw(ji, jj, jk) + ah_wslp2(ji, jj, jk) * e1e2t(ji, jj) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn)) / e3w_n(ji, jj, jk) * wmask(ji, jj, jk)
+                ztfw(ji, jj, jk) = ztfw(ji, jj, jk) + ah_wslp2(ji, jj, jk) * e1e2t(ji, jj) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, &
+&jj, jk, jn)) / e3w_n(ji, jj, jk) * wmask(ji, jj, jk)
               END DO
             END DO
           END DO
@@ -241,7 +255,8 @@ MODULE traldf_iso
             !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
-                ztfw(ji, jj, jk) = ztfw(ji, jj, jk) + e1e2t(ji, jj) / e3w_n(ji, jj, jk) * wmask(ji, jj, jk) * (ah_wslp2(ji, jj, jk) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn)) + akz(ji, jj, jk) * (ptbb(ji, jj, jk - 1, jn) - ptbb(ji, jj, jk, jn)))
+                ztfw(ji, jj, jk) = ztfw(ji, jj, jk) + e1e2t(ji, jj) / e3w_n(ji, jj, jk) * wmask(ji, jj, jk) * (ah_wslp2(ji, jj, &
+&jk) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn)) + akz(ji, jj, jk) * (ptbb(ji, jj, jk - 1, jn) - ptbb(ji, jj, jk, jn)))
               END DO
             END DO
           END DO
@@ -253,7 +268,8 @@ MODULE traldf_iso
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (ztfw(ji, jj, jk) - ztfw(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
+            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (ztfw(ji, jj, jk) - ztfw(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / &
+&e3t_n(ji, jj, jk)
           END DO
         END DO
       END DO

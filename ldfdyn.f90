@@ -42,24 +42,12 @@ MODULE ldfdyn
   REAL(KIND = wp) :: r1_288 = 1._wp / 288._wp
   CONTAINS
   SUBROUTINE ldf_dyn_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: ioptio, ierr, inum, ios, inn
     REAL(KIND = wp) :: zah0, zah_max, zUfac
     CHARACTER(LEN = 5) :: cl_Units
-    NAMELIST /namdyn_ldf/ ln_dynldf_OFF, ln_dynldf_lap, ln_dynldf_blp, ln_dynldf_lev, ln_dynldf_hor, ln_dynldf_iso, nn_ahm_ijk_t, rn_Uv, rn_Lv, rn_ahm_b, rn_csmc, rn_minfac, rn_maxfac
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data8
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data9
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data10
-    CALL profile_psy_data0 % PreStart('ldf_dyn_init', 'r0', 0, 0)
+    NAMELIST /namdyn_ldf/ ln_dynldf_OFF, ln_dynldf_lap, ln_dynldf_blp, ln_dynldf_lev, ln_dynldf_hor, ln_dynldf_iso, nn_ahm_ijk_t, &
+&rn_Uv, rn_Lv, rn_ahm_b, rn_csmc, rn_minfac, rn_maxfac
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namdyn_ldf, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namdyn_ldf in reference namelist', lwp)
@@ -163,22 +151,16 @@ MODULE ldfdyn
       WRITE(numout, FMT = *)
     END IF
     l_ldfdyn_time = .FALSE.
-    CALL profile_psy_data0 % PostEnd
     IF (ln_dynldf_OFF) THEN
-      CALL profile_psy_data1 % PreStart('ldf_dyn_init', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   No viscous operator selected. ahmt and ahmf are not allocated'
       RETURN
-      CALL profile_psy_data1 % PostEnd
     ELSE
-      CALL profile_psy_data2 % PreStart('ldf_dyn_init', 'r2', 0, 0)
       ALLOCATE(ahmt(jpi, jpj, jpk), ahmf(jpi, jpj, jpk), STAT = ierr)
       IF (ierr /= 0) CALL ctl_stop('STOP', 'ldf_dyn_init: failed to allocate arrays')
-      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       ahmt(:, :, jpk) = 0._wp
       ahmf(:, :, jpk) = 0._wp
       !$ACC END KERNELS
-      CALL profile_psy_data3 % PreStart('ldf_dyn_init', 'r3', 0, 0)
       IF (ln_dynldf_lap) THEN
         zufac = r1_2 * rn_uv
         inn = 1
@@ -190,7 +172,6 @@ MODULE ldfdyn
       END IF
       zah0 = zUfac * rn_Lv ** inn
       zah_max = zUfac * (ra * rad) ** inn
-      CALL profile_psy_data3 % PostEnd
       SELECT CASE (nn_ahm_ijk_t)
       CASE (0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity. = constant = ', zah0, cl_Units
@@ -199,23 +180,19 @@ MODULE ldfdyn
         ahmf(:, :, 1 : jpkm1) = zah0
         !$ACC END KERNELS
       CASE (10)
-        CALL profile_psy_data4 % PreStart('ldf_dyn_init', 'r4', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( depth )'
         IF (lwp) WRITE(numout, FMT = *) '           surface viscous coef. = constant = ', zah0, cl_Units
-        CALL profile_psy_data4 % PostEnd
         !$ACC KERNELS
         ahmt(:, :, 1) = zah0
         ahmf(:, :, 1) = zah0
         !$ACC END KERNELS
         CALL ldf_c1d('DYN', ahmt(:, :, 1), ahmf(:, :, 1), ahmt, ahmf)
       CASE (- 20)
-        CALL profile_psy_data5 % PreStart('ldf_dyn_init', 'r5', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F(i,j) read in eddy_viscosity.nc file'
         CALL iom_open('eddy_viscosity_2D.nc', inum)
         CALL iom_get(inum, jpdom_data, 'ahmt_2d', ahmt(:, :, 1))
         CALL iom_get(inum, jpdom_data, 'ahmf_2d', ahmf(:, :, 1))
         CALL iom_close(inum)
-        CALL profile_psy_data5 % PostEnd
         DO jk = 2, jpkm1
           !$ACC KERNELS
           ahmt(:, :, jk) = ahmt(:, :, 1)
@@ -223,42 +200,34 @@ MODULE ldfdyn
           !$ACC END KERNELS
         END DO
       CASE (20)
-        CALL profile_psy_data6 % PreStart('ldf_dyn_init', 'r6', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( e1, e2 ) or F( e1^3, e2^3 ) (lap. or blp. case)'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed viscous velocity = ', rn_Uv, ' m/s   and   Lv = Max(e1,e2)'
-        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for &
+&e1=1°)'
         CALL ldf_c2d('DYN', zUfac, inn, ahmt, ahmf)
-        CALL profile_psy_data6 % PostEnd
       CASE (- 30)
-        CALL profile_psy_data7 % PreStart('ldf_dyn_init', 'r7', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F(i,j,k) read in eddy_viscosity_3D.nc file'
         CALL iom_open('eddy_viscosity_3D.nc', inum)
         CALL iom_get(inum, jpdom_data, 'ahmt_3d', ahmt)
         CALL iom_get(inum, jpdom_data, 'ahmf_3d', ahmf)
         CALL iom_close(inum)
-        CALL profile_psy_data7 % PostEnd
       CASE (30)
-        CALL profile_psy_data8 % PreStart('ldf_dyn_init', 'r8', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( latitude, longitude, depth )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed viscous velocity = ', rn_Uv, ' m/s   and   Ld = Max(e1,e2)'
-        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for &
+&e1=1°)'
         CALL ldf_c2d('DYN', zUfac, inn, ahmt, ahmf)
         CALL ldf_c1d('DYN', ahmt(:, :, 1), ahmf(:, :, 1), ahmt, ahmf)
-        CALL profile_psy_data8 % PostEnd
       CASE (31)
-        CALL profile_psy_data9 % PreStart('ldf_dyn_init', 'r9', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( latitude, longitude, depth , time )'
         IF (lwp) WRITE(numout, FMT = *) '           proportional to the local velocity : 1/2 |u|e (lap) or 1/12 |u|e^3 (blp)'
         l_ldfdyn_time = .TRUE.
-        CALL profile_psy_data9 % PostEnd
       CASE (32)
-        CALL profile_psy_data10 % PreStart('ldf_dyn_init', 'r10', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( latitude, longitude, depth , time )'
         IF (lwp) WRITE(numout, FMT = *) '           proportional to the local deformation rate and gridscale (Smagorinsky)'
         l_ldfdyn_time = .TRUE.
         ALLOCATE(dtensq(jpi, jpj), dshesq(jpi, jpj), esqt(jpi, jpj), esqf(jpi, jpj), STAT = ierr)
         IF (ierr /= 0) CALL ctl_stop('STOP', 'ldf_dyn_init: failed to allocate Smagorinsky arrays')
-        CALL profile_psy_data10 % PostEnd
         !$ACC KERNELS
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
@@ -346,14 +315,16 @@ MODULE ldfdyn
           !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpj
             DO ji = 2, jpi
-              zdb = ((ub(ji, jj, jk) * r1_e2u(ji, jj) - ub(ji - 1, jj, jk) * r1_e2u(ji - 1, jj)) * r1_e1t(ji, jj) * e2t(ji, jj) - (vb(ji, jj, jk) * r1_e1v(ji, jj) - vb(ji, jj - 1, jk) * r1_e1v(ji, jj - 1)) * r1_e2t(ji, jj) * e1t(ji, jj)) * tmask(ji, jj, jk)
+              zdb = ((ub(ji, jj, jk) * r1_e2u(ji, jj) - ub(ji - 1, jj, jk) * r1_e2u(ji - 1, jj)) * r1_e1t(ji, jj) * e2t(ji, jj) - &
+&(vb(ji, jj, jk) * r1_e1v(ji, jj) - vb(ji, jj - 1, jk) * r1_e1v(ji, jj - 1)) * r1_e2t(ji, jj) * e1t(ji, jj)) * tmask(ji, jj, jk)
               dtensq(ji, jj) = zdb * zdb
             END DO
           END DO
           !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 1, jpim1
-              zdb = ((ub(ji, jj + 1, jk) * r1_e1u(ji, jj + 1) - ub(ji, jj, jk) * r1_e1u(ji, jj)) * r1_e2f(ji, jj) * e1f(ji, jj) + (vb(ji + 1, jj, jk) * r1_e2v(ji + 1, jj) - vb(ji, jj, jk) * r1_e2v(ji, jj)) * r1_e1f(ji, jj) * e2f(ji, jj)) * fmask(ji, jj, jk)
+              zdb = ((ub(ji, jj + 1, jk) * r1_e1u(ji, jj + 1) - ub(ji, jj, jk) * r1_e1u(ji, jj)) * r1_e2f(ji, jj) * e1f(ji, jj) + &
+&(vb(ji + 1, jj, jk) * r1_e2v(ji + 1, jj) - vb(ji, jj, jk) * r1_e2v(ji, jj)) * r1_e1f(ji, jj) * e2f(ji, jj)) * fmask(ji, jj, jk)
               dshesq(ji, jj) = zdb * zdb
             END DO
           END DO
@@ -364,11 +335,13 @@ MODULE ldfdyn
               zu2pv2_ij = ub(ji, jj, jk) * ub(ji, jj, jk) + vb(ji, jj, jk) * vb(ji, jj, jk)
               zu2pv2_ij_m1 = ub(ji - 1, jj, jk) * ub(ji - 1, jj, jk) + vb(ji, jj - 1, jk) * vb(ji, jj - 1, jk)
               zdelta = zcmsmag * esqt(ji, jj)
-              ahmt(ji, jj, jk) = zdelta * SQRT(dtensq(ji, jj) + r1_4 * (dshesq(ji, jj) + dshesq(ji, jj - 1) + dshesq(ji - 1, jj) + dshesq(ji - 1, jj - 1)))
+              ahmt(ji, jj, jk) = zdelta * SQRT(dtensq(ji, jj) + r1_4 * (dshesq(ji, jj) + dshesq(ji, jj - 1) + dshesq(ji - 1, jj) + &
+&dshesq(ji - 1, jj - 1)))
               ahmt(ji, jj, jk) = MAX(ahmt(ji, jj, jk), SQRT((zu2pv2_ij + zu2pv2_ij_m1) * zdelta * zstabf_lo))
               ahmt(ji, jj, jk) = MIN(ahmt(ji, jj, jk), zdelta * zstabf_up)
               zdelta = zcmsmag * esqf(ji, jj)
-              ahmf(ji, jj, jk) = zdelta * SQRT(dshesq(ji, jj) + r1_4 * (dtensq(ji, jj) + dtensq(ji, jj + 1) + dtensq(ji + 1, jj) + dtensq(ji + 1, jj + 1)))
+              ahmf(ji, jj, jk) = zdelta * SQRT(dshesq(ji, jj) + r1_4 * (dtensq(ji, jj) + dtensq(ji, jj + 1) + dtensq(ji + 1, jj) + &
+&dtensq(ji + 1, jj + 1)))
               ahmf(ji, jj, jk) = MAX(ahmf(ji, jj, jk), SQRT((zu2pv2_ij + zu2pv2_ij_p1) * zdelta * zstabf_lo))
               ahmf(ji, jj, jk) = MIN(ahmf(ji, jj, jk), zdelta * zstabf_up)
             END DO

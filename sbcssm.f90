@@ -159,7 +159,8 @@ MODULE sbcssm
       CALL profile_psy_data5 % PreStart('sbc_ssm', 'r5', 0, 0)
       IF (lrst_oce) THEN
         IF (lwp) WRITE(numout, FMT = *)
-        IF (lwp) WRITE(numout, FMT = *) 'sbc_ssm : sea surface mean fields written in ocean restart file ', 'at it= ', kt, ' date= ', ndastp
+        IF (lwp) WRITE(numout, FMT = *) 'sbc_ssm : sea surface mean fields written in ocean restart file ', 'at it= ', kt, ' date= &
+&', ndastp
         IF (lwp) WRITE(numout, FMT = *) '~~~~~~~'
         zf_sbc = REAL(nn_fsbc, wp)
         IF (lwxios) CALL iom_swap(cwxios_context)
@@ -188,28 +189,16 @@ MODULE sbcssm
     CALL profile_psy_data6 % PostEnd
   END SUBROUTINE sbc_ssm
   SUBROUTINE sbc_ssm_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp) :: zcoef, zf_sbc
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
     IF (nn_fsbc == 1) THEN
-      CALL profile_psy_data0 % PreStart('sbc_ssm_init', 'r0', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'sbc_ssm_init : sea surface mean fields, nn_fsbc=1 : instantaneous values'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~ '
-      CALL profile_psy_data0 % PostEnd
     ELSE
-      CALL profile_psy_data1 % PreStart('sbc_ssm_init', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'sbc_ssm_init : sea surface mean fields'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~ '
-      CALL profile_psy_data1 % PostEnd
       IF (ln_rstart .AND. iom_varid(numror, 'nn_fsbc', ldstop = .FALSE.) > 0) THEN
-        CALL profile_psy_data2 % PreStart('sbc_ssm_init', 'r2', 0, 0)
         l_ssm_mean = .TRUE.
         CALL iom_get(numror, 'nn_fsbc', zf_sbc, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'ssu_m', ssu_m, ldxios = lrxios)
@@ -218,7 +207,6 @@ MODULE sbcssm
         CALL iom_get(numror, jpdom_autoglo, 'sss_m', sss_m, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'ssh_m', ssh_m, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'e3t_m', e3t_m, ldxios = lrxios)
-        CALL profile_psy_data2 % PostEnd
         IF (iom_varid(numror, 'frq_m', ldstop = .FALSE.) > 0) THEN
           CALL iom_get(numror, jpdom_autoglo, 'frq_m', frq_m, ldxios = lrxios)
         ELSE
@@ -227,10 +215,8 @@ MODULE sbcssm
           !$ACC END KERNELS
         END IF
         IF (zf_sbc /= REAL(nn_fsbc, wp)) THEN
-          CALL profile_psy_data3 % PreStart('sbc_ssm_init', 'r3', 0, 0)
           IF (lwp) WRITE(numout, FMT = *) '   restart with a change in the frequency of mean from ', zf_sbc, ' to ', nn_fsbc
           zcoef = REAL(nn_fsbc - 1, wp) / zf_sbc
-          CALL profile_psy_data3 % PostEnd
           !$ACC KERNELS
           ssu_m(:, :) = zcoef * ssu_m(:, :)
           ssv_m(:, :) = zcoef * ssv_m(:, :)
@@ -252,9 +238,7 @@ MODULE sbcssm
       ssv_m(:, :) = vb(:, :, 1)
       !$ACC END KERNELS
       IF (l_usect) THEN
-        CALL profile_psy_data4 % PreStart('sbc_ssm_init', 'r4', 0, 0)
         sst_m(:, :) = eos_pt_from_ct(tsn(:, :, 1, jp_tem), tsn(:, :, 1, jp_sal))
-        CALL profile_psy_data4 % PostEnd
       ELSE
         !$ACC KERNELS
         sst_m(:, :) = tsn(:, :, 1, jp_tem)
@@ -267,7 +251,6 @@ MODULE sbcssm
       frq_m(:, :) = 1._wp
       !$ACC END KERNELS
     END IF
-    CALL profile_psy_data5 % PreStart('sbc_ssm_init', 'r5', 0, 0)
     IF (lwxios .AND. nn_fsbc > 1) THEN
       CALL iom_set_rstw_var_active('nn_fsbc')
       CALL iom_set_rstw_var_active('ssu_m')
@@ -278,6 +261,5 @@ MODULE sbcssm
       CALL iom_set_rstw_var_active('e3t_m')
       CALL iom_set_rstw_var_active('frq_m')
     END IF
-    CALL profile_psy_data5 % PostEnd
   END SUBROUTINE sbc_ssm_init
 END MODULE sbcssm

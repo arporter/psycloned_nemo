@@ -120,8 +120,10 @@ MODULE trdtra
         !$ACC END KERNELS
         DO jk = 2, jpk
           !$ACC KERNELS
-          zwt(:, :, jk) = avt_evd(:, :, jk) * (tsa(:, :, jk - 1, jp_tem) - tsa(:, :, jk, jp_tem)) / e3w_n(:, :, jk) * tmask(:, :, jk)
-          zws(:, :, jk) = avt_evd(:, :, jk) * (tsa(:, :, jk - 1, jp_sal) - tsa(:, :, jk, jp_sal)) / e3w_n(:, :, jk) * tmask(:, :, jk)
+          zwt(:, :, jk) = avt_evd(:, :, jk) * (tsa(:, :, jk - 1, jp_tem) - tsa(:, :, jk, jp_tem)) / e3w_n(:, :, jk) * tmask(:, :, &
+&jk)
+          zws(:, :, jk) = avt_evd(:, :, jk) * (tsa(:, :, jk - 1, jp_sal) - tsa(:, :, jk, jp_sal)) / e3w_n(:, :, jk) * tmask(:, :, &
+&jk)
           !$ACC END KERNELS
         END DO
         !$ACC KERNELS
@@ -193,7 +195,8 @@ MODULE trdtra
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          ptrd(ji, jj, jk) = - (pf(ji, jj, jk) - pf(ji - ii, jj - ij, jk - ik) - (pun(ji, jj, jk) - pun(ji - ii, jj - ij, jk - ik)) * ptn(ji, jj, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk) * tmask(ji, jj, jk)
+          ptrd(ji, jj, jk) = - (pf(ji, jj, jk) - pf(ji - ii, jj - ij, jk - ik) - (pun(ji, jj, jk) - pun(ji - ii, jj - ij, jk - &
+&ik)) * ptn(ji, jj, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk) * tmask(ji, jj, jk)
         END DO
       END DO
     END DO

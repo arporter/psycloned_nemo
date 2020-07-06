@@ -16,13 +16,11 @@ MODULE daymod
   INTEGER, PUBLIC :: nsecd, nsecd05, ndt, ndt05
   CONTAINS
   SUBROUTINE day_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: inbday, idweek
     REAL(KIND = wp) :: zjul
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('day_init', 'r0', 0, 0)
     IF (REAL(nitend - nit000 + 1) * rdt > REAL(HUGE(nsec1jan000))) THEN
-      CALL ctl_stop('The number of seconds between each restart exceeds the integer 4 max value: 2^31-1. ', 'You must do a restart at higher frequency (or remove this stop and recompile the code in I8)')
+      CALL ctl_stop('The number of seconds between each restart exceeds the integer 4 max value: 2^31-1. ', &
+&'You must do a restart at higher frequency (or remove this stop and recompile the code in I8)')
     END IF
     nsecd = NINT(rday)
     nsecd05 = NINT(0.5 * rday)
@@ -65,7 +63,9 @@ MODULE daymod
     nsec_day = nhour * 3600 + nminute * 60 - ndt05
     IF (nsec_day .LT. 0) nsec_day = nsec_day + nsecd
     IF (nsec_week .LT. 0) nsec_week = nsec_week + nsecd * 7
-    IF (lwp) WRITE(numout, FMT = '(a,i6,a,i2,a,i2,a,i8,a,i8,a,i8,a,i8)') ' =======>> 1/2 time step before the start of the run DATE Y/M/D = ', nyear, '/', nmonth, '/', nday, '  nsec_day:', nsec_day, '  nsec_week:', nsec_week, '                     nsec_month:', nsec_month, '  nsec_year:', nsec_year
+    IF (lwp) WRITE(numout, FMT = '(a,i6,a,i2,a,i2,a,i8,a,i8,a,i8,a,i8)') ' =======>> 1/2 time step before the start of the run &
+&DATE Y/M/D = ', nyear, '/', nmonth, '/', nday, '  nsec_day:', nsec_day, '  nsec_week:', nsec_week, '                     &
+&nsec_month:', nsec_month, '  nsec_year:', nsec_year
     CALL day(nit000)
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('kt')
@@ -73,11 +73,12 @@ MODULE daymod
       CALL iom_set_rstw_var_active('adatrj')
       CALL iom_set_rstw_var_active('ntime')
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE day_init
   SUBROUTINE day_mth
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jm
-    !$ACC KERNELS
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('day_mth', 'r0', 0, 0)
     IF (nleapy < 2) THEN
       nmonth_len(:) = (/31, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 31/)
       nyear_len(:) = 365
@@ -105,7 +106,7 @@ MODULE daymod
     DO jm = 1, 13
       nmonth_end(jm) = nmonth_end(jm - 1) + nsecd * nmonth_len(jm)
     END DO
-    !$ACC END KERNELS
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE
   SUBROUTINE day(kt)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
@@ -143,8 +144,10 @@ MODULE daymod
       END IF
       ndastp = nyear * 10000 + nmonth * 100 + nday
       CALL ymds2ju(nyear, 01, 01, 0.0, fjulstartyear)
-      IF (lwp) WRITE(numout, FMT = '(a,i8,a,i4.4,a,i2.2,a,i2.2,a,i3.3)') '======>> time-step =', kt, '      New day, DATE Y/M/D = ', nyear, '/', nmonth, '/', nday, '      nday_year = ', nday_year
-      IF (lwp) WRITE(numout, FMT = '(a,i8,a,i7,a,i5)') '         nsec_year = ', nsec_year, '   nsec_month = ', nsec_month, '   nsec_day = ', nsec_day, '   nsec_week = ', nsec_week
+      IF (lwp) WRITE(numout, FMT = '(a,i8,a,i4.4,a,i2.2,a,i2.2,a,i3.3)') '======>> time-step =', kt, '      New day, DATE Y/M/D = &
+&', nyear, '/', nmonth, '/', nday, '      nday_year = ', nday_year
+      IF (lwp) WRITE(numout, FMT = '(a,i8,a,i7,a,i5)') '         nsec_year = ', nsec_year, '   nsec_month = ', nsec_month, '   &
+&nsec_day = ', nsec_day, '   nsec_week = ', nsec_week
     END IF
     IF (nsec_week > 7 * nsecd) nsec_week = ndt05
     IF (ln_ctl) THEN
@@ -157,13 +160,10 @@ MODULE daymod
     CALL profile_psy_data0 % PostEnd
   END SUBROUTINE day
   SUBROUTINE day_rst(kt, cdrw)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
     REAL(KIND = wp) :: zkt, zndastp, zdayfrac, ksecs, ktime
     INTEGER :: ihour, iminute
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('day_rst', 'r0', 0, 0)
     IF (TRIM(cdrw) == 'READ') THEN
       IF (iom_varid(numror, 'kt', ldstop = .FALSE.) > 0) THEN
         CALL iom_get(numror, 'kt', zkt, ldxios = lrxios)
@@ -181,7 +181,8 @@ MODULE daymod
           END SELECT
           WRITE(numout, FMT = *)
         END IF
-        IF (nit000 - NINT(zkt) /= 1 .AND. nrstdt /= 0) CALL ctl_stop(' ===>>>> : problem with nit000 for the restart', ' verify the restart file or rerun with nrstdt = 0 (namelist)')
+        IF (nit000 - NINT(zkt) /= 1 .AND. nrstdt /= 0) CALL ctl_stop(' ===>>>> : problem with nit000 for the restart', ' verify &
+&the restart file or rerun with nrstdt = 0 (namelist)')
         IF (nrstdt == 2) THEN
           CALL iom_get(numror, 'ndastp', zndastp, ldxios = lrxios)
           ndastp = NINT(zndastp)
@@ -241,6 +242,5 @@ MODULE daymod
       CALL iom_rstput(kt, nitrst, numrow, 'ntime', REAL(nn_time0, wp), ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE day_rst
 END MODULE daymod

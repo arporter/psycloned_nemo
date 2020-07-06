@@ -64,7 +64,8 @@ MODULE obs_readmdt
     !$ACC END KERNELS
     CALL profile_psy_data1 % PreStart('obs_rea_mdt', 'r1', 0, 0)
     IF (nn_msshc == 1 .OR. nn_msshc == 2) CALL obs_offset_mdt(jpi, jpj, z_mdt, zfill)
-    ALLOCATE(igrdi(2, 2, sladata % nsurf), igrdj(2, 2, sladata % nsurf), zglam(2, 2, sladata % nsurf), zgphi(2, 2, sladata % nsurf), zmask(2, 2, sladata % nsurf), zmdtl(2, 2, sladata % nsurf))
+    ALLOCATE(igrdi(2, 2, sladata % nsurf), igrdj(2, 2, sladata % nsurf), zglam(2, 2, sladata % nsurf), zgphi(2, 2, sladata % &
+&nsurf), zmask(2, 2, sladata % nsurf), zmdtl(2, 2, sladata % nsurf))
     DO jobs = 1, sladata % nsurf
       igrdi(1, 1, jobs) = sladata % mi(jobs) - 1
       igrdj(1, 1, jobs) = sladata % mj(jobs) - 1
@@ -106,7 +107,8 @@ MODULE obs_readmdt
     DO ji = 1, jpi
       DO jj = 1, jpj
         zpromsk(ji, jj) = tmask_i(ji, jj)
-        IF ((gphit(ji, jj) .GT. rn_mdtcutoff) .OR. (gphit(ji, jj) .LT. - rn_mdtcutoff) .OR. (mdt(ji, jj) .EQ. zfill)) zpromsk(ji, jj) = 0.0
+        IF ((gphit(ji, jj) .GT. rn_mdtcutoff) .OR. (gphit(ji, jj) .LT. - rn_mdtcutoff) .OR. (mdt(ji, jj) .EQ. zfill)) zpromsk(ji, &
+&jj) = 0.0
       END DO
     END DO
     zarea = 0.0

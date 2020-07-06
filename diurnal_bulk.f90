@@ -17,11 +17,8 @@ MODULE diurnal_bulk
   PUBLIC :: diurnal_sst_bulk_init, diurnal_sst_takaya_step
   CONTAINS
   SUBROUTINE diurnal_sst_bulk_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     NAMELIST /namdiu/ ln_diurnal, ln_diurnal_only
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('diurnal_sst_bulk_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namdiu, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namdiu in reference namelist', lwp)
@@ -39,9 +36,9 @@ MODULE diurnal_bulk
         CALL ctl_warn("ln_diurnal_only set; only the diurnal component of SST will be calculated")
       END IF
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE diurnal_sst_bulk_init
-  SUBROUTINE diurnal_sst_takaya_step(kt, psolflux, pqflux, ptauflux, prho, p_rdt, pla, pthick, pcoolthick, pmu, p_fvel_bkginc, p_hflux_bkginc)
+  SUBROUTINE diurnal_sst_takaya_step(kt, psolflux, pqflux, ptauflux, prho, p_rdt, pla, pthick, pcoolthick, pmu, p_fvel_bkginc, &
+&p_hflux_bkginc)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: psolflux
@@ -104,7 +101,8 @@ MODULE diurnal_bulk
     IF (kt == nit000) THEN
       DO jj = 1, jpj
         DO ji = 1, jpi
-          IF ((x_solfrac(ji, jj) == 0._wp) .AND. (tmask(ji, jj, 1) == 1._wp)) x_solfrac(ji, jj) = solfrac(zcoolthick(ji, jj), zthick(ji, jj))
+          IF ((x_solfrac(ji, jj) == 0._wp) .AND. (tmask(ji, jj, 1) == 1._wp)) x_solfrac(ji, jj) = solfrac(zcoolthick(ji, jj), &
+&zthick(ji, jj))
         END DO
       END DO
     END IF
@@ -168,7 +166,8 @@ MODULE diurnal_bulk
         END IF
         IF (p_fvel(ji, jj) < pp_min_fvel) THEN
           z_fvel = pp_min_fvel
-          WRITE(warn_string, FMT = *) "diurnal_sst_takaya step: " // "friction velocity < minimum\n" // "Setting friction velocity =", pp_min_fvel
+          WRITE(warn_string, FMT = *) "diurnal_sst_takaya step: " // "friction velocity < minimum\n" // "Setting friction velocity &
+&=", pp_min_fvel
           CALL ctl_warn(warn_string)
         ELSE
           z_fvel = p_fvel(ji, jj)

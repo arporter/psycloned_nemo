@@ -23,14 +23,10 @@ MODULE diaar5
   LOGICAL :: l_ar5
   CONTAINS
   FUNCTION dia_ar5_alloc()
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: dia_ar5_alloc
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('dia_ar5_alloc', 'r0', 0, 0)
     ALLOCATE(area(jpi, jpj), thick0(jpi, jpj), sn0(jpi, jpj, jpk), STAT = dia_ar5_alloc)
     IF (lk_mpp) CALL mpp_sum(dia_ar5_alloc)
     IF (dia_ar5_alloc /= 0) CALL ctl_warn('dia_ar5_alloc: failed to allocate arrays')
-    CALL profile_psy_data0 % PostEnd
   END FUNCTION dia_ar5_alloc
   SUBROUTINE dia_ar5(kt)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
@@ -206,7 +202,8 @@ MODULE diaar5
                 zrw = (gdepw_n(ji, jj, jk) - gdept_n(ji, jj, jk)) / (gdept_n(ji, jj, jk - 1) - gdept_n(ji, jj, jk))
                 zaw = rab_n(ji, jj, jk, jp_tem) * (1. - zrw) + rab_n(ji, jj, jk - 1, jp_tem) * zrw
                 zbw = rab_n(ji, jj, jk, jp_sal) * (1. - zrw) + rab_n(ji, jj, jk - 1, jp_sal) * zrw
-                zpe(ji, jj) = zpe(ji, jj) - grav * (avt(ji, jj, jk) * zaw * (tsn(ji, jj, jk - 1, jp_tem) - tsn(ji, jj, jk, jp_tem)) - avs(ji, jj, jk) * zbw * (tsn(ji, jj, jk - 1, jp_sal) - tsn(ji, jj, jk, jp_sal)))
+                zpe(ji, jj) = zpe(ji, jj) - grav * (avt(ji, jj, jk) * zaw * (tsn(ji, jj, jk - 1, jp_tem) - tsn(ji, jj, jk, &
+&jp_tem)) - avs(ji, jj, jk) * zbw * (tsn(ji, jj, jk - 1, jp_sal) - tsn(ji, jj, jk, jp_sal)))
               END IF
             END DO
           END DO
@@ -293,50 +290,38 @@ MODULE diaar5
     CALL profile_psy_data1 % PostEnd
   END SUBROUTINE dia_ar5_hst
   SUBROUTINE dia_ar5_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: inum
     INTEGER :: ik
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zztmp
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :, :) :: zsaldta
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    CALL profile_psy_data0 % PreStart('dia_ar5_init', 'r0', 0, 0)
     l_ar5 = .FALSE.
-    IF (iom_use('voltot') .OR. iom_use('sshtot') .OR. iom_use('sshdyn') .OR. iom_use('masstot') .OR. iom_use('temptot') .OR. iom_use('saltot') .OR. iom_use('botpres') .OR. iom_use('sshthster') .OR. iom_use('sshsteric')) L_ar5 = .TRUE.
-    CALL profile_psy_data0 % PostEnd
+    IF (iom_use('voltot') .OR. iom_use('sshtot') .OR. iom_use('sshdyn') .OR. iom_use('masstot') .OR. iom_use('temptot') .OR. &
+&iom_use('saltot') .OR. iom_use('botpres') .OR. iom_use('sshthster') .OR. iom_use('sshsteric')) L_ar5 = .TRUE.
     IF (l_ar5) THEN
       IF (dia_ar5_alloc() /= 0) CALL ctl_stop('STOP', 'dia_ar5_init : unable to allocate arrays')
       !$ACC KERNELS
       area(:, :) = e1e2t(:, :) * tmask_i(:, :)
       !$ACC END KERNELS
-      CALL profile_psy_data1 % PreStart('dia_ar5_init', 'r1', 0, 0)
       area_tot = SUM(area(:, :))
       IF (lk_mpp) CALL mpp_sum(area_tot)
-      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       vol0 = 0._wp
       thick0(:, :) = 0._wp
       !$ACC END KERNELS
       DO jk = 1, jpkm1
-        CALL profile_psy_data2 % PreStart('dia_ar5_init', 'r2', 0, 0)
         vol0 = vol0 + SUM(area(:, :) * tmask(:, :, jk) * e3t_0(:, :, jk))
-        CALL profile_psy_data2 % PostEnd
         !$ACC KERNELS
         thick0(:, :) = thick0(:, :) + tmask_i(:, :) * tmask(:, :, jk) * e3t_0(:, :, jk)
         !$ACC END KERNELS
       END DO
       IF (lk_mpp) CALL mpp_sum(vol0)
       IF (iom_use('sshthster')) THEN
-        CALL profile_psy_data3 % PreStart('dia_ar5_init', 'r3', 0, 0)
         ALLOCATE(zsaldta(jpi, jpj, jpj, jpts))
         CALL iom_open('sali_ref_clim_monthly', inum)
         CALL iom_get(inum, jpdom_data, 'vosaline', zsaldta(:, :, :, 1), 1)
         CALL iom_get(inum, jpdom_data, 'vosaline', zsaldta(:, :, :, 2), 12)
         CALL iom_close(inum)
-        CALL profile_psy_data3 % PostEnd
         !$ACC KERNELS
         sn0(:, :, :) = 0.5_wp * (zsaldta(:, :, :, 1) + zsaldta(:, :, :, 2))
         sn0(:, :, :) = sn0(:, :, :) * tmask(:, :, :)

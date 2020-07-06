@@ -10,11 +10,8 @@ MODULE diatmb
   PUBLIC :: dia_tmb
   CONTAINS
   SUBROUTINE dia_tmb_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     NAMELIST /nam_diatmb/ ln_diatmb
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('dia_tmb_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, nam_diatmb, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'nam_diatmb in reference namelist', lwp)
@@ -29,7 +26,6 @@ MODULE diatmb
       WRITE(numout, FMT = *) '   Namelist nam_diatmb : set tmb outputs '
       WRITE(numout, FMT = *) '      Switch for TMB diagnostics (T) or not (F)  ln_diatmb  = ', ln_diatmb
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dia_tmb_init
   SUBROUTINE dia_calctmb(pfield, ptmb)
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: pfield

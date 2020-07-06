@@ -400,15 +400,10 @@ MODULE diaptr
     IF (ln_timing) CALL timing_stop('dia_ptr')
   END SUBROUTINE dia_ptr
   SUBROUTINE dia_ptr_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jn
     INTEGER :: inum, ierr
     INTEGER :: ios
     NAMELIST /namptr/ ln_diaptr, ln_subbas
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    CALL profile_psy_data0 % PreStart('dia_ptr_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namptr, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namptr in reference namelist', lwp)
@@ -424,9 +419,7 @@ MODULE diaptr
       WRITE(numout, FMT = *) '      Poleward heat & salt transport (T) or not (F)      ln_diaptr  = ', ln_diaptr
       WRITE(numout, FMT = *) '      Global (F) or glo/Atl/Pac/Ind/Indo-Pac basins      ln_subbas  = ', ln_subbas
     END IF
-    CALL profile_psy_data0 % PostEnd
     IF (ln_diaptr) THEN
-      CALL profile_psy_data1 % PreStart('dia_ptr_init', 'r1', 0, 0)
       IF (ln_subbas) THEN
         nptr = 5
         ALLOCATE(clsubb(nptr))
@@ -443,15 +436,12 @@ MODULE diaptr
       IF (dia_ptr_alloc() /= 0) CALL ctl_stop('STOP', 'dia_ptr_init : unable to allocate arrays')
       rc_pwatt = rc_pwatt * rau0_rcp
       IF (lk_mpp) CALL mpp_ini_znl(numout)
-      CALL profile_psy_data1 % PostEnd
       IF (ln_subbas) THEN
-        CALL profile_psy_data2 % PreStart('dia_ptr_init', 'r2', 0, 0)
         CALL iom_open('subbasins', inum, ldstop = .FALSE.)
         CALL iom_get(inum, jpdom_data, 'atlmsk', btmsk(:, :, 2))
         CALL iom_get(inum, jpdom_data, 'pacmsk', btmsk(:, :, 3))
         CALL iom_get(inum, jpdom_data, 'indmsk', btmsk(:, :, 4))
         CALL iom_close(inum)
-        CALL profile_psy_data2 % PostEnd
         !$ACC KERNELS
         btmsk(:, :, 5) = MAX(btmsk(:, :, 3), btmsk(:, :, 4))
         WHERE (gphit(:, :) < - 30._wp)
@@ -540,20 +530,17 @@ MODULE diaptr
     CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dia_ptr_hst
   FUNCTION dia_ptr_alloc()
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: dia_ptr_alloc
     INTEGER, DIMENSION(3) :: ierr
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     ierr(:) = 0
     !$ACC END KERNELS
-    CALL profile_psy_data0 % PreStart('dia_ptr_alloc', 'r0', 0, 0)
-    ALLOCATE(btmsk(jpi, jpj, nptr), htr_adv(jpj, nptr), str_adv(jpj, nptr), htr_eiv(jpj, nptr), str_eiv(jpj, nptr), htr_ove(jpj, nptr), str_ove(jpj, nptr), htr_btr(jpj, nptr), str_btr(jpj, nptr), htr_ldf(jpj, nptr), str_ldf(jpj, nptr), STAT = ierr(1))
+    ALLOCATE(btmsk(jpi, jpj, nptr), htr_adv(jpj, nptr), str_adv(jpj, nptr), htr_eiv(jpj, nptr), str_eiv(jpj, nptr), htr_ove(jpj, &
+&nptr), str_ove(jpj, nptr), htr_btr(jpj, nptr), str_btr(jpj, nptr), htr_ldf(jpj, nptr), str_ldf(jpj, nptr), STAT = ierr(1))
     ALLOCATE(p_fval1d(jpj), p_fval2d(jpj, jpk), STAT = ierr(2))
     ALLOCATE(btm30(jpi, jpj), STAT = ierr(3))
     dia_ptr_alloc = MAXVAL(ierr)
     IF (lk_mpp) CALL mpp_sum(dia_ptr_alloc)
-    CALL profile_psy_data0 % PostEnd
   END FUNCTION dia_ptr_alloc
   FUNCTION ptr_sj_3d(pva, pmsk) RESULT(p_fval)
     REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj, jpk) :: pva
@@ -589,6 +576,7 @@ MODULE diaptr
       END DO
       !$ACC END KERNELS
     END IF
+    IF (lk_mpp) CALL mpp_sum(p_fval, ijpj, ncomm_znl)
   END FUNCTION ptr_sj_3d
   FUNCTION ptr_sj_2d(pva, pmsk) RESULT(p_fval)
     REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: pva
@@ -620,13 +608,20 @@ MODULE diaptr
       END DO
       !$ACC END KERNELS
     END IF
+    CALL mpp_sum(p_fval, ijpj, ncomm_znl)
   END FUNCTION ptr_sj_2d
   FUNCTION ptr_sjk(pta, pmsk) RESULT(p_fval)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     IMPLICIT NONE
     REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj, jpk) :: pta
     REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj), OPTIONAL :: pmsk
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), POINTER, DIMENSION(:, :) :: p_fval
+    INTEGER, DIMENSION(1) :: ish
+    INTEGER, DIMENSION(2) :: ish2
+    INTEGER :: ijpjjpk
+    REAL(KIND = wp), DIMENSION(jpj * jpk) :: zwork
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     p_fval => p_fval2d
     !$ACC KERNELS
     p_fval(:, :) = 0._wp
@@ -654,5 +649,14 @@ MODULE diaptr
       END DO
       !$ACC END KERNELS
     END IF
+    CALL profile_psy_data0 % PreStart('ptr_sjk', 'r0', 0, 0)
+    ijpjjpk = jpj * jpk
+    ish(1) = ijpjjpk
+    ish2(1) = jpj
+    ish2(2) = jpk
+    zwork(1 : ijpjjpk) = RESHAPE(p_fval, ish)
+    CALL mpp_sum(zwork, ijpjjpk, ncomm_znl)
+    p_fval(:, :) = RESHAPE(zwork, ish2)
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION ptr_sjk
 END MODULE diaptr

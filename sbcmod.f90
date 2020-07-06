@@ -39,13 +39,10 @@ MODULE sbcmod
   INTEGER :: nsbc
   CONTAINS
   SUBROUTINE sbc_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios, icpt
     LOGICAL :: ll_purecpl, ll_opa, ll_not_nemo
-    NAMELIST /namsbc/ nn_fsbc, ln_usr, ln_flx, ln_blk, ln_cpl, ln_mixcpl, nn_components, nn_ice, ln_ice_embd, ln_traqsr, ln_dm2dc, ln_rnf, nn_fwb, ln_ssr, ln_isf, ln_apr_dyn, ln_wave, ln_cdgw, ln_sdw, ln_tauwoc, ln_stcor, ln_tauw, nn_lsm, nn_sdrift
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    CALL profile_psy_data0 % PreStart('sbc_init', 'r0', 0, 0)
+    NAMELIST /namsbc/ nn_fsbc, ln_usr, ln_flx, ln_blk, ln_cpl, ln_mixcpl, nn_components, nn_ice, ln_ice_embd, ln_traqsr, ln_dm2dc, &
+&ln_rnf, nn_fwb, ln_ssr, ln_isf, ln_apr_dyn, ln_wave, ln_cdgw, ln_sdw, ln_tauwoc, ln_stcor, ln_tauw, nn_lsm, nn_sdrift
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'sbc_init : surface boundary condition setting'
@@ -100,15 +97,18 @@ MODULE sbcmod
       ln_stcor = .FALSE.
     END IF
     IF (ln_sdw) THEN
-      IF (.NOT. (nn_sdrift == jp_breivik_2014 .OR. nn_sdrift == jp_li_2017 .OR. nn_sdrift == jp_peakfr)) CALL ctl_stop('The chosen nn_sdrift for Stokes drift vertical velocity must be 0, 1, or 2')
+      IF (.NOT. (nn_sdrift == jp_breivik_2014 .OR. nn_sdrift == jp_li_2017 .OR. nn_sdrift == jp_peakfr)) CALL ctl_stop('The chosen &
+&nn_sdrift for Stokes drift vertical velocity must be 0, 1, or 2')
     END IF
     ll_st_bv2014 = (nn_sdrift == jp_breivik_2014)
     ll_st_li2017 = (nn_sdrift == jp_li_2017)
     ll_st_bv_li = (ll_st_bv2014 .OR. ll_st_li2017)
     ll_st_peakfr = (nn_sdrift == jp_peakfr)
-    IF (ln_tauwoc .AND. ln_tauw) CALL ctl_stop('More than one method for modifying the ocean stress has been selected ', '(ln_tauwoc=.true. and ln_tauw=.true.)')
+    IF (ln_tauwoc .AND. ln_tauw) CALL ctl_stop('More than one method for modifying the ocean stress has been selected ', &
+&'(ln_tauwoc=.true. and ln_tauw=.true.)')
     IF (ln_tauwoc) CALL ctl_warn('You are subtracting the wave stress to the ocean (ln_tauwoc=.true.)')
-    IF (ln_tauw) CALL ctl_warn('The wave modified ocean stress components are used (ln_tauw=.true.) ', 'This will override any other specification of the ocean stress')
+    IF (ln_tauw) CALL ctl_warn('The wave modified ocean stress components are used (ln_tauw=.true.) ', 'This will override any &
+&other specification of the ocean stress')
     IF (.NOT. ln_usr) THEN
       IF (MOD(rday, rdt) /= 0.) CALL ctl_stop('the time step must devide the number of second of in a day')
       IF (MOD(rday, 2.) /= 0.) CALL ctl_stop('the number of second of in a day must be an even number')
@@ -117,7 +117,8 @@ MODULE sbcmod
     IF (lwp) WRITE(numout, FMT = *)
     SELECT CASE (nn_components)
     CASE (jp_iam_nemo)
-      IF (lwp) WRITE(numout, FMT = *) '   ==>>>   NEMO configured as a single executable (i.e. including both OPA and Surface module)'
+      IF (lwp) WRITE(numout, FMT = *) '   ==>>>   NEMO configured as a single executable (i.e. including both OPA and Surface &
+&module)'
     CASE (jp_iam_opa)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   Multi executable configuration. Here, OPA component'
       IF (.NOT. lk_oasis) CALL ctl_stop('sbc_init : OPA-SAS coupled via OASIS, but key_oasis3 disabled')
@@ -131,12 +132,15 @@ MODULE sbcmod
       CALL ctl_stop('sbc_init : unsupported value for nn_components')
     END SELECT
     IF (ln_cpl) THEN
-      IF (.NOT. lk_oasis) CALL ctl_stop('sbc_init : coupled mode with an atmosphere model (ln_cpl=T)', '           required to defined key_oasis3')
+      IF (.NOT. lk_oasis) CALL ctl_stop('sbc_init : coupled mode with an atmosphere model (ln_cpl=T)', '           required to &
+&defined key_oasis3')
     END IF
     IF (ln_mixcpl) THEN
-      IF (.NOT. lk_oasis) CALL ctl_stop('sbc_init : mixed forced-coupled mode (ln_mixcpl=T) ', '           required to defined key_oasis3')
+      IF (.NOT. lk_oasis) CALL ctl_stop('sbc_init : mixed forced-coupled mode (ln_mixcpl=T) ', '           required to defined &
+&key_oasis3')
       IF (.NOT. ln_cpl) CALL ctl_stop('sbc_init : mixed forced-coupled mode (ln_mixcpl=T) requires ln_cpl = T')
-      IF (nn_components /= jp_iam_nemo) CALL ctl_stop('sbc_init : the mixed forced-coupled mode (ln_mixcpl=T) ', '          not yet working with sas-opa coupling via oasis')
+      IF (nn_components /= jp_iam_nemo) CALL ctl_stop('sbc_init : the mixed forced-coupled mode (ln_mixcpl=T) ', '          not &
+&yet working with sas-opa coupling via oasis')
     END IF
     SELECT CASE (nn_ice)
     CASE (0)
@@ -149,7 +153,6 @@ MODULE sbcmod
     END SELECT
     IF (sbc_oce_alloc() /= 0) CALL ctl_stop('sbc_init : unable to allocate sbc_oce arrays')
     IF (sbc_ice_alloc() /= 0) CALL ctl_stop('sbc_init : unable to allocate sbc_ice arrays')
-    CALL profile_psy_data0 % PostEnd
     IF (.NOT. ln_isf) THEN
       IF (sbc_isf_alloc() /= 0) CALL ctl_stop('STOP', 'sbc_init : unable to allocate sbc_isf arrays')
       !$ACC KERNELS
@@ -167,10 +170,10 @@ MODULE sbcmod
     fmmflx(:, :) = 0._wp
     taum(:, :) = 0._wp
     !$ACC END KERNELS
-    CALL profile_psy_data1 % PreStart('sbc_init', 'r1', 0, 0)
     IF (ln_dm2dc) THEN
       nday_qsr = - 1
-      IF (.NOT. (ln_flx .OR. ln_blk) .AND. nn_components /= jp_iam_opa) CALL ctl_stop('qsr diurnal cycle from daily values requires a flux or bulk formulation')
+      IF (.NOT. (ln_flx .OR. ln_blk) .AND. nn_components /= jp_iam_opa) CALL ctl_stop('qsr diurnal cycle from daily values &
+&requires a flux or bulk formulation')
     END IF
     ll_purecpl = ln_cpl .AND. .NOT. ln_mixcpl
     ll_opa = nn_components == jp_iam_opa
@@ -225,11 +228,14 @@ MODULE sbcmod
       END IF
     END IF
     IF (MOD(nitend - nit000 + 1, nn_fsbc) /= 0 .OR. MOD(nstock, nn_fsbc) /= 0) THEN
-      WRITE(ctmp1, FMT = *) 'sbc_init : experiment length (', nitend - nit000 + 1, ') or nstock (', nstock, ' is NOT a multiple of nn_fsbc (', nn_fsbc, ')'
+      WRITE(ctmp1, FMT = *) 'sbc_init : experiment length (', nitend - nit000 + 1, ') or nstock (', nstock, ' is NOT a multiple of &
+&nn_fsbc (', nn_fsbc, ')'
       CALL ctl_stop(ctmp1, 'Impossible to properly do model restart')
     END IF
-    IF (MOD(rday, REAL(nn_fsbc, wp) * rdt) /= 0) CALL ctl_warn('sbc_init : nn_fsbc is NOT a multiple of the number of time steps in a day')
-    IF (ln_dm2dc .AND. NINT(rday) / (nn_fsbc * NINT(rdt)) < 8) CALL ctl_warn('sbc_init : diurnal cycle for qsr: the sampling of the diurnal cycle is too small...')
+    IF (MOD(rday, REAL(nn_fsbc, wp) * rdt) /= 0) CALL ctl_warn('sbc_init : nn_fsbc is NOT a multiple of the number of time steps &
+&in a day')
+    IF (ln_dm2dc .AND. NINT(rday) / (nn_fsbc * NINT(rdt)) < 8) CALL ctl_warn('sbc_init : diurnal cycle for qsr: the sampling of &
+&the diurnal cycle is too small...')
     CALL sbc_ssm_init
     IF (ln_blk) CALL sbc_blk_init
     IF (ln_ssr) CALL sbc_ssr_init
@@ -245,7 +251,6 @@ MODULE sbcmod
       CALL iom_set_rstw_var_active('emp_b')
       CALL iom_set_rstw_var_active('sfx_b')
     END IF
-    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE sbc_init
   SUBROUTINE sbc(kt)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
@@ -342,7 +347,8 @@ MODULE sbcmod
     CALL profile_psy_data2 % PreStart('sbc', 'r2', 0, 0)
     IF (lrst_oce) THEN
       IF (lwp) WRITE(numout, FMT = *)
-      IF (lwp) WRITE(numout, FMT = *) 'sbc : ocean surface forcing fields written in ocean restart file ', 'at it= ', kt, ' date= ', ndastp
+      IF (lwp) WRITE(numout, FMT = *) 'sbc : ocean surface forcing fields written in ocean restart file ', 'at it= ', kt, ' date= &
+&', ndastp
       IF (lwp) WRITE(numout, FMT = *) '~~~~'
       IF (lwxios) CALL iom_swap(cwxios_context)
       CALL iom_rstput(kt, nitrst, numrow, 'utau_b', utau, ldxios = lwxios)
@@ -375,7 +381,8 @@ MODULE sbcmod
       CALL prt_ctl(tab3d_1 = tmask, clinfo1 = ' tmask    - : ', mask1 = tmask, kdim = jpk)
       CALL prt_ctl(tab3d_1 = tsn(:, :, :, jp_tem), clinfo1 = ' sst      - : ', mask1 = tmask, kdim = 1)
       CALL prt_ctl(tab3d_1 = tsn(:, :, :, jp_sal), clinfo1 = ' sss      - : ', mask1 = tmask, kdim = 1)
-      CALL prt_ctl(tab2d_1 = utau, clinfo1 = ' utau     - : ', mask1 = umask, tab2d_2 = vtau, clinfo2 = ' vtau     - : ', mask2 = vmask)
+      CALL prt_ctl(tab2d_1 = utau, clinfo1 = ' utau     - : ', mask1 = umask, tab2d_2 = vtau, clinfo2 = ' vtau     - : ', &
+&mask2 = vmask)
     END IF
     IF (kt == nitend) CALL sbc_final
     IF (ln_timing) CALL timing_stop('sbc')

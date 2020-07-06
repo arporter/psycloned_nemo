@@ -58,15 +58,13 @@ MODULE traldf
       CALL profile_psy_data1 % PostEnd
     END IF
     CALL profile_psy_data2 % PreStart('tra_ldf', 'r2', 0, 0)
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' ldf  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' ldf  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, &
+&jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_ldf')
     CALL profile_psy_data2 % PostEnd
   END SUBROUTINE tra_ldf
   SUBROUTINE tra_ldf_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ioptio, ierr
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('tra_ldf_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'tra_ldf_init : lateral tracer diffusive operator'
@@ -91,6 +89,5 @@ MODULE traldf
         WRITE(numout, FMT = *) '   ==>>>   Rotated bilaplacian operator (triad)'
       END SELECT
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tra_ldf_init
 END MODULE traldf

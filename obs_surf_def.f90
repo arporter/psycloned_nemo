@@ -28,7 +28,6 @@ MODULE obs_surf_def
   END TYPE obs_surf
   CONTAINS
   SUBROUTINE obs_surf_alloc(surf, ksurf, kvar, kextra, kstp, kpi, kpj)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obs_surf), INTENT(INOUT) :: surf
     INTEGER, INTENT(IN) :: ksurf
     INTEGER, INTENT(IN) :: kvar
@@ -38,8 +37,6 @@ MODULE obs_surf_def
     INTEGER, INTENT(IN) :: kpj
     INTEGER :: ji
     INTEGER :: jvar
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('obs_surf_alloc', 'r0', 0, 0)
     surf % nsurf = ksurf
     surf % nsurfmpp = 0
     surf % nextra = kextra
@@ -51,7 +48,9 @@ MODULE obs_surf_def
     DO jvar = 1, kvar
       surf % cvars(jvar) = "NotSet"
     END DO
-    ALLOCATE(surf % mi(ksurf), surf % mj(ksurf), surf % mt(ksurf), surf % nsidx(ksurf), surf % nsfil(ksurf), surf % nyea(ksurf), surf % nmon(ksurf), surf % nday(ksurf), surf % nhou(ksurf), surf % nmin(ksurf), surf % mstp(ksurf), surf % nqc(ksurf), surf % ntyp(ksurf), surf % cwmo(ksurf), surf % rlam(ksurf), surf % rphi(ksurf), surf % nsind(ksurf))
+    ALLOCATE(surf % mi(ksurf), surf % mj(ksurf), surf % mt(ksurf), surf % nsidx(ksurf), surf % nsfil(ksurf), surf % nyea(ksurf), &
+&surf % nmon(ksurf), surf % nday(ksurf), surf % nhou(ksurf), surf % nmin(ksurf), surf % mstp(ksurf), surf % nqc(ksurf), surf % &
+&ntyp(ksurf), surf % cwmo(ksurf), surf % rlam(ksurf), surf % rphi(ksurf), surf % nsind(ksurf))
     surf % mt(:) = - 1
     ALLOCATE(surf % robs(ksurf, kvar), surf % rmod(ksurf, kvar))
     ALLOCATE(surf % rext(ksurf, kextra))
@@ -65,20 +64,16 @@ MODULE obs_surf_def
     surf % nsstpmpp(:) = 0
     surf % nsurfup = 0
     surf % lgrid = .FALSE.
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_surf_alloc
   SUBROUTINE obs_surf_dealloc(surf)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obs_surf), INTENT(INOUT) :: surf
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('obs_surf_dealloc', 'r0', 0, 0)
-    DEALLOCATE(surf % mi, surf % mj, surf % mt, surf % nsidx, surf % nsfil, surf % nyea, surf % nmon, surf % nday, surf % nhou, surf % nmin, surf % mstp, surf % nqc, surf % ntyp, surf % cwmo, surf % rlam, surf % rphi, surf % nsind)
+    DEALLOCATE(surf % mi, surf % mj, surf % mt, surf % nsidx, surf % nsfil, surf % nyea, surf % nmon, surf % nday, surf % nhou, &
+&surf % nmin, surf % mstp, surf % nqc, surf % ntyp, surf % cwmo, surf % rlam, surf % rphi, surf % nsind)
     DEALLOCATE(surf % robs, surf % rmod)
     DEALLOCATE(surf % rext)
     DEALLOCATE(surf % vdmean)
     DEALLOCATE(surf % nsstp, surf % nsstpmpp)
     DEALLOCATE(surf % cvars)
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_surf_dealloc
   SUBROUTINE obs_surf_compress(surf, newsurf, lallocate, kumout, lvalid)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType

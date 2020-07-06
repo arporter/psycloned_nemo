@@ -26,7 +26,8 @@ MODULE zdfiwm
   REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :) :: hcri_iwm
   CONTAINS
   INTEGER FUNCTION zdf_iwm_alloc()
-    ALLOCATE(ebot_iwm(jpi, jpj), epyc_iwm(jpi, jpj), ecri_iwm(jpi, jpj), hbot_iwm(jpi, jpj), hcri_iwm(jpi, jpj), STAT = zdf_iwm_alloc)
+    ALLOCATE(ebot_iwm(jpi, jpj), epyc_iwm(jpi, jpj), ecri_iwm(jpi, jpj), hbot_iwm(jpi, jpj), hcri_iwm(jpi, jpj), STAT = &
+&zdf_iwm_alloc)
     IF (lk_mpp) CALL mpp_sum(zdf_iwm_alloc)
     IF (zdf_iwm_alloc /= 0) CALL ctl_warn('zdf_iwm_alloc: failed to allocate arrays')
   END FUNCTION zdf_iwm_alloc
@@ -69,7 +70,8 @@ MODULE zdfiwm
       END DO
     END DO
     DO jk = 2, jpkm1
-      zemx_iwm(:, :, jk) = zfact(:, :) * (EXP((gde3w_n(:, :, jk) - zhdep(:, :)) / hcri_iwm(:, :)) - EXP((gde3w_n(:, :, jk - 1) - zhdep(:, :)) / hcri_iwm(:, :))) * wmask(:, :, jk) / (gde3w_n(:, :, jk) - gde3w_n(:, :, jk - 1))
+      zemx_iwm(:, :, jk) = zfact(:, :) * (EXP((gde3w_n(:, :, jk) - zhdep(:, :)) / hcri_iwm(:, :)) - EXP((gde3w_n(:, :, jk - 1) - &
+&zhdep(:, :)) / hcri_iwm(:, :))) * wmask(:, :, jk) / (gde3w_n(:, :, jk) - gde3w_n(:, :, jk - 1))
     END DO
     SELECT CASE (nn_zpyc)
     CASE (1)
@@ -115,14 +117,16 @@ MODULE zdfiwm
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
-          IF (zfact(ji, jj) /= 0) zwkb(ji, jj, jk) = zhdep(ji, jj) * (zfact(ji, jj) - zwkb(ji, jj, jk)) * wmask(ji, jj, jk) / zfact(ji, jj)
+          IF (zfact(ji, jj) /= 0) zwkb(ji, jj, jk) = zhdep(ji, jj) * (zfact(ji, jj) - zwkb(ji, jj, jk)) * wmask(ji, jj, jk) / &
+&zfact(ji, jj)
         END DO
       END DO
     END DO
     zwkb(:, :, 1) = zhdep(:, :) * wmask(:, :, 1)
     zweight(:, :, :) = 0._wp
     DO jk = 2, jpkm1
-      zweight(:, :, jk) = MAX(0._wp, rn2(:, :, jk)) * hbot_iwm(:, :) * wmask(:, :, jk) * (EXP(- zwkb(:, :, jk) / hbot_iwm(:, :)) - EXP(- zwkb(:, :, jk - 1) / hbot_iwm(:, :)))
+      zweight(:, :, jk) = MAX(0._wp, rn2(:, :, jk)) * hbot_iwm(:, :) * wmask(:, :, jk) * (EXP(- zwkb(:, :, jk) / hbot_iwm(:, :)) - &
+&EXP(- zwkb(:, :, jk - 1) / hbot_iwm(:, :)))
     END DO
     zfact(:, :) = 0._wp
     DO jk = 2, jpkm1
@@ -135,9 +139,11 @@ MODULE zdfiwm
       END DO
     END DO
     DO jk = 2, jpkm1
-      zemx_iwm(:, :, jk) = zemx_iwm(:, :, jk) + zweight(:, :, jk) * zfact(:, :) * wmask(:, :, jk) / (gde3w_n(:, :, jk) - gde3w_n(:, :, jk - 1))
+      zemx_iwm(:, :, jk) = zemx_iwm(:, :, jk) + zweight(:, :, jk) * zfact(:, :) * wmask(:, :, jk) / (gde3w_n(:, :, jk) - &
+&gde3w_n(:, :, jk - 1))
     END DO
-    znu_t(:, :, :) = 1.E-4_wp * (17.91_wp - 0.53810_wp * tsn(:, :, :, jp_tem) + 0.00694_wp * tsn(:, :, :, jp_tem) * tsn(:, :, :, jp_tem) + 0.02305_wp * tsn(:, :, :, jp_sal)) * tmask(:, :, :) * r1_rau0
+    znu_t(:, :, :) = 1.E-4_wp * (17.91_wp - 0.53810_wp * tsn(:, :, :, jp_tem) + 0.00694_wp * tsn(:, :, :, jp_tem) * tsn(:, :, :, &
+&jp_tem) + 0.02305_wp * tsn(:, :, :, jp_sal)) * tmask(:, :, :) * r1_rau0
     DO jk = 2, jpkm1
       znu_w(:, :, jk) = 0.5_wp * (znu_t(:, :, jk - 1) + znu_t(:, :, jk)) * wmask(:, :, jk)
     END DO
@@ -176,7 +182,8 @@ MODULE zdfiwm
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
-            zztmp = zztmp + e3w_n(ji, jj, jk) * e1e2t(ji, jj) * MAX(0._wp, rn2(ji, jj, jk)) * zav_wave(ji, jj, jk) * wmask(ji, jj, jk) * tmask_i(ji, jj)
+            zztmp = zztmp + e3w_n(ji, jj, jk) * e1e2t(ji, jj) * MAX(0._wp, rn2(ji, jj, jk)) * zav_wave(ji, jj, jk) * wmask(ji, jj, &
+&jk) * tmask_i(ji, jj)
           END DO
         END DO
       END DO
@@ -198,7 +205,8 @@ MODULE zdfiwm
       DO jk = 2, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
-            zav_ratio(ji, jj, jk) = (0.505_wp + 0.495_wp * TANH(0.92_wp * (LOG10(MAX(1.E-20_wp, zReb(ji, jj, jk) * 5._wp * r1_6)) - 0.60_wp))) * wmask(ji, jj, jk)
+            zav_ratio(ji, jj, jk) = (0.505_wp + 0.495_wp * TANH(0.92_wp * (LOG10(MAX(1.E-20_wp, zReb(ji, jj, jk) * 5._wp * r1_6)) &
+&- 0.60_wp))) * wmask(ji, jj, jk)
           END DO
         END DO
       END DO
@@ -243,16 +251,11 @@ MODULE zdfiwm
     CALL profile_psy_data3 % PostEnd
   END SUBROUTINE zdf_iwm
   SUBROUTINE zdf_iwm_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: inum
     INTEGER :: ios
     REAL(KIND = wp) :: zbot, zpyc, zcri
     NAMELIST /namzdf_iwm/ nn_zpyc, ln_mevar, ln_tsdiff
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    CALL profile_psy_data0 % PreStart('zdf_iwm_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namzdf_iwm, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namzdf_iwm in reference namelist', lwp)
@@ -269,16 +272,15 @@ MODULE zdfiwm
       WRITE(numout, FMT = *) '      Variable (T) or constant (F) mixing efficiency            = ', ln_mevar
       WRITE(numout, FMT = *) '      Differential internal wave-driven mixing (T) or not (F)   = ', ln_tsdiff
     END IF
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     avmb(:) = 1.4E-6_wp
     avtb(:) = 1.E-10_wp
     avtb_2d(:, :) = 1.E0_wp
     !$ACC END KERNELS
-    CALL profile_psy_data1 % PreStart('zdf_iwm_init', 'r1', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
-      WRITE(numout, FMT = *) '   Force the background value applied to avm & avt in TKE to be everywhere ', 'the viscous molecular value & a very small diffusive value, resp.'
+      WRITE(numout, FMT = *) '   Force the background value applied to avm & avt in TKE to be everywhere ', 'the viscous molecular &
+&value & a very small diffusive value, resp.'
     END IF
     IF (zdf_iwm_alloc() /= 0) CALL ctl_stop('STOP', 'zdf_iwm_init : unable to allocate iwm arrays')
     CALL iom_open('mixing_power_bot', inum)
@@ -296,13 +298,11 @@ MODULE zdfiwm
     CALL iom_open('decay_scale_cri', inum)
     CALL iom_get(inum, jpdom_data, 'field', hcri_iwm, 1)
     CALL iom_close(inum)
-    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     ebot_iwm(:, :) = ebot_iwm(:, :) * ssmask(:, :)
     epyc_iwm(:, :) = epyc_iwm(:, :) * ssmask(:, :)
     ecri_iwm(:, :) = ecri_iwm(:, :) * ssmask(:, :)
     !$ACC END KERNELS
-    CALL profile_psy_data2 % PreStart('zdf_iwm_init', 'r2', 0, 0)
     zbot = glob_sum(e1e2t(:, :) * ebot_iwm(:, :))
     zpyc = glob_sum(e1e2t(:, :) * epyc_iwm(:, :))
     zcri = glob_sum(e1e2t(:, :) * ecri_iwm(:, :))
@@ -311,6 +311,5 @@ MODULE zdfiwm
       WRITE(numout, FMT = *) '      Pycnocline-intensifed wave-breaking energy: ', zpyc * 1.E-12_wp, 'TW'
       WRITE(numout, FMT = *) '      Critical slope wave-breaking energy:        ', zcri * 1.E-12_wp, 'TW'
     END IF
-    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE zdf_iwm_init
 END MODULE zdfiwm

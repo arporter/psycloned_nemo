@@ -64,8 +64,10 @@ MODULE tradmp
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (avt(ji, jj, jk) <= 5.E-4_wp) THEN
-              tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_tem) - tsb(ji, jj, jk, jp_tem))
-              tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_sal) - tsb(ji, jj, jk, jp_sal))
+              tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_tem) - tsb(ji, jj, &
+&jk, jp_tem))
+              tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_sal) - tsb(ji, jj, &
+&jk, jp_sal))
             END IF
           END DO
         END DO
@@ -78,8 +80,10 @@ MODULE tradmp
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (gdept_n(ji, jj, jk) >= hmlp(ji, jj)) THEN
-              tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_tem) - tsb(ji, jj, jk, jp_tem))
-              tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_sal) - tsb(ji, jj, jk, jp_sal))
+              tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_tem) - tsb(ji, jj, &
+&jk, jp_tem))
+              tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_sal) - tsb(ji, jj, &
+&jk, jp_sal))
             END IF
           END DO
         END DO
@@ -97,16 +101,14 @@ MODULE tradmp
       CALL profile_psy_data0 % PostEnd
     END IF
     CALL profile_psy_data1 % PreStart('tra_dmp', 'r1', 0, 0)
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' dmp  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' dmp  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, &
+&jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_dmp')
     CALL profile_psy_data1 % PostEnd
   END SUBROUTINE tra_dmp
   SUBROUTINE tra_dmp_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios, imask
     NAMELIST /namtra_dmp/ ln_tradmp, nn_zdmp, cn_resto
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('tra_dmp_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namtra_dmp, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namtra_dmp in reference namelist', lwp)
@@ -145,6 +147,5 @@ MODULE tradmp
       CALL iom_get(imask, jpdom_autoglo, 'resto', resto)
       CALL iom_close(imask)
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tra_dmp_init
 END MODULE tradmp

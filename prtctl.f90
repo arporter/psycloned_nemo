@@ -175,14 +175,12 @@ MODULE prtctl
     CALL profile_psy_data1 % PostEnd
   END SUBROUTINE prt_ctl_info
   SUBROUTINE prt_ctl_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jn, sind, eind, j_id
     CHARACTER(LEN = 28) :: clfile_out
     CHARACTER(LEN = 23) :: clb_name
     CHARACTER(LEN = 19) :: cl_run
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    ALLOCATE(nlditl(ijsplt), nleitl(ijsplt), nimpptl(ijsplt), ibonitl(ijsplt), nldjtl(ijsplt), nlejtl(ijsplt), njmpptl(ijsplt), ibonjtl(ijsplt), nlcitl(ijsplt), t_ctll(ijsplt), u_ctll(ijsplt), nlcjtl(ijsplt), s_ctll(ijsplt), v_ctll(ijsplt))
+    ALLOCATE(nlditl(ijsplt), nleitl(ijsplt), nimpptl(ijsplt), ibonitl(ijsplt), nldjtl(ijsplt), nlejtl(ijsplt), njmpptl(ijsplt), &
+&ibonjtl(ijsplt), nlcitl(ijsplt), t_ctll(ijsplt), u_ctll(ijsplt), nlcjtl(ijsplt), s_ctll(ijsplt), v_ctll(ijsplt))
     !$ACC KERNELS
     t_ctll(:) = 0.E0
     s_ctll(:) = 0.E0
@@ -208,15 +206,12 @@ MODULE prtctl
       ibonjtl(1 : jpnij) = ibonjt(:)
       !$ACC END KERNELS
     ELSE
-      CALL profile_psy_data0 % PreStart('prt_ctl_init', 'r0', 0, 0)
       sind = 1
       eind = ijsplt
       clb_name = "('mono.output_',I4.4)"
       cl_run = 'MONO processor run '
       CALL sub_dom
-      CALL profile_psy_data0 % PostEnd
     END IF
-    CALL profile_psy_data1 % PreStart('prt_ctl_init', 'r1', 0, 0)
     ALLOCATE(numid(eind - sind + 1))
     DO jn = sind, eind
       WRITE(clfile_out, FMT = clb_name) jn - 1
@@ -261,7 +256,6 @@ MODULE prtctl
 9003  FORMAT(A20, I4.4, A17, I4.4)
 9004  FORMAT(A11, I4.4, A26, I4.4, A14)
     END DO
-    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE prt_ctl_init
   SUBROUTINE sub_dom
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
@@ -374,7 +368,8 @@ MODULE prtctl
       CALL ctl_opn(inum, 'layout_prtctl.dat', 'REPLACE', 'FORMATTED', 'SEQUENTIAL', - 1, numout, .FALSE., narea)
       WRITE(inum, FMT = '(a)') 'nproc nlcil nlcjl nldil nldjl nleil nlejl nimpptl njmpptl ibonitl ibonjtl'
       DO jn = 1, ijsplt
-        WRITE(inum, FMT = '(i5,6i6,4i8)') jn - 1, nlcitl(jn), nlcjtl(jn), nlditl(jn), nldjtl(jn), nleitl(jn), nlejtl(jn), nimpptl(jn), njmpptl(jn), ibonitl(jn), ibonjtl(jn)
+        WRITE(inum, FMT = '(i5,6i6,4i8)') jn - 1, nlcitl(jn), nlcjtl(jn), nlditl(jn), nldjtl(jn), nleitl(jn), nlejtl(jn), &
+&nimpptl(jn), njmpptl(jn), ibonitl(jn), ibonjtl(jn)
       END DO
       CLOSE(UNIT = inum)
     END IF

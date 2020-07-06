@@ -91,7 +91,8 @@ MODULE sshwzv
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            zhdiv(ji, jj, jk) = r1_e1e2t(ji, jj) * (un_td(ji, jj, jk) - un_td(ji - 1, jj, jk) + vn_td(ji, jj, jk) - vn_td(ji, jj - 1, jk))
+            zhdiv(ji, jj, jk) = r1_e1e2t(ji, jj) * (un_td(ji, jj, jk) - un_td(ji - 1, jj, jk) + vn_td(ji, jj, jk) - vn_td(ji, jj - &
+&1, jk))
           END DO
         END DO
       END DO
@@ -99,14 +100,16 @@ MODULE sshwzv
       CALL lbc_lnk(zhdiv, 'T', 1.)
       !$ACC KERNELS
       DO jk = jpkm1, 1, - 1
-        wn(:, :, jk) = wn(:, :, jk + 1) - (e3t_n(:, :, jk) * hdivn(:, :, jk) + zhdiv(:, :, jk) + z1_2dt * (e3t_a(:, :, jk) - e3t_b(:, :, jk))) * tmask(:, :, jk)
+        wn(:, :, jk) = wn(:, :, jk + 1) - (e3t_n(:, :, jk) * hdivn(:, :, jk) + zhdiv(:, :, jk) + z1_2dt * (e3t_a(:, :, jk) - &
+&e3t_b(:, :, jk))) * tmask(:, :, jk)
       END DO
       !$ACC END KERNELS
       DEALLOCATE(zhdiv)
     ELSE
       !$ACC KERNELS
       DO jk = jpkm1, 1, - 1
-        wn(:, :, jk) = wn(:, :, jk + 1) - (e3t_n(:, :, jk) * hdivn(:, :, jk) + z1_2dt * (e3t_a(:, :, jk) - e3t_b(:, :, jk))) * tmask(:, :, jk)
+        wn(:, :, jk) = wn(:, :, jk + 1) - (e3t_n(:, :, jk) * hdivn(:, :, jk) + z1_2dt * (e3t_a(:, :, jk) - e3t_b(:, :, jk))) * &
+&tmask(:, :, jk)
       END DO
       !$ACC END KERNELS
     END IF
@@ -144,7 +147,8 @@ MODULE sshwzv
       IF (.NOT. ln_linssh) THEN
         !$ACC KERNELS
         zcoef = atfp * rdt * r1_rau0
-        sshb(:, :) = sshb(:, :) - zcoef * (emp_b(:, :) - emp(:, :) - rnf_b(:, :) + rnf(:, :) + fwfisf_b(:, :) - fwfisf(:, :)) * ssmask(:, :)
+        sshb(:, :) = sshb(:, :) - zcoef * (emp_b(:, :) - emp(:, :) - rnf_b(:, :) + rnf(:, :) + fwfisf_b(:, :) - fwfisf(:, :)) * &
+&ssmask(:, :)
         !$ACC END KERNELS
       END IF
       !$ACC KERNELS

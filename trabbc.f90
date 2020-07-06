@@ -59,7 +59,6 @@ MODULE trabbc
     CALL profile_psy_data1 % PostEnd
   END SUBROUTINE tra_bbc
   SUBROUTINE tra_bbc_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj
     INTEGER :: inum
     INTEGER :: ios
@@ -67,9 +66,6 @@ MODULE trabbc
     TYPE(FLD_N) :: sn_qgh
     CHARACTER(LEN = 256) :: cn_dir
     NAMELIST /nambbc/ ln_trabbc, nn_geoflx, rn_geoflx_cst, sn_qgh, cn_dir
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    CALL profile_psy_data0 % PreStart('tra_bbc_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, nambbc, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'nambbc in reference namelist', lwp)
@@ -87,7 +83,6 @@ MODULE trabbc
       WRITE(numout, FMT = *) '      Constant geothermal flux value               rn_geoflx_cst = ', rn_geoflx_cst
       WRITE(numout, FMT = *)
     END IF
-    CALL profile_psy_data0 % PostEnd
     IF (ln_trabbc) THEN
       ALLOCATE(qgh_trd0(jpi, jpj))
       SELECT CASE (nn_geoflx)
@@ -97,7 +92,6 @@ MODULE trabbc
         qgh_trd0(:, :) = r1_rau0_rcp * rn_geoflx_cst
         !$ACC END KERNELS
       CASE (2)
-        CALL profile_psy_data1 % PreStart('tra_bbc_init', 'r1', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   variable geothermal heat flux'
         ALLOCATE(sf_qgh(1), STAT = ierror)
         IF (ierror > 0) THEN
@@ -109,7 +103,6 @@ MODULE trabbc
         CALL fld_fill(sf_qgh, (/sn_qgh/), cn_dir, 'tra_bbc_init', 'bottom temperature boundary condition', 'nambbc', no_print)
         CALL fld_read(nit000, 1, sf_qgh)
         qgh_trd0(:, :) = r1_rau0_rcp * sf_qgh(1) % fnow(:, :, 1) * 1.E-3
-        CALL profile_psy_data1 % PostEnd
       CASE DEFAULT
         WRITE(ctmp1, FMT = *) '     bad flag value for nn_geoflx = ', nn_geoflx
         CALL ctl_stop(ctmp1)

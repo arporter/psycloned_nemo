@@ -31,11 +31,13 @@ MODULE domzgr
     IF (ln_read_cfg) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   Read vertical mesh in ', TRIM(cn_domcfg), ' file'
-      CALL zgr_read(ln_zco, ln_zps, ln_sco, ln_isfcav, gdept_1d, gdepw_1d, e3t_1d, e3w_1d, gdept_0, gdepw_0, e3t_0, e3u_0, e3v_0, e3f_0, e3w_0, e3uw_0, e3vw_0, k_top, k_bot)
+      CALL zgr_read(ln_zco, ln_zps, ln_sco, ln_isfcav, gdept_1d, gdepw_1d, e3t_1d, e3w_1d, gdept_0, gdepw_0, e3t_0, e3u_0, e3v_0, &
+&e3f_0, e3w_0, e3uw_0, e3vw_0, k_top, k_bot)
     ELSE
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '          User defined vertical mesh (usr_def_zgr)'
-      CALL usr_def_zgr(ln_zco, ln_zps, ln_sco, ln_isfcav, gdept_1d, gdepw_1d, e3t_1d, e3w_1d, gdept_0, gdepw_0, e3t_0, e3u_0, e3v_0, e3f_0, e3w_0, e3uw_0, e3vw_0, k_top, k_bot)
+      CALL usr_def_zgr(ln_zco, ln_zps, ln_sco, ln_isfcav, gdept_1d, gdepw_1d, e3t_1d, e3w_1d, gdept_0, gdepw_0, e3t_0, e3u_0, &
+&e3v_0, e3f_0, e3w_0, e3uw_0, e3vw_0, k_top, k_bot)
     END IF
     CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
@@ -66,14 +68,19 @@ MODULE domzgr
     IF (nprint == 1 .AND. lwp) THEN
       WRITE(numout, FMT = *) ' MIN val k_top   ', MINVAL(k_top(:, :)), ' MAX ', MAXVAL(k_top(:, :))
       WRITE(numout, FMT = *) ' MIN val k_bot   ', MINVAL(k_bot(:, :)), ' MAX ', MAXVAL(k_bot(:, :))
-      WRITE(numout, FMT = *) ' MIN val depth t ', MINVAL(gdept_0(:, :, :)), ' w ', MINVAL(gdepw_0(:, :, :)), '3w ', MINVAL(gde3w_0(:, :, :))
-      WRITE(numout, FMT = *) ' MIN val e3    t ', MINVAL(e3t_0(:, :, :)), ' f ', MINVAL(e3f_0(:, :, :)), ' u ', MINVAL(e3u_0(:, :, :)), ' u ', MINVAL(e3v_0(:, :, :)), ' uw', MINVAL(e3uw_0(:, :, :)), ' vw', MINVAL(e3vw_0(:, :, :)), ' w ', MINVAL(e3w_0(:, :, :))
-      WRITE(numout, FMT = *) ' MAX val depth t ', MAXVAL(gdept_0(:, :, :)), ' w ', MAXVAL(gdepw_0(:, :, :)), '3w ', MAXVAL(gde3w_0(:, :, :))
-      WRITE(numout, FMT = *) ' MAX val e3    t ', MAXVAL(e3t_0(:, :, :)), ' f ', MAXVAL(e3f_0(:, :, :)), ' u ', MAXVAL(e3u_0(:, :, :)), ' u ', MAXVAL(e3v_0(:, :, :)), ' uw', MAXVAL(e3uw_0(:, :, :)), ' vw', MAXVAL(e3vw_0(:, :, :)), ' w ', MAXVAL(e3w_0(:, :, :))
+      WRITE(numout, FMT = *) ' MIN val depth t ', MINVAL(gdept_0(:, :, :)), ' w ', MINVAL(gdepw_0(:, :, :)), '3w ', &
+&MINVAL(gde3w_0(:, :, :))
+      WRITE(numout, FMT = *) ' MIN val e3    t ', MINVAL(e3t_0(:, :, :)), ' f ', MINVAL(e3f_0(:, :, :)), ' u ', MINVAL(e3u_0(:, :, &
+&:)), ' u ', MINVAL(e3v_0(:, :, :)), ' uw', MINVAL(e3uw_0(:, :, :)), ' vw', MINVAL(e3vw_0(:, :, :)), ' w ', MINVAL(e3w_0(:, :, :))
+      WRITE(numout, FMT = *) ' MAX val depth t ', MAXVAL(gdept_0(:, :, :)), ' w ', MAXVAL(gdepw_0(:, :, :)), '3w ', &
+&MAXVAL(gde3w_0(:, :, :))
+      WRITE(numout, FMT = *) ' MAX val e3    t ', MAXVAL(e3t_0(:, :, :)), ' f ', MAXVAL(e3f_0(:, :, :)), ' u ', MAXVAL(e3u_0(:, :, &
+&:)), ' u ', MAXVAL(e3v_0(:, :, :)), ' uw', MAXVAL(e3uw_0(:, :, :)), ' vw', MAXVAL(e3vw_0(:, :, :)), ' w ', MAXVAL(e3w_0(:, :, :))
     END IF
     CALL profile_psy_data1 % PostEnd
   END SUBROUTINE dom_zgr
-  SUBROUTINE zgr_read(ld_zco, ld_zps, ld_sco, ld_isfcav, pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d, pdept, pdepw, pe3t, pe3u, pe3v, pe3f, pe3w, pe3uw, pe3vw, k_top, k_bot)
+  SUBROUTINE zgr_read(ld_zco, ld_zps, ld_sco, ld_isfcav, pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d, pdept, pdepw, pe3t, pe3u, pe3v, &
+&pe3f, pe3w, pe3uw, pe3vw, k_top, k_bot)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
     LOGICAL, INTENT(OUT) :: ld_zco, ld_zps, ld_sco
     LOGICAL, INTENT(OUT) :: ld_isfcav
@@ -129,8 +136,10 @@ MODULE domzgr
     CALL iom_get(inum, jpdom_data, 'e3w_0', pe3w, lrowattr = ln_use_jattr)
     CALL iom_get(inum, jpdom_data, 'e3uw_0', pe3uw, lrowattr = ln_use_jattr)
     CALL iom_get(inum, jpdom_data, 'e3vw_0', pe3vw, lrowattr = ln_use_jattr)
-    IF (iom_varid(inum, 'gdept_1d', ldstop = .FALSE.) > 0 .AND. iom_varid(inum, 'gdepw_1d', ldstop = .FALSE.) > 0 .AND. iom_varid(inum, 'gdept_0', ldstop = .FALSE.) > 0 .AND. iom_varid(inum, 'gdepw_0', ldstop = .FALSE.) > 0) THEN
-      CALL ctl_warn('zgr_read : old definition of depths and scale factors used ', '           depths at t- and w-points read in the domain configuration file')
+    IF (iom_varid(inum, 'gdept_1d', ldstop = .FALSE.) > 0 .AND. iom_varid(inum, 'gdepw_1d', ldstop = .FALSE.) > 0 .AND. &
+&iom_varid(inum, 'gdept_0', ldstop = .FALSE.) > 0 .AND. iom_varid(inum, 'gdepw_0', ldstop = .FALSE.) > 0) THEN
+      CALL ctl_warn('zgr_read : old definition of depths and scale factors used ', &
+&'           depths at t- and w-points read in the domain configuration file')
       CALL iom_get(inum, jpdom_unknown, 'gdept_1d', pdept_1d)
       CALL iom_get(inum, jpdom_unknown, 'gdepw_1d', pdepw_1d)
       CALL iom_get(inum, jpdom_data, 'gdept_0', pdept, lrowattr = ln_use_jattr)

@@ -13,11 +13,8 @@ MODULE trdini
   PUBLIC :: trd_init
   CONTAINS
   SUBROUTINE trd_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     NAMELIST /namtrd/ ln_dyn_trd, ln_KE_trd, ln_vor_trd, ln_dyn_mxl, ln_tra_trd, ln_PE_trd, ln_glo_trd, ln_tra_mxl, nn_trd
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('trd_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namtrd, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namtrd in reference namelist', lwp)
@@ -51,6 +48,5 @@ MODULE trdini
     IF (ln_vor_trd) CALL trd_vor_init
     IF (ln_KE_trd) CALL trd_ken_init
     IF (ln_PE_trd) CALL trd_pen_init
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE trd_init
 END MODULE trdini

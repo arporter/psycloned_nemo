@@ -92,7 +92,8 @@ MODULE bdydyn3d
         ii = idx % nbi(jb, igrd)
         ij = idx % nbj(jb, igrd)
         fu = ABS(ABS(NINT(idx % flagu(jb, igrd))) - 1)
-        ua(ii, ij, jk) = ua(ii, ij, jk) * REAL(1 - fu) + (ua(ii, ij + fu, jk) * umask(ii, ij + fu, jk) + ua(ii, ij - fu, jk) * umask(ii, ij - fu, jk)) * umask(ii, ij, jk) * REAL(fu)
+        ua(ii, ij, jk) = ua(ii, ij, jk) * REAL(1 - fu) + (ua(ii, ij + fu, jk) * umask(ii, ij + fu, jk) + ua(ii, ij - fu, jk) * &
+&umask(ii, ij - fu, jk)) * umask(ii, ij, jk) * REAL(fu)
       END DO
     END DO
     igrd = 3
@@ -101,7 +102,8 @@ MODULE bdydyn3d
         ii = idx % nbi(jb, igrd)
         ij = idx % nbj(jb, igrd)
         fv = ABS(ABS(NINT(idx % flagv(jb, igrd))) - 1)
-        va(ii, ij, jk) = va(ii, ij, jk) * REAL(1 - fv) + (va(ii + fv, ij, jk) * vmask(ii + fv, ij, jk) + va(ii - fv, ij, jk) * vmask(ii - fv, ij, jk)) * vmask(ii, ij, jk) * REAL(fv)
+        va(ii, ij, jk) = va(ii, ij, jk) * REAL(1 - fv) + (va(ii + fv, ij, jk) * vmask(ii + fv, ij, jk) + va(ii - fv, ij, jk) * &
+&vmask(ii - fv, ij, jk)) * vmask(ii, ij, jk) * REAL(fv)
       END DO
     END DO
     CALL lbc_bdy_lnk(ua, 'U', - 1., ib_bdy)
@@ -226,7 +228,8 @@ MODULE bdydyn3d
           ij = idx_bdy(ib_bdy) % nbj(jb, igrd)
           zwgt = idx_bdy(ib_bdy) % nbd(jb, igrd)
           DO jk = 1, jpkm1
-            ua(ii, ij, jk) = (ua(ii, ij, jk) + zwgt * (dta_bdy(ib_bdy) % u3d(jb, jk) - ub(ii, ij, jk) + ub_b(ii, ij))) * umask(ii, ij, jk)
+            ua(ii, ij, jk) = (ua(ii, ij, jk) + zwgt * (dta_bdy(ib_bdy) % u3d(jb, jk) - ub(ii, ij, jk) + ub_b(ii, ij))) * umask(ii, &
+&ij, jk)
           END DO
         END DO
         igrd = 3
@@ -235,7 +238,8 @@ MODULE bdydyn3d
           ij = idx_bdy(ib_bdy) % nbj(jb, igrd)
           zwgt = idx_bdy(ib_bdy) % nbd(jb, igrd)
           DO jk = 1, jpkm1
-            va(ii, ij, jk) = (va(ii, ij, jk) + zwgt * (dta_bdy(ib_bdy) % v3d(jb, jk) - vb(ii, ij, jk) + vb_b(ii, ij))) * vmask(ii, ij, jk)
+            va(ii, ij, jk) = (va(ii, ij, jk) + zwgt * (dta_bdy(ib_bdy) % v3d(jb, jk) - vb(ii, ij, jk) + vb_b(ii, ij))) * vmask(ii, &
+&ij, jk)
           END DO
         END DO
       END IF

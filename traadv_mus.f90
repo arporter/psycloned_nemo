@@ -69,7 +69,8 @@ MODULE traadv_mus
     l_ptr = .FALSE.
     IF ((cdtype == 'TRA' .AND. l_trdtra) .OR. (cdtype == 'TRC' .AND. l_trdtrc)) l_trd = .TRUE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
-    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. &
+&iom_use("vadv_salttr"))) l_hst = .TRUE.
     CALL profile_psy_data1 % PostEnd
     DO jn = 1, kjpt
       !$ACC KERNELS
@@ -102,8 +103,10 @@ MODULE traadv_mus
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpj
           DO ji = 2, jpi
-            zslpx(ji, jj, jk) = SIGN(1., zslpx(ji, jj, jk)) * MIN(ABS(zslpx(ji, jj, jk)), 2. * ABS(zwx(ji - 1, jj, jk)), 2. * ABS(zwx(ji, jj, jk)))
-            zslpy(ji, jj, jk) = SIGN(1., zslpy(ji, jj, jk)) * MIN(ABS(zslpy(ji, jj, jk)), 2. * ABS(zwy(ji, jj - 1, jk)), 2. * ABS(zwy(ji, jj, jk)))
+            zslpx(ji, jj, jk) = SIGN(1., zslpx(ji, jj, jk)) * MIN(ABS(zslpx(ji, jj, jk)), 2. * ABS(zwx(ji - 1, jj, jk)), 2. * &
+&ABS(zwx(ji, jj, jk)))
+            zslpy(ji, jj, jk) = SIGN(1., zslpy(ji, jj, jk)) * MIN(ABS(zslpy(ji, jj, jk)), 2. * ABS(zwy(ji, jj - 1, jk)), 2. * &
+&ABS(zwy(ji, jj, jk)))
           END DO
         END DO
       END DO
@@ -133,7 +136,8 @@ MODULE traadv_mus
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (zwx(ji, jj, jk) - zwx(ji - 1, jj, jk) + zwy(ji, jj, jk) - zwy(ji, jj - 1, jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
+            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (zwx(ji, jj, jk) - zwx(ji - 1, jj, jk) + zwy(ji, jj, jk) - zwy(ji, jj - 1, &
+&jk)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
           END DO
         END DO
       END DO
@@ -165,7 +169,8 @@ MODULE traadv_mus
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
-            zslpx(ji, jj, jk) = SIGN(1., zslpx(ji, jj, jk)) * MIN(ABS(zslpx(ji, jj, jk)), 2. * ABS(zwx(ji, jj, jk + 1)), 2. * ABS(zwx(ji, jj, jk)))
+            zslpx(ji, jj, jk) = SIGN(1., zslpx(ji, jj, jk)) * MIN(ABS(zslpx(ji, jj, jk)), 2. * ABS(zwx(ji, jj, jk + 1)), 2. * &
+&ABS(zwx(ji, jj, jk)))
           END DO
         END DO
       END DO
@@ -204,7 +209,8 @@ MODULE traadv_mus
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (zwx(ji, jj, jk) - zwx(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
+            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) - (zwx(ji, jj, jk) - zwx(ji, jj, jk + 1)) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, &
+&jk)
           END DO
         END DO
       END DO

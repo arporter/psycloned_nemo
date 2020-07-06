@@ -88,7 +88,8 @@ MODULE obs_sstbias
       END IF
     END DO
     CALL profile_psy_data3 % PreStart('obs_app_sstbias', 'r3', 0, 0)
-    ALLOCATE(igrdi(2, 2, sstdata % nsurf), igrdj(2, 2, sstdata % nsurf), zglam(2, 2, sstdata % nsurf), zgphi(2, 2, sstdata % nsurf), zmask(2, 2, sstdata % nsurf))
+    ALLOCATE(igrdi(2, 2, sstdata % nsurf), igrdj(2, 2, sstdata % nsurf), zglam(2, 2, sstdata % nsurf), zgphi(2, 2, sstdata % &
+&nsurf), zmask(2, 2, sstdata % nsurf))
     DO jobs = 1, sstdata % nsurf
       igrdi(1, 1, jobs) = sstdata % mi(jobs) - 1
       igrdj(1, 1, jobs) = sstdata % mj(jobs) - 1
@@ -106,7 +107,8 @@ MODULE obs_sstbias
     DO jtype = 1, knumtypes
       CALL profile_psy_data4 % PreStart('obs_app_sstbias', 'r4', 0, 0)
       inumtype = COUNT(sstdata % ntyp(:) == ibiastypes(jtype))
-      ALLOCATE(igrdi_tmp(2, 2, inumtype), igrdj_tmp(2, 2, inumtype), zglam_tmp(2, 2, inumtype), zgphi_tmp(2, 2, inumtype), zmask_tmp(2, 2, inumtype), zbias(2, 2, inumtype))
+      ALLOCATE(igrdi_tmp(2, 2, inumtype), igrdj_tmp(2, 2, inumtype), zglam_tmp(2, 2, inumtype), zgphi_tmp(2, 2, inumtype), &
+&zmask_tmp(2, 2, inumtype), zbias(2, 2, inumtype))
       jt = 1
       CALL profile_psy_data4 % PostEnd
       DO jobs = 1, sstdata % nsurf
@@ -130,7 +132,8 @@ MODULE obs_sstbias
           zphi = sstdata % rphi(jobs)
           iico = sstdata % mi(jobs)
           ijco = sstdata % mj(jobs)
-          CALL obs_int_h2d_init(1, 1, k2dint, zlam, zphi, zglam_tmp(:, :, jt), zgphi_tmp(:, :, jt), zmask_tmp(:, :, jt), zweig, zobsmask)
+          CALL obs_int_h2d_init(1, 1, k2dint, zlam, zphi, zglam_tmp(:, :, jt), zgphi_tmp(:, :, jt), zmask_tmp(:, :, jt), zweig, &
+&zobsmask)
           CALL obs_int_h2d(1, 1, zweig, zbias(:, :, jt), zext)
           sstdata % robs(jobs, 1) = sstdata % robs(jobs, 1) - zext(1)
           jt = jt + 1

@@ -18,7 +18,8 @@ MODULE dynldf_iso
   REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :) :: zfvw, zdiv, zdjv, zdj1v
   CONTAINS
   INTEGER FUNCTION dyn_ldf_iso_alloc()
-    ALLOCATE(akzu(jpi, jpj, jpk), zfuw(jpi, jpk), zdiu(jpi, jpk), zdju(jpi, jpk), zdj1u(jpi, jpk), akzv(jpi, jpj, jpk), zfvw(jpi, jpk), zdiv(jpi, jpk), zdjv(jpi, jpk), zdj1v(jpi, jpk), STAT = dyn_ldf_iso_alloc)
+    ALLOCATE(akzu(jpi, jpj, jpk), zfuw(jpi, jpk), zdiu(jpi, jpk), zdju(jpi, jpk), zdj1u(jpi, jpk), akzv(jpi, jpj, jpk), zfvw(jpi, &
+&jpk), zdiv(jpi, jpk), zdjv(jpi, jpk), zdj1v(jpi, jpk), STAT = dyn_ldf_iso_alloc)
     IF (dyn_ldf_iso_alloc /= 0) CALL ctl_warn('dyn_ldf_iso_alloc: array allocate failed.')
   END FUNCTION dyn_ldf_iso_alloc
   SUBROUTINE dyn_ldf_iso(kt)
@@ -77,9 +78,11 @@ MODULE dynldf_iso
         DO jj = 2, jpjm1
           DO ji = 2, jpi
             zabe1 = (ahmt(ji, jj, jk) + rn_ahm_b) * e2t(ji, jj) * MIN(e3u_n(ji, jj, jk), e3u_n(ji - 1, jj, jk)) * r1_e1t(ji, jj)
-            zmskt = 1._wp / MAX(umask(ji - 1, jj, jk) + umask(ji, jj, jk + 1) + umask(ji - 1, jj, jk + 1) + umask(ji, jj, jk), 1._wp)
+            zmskt = 1._wp / MAX(umask(ji - 1, jj, jk) + umask(ji, jj, jk + 1) + umask(ji - 1, jj, jk + 1) + umask(ji, jj, jk), &
+&1._wp)
             zcof1 = - zaht_0 * e2t(ji, jj) * zmskt * 0.5 * (uslp(ji - 1, jj, jk) + uslp(ji, jj, jk))
-            ziut(ji, jj) = (zabe1 * (ub(ji, jj, jk) - ub(ji - 1, jj, jk)) + zcof1 * (zdku(ji, jj) + zdk1u(ji - 1, jj) + zdk1u(ji, jj) + zdku(ji - 1, jj))) * tmask(ji, jj, jk)
+            ziut(ji, jj) = (zabe1 * (ub(ji, jj, jk) - ub(ji - 1, jj, jk)) + zcof1 * (zdku(ji, jj) + zdk1u(ji - 1, jj) + zdk1u(ji, &
+&jj) + zdku(ji - 1, jj))) * tmask(ji, jj, jk)
           END DO
         END DO
         !$ACC END KERNELS
@@ -89,9 +92,11 @@ MODULE dynldf_iso
         DO jj = 2, jpjm1
           DO ji = 2, jpi
             zabe1 = (ahmt(ji, jj, jk) + rn_ahm_b) * e2t(ji, jj) * e3t_n(ji, jj, jk) * r1_e1t(ji, jj)
-            zmskt = 1._wp / MAX(umask(ji - 1, jj, jk) + umask(ji, jj, jk + 1) + umask(ji - 1, jj, jk + 1) + umask(ji, jj, jk), 1._wp)
+            zmskt = 1._wp / MAX(umask(ji - 1, jj, jk) + umask(ji, jj, jk + 1) + umask(ji - 1, jj, jk + 1) + umask(ji, jj, jk), &
+&1._wp)
             zcof1 = - zaht_0 * e2t(ji, jj) * zmskt * 0.5 * (uslp(ji - 1, jj, jk) + uslp(ji, jj, jk))
-            ziut(ji, jj) = (zabe1 * (ub(ji, jj, jk) - ub(ji - 1, jj, jk)) + zcof1 * (zdku(ji, jj) + zdk1u(ji - 1, jj) + zdk1u(ji, jj) + zdku(ji - 1, jj))) * tmask(ji, jj, jk)
+            ziut(ji, jj) = (zabe1 * (ub(ji, jj, jk) - ub(ji - 1, jj, jk)) + zcof1 * (zdku(ji, jj) + zdk1u(ji - 1, jj) + zdk1u(ji, &
+&jj) + zdku(ji - 1, jj))) * tmask(ji, jj, jk)
           END DO
         END DO
         !$ACC END KERNELS
@@ -103,7 +108,8 @@ MODULE dynldf_iso
           zabe2 = (ahmf(ji, jj, jk) + rn_ahm_b) * e1f(ji, jj) * e3f_n(ji, jj, jk) * r1_e2f(ji, jj)
           zmskf = 1._wp / MAX(umask(ji, jj + 1, jk) + umask(ji, jj, jk + 1) + umask(ji, jj + 1, jk + 1) + umask(ji, jj, jk), 1._wp)
           zcof2 = - zaht_0 * e1f(ji, jj) * zmskf * 0.5 * (vslp(ji + 1, jj, jk) + vslp(ji, jj, jk))
-          zjuf(ji, jj) = (zabe2 * (ub(ji, jj + 1, jk) - ub(ji, jj, jk)) + zcof2 * (zdku(ji, jj + 1) + zdk1u(ji, jj) + zdk1u(ji, jj + 1) + zdku(ji, jj))) * fmask(ji, jj, jk)
+          zjuf(ji, jj) = (zabe2 * (ub(ji, jj + 1, jk) - ub(ji, jj, jk)) + zcof2 * (zdku(ji, jj + 1) + zdk1u(ji, jj) + zdk1u(ji, jj &
+&+ 1) + zdku(ji, jj))) * fmask(ji, jj, jk)
         END DO
       END DO
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
@@ -112,7 +118,8 @@ MODULE dynldf_iso
           zabe1 = (ahmf(ji, jj, jk) + rn_ahm_b) * e2f(ji, jj) * e3f_n(ji, jj, jk) * r1_e1f(ji, jj)
           zmskf = 1._wp / MAX(vmask(ji + 1, jj, jk) + vmask(ji, jj, jk + 1) + vmask(ji + 1, jj, jk + 1) + vmask(ji, jj, jk), 1._wp)
           zcof1 = - zaht_0 * e2f(ji, jj) * zmskf * 0.5 * (uslp(ji, jj + 1, jk) + uslp(ji, jj, jk))
-          zivf(ji, jj) = (zabe1 * (vb(ji + 1, jj, jk) - vb(ji, jj, jk)) + zcof1 * (zdkv(ji, jj) + zdk1v(ji + 1, jj) + zdk1v(ji, jj) + zdkv(ji + 1, jj))) * fmask(ji, jj, jk)
+          zivf(ji, jj) = (zabe1 * (vb(ji + 1, jj, jk) - vb(ji, jj, jk)) + zcof1 * (zdkv(ji, jj) + zdk1v(ji + 1, jj) + zdk1v(ji, &
+&jj) + zdkv(ji + 1, jj))) * fmask(ji, jj, jk)
         END DO
       END DO
       !$ACC END KERNELS
@@ -122,9 +129,11 @@ MODULE dynldf_iso
         DO jj = 2, jpj
           DO ji = 1, jpim1
             zabe2 = (ahmt(ji, jj, jk) + rn_ahm_b) * e1t(ji, jj) * MIN(e3v_n(ji, jj, jk), e3v_n(ji, jj - 1, jk)) * r1_e2t(ji, jj)
-            zmskt = 1._wp / MAX(vmask(ji, jj - 1, jk) + vmask(ji, jj, jk + 1) + vmask(ji, jj - 1, jk + 1) + vmask(ji, jj, jk), 1._wp)
+            zmskt = 1._wp / MAX(vmask(ji, jj - 1, jk) + vmask(ji, jj, jk + 1) + vmask(ji, jj - 1, jk + 1) + vmask(ji, jj, jk), &
+&1._wp)
             zcof2 = - zaht_0 * e1t(ji, jj) * zmskt * 0.5 * (vslp(ji, jj - 1, jk) + vslp(ji, jj, jk))
-            zjvt(ji, jj) = (zabe2 * (vb(ji, jj, jk) - vb(ji, jj - 1, jk)) + zcof2 * (zdkv(ji, jj - 1) + zdk1v(ji, jj) + zdk1v(ji, jj - 1) + zdkv(ji, jj))) * tmask(ji, jj, jk)
+            zjvt(ji, jj) = (zabe2 * (vb(ji, jj, jk) - vb(ji, jj - 1, jk)) + zcof2 * (zdkv(ji, jj - 1) + zdk1v(ji, jj) + zdk1v(ji, &
+&jj - 1) + zdkv(ji, jj))) * tmask(ji, jj, jk)
           END DO
         END DO
         !$ACC END KERNELS
@@ -136,7 +145,8 @@ MODULE dynldf_iso
             zabe2 = (ahmt(ji, jj, jk) + rn_ahm_b) * e1t(ji, jj) * e3t_n(ji, jj, jk) * r1_e2t(ji, jj)
             zmskt = 1. / MAX(vmask(ji, jj - 1, jk) + vmask(ji, jj, jk + 1) + vmask(ji, jj - 1, jk + 1) + vmask(ji, jj, jk), 1.)
             zcof2 = - zaht_0 * e1t(ji, jj) * zmskt * 0.5 * (vslp(ji, jj - 1, jk) + vslp(ji, jj, jk))
-            zjvt(ji, jj) = (zabe2 * (vb(ji, jj, jk) - vb(ji, jj - 1, jk)) + zcof2 * (zdkv(ji, jj - 1) + zdk1v(ji, jj) + zdk1v(ji, jj - 1) + zdkv(ji, jj))) * tmask(ji, jj, jk)
+            zjvt(ji, jj) = (zabe2 * (vb(ji, jj, jk) - vb(ji, jj - 1, jk)) + zcof2 * (zdkv(ji, jj - 1) + zdk1v(ji, jj) + zdk1v(ji, &
+&jj - 1) + zdkv(ji, jj))) * tmask(ji, jj, jk)
           END DO
         END DO
         !$ACC END KERNELS
@@ -145,13 +155,16 @@ MODULE dynldf_iso
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          ua(ji, jj, jk) = ua(ji, jj, jk) + (ziut(ji + 1, jj) - ziut(ji, jj) + zjuf(ji, jj) - zjuf(ji, jj - 1)) * r1_e1e2u(ji, jj) / e3u_n(ji, jj, jk)
-          va(ji, jj, jk) = va(ji, jj, jk) + (zivf(ji, jj) - zivf(ji - 1, jj) + zjvt(ji, jj + 1) - zjvt(ji, jj)) * r1_e1e2v(ji, jj) / e3v_n(ji, jj, jk)
+          ua(ji, jj, jk) = ua(ji, jj, jk) + (ziut(ji + 1, jj) - ziut(ji, jj) + zjuf(ji, jj) - zjuf(ji, jj - 1)) * r1_e1e2u(ji, jj) &
+&/ e3u_n(ji, jj, jk)
+          va(ji, jj, jk) = va(ji, jj, jk) + (zivf(ji, jj) - zivf(ji - 1, jj) + zjvt(ji, jj + 1) - zjvt(ji, jj)) * r1_e1e2v(ji, jj) &
+&/ e3v_n(ji, jj, jk)
         END DO
       END DO
       !$ACC END KERNELS
     END DO
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' ldfh - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' ldfh - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = &
+&vmask, clinfo3 = 'dyn')
     DO jj = 2, jpjm1
       !$ACC KERNELS
       DO jk = 1, jpk
@@ -183,7 +196,8 @@ MODULE dynldf_iso
           zmkf = 1. / MAX(fmask(ji, jj - 1, jk - 1) + fmask(ji, jj, jk - 1) + fmask(ji, jj - 1, jk) + fmask(ji, jj, jk), 1.)
           zcof3 = - e2u(ji, jj) * zmkt * zuwslpi
           zcof4 = - e1u(ji, jj) * zmkf * zuwslpj
-          zfuw(ji, jk) = zcof3 * (zdiu(ji, jk - 1) + zdiu(ji + 1, jk - 1) + zdiu(ji, jk) + zdiu(ji + 1, jk)) + zcof4 * (zdj1u(ji, jk - 1) + zdju(ji, jk - 1) + zdj1u(ji, jk) + zdju(ji, jk))
+          zfuw(ji, jk) = zcof3 * (zdiu(ji, jk - 1) + zdiu(ji + 1, jk - 1) + zdiu(ji, jk) + zdiu(ji + 1, jk)) + zcof4 * (zdj1u(ji, &
+&jk - 1) + zdju(ji, jk - 1) + zdj1u(ji, jk) + zdju(ji, jk))
           akzu(ji, jj, jk) = (zuwslpi * zuwslpi + zuwslpj * zuwslpj) / zaht_0
         END DO
       END DO
@@ -196,7 +210,8 @@ MODULE dynldf_iso
           zmkt = 1. / MAX(tmask(ji, jj, jk - 1) + tmask(ji, jj + 1, jk - 1) + tmask(ji, jj, jk) + tmask(ji, jj + 1, jk), 1.)
           zcof3 = - e2v(ji, jj) * zmkf * zvwslpi
           zcof4 = - e1v(ji, jj) * zmkt * zvwslpj
-          zfvw(ji, jk) = zcof3 * (zdiv(ji, jk - 1) + zdiv(ji - 1, jk - 1) + zdiv(ji, jk) + zdiv(ji - 1, jk)) + zcof4 * (zdjv(ji, jk - 1) + zdj1v(ji, jk - 1) + zdjv(ji, jk) + zdj1v(ji, jk))
+          zfvw(ji, jk) = zcof3 * (zdiv(ji, jk - 1) + zdiv(ji - 1, jk - 1) + zdiv(ji, jk) + zdiv(ji - 1, jk)) + zcof4 * (zdjv(ji, &
+&jk - 1) + zdj1v(ji, jk - 1) + zdjv(ji, jk) + zdj1v(ji, jk))
           akzv(ji, jj, jk) = (zvwslpi * zvwslpi + zvwslpj * zvwslpj) / zaht_0
         END DO
       END DO

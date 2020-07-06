@@ -55,17 +55,22 @@ MODULE dynadv_ubs
         DO ji = 2, jpim1
           zlu_uu(ji, jj, jk, 1) = (ub(ji + 1, jj, jk) - 2. * ub(ji, jj, jk) + ub(ji - 1, jj, jk)) * umask(ji, jj, jk)
           zlv_vv(ji, jj, jk, 1) = (vb(ji, jj + 1, jk) - 2. * vb(ji, jj, jk) + vb(ji, jj - 1, jk)) * vmask(ji, jj, jk)
-          zlu_uv(ji, jj, jk, 1) = (ub(ji, jj + 1, jk) - ub(ji, jj, jk)) * fmask(ji, jj, jk) - (ub(ji, jj, jk) - ub(ji, jj - 1, jk)) * fmask(ji, jj - 1, jk)
-          zlv_vu(ji, jj, jk, 1) = (vb(ji + 1, jj, jk) - vb(ji, jj, jk)) * fmask(ji, jj, jk) - (vb(ji, jj, jk) - vb(ji - 1, jj, jk)) * fmask(ji - 1, jj, jk)
+          zlu_uv(ji, jj, jk, 1) = (ub(ji, jj + 1, jk) - ub(ji, jj, jk)) * fmask(ji, jj, jk) - (ub(ji, jj, jk) - ub(ji, jj - 1, &
+&jk)) * fmask(ji, jj - 1, jk)
+          zlv_vu(ji, jj, jk, 1) = (vb(ji + 1, jj, jk) - vb(ji, jj, jk)) * fmask(ji, jj, jk) - (vb(ji, jj, jk) - vb(ji - 1, jj, &
+&jk)) * fmask(ji - 1, jj, jk)
           zlu_uu(ji, jj, jk, 2) = (zfu(ji + 1, jj, jk) - 2. * zfu(ji, jj, jk) + zfu(ji - 1, jj, jk)) * umask(ji, jj, jk)
           zlv_vv(ji, jj, jk, 2) = (zfv(ji, jj + 1, jk) - 2. * zfv(ji, jj, jk) + zfv(ji, jj - 1, jk)) * vmask(ji, jj, jk)
-          zlu_uv(ji, jj, jk, 2) = (zfu(ji, jj + 1, jk) - zfu(ji, jj, jk)) * fmask(ji, jj, jk) - (zfu(ji, jj, jk) - zfu(ji, jj - 1, jk)) * fmask(ji, jj - 1, jk)
-          zlv_vu(ji, jj, jk, 2) = (zfv(ji + 1, jj, jk) - zfv(ji, jj, jk)) * fmask(ji, jj, jk) - (zfv(ji, jj, jk) - zfv(ji - 1, jj, jk)) * fmask(ji - 1, jj, jk)
+          zlu_uv(ji, jj, jk, 2) = (zfu(ji, jj + 1, jk) - zfu(ji, jj, jk)) * fmask(ji, jj, jk) - (zfu(ji, jj, jk) - zfu(ji, jj - 1, &
+&jk)) * fmask(ji, jj - 1, jk)
+          zlv_vu(ji, jj, jk, 2) = (zfv(ji + 1, jj, jk) - zfv(ji, jj, jk)) * fmask(ji, jj, jk) - (zfv(ji, jj, jk) - zfv(ji - 1, jj, &
+&jk)) * fmask(ji - 1, jj, jk)
         END DO
       END DO
       !$ACC END KERNELS
     END DO
-    CALL lbc_lnk_multi(zlu_uu(:, :, :, 1), 'U', 1., zlu_uv(:, :, :, 1), 'U', 1., zlu_uu(:, :, :, 2), 'U', 1., zlu_uv(:, :, :, 2), 'U', 1., zlv_vv(:, :, :, 1), 'V', 1., zlv_vu(:, :, :, 1), 'V', 1., zlv_vv(:, :, :, 2), 'V', 1., zlv_vu(:, :, :, 2), 'V', 1.)
+    CALL lbc_lnk_multi(zlu_uu(:, :, :, 1), 'U', 1., zlu_uv(:, :, :, 1), 'U', 1., zlu_uu(:, :, :, 2), 'U', 1., zlu_uv(:, :, :, 2), &
+&'U', 1., zlv_vv(:, :, :, 1), 'V', 1., zlv_vu(:, :, :, 1), 'V', 1., zlv_vv(:, :, :, 2), 'V', 1., zlv_vu(:, :, :, 2), 'V', 1.)
     DO jk = 1, jpkm1
       !$ACC KERNELS
       zfu(:, :, jk) = 0.25_wp * e2u(:, :) * e3u_n(:, :, jk) * un(:, :, jk)
@@ -85,8 +90,10 @@ MODULE dynadv_ubs
           ELSE
             zl_v = zlv_vv(ji, jj + 1, jk, 1)
           END IF
-          zfu_t(ji + 1, jj, jk) = (zfu(ji, jj, jk) + zfu(ji + 1, jj, jk) - gamma2 * (zlu_uu(ji, jj, jk, 2) + zlu_uu(ji + 1, jj, jk, 2))) * (zui - gamma1 * zl_u)
-          zfv_t(ji, jj + 1, jk) = (zfv(ji, jj, jk) + zfv(ji, jj + 1, jk) - gamma2 * (zlv_vv(ji, jj, jk, 2) + zlv_vv(ji, jj + 1, jk, 2))) * (zvj - gamma1 * zl_v)
+          zfu_t(ji + 1, jj, jk) = (zfu(ji, jj, jk) + zfu(ji + 1, jj, jk) - gamma2 * (zlu_uu(ji, jj, jk, 2) + zlu_uu(ji + 1, jj, &
+&jk, 2))) * (zui - gamma1 * zl_u)
+          zfv_t(ji, jj + 1, jk) = (zfv(ji, jj, jk) + zfv(ji, jj + 1, jk) - gamma2 * (zlv_vv(ji, jj, jk, 2) + zlv_vv(ji, jj + 1, &
+&jk, 2))) * (zvj - gamma1 * zl_v)
           zfuj = (zfu(ji, jj, jk) + zfu(ji, jj + 1, jk))
           zfvi = (zfv(ji, jj, jk) + zfv(ji + 1, jj, jk))
           IF (zfuj > 0) THEN
@@ -99,15 +106,19 @@ MODULE dynadv_ubs
           ELSE
             zl_u = zlu_uv(ji, jj + 1, jk, 1)
           END IF
-          zfv_f(ji, jj, jk) = (zfvi - gamma2 * (zlv_vu(ji, jj, jk, 2) + zlv_vu(ji + 1, jj, jk, 2))) * (un(ji, jj, jk) + un(ji, jj + 1, jk) - gamma1 * zl_u)
-          zfu_f(ji, jj, jk) = (zfuj - gamma2 * (zlu_uv(ji, jj, jk, 2) + zlu_uv(ji, jj + 1, jk, 2))) * (vn(ji, jj, jk) + vn(ji + 1, jj, jk) - gamma1 * zl_v)
+          zfv_f(ji, jj, jk) = (zfvi - gamma2 * (zlv_vu(ji, jj, jk, 2) + zlv_vu(ji + 1, jj, jk, 2))) * (un(ji, jj, jk) + un(ji, jj &
+&+ 1, jk) - gamma1 * zl_u)
+          zfu_f(ji, jj, jk) = (zfuj - gamma2 * (zlu_uv(ji, jj, jk, 2) + zlu_uv(ji, jj + 1, jk, 2))) * (vn(ji, jj, jk) + vn(ji + 1, &
+&jj, jk) - gamma1 * zl_v)
         END DO
       END DO
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          ua(ji, jj, jk) = ua(ji, jj, jk) - (zfu_t(ji + 1, jj, jk) - zfu_t(ji, jj, jk) + zfv_f(ji, jj, jk) - zfv_f(ji, jj - 1, jk)) * r1_e1e2u(ji, jj) / e3u_n(ji, jj, jk)
-          va(ji, jj, jk) = va(ji, jj, jk) - (zfu_f(ji, jj, jk) - zfu_f(ji - 1, jj, jk) + zfv_t(ji, jj + 1, jk) - zfv_t(ji, jj, jk)) * r1_e1e2v(ji, jj) / e3v_n(ji, jj, jk)
+          ua(ji, jj, jk) = ua(ji, jj, jk) - (zfu_t(ji + 1, jj, jk) - zfu_t(ji, jj, jk) + zfv_f(ji, jj, jk) - zfv_f(ji, jj - 1, &
+&jk)) * r1_e1e2u(ji, jj) / e3u_n(ji, jj, jk)
+          va(ji, jj, jk) = va(ji, jj, jk) - (zfu_f(ji, jj, jk) - zfu_f(ji - 1, jj, jk) + zfv_t(ji, jj + 1, jk) - zfv_t(ji, jj, &
+&jk)) * r1_e1e2v(ji, jj) / e3v_n(ji, jj, jk)
         END DO
       END DO
       !$ACC END KERNELS
@@ -180,6 +191,7 @@ MODULE dynadv_ubs
       !$ACC END KERNELS
       CALL trd_dyn(zfu_t, zfv_t, jpdyn_zad, kt)
     END IF
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' ubs2 adv - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' ubs2 adv - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = &
+&vmask, clinfo3 = 'dyn')
   END SUBROUTINE dyn_adv_ubs
 END MODULE dynadv_ubs

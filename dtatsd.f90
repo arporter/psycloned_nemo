@@ -14,15 +14,12 @@ MODULE dtatsd
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_tsd
   CONTAINS
   SUBROUTINE dta_tsd_init(ld_tradmp)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     LOGICAL, INTENT(IN), OPTIONAL :: ld_tradmp
     INTEGER :: ios, ierr0, ierr1, ierr2, ierr3
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N), DIMENSION(jpts) :: slf_i
     TYPE(FLD_N) :: sn_tem, sn_sal
     NAMELIST /namtsd/ ln_tsd_init, ln_tsd_dmp, cn_dir, sn_tem, sn_sal
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('dta_tsd_init', 'r0', 0, 0)
     ierr0 = 0
     ierr1 = 0
     ierr2 = 0
@@ -49,7 +46,8 @@ MODULE dtatsd
       END IF
     END IF
     IF (ln_rstart .AND. ln_tsd_init) THEN
-      CALL ctl_warn('dta_tsd_init: ocean restart and T & S data intialisation, ', 'we keep the restart T & S values and set ln_tsd_init to FALSE')
+      CALL ctl_warn('dta_tsd_init: ocean restart and T & S data intialisation, ', &
+&'we keep the restart T & S values and set ln_tsd_init to FALSE')
       ln_tsd_init = .FALSE.
     END IF
     IF (ln_tsd_init .OR. ln_tsd_dmp) THEN
@@ -70,7 +68,6 @@ MODULE dtatsd
       slf_i(jp_sal) = sn_sal
       CALL fld_fill(sf_tsd, slf_i, cn_dir, 'dta_tsd', 'Temperature & Salinity data', 'namtsd', no_print)
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dta_tsd_init
   SUBROUTINE dta_tsd(kt, ptsd)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType

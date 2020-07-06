@@ -62,13 +62,16 @@ MODULE usrdef_sbc
     !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
-        t_star = zTstar * (1. + 1. / 50. * zcos_sais2) * COS(rpi * (gphit(ji, jj) - 5.) / (53.5 * (1 + 11 / 53.5 * zcos_sais2) * 2.))
+        t_star = zTstar * (1. + 1. / 50. * zcos_sais2) * COS(rpi * (gphit(ji, jj) - 5.) / (53.5 * (1 + 11 / 53.5 * zcos_sais2) * &
+&2.))
         qsr(ji, jj) = 230 * COS(3.1415 * (gphit(ji, jj) - 23.5 * zcos_sais1) / (0.9 * 180))
         qns(ji, jj) = ztrp * (tsb(ji, jj, 1, jp_tem) - t_star) - qsr(ji, jj)
         IF (gphit(ji, jj) >= 14.845 .AND. 37.2 >= gphit(ji, jj)) THEN
-          emp(ji, jj) = zemp_S * zconv * SIN(rpi / 2 * (gphit(ji, jj) - 37.2) / (24.6 - 37.2)) * (1 - zemp_sais / zemp_S * zcos_sais1)
+          emp(ji, jj) = zemp_S * zconv * SIN(rpi / 2 * (gphit(ji, jj) - 37.2) / (24.6 - 37.2)) * (1 - zemp_sais / zemp_S * &
+&zcos_sais1)
         ELSE
-          emp(ji, jj) = - zemp_N * zconv * SIN(rpi / 2 * (gphit(ji, jj) - 37.2) / (46.8 - 37.2)) * (1 - zemp_sais / zemp_N * zcos_sais1)
+          emp(ji, jj) = - zemp_N * zconv * SIN(rpi / 2 * (gphit(ji, jj) - 37.2) / (46.8 - 37.2)) * (1 - zemp_sais / zemp_N * &
+&zcos_sais1)
         END IF
       END DO
     END DO

@@ -23,12 +23,9 @@ MODULE zdfric
   LOGICAL :: ln_mldw
   CONTAINS
   SUBROUTINE zdf_ric_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: ios
     NAMELIST /namzdf_ric/ rn_avmri, rn_alp, nn_ric, rn_ekmfc, rn_mldmin, rn_mldmax, rn_wtmix, rn_wvmix, ln_mldw
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('zdf_ric_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namzdf_ric, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namzdf_ric in reference namelist', lwp)
@@ -56,7 +53,6 @@ MODULE zdfric
       CALL iom_set_rstw_var_active('avt_k')
       CALL iom_set_rstw_var_active('avm_k')
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE zdf_ric_init
   SUBROUTINE zdf_ric(kt, pdept, p_sh2, p_avm, p_avt)
     INTEGER, INTENT(IN) :: kt
@@ -104,13 +100,10 @@ MODULE zdfric
     END IF
   END SUBROUTINE zdf_ric
   SUBROUTINE ric_rst(kt, cdrw)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
     INTEGER :: jit, jk
     INTEGER :: id1, id2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('ric_rst', 'r0', 0, 0)
     IF (TRIM(cdrw) == 'READ') THEN
       IF (ln_rstart) THEN
         id1 = iom_varid(numror, 'avt_k', ldstop = .FALSE.)
@@ -127,6 +120,5 @@ MODULE zdfric
       CALL iom_rstput(kt, nitrst, numrow, 'avm_k', avm_k, ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ric_rst
 END MODULE zdfric

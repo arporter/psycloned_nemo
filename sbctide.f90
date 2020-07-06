@@ -68,11 +68,8 @@ MODULE sbctide
     END IF
   END SUBROUTINE sbc_tide
   SUBROUTINE tide_init_potential
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcons, ztmp1, ztmp2, zlat, zlon, ztmp, zamp, zcs
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('tide_init_potential', 'r0', 0, 0)
     DO jk = 1, nb_harmo
       zcons = 0.7_wp * Wave(ntide(jk)) % equitide * ftide(jk)
       DO ji = 1, jpi
@@ -97,15 +94,11 @@ MODULE sbctide
         END DO
       END DO
     END DO
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tide_init_potential
   SUBROUTINE tide_init_load
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: inum
     INTEGER :: ji, jj, itide
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztr, zti
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('tide_init_load', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'tide_init_load : Initialization of load potential from file'
@@ -123,6 +116,5 @@ MODULE sbctide
       END DO
     END DO
     CALL iom_close(inum)
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tide_init_load
 END MODULE sbctide

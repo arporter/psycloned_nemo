@@ -50,7 +50,8 @@ MODULE trdpen
     !$ACC KERNELS
     zpe(:, :, jpk) = 0._wp
     DO jk = 1, jpkm1
-      zpe(:, :, jk) = (- (rab_n(:, :, jk, jp_tem) + rab_pe(:, :, jk, jp_tem)) * ptrdx(:, :, jk) + (rab_n(:, :, jk, jp_sal) + rab_pe(:, :, jk, jp_sal)) * ptrdy(:, :, jk))
+      zpe(:, :, jk) = (- (rab_n(:, :, jk, jp_tem) + rab_pe(:, :, jk, jp_tem)) * ptrdx(:, :, jk) + (rab_n(:, :, jk, jp_sal) + &
+&rab_pe(:, :, jk, jp_sal)) * ptrdy(:, :, jk))
     END DO
     !$ACC END KERNELS
     SELECT CASE (ktrd)
@@ -63,7 +64,8 @@ MODULE trdpen
       IF (ln_linssh) THEN
         ALLOCATE(z2d(jpi, jpj))
         !$ACC KERNELS
-        z2d(:, :) = wn(:, :, 1) * (- (rab_n(:, :, 1, jp_tem) + rab_pe(:, :, 1, jp_tem)) * tsn(:, :, 1, jp_tem) + (rab_n(:, :, 1, jp_sal) + rab_pe(:, :, 1, jp_sal)) * tsn(:, :, 1, jp_sal)) / e3t_n(:, :, 1)
+        z2d(:, :) = wn(:, :, 1) * (- (rab_n(:, :, 1, jp_tem) + rab_pe(:, :, 1, jp_tem)) * tsn(:, :, 1, jp_tem) + (rab_n(:, :, 1, &
+&jp_sal) + rab_pe(:, :, 1, jp_sal)) * tsn(:, :, 1, jp_sal)) / e3t_n(:, :, 1)
         !$ACC END KERNELS
         CALL profile_psy_data1 % PreStart('trd_pen', 'r1', 0, 0)
         CALL iom_put("petrd_sad", z2d)
@@ -95,24 +97,17 @@ MODULE trdpen
     END SELECT
   END SUBROUTINE trd_pen
   SUBROUTINE trd_pen_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    CALL profile_psy_data0 % PreStart('trd_pen_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'trd_pen_init : 3D Potential ENergy trends'
       WRITE(numout, FMT = *) '~~~~~~~~~~~~~'
     END IF
     IF (trd_pen_alloc() /= 0) CALL ctl_stop('trd_pen_alloc: failed to allocate arrays')
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     rab_pe(:, :, :, :) = 0._wp
     !$ACC END KERNELS
-    CALL profile_psy_data1 % PreStart('trd_pen_init', 'r1', 0, 0)
     IF (.NOT. ln_linssh) CALL ctl_stop('trd_pen_init : PE trends not coded for variable volume')
     nkstp = nit000 - 1
-    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE trd_pen_init
 END MODULE trdpen

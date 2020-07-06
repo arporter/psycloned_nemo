@@ -88,7 +88,8 @@ MODULE trasbc
           IF (sshn(ji, jj) + ht_0(ji, jj) > 2._wp * rn_wdmin1) THEN
             sbc_tsc(ji, jj, jp_tem) = r1_rau0_rcp * qns(ji, jj)
           ELSE IF (sshn(ji, jj) + ht_0(ji, jj) > rn_wdmin1) THEN
-            sbc_tsc(ji, jj, jp_tem) = r1_rau0_rcp * qns(ji, jj) * TANH(5._wp * ((sshn(ji, jj) + ht_0(ji, jj) - rn_wdmin1) * r_rn_wdmin1))
+            sbc_tsc(ji, jj, jp_tem) = r1_rau0_rcp * qns(ji, jj) * TANH(5._wp * ((sshn(ji, jj) + ht_0(ji, jj) - rn_wdmin1) * &
+&r_rn_wdmin1))
           ELSE
             sbc_tsc(ji, jj, jp_tem) = 0._wp
           END IF
@@ -141,9 +142,11 @@ MODULE trasbc
           ikt = misfkt(ji, jj)
           ikb = misfkb(ji, jj)
           DO jk = ikt, ikb - 1
-            tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + zfact * (risf_tsc_b(ji, jj, jp_tem) + risf_tsc(ji, jj, jp_tem)) * r1_hisf_tbl(ji, jj)
+            tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + zfact * (risf_tsc_b(ji, jj, jp_tem) + risf_tsc(ji, jj, jp_tem)) * &
+&r1_hisf_tbl(ji, jj)
           END DO
-          tsa(ji, jj, ikb, jp_tem) = tsa(ji, jj, ikb, jp_tem) + zfact * (risf_tsc_b(ji, jj, jp_tem) + risf_tsc(ji, jj, jp_tem)) * r1_hisf_tbl(ji, jj) * ralpha(ji, jj)
+          tsa(ji, jj, ikb, jp_tem) = tsa(ji, jj, ikb, jp_tem) + zfact * (risf_tsc_b(ji, jj, jp_tem) + risf_tsc(ji, jj, jp_tem)) * &
+&r1_hisf_tbl(ji, jj) * ralpha(ji, jj)
         END DO
       END DO
       !$ACC END KERNELS
@@ -157,7 +160,8 @@ MODULE trasbc
             zdep = zfact / h_rnf(ji, jj)
             DO jk = 1, nk_rnf(ji, jj)
               tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + (rnf_tsc_b(ji, jj, jp_tem) + rnf_tsc(ji, jj, jp_tem)) * zdep
-              IF (ln_rnf_sal) tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + (rnf_tsc_b(ji, jj, jp_sal) + rnf_tsc(ji, jj, jp_sal)) * zdep
+              IF (ln_rnf_sal) tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + (rnf_tsc_b(ji, jj, jp_sal) + rnf_tsc(ji, jj, &
+&jp_sal)) * zdep
             END DO
           END IF
         END DO
@@ -192,7 +196,8 @@ MODULE trasbc
       CALL profile_psy_data6 % PostEnd
     END IF
     CALL profile_psy_data7 % PreStart('tra_sbc', 'r7', 0, 0)
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' sbc  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' sbc  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, &
+&jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_sbc')
     CALL profile_psy_data7 % PostEnd
   END SUBROUTINE tra_sbc

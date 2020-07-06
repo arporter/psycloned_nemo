@@ -31,8 +31,10 @@ MODULE zdfddm
       DO jj = 1, jpj
         DO ji = 1, jpi
           zrw = (gdepw_n(ji, jj, jk) - gdept_n(ji, jj, jk)) / (gdept_n(ji, jj, jk - 1) - gdept_n(ji, jj, jk))
-          zaw = (rab_n(ji, jj, jk, jp_tem) * (1. - zrw) + rab_n(ji, jj, jk - 1, jp_tem) * zrw) * tmask(ji, jj, jk) * tmask(ji, jj, jk - 1)
-          zbw = (rab_n(ji, jj, jk, jp_sal) * (1. - zrw) + rab_n(ji, jj, jk - 1, jp_sal) * zrw) * tmask(ji, jj, jk) * tmask(ji, jj, jk - 1)
+          zaw = (rab_n(ji, jj, jk, jp_tem) * (1. - zrw) + rab_n(ji, jj, jk - 1, jp_tem) * zrw) * tmask(ji, jj, jk) * tmask(ji, jj, &
+&jk - 1)
+          zbw = (rab_n(ji, jj, jk, jp_sal) * (1. - zrw) + rab_n(ji, jj, jk - 1, jp_sal) * zrw) * tmask(ji, jj, jk) * tmask(ji, jj, &
+&jk - 1)
           zdt = zaw * (tsn(ji, jj, jk - 1, jp_tem) - tsn(ji, jj, jk, jp_tem))
           zds = zbw * (tsn(ji, jj, jk - 1, jp_sal) - tsn(ji, jj, jk, jp_sal))
           IF (ABS(zds) <= 1.E-20_wp) zds = 1.E-20_wp

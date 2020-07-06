@@ -32,8 +32,13 @@ MODULE usrdef_istate
     DO jk = 1, jpk
       DO jj = 1, jpj
         DO ji = 1, jpi
-          pts(ji, jj, jk, jp_tem) = ((16. - 12. * TANH((pdept(ji, jj, jk) - 400) / 700)) * (- TANH((500. - pdept(ji, jj, jk)) / 150.) + 1.) / 2. + (15. * (1. - TANH((pdept(ji, jj, jk) - 50.) / 1500.)) - 1.4 * TANH((pdept(ji, jj, jk) - 100.) / 100.) + 7. * (1500. - pdept(ji, jj, jk)) / 1500.) * (- TANH((pdept(ji, jj, jk) - 500.) / 150.) + 1.) / 2.) * ptmask(ji, jj, jk)
-          pts(ji, jj, jk, jp_sal) = ((36.25 - 1.13 * TANH((pdept(ji, jj, jk) - 305) / 460)) * (- TANH((500. - pdept(ji, jj, jk)) / 150.) + 1.) / 2 + (35.55 + 1.25 * (5000. - pdept(ji, jj, jk)) / 5000. - 1.62 * TANH((pdept(ji, jj, jk) - 60.) / 650.) + 0.2 * TANH((pdept(ji, jj, jk) - 35.) / 100.) + 0.2 * TANH((pdept(ji, jj, jk) - 1000.) / 5000.)) * (- TANH((pdept(ji, jj, jk) - 500.) / 150.) + 1.) / 2) * ptmask(ji, jj, jk)
+          pts(ji, jj, jk, jp_tem) = ((16. - 12. * TANH((pdept(ji, jj, jk) - 400) / 700)) * (- TANH((500. - pdept(ji, jj, jk)) / &
+&150.) + 1.) / 2. + (15. * (1. - TANH((pdept(ji, jj, jk) - 50.) / 1500.)) - 1.4 * TANH((pdept(ji, jj, jk) - 100.) / 100.) + 7. * &
+&(1500. - pdept(ji, jj, jk)) / 1500.) * (- TANH((pdept(ji, jj, jk) - 500.) / 150.) + 1.) / 2.) * ptmask(ji, jj, jk)
+          pts(ji, jj, jk, jp_sal) = ((36.25 - 1.13 * TANH((pdept(ji, jj, jk) - 305) / 460)) * (- TANH((500. - pdept(ji, jj, jk)) / &
+&150.) + 1.) / 2 + (35.55 + 1.25 * (5000. - pdept(ji, jj, jk)) / 5000. - 1.62 * TANH((pdept(ji, jj, jk) - 60.) / 650.) + 0.2 * &
+&TANH((pdept(ji, jj, jk) - 35.) / 100.) + 0.2 * TANH((pdept(ji, jj, jk) - 1000.) / 5000.)) * (- TANH((pdept(ji, jj, jk) - 500.) / &
+&150.) + 1.) / 2) * ptmask(ji, jj, jk)
         END DO
       END DO
     END DO

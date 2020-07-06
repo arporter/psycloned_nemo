@@ -68,7 +68,8 @@ MODULE sbcssr
           zerp_bnd = rn_sssr_bnd / rday
           DO jj = 1, jpj
             DO ji = 1, jpi
-              zerp = zsrp * (1. - 2. * rnfmsk(ji, jj)) * (sss_m(ji, jj) - sf_sss(1) % fnow(ji, jj, 1)) / MAX(sss_m(ji, jj), 1.E-20) * tmask(ji, jj, 1)
+              zerp = zsrp * (1. - 2. * rnfmsk(ji, jj)) * (sss_m(ji, jj) - sf_sss(1) % fnow(ji, jj, 1)) / MAX(sss_m(ji, jj), &
+&1.E-20) * tmask(ji, jj, 1)
               IF (ln_sssr_bnd) zerp = SIGN(1., zerp) * MIN(zerp_bnd, ABS(zerp))
               emp(ji, jj) = emp(ji, jj) + zerp
               qns(ji, jj) = qns(ji, jj) - zerp * rcp * sst_m(ji, jj)
@@ -82,7 +83,6 @@ MODULE sbcssr
     CALL profile_psy_data0 % PostEnd
   END SUBROUTINE sbc_ssr
   SUBROUTINE sbc_ssr_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zerp
     REAL(KIND = wp) :: zqrp
@@ -93,8 +93,6 @@ MODULE sbcssr
     TYPE(FLD_N) :: sn_sst, sn_sss
     NAMELIST /namsbc_ssr/ cn_dir, nn_sstr, nn_sssr, rn_dqdt, rn_deds, sn_sst, sn_sss, ln_sssr_bnd, rn_sssr_bnd
     INTEGER :: ios
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('sbc_ssr_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'sbc_ssr : SST and/or SSS damping term '
@@ -137,7 +135,6 @@ MODULE sbcssr
       IF (sf_sss(1) % ln_tint) ALLOCATE(sf_sss(1) % fdta(jpi, jpj, 1, 2), STAT = ierror)
       IF (ierror > 0) CALL ctl_stop('STOP', 'sbc_ssr: unable to allocate sf_sss data array')
     END IF
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     IF (nn_sstr /= 1) qrp(:, :) = 0._wp
     IF (nn_sssr /= 1 .OR. nn_sssr /= 2) erp(:, :) = 0._wp

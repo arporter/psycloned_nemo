@@ -32,7 +32,9 @@ MODULE trabbl
   REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :), PUBLIC :: e3u_bbl_0, e3v_bbl_0
   CONTAINS
   INTEGER FUNCTION tra_bbl_alloc()
-    ALLOCATE(utr_bbl(jpi, jpj), ahu_bbl(jpi, jpj), mbku_d(jpi, jpj), mgrhu(jpi, jpj), vtr_bbl(jpi, jpj), ahv_bbl(jpi, jpj), mbkv_d(jpi, jpj), mgrhv(jpi, jpj), ahu_bbl_0(jpi, jpj), ahv_bbl_0(jpi, jpj), e3u_bbl_0(jpi, jpj), e3v_bbl_0(jpi, jpj), STAT = tra_bbl_alloc)
+    ALLOCATE(utr_bbl(jpi, jpj), ahu_bbl(jpi, jpj), mbku_d(jpi, jpj), mgrhu(jpi, jpj), vtr_bbl(jpi, jpj), ahv_bbl(jpi, jpj), &
+&mbkv_d(jpi, jpj), mgrhv(jpi, jpj), ahu_bbl_0(jpi, jpj), ahv_bbl_0(jpi, jpj), e3u_bbl_0(jpi, jpj), e3v_bbl_0(jpi, jpj), STAT = &
+&tra_bbl_alloc)
     IF (lk_mpp) CALL mpp_sum(tra_bbl_alloc)
     IF (tra_bbl_alloc > 0) CALL ctl_warn('tra_bbl_alloc: allocation of arrays failed.')
   END FUNCTION tra_bbl_alloc
@@ -54,14 +56,16 @@ MODULE trabbl
     IF (l_bbl) CALL bbl(kt, nit000, 'TRA')
     IF (nn_bbl_ldf == 1) THEN
       CALL tra_bbl_dif(tsb, tsa, jpts)
-      IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' bbl_ldf  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
+      IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' bbl_ldf  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, &
+&jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
       CALL lbc_lnk_multi(ahu_bbl, 'U', 1., ahv_bbl, 'V', 1.)
       CALL iom_put("ahu_bbl", ahu_bbl)
       CALL iom_put("ahv_bbl", ahv_bbl)
     END IF
     IF (nn_bbl_adv /= 0) THEN
       CALL tra_bbl_adv(tsb, tsa, jpts)
-      IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' bbl_adv  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
+      IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' bbl_adv  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, &
+&jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
       CALL lbc_lnk_multi(utr_bbl, 'U', 1., vtr_bbl, 'V', 1.)
       CALL iom_put("uoce_bbl", utr_bbl)
       CALL iom_put("voce_bbl", vtr_bbl)
@@ -101,7 +105,9 @@ MODULE trabbl
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ik = mbkt(ji, jj)
-          pta(ji, jj, ik, jn) = pta(ji, jj, ik, jn) + (ahu_bbl(ji, jj) * (zptb(ji + 1, jj) - zptb(ji, jj)) - ahu_bbl(ji - 1, jj) * (zptb(ji, jj) - zptb(ji - 1, jj)) + ahv_bbl(ji, jj) * (zptb(ji, jj + 1) - zptb(ji, jj)) - ahv_bbl(ji, jj - 1) * (zptb(ji, jj) - zptb(ji, jj - 1))) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, ik)
+          pta(ji, jj, ik, jn) = pta(ji, jj, ik, jn) + (ahu_bbl(ji, jj) * (zptb(ji + 1, jj) - zptb(ji, jj)) - ahu_bbl(ji - 1, jj) * &
+&(zptb(ji, jj) - zptb(ji - 1, jj)) + ahv_bbl(ji, jj) * (zptb(ji, jj + 1) - zptb(ji, jj)) - ahv_bbl(ji, jj - 1) * (zptb(ji, jj) - &
+&zptb(ji, jj - 1))) * r1_e1e2t(ji, jj) / e3t_n(ji, jj, ik)
         END DO
       END DO
     END DO
@@ -204,12 +210,14 @@ MODULE trabbl
         DO ji = 1, jpim1
           za = zab(ji + 1, jj, jp_tem) + zab(ji, jj, jp_tem)
           zb = zab(ji + 1, jj, jp_sal) + zab(ji, jj, jp_sal)
-          zgdrho = (za * (zts(ji + 1, jj, jp_tem) - zts(ji, jj, jp_tem)) - zb * (zts(ji + 1, jj, jp_sal) - zts(ji, jj, jp_sal))) * umask(ji, jj, 1)
+          zgdrho = (za * (zts(ji + 1, jj, jp_tem) - zts(ji, jj, jp_tem)) - zb * (zts(ji + 1, jj, jp_sal) - zts(ji, jj, jp_sal))) * &
+&umask(ji, jj, 1)
           zsign = SIGN(0.5, - zgdrho * REAL(mgrhu(ji, jj)))
           ahu_bbl(ji, jj) = (0.5 - zsign) * ahu_bbl_0(ji, jj)
           za = zab(ji, jj + 1, jp_tem) + zab(ji, jj, jp_tem)
           zb = zab(ji, jj + 1, jp_sal) + zab(ji, jj, jp_sal)
-          zgdrho = (za * (zts(ji, jj + 1, jp_tem) - zts(ji, jj, jp_tem)) - zb * (zts(ji, jj + 1, jp_sal) - zts(ji, jj, jp_sal))) * vmask(ji, jj, 1)
+          zgdrho = (za * (zts(ji, jj + 1, jp_tem) - zts(ji, jj, jp_tem)) - zb * (zts(ji, jj + 1, jp_sal) - zts(ji, jj, jp_sal))) * &
+&vmask(ji, jj, 1)
           zsign = SIGN(0.5, - zgdrho * REAL(mgrhv(ji, jj)))
           ahv_bbl(ji, jj) = (0.5 - zsign) * ahv_bbl_0(ji, jj)
         END DO
@@ -223,13 +231,15 @@ MODULE trabbl
           DO ji = 1, jpim1
             za = zab(ji + 1, jj, jp_tem) + zab(ji, jj, jp_tem)
             zb = zab(ji + 1, jj, jp_sal) + zab(ji, jj, jp_sal)
-            zgdrho = (za * (zts(ji + 1, jj, jp_tem) - zts(ji, jj, jp_tem)) - zb * (zts(ji + 1, jj, jp_sal) - zts(ji, jj, jp_sal))) * umask(ji, jj, 1)
+            zgdrho = (za * (zts(ji + 1, jj, jp_tem) - zts(ji, jj, jp_tem)) - zb * (zts(ji + 1, jj, jp_sal) - zts(ji, jj, jp_sal))) &
+&* umask(ji, jj, 1)
             zsign = SIGN(0.5, - zgdrho * REAL(mgrhu(ji, jj)))
             zsigna = SIGN(0.5, zub(ji, jj) * REAL(mgrhu(ji, jj)))
             utr_bbl(ji, jj) = (0.5 + zsigna) * (0.5 - zsign) * e2u(ji, jj) * e3u_bbl_0(ji, jj) * zub(ji, jj)
             za = zab(ji, jj + 1, jp_tem) + zab(ji, jj, jp_tem)
             zb = zab(ji, jj + 1, jp_sal) + zab(ji, jj, jp_sal)
-            zgdrho = (za * (zts(ji, jj + 1, jp_tem) - zts(ji, jj, jp_tem)) - zb * (zts(ji, jj + 1, jp_sal) - zts(ji, jj, jp_sal))) * vmask(ji, jj, 1)
+            zgdrho = (za * (zts(ji, jj + 1, jp_tem) - zts(ji, jj, jp_tem)) - zb * (zts(ji, jj + 1, jp_sal) - zts(ji, jj, jp_sal))) &
+&* vmask(ji, jj, 1)
             zsign = SIGN(0.5, - zgdrho * REAL(mgrhv(ji, jj)))
             zsigna = SIGN(0.5, zvb(ji, jj) * REAL(mgrhv(ji, jj)))
             vtr_bbl(ji, jj) = (0.5 + zsigna) * (0.5 - zsign) * e1v(ji, jj) * e3v_bbl_0(ji, jj) * zvb(ji, jj)
@@ -246,7 +256,8 @@ MODULE trabbl
             ikus = mbku(ji, jj)
             za = zab(ji + 1, jj, jp_tem) + zab(ji, jj, jp_tem)
             zb = zab(ji + 1, jj, jp_sal) + zab(ji, jj, jp_sal)
-            zgdrho = 0.5 * (za * (zts(iid, jj, jp_tem) - zts(iis, jj, jp_tem)) - zb * (zts(iid, jj, jp_sal) - zts(iis, jj, jp_sal))) * umask(ji, jj, 1)
+            zgdrho = 0.5 * (za * (zts(iid, jj, jp_tem) - zts(iis, jj, jp_tem)) - zb * (zts(iid, jj, jp_sal) - zts(iis, jj, &
+&jp_sal))) * umask(ji, jj, 1)
             zgdrho = MAX(0.E0, zgdrho)
             utr_bbl(ji, jj) = e2u(ji, jj) * e3u_bbl_0(ji, jj) * zgbbl * zgdrho * REAL(mgrhu(ji, jj))
             ijd = jj + MAX(0, mgrhv(ji, jj))
@@ -255,7 +266,8 @@ MODULE trabbl
             ikvs = mbkv(ji, jj)
             za = zab(ji, jj + 1, jp_tem) + zab(ji, jj, jp_tem)
             zb = zab(ji, jj + 1, jp_sal) + zab(ji, jj, jp_sal)
-            zgdrho = 0.5 * (za * (zts(ji, ijd, jp_tem) - zts(ji, ijs, jp_tem)) - zb * (zts(ji, ijd, jp_sal) - zts(ji, ijs, jp_sal))) * vmask(ji, jj, 1)
+            zgdrho = 0.5 * (za * (zts(ji, ijd, jp_tem) - zts(ji, ijs, jp_tem)) - zb * (zts(ji, ijd, jp_sal) - zts(ji, ijs, &
+&jp_sal))) * vmask(ji, jj, 1)
             zgdrho = MAX(0.E0, zgdrho)
             vtr_bbl(ji, jj) = e1v(ji, jj) * e3v_bbl_0(ji, jj) * zgbbl * zgdrho * REAL(mgrhv(ji, jj))
           END DO
@@ -265,13 +277,10 @@ MODULE trabbl
     !$ACC END KERNELS
   END SUBROUTINE bbl
   SUBROUTINE tra_bbl_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj
     INTEGER :: ii0, ii1, ij0, ij1, ios
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zmbku, zmbkv
     NAMELIST /nambbl/ ln_trabbl, nn_bbl_ldf, nn_bbl_adv, rn_ahtbbl, rn_gambbl
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('tra_bbl_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, nambbl, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'nambbl in reference namelist', lwp)
@@ -299,7 +308,6 @@ MODULE trabbl
       IF (nn_bbl_adv == 1) WRITE(numout, FMT = *) '       * Advective BBL using upper velocity'
       IF (nn_bbl_adv == 2) WRITE(numout, FMT = *) '       * Advective BBL using velocity = F( delta rho)'
     END IF
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1

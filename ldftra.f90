@@ -47,20 +47,12 @@ MODULE ldftra
   REAL(KIND = wp) :: r1_12 = 1._wp / 12._wp
   CONTAINS
   SUBROUTINE ldf_tra_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jk
     INTEGER :: ioptio, ierr, inum, ios, inn
     REAL(KIND = wp) :: zah_max, zUfac
     CHARACTER(LEN = 5) :: cl_Units
-    NAMELIST /namtra_ldf/ ln_traldf_OFF, ln_traldf_lap, ln_traldf_blp, ln_traldf_lev, ln_traldf_hor, ln_traldf_triad, ln_traldf_iso, ln_traldf_msc, rn_slpmax, ln_triad_iso, ln_botmix_triad, rn_sw_triad, nn_aht_ijk_t, rn_Ud, rn_Ld
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
-    CALL profile_psy_data0 % PreStart('ldf_tra_init', 'r0', 0, 0)
+    NAMELIST /namtra_ldf/ ln_traldf_OFF, ln_traldf_lap, ln_traldf_blp, ln_traldf_lev, ln_traldf_hor, ln_traldf_triad, &
+&ln_traldf_iso, ln_traldf_msc, rn_slpmax, ln_triad_iso, ln_botmix_triad, rn_sw_triad, nn_aht_ijk_t, rn_Ud, rn_Ld
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'ldf_tra_init : lateral tracer diffusion'
@@ -157,7 +149,8 @@ MODULE ldftra
       END IF
       IF (ierr == 1) CALL ctl_stop('iso-level in z-partial step, not allowed')
     END IF
-    IF (ln_ldfeiv .AND. .NOT. (ln_traldf_iso .OR. ln_traldf_triad)) CALL ctl_stop('ln_ldfeiv=T requires iso-neutral laplacian diffusion')
+    IF (ln_ldfeiv .AND. .NOT. (ln_traldf_iso .OR. ln_traldf_triad)) CALL ctl_stop('ln_ldfeiv=T requires iso-neutral laplacian &
+&diffusion')
     IF (ln_isfcav .AND. ln_traldf_triad) CALL ctl_stop(' ice shelf cavity and traldf_triad not tested')
     IF (nldf_tra == np_lap_i .OR. nldf_tra == np_lap_it .OR. nldf_tra == np_blp_i .OR. nldf_tra == np_blp_it) l_ldfslp = .TRUE.
     IF (ln_traldf_blp .AND. (ln_traldf_iso .OR. ln_traldf_triad)) THEN
@@ -184,22 +177,16 @@ MODULE ldftra
       WRITE(numout, FMT = *)
     END IF
     l_ldftra_time = .FALSE.
-    CALL profile_psy_data0 % PostEnd
     IF (ln_traldf_OFF) THEN
-      CALL profile_psy_data1 % PreStart('ldf_tra_init', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   No diffusive operator selected. ahtu and ahtv are not allocated'
       RETURN
-      CALL profile_psy_data1 % PostEnd
     ELSE
-      CALL profile_psy_data2 % PreStart('ldf_tra_init', 'r2', 0, 0)
       ALLOCATE(ahtu(jpi, jpj, jpk), ahtv(jpi, jpj, jpk), STAT = ierr)
       IF (ierr /= 0) CALL ctl_stop('STOP', 'ldf_tra_init: failed to allocate arrays')
-      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       ahtu(:, :, jpk) = 0._wp
       ahtv(:, :, jpk) = 0._wp
       !$ACC END KERNELS
-      CALL profile_psy_data3 % PreStart('ldf_tra_init', 'r3', 0, 0)
       IF (ln_traldf_lap) THEN
         zufac = r1_2 * rn_ud
         inn = 1
@@ -211,7 +198,6 @@ MODULE ldftra
       END IF
       aht0 = zUfac * rn_Ld ** inn
       zah_max = zUfac * (ra * rad) ** inn
-      CALL profile_psy_data3 % PostEnd
       SELECT CASE (nn_aht_ijk_t)
       CASE (0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = constant = ', aht0, cl_Units
@@ -220,23 +206,19 @@ MODULE ldftra
         ahtv(:, :, 1 : jpkm1) = aht0
         !$ACC END KERNELS
       CASE (10)
-        CALL profile_psy_data4 % PreStart('ldf_tra_init', 'r4', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( depth )'
         IF (lwp) WRITE(numout, FMT = *) '           surface eddy diffusivity = constant = ', aht0, cl_Units
-        CALL profile_psy_data4 % PostEnd
         !$ACC KERNELS
         ahtu(:, :, 1) = aht0
         ahtv(:, :, 1) = aht0
         !$ACC END KERNELS
         CALL ldf_c1d('TRA', ahtu(:, :, 1), ahtv(:, :, 1), ahtu, ahtv)
       CASE (- 20)
-        CALL profile_psy_data5 % PreStart('ldf_tra_init', 'r5', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F(i,j) read in eddy_diffusivity.nc file'
         CALL iom_open('eddy_diffusivity_2D.nc', inum)
         CALL iom_get(inum, jpdom_data, 'ahtu_2D', ahtu(:, :, 1))
         CALL iom_get(inum, jpdom_data, 'ahtv_2D', ahtv(:, :, 1))
         CALL iom_close(inum)
-        CALL profile_psy_data5 % PostEnd
         DO jk = 2, jpkm1
           !$ACC KERNELS
           ahtu(:, :, jk) = ahtu(:, :, 1)
@@ -244,19 +226,20 @@ MODULE ldftra
           !$ACC END KERNELS
         END DO
       CASE (20)
-        CALL profile_psy_data6 % PreStart('ldf_tra_init', 'r6', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( e1, e2 ) or F( e1^3, e2^3 ) (lap or blp case)'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ud, ' m/s   and   Ld = Max(e1,e2)'
-        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for &
+&e1=1°)'
         CALL ldf_c2d('TRA', zUfac, inn, ahtu, ahtv)
-        CALL profile_psy_data6 % PostEnd
       CASE (21)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( latitude, longitude, time )'
         IF (lwp) WRITE(numout, FMT = *) '                            = F( growth rate of baroclinic instability )'
         IF (lwp) WRITE(numout, FMT = *) '            min value = 0.2 * aht0 (with aht0= 1/2 rn_Ud*rn_Ld)'
-        IF (lwp) WRITE(numout, FMT = *) '            max value =       aei0 (with aei0=1/2 rn_Ue*Le  increased to aht0 within 20N-20S'
+        IF (lwp) WRITE(numout, FMT = *) '            max value =       aei0 (with aei0=1/2 rn_Ue*Le  increased to aht0 within &
+&20N-20S'
         l_ldftra_time = .TRUE.
-        IF (ln_traldf_blp) CALL ctl_stop('ldf_tra_init: aht=F( growth rate of baroc. insta .)', '              incompatible with bilaplacian operator')
+        IF (ln_traldf_blp) CALL ctl_stop('ldf_tra_init: aht=F( growth rate of baroc. insta .)', '              incompatible with &
+&bilaplacian operator')
       CASE (- 30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F(i,j,k) read in eddy_diffusivity.nc file'
         CALL iom_open('eddy_diffusivity_3D.nc', inum)
@@ -266,7 +249,8 @@ MODULE ldftra
       CASE (30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy diffusivity = F( latitude, longitude, depth )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ud, ' m/s   and   Ld = Max(e1,e2)'
-        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for e1=1°)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for &
+&e1=1°)'
         CALL ldf_c2d('TRA', zUfac, inn, ahtu, ahtv)
         CALL ldf_c1d('TRA', ahtu(:, :, 1), ahtv(:, :, 1), ahtu, ahtv)
       CASE (31)
@@ -364,18 +348,10 @@ MODULE ldftra
     CALL profile_psy_data1 % PostEnd
   END SUBROUTINE ldf_tra
   SUBROUTINE ldf_eiv_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jk
     INTEGER :: ierr, inum, ios, inn
     REAL(KIND = wp) :: zah_max, zUfac
     NAMELIST /namtra_eiv/ ln_ldfeiv, ln_ldfeiv_dia, nn_aei_ijk_t, rn_Ue, rn_Le
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
-    CALL profile_psy_data0 % PreStart('ldf_eiv_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'ldf_eiv_init : eddy induced velocity parametrization'
@@ -399,20 +375,15 @@ MODULE ldftra
       WRITE(numout, FMT = *)
     END IF
     l_ldfeiv_time = .FALSE.
-    CALL profile_psy_data0 % PostEnd
     IF (.NOT. ln_ldfeiv) THEN
-      CALL profile_psy_data1 % PreStart('ldf_eiv_init', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity param is NOT used'
       ln_ldfeiv_dia = .FALSE.
-      CALL profile_psy_data1 % PostEnd
     ELSE
-      CALL profile_psy_data2 % PreStart('ldf_eiv_init', 'r2', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   use eddy induced velocity parametrization'
       IF (lwp) WRITE(numout, FMT = *)
       IF (ln_traldf_blp) CALL ctl_stop('ldf_eiv_init: eddy induced velocity ONLY with laplacian diffusivity')
       ALLOCATE(aeiu(jpi, jpj, jpk), aeiv(jpi, jpj, jpk), STAT = ierr)
       IF (ierr /= 0) CALL ctl_stop('STOP', 'ldf_eiv: failed to allocate arrays')
-      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       aeiu(:, :, jpk) = 0._wp
       aeiv(:, :, jpk) = 0._wp
@@ -429,23 +400,19 @@ MODULE ldftra
         aeiv(:, :, 1 : jpkm1) = aei0
         !$ACC END KERNELS
       CASE (10)
-        CALL profile_psy_data3 % PreStart('ldf_eiv_init', 'r3', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F( depth )'
         IF (lwp) WRITE(numout, FMT = *) '           surface eddy diffusivity = constant = ', aht0, ' m2/s'
-        CALL profile_psy_data3 % PostEnd
         !$ACC KERNELS
         aeiu(:, :, 1) = aei0
         aeiv(:, :, 1) = aei0
         !$ACC END KERNELS
         CALL ldf_c1d('TRA', aeiu(:, :, 1), aeiv(:, :, 1), aeiu, aeiv)
       CASE (- 20)
-        CALL profile_psy_data4 % PreStart('ldf_eiv_init', 'r4', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F(i,j) read in eddy_diffusivity_2D.nc file'
         CALL iom_open('eddy_induced_velocity_2D.nc', inum)
         CALL iom_get(inum, jpdom_data, 'aeiu', aeiu(:, :, 1))
         CALL iom_get(inum, jpdom_data, 'aeiv', aeiv(:, :, 1))
         CALL iom_close(inum)
-        CALL profile_psy_data4 % PostEnd
         DO jk = 2, jpkm1
           !$ACC KERNELS
           aeiu(:, :, jk) = aeiu(:, :, 1)
@@ -453,12 +420,11 @@ MODULE ldftra
           !$ACC END KERNELS
         END DO
       CASE (20)
-        CALL profile_psy_data5 % PreStart('ldf_eiv_init', 'r5', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F( e1, e2 )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed diffusive velocity = ', rn_Ue, ' m/s   and   Le = Max(e1,e2)'
-        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, ' m2/s   for e1=1°)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, ' m2/s   for &
+&e1=1°)'
         CALL ldf_c2d('TRA', zUfac, inn, aeiu, aeiv)
-        CALL profile_psy_data5 % PostEnd
       CASE (21)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy induced velocity coef. = F( latitude, longitude, time )'
         IF (lwp) WRITE(numout, FMT = *) '                                       = F( growth rate of baroclinic instability )'
@@ -596,8 +562,10 @@ MODULE ldftra
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
-          zpsi_uw(ji, jj, jk) = - r1_4 * e2u(ji, jj) * (wslpi(ji, jj, jk) + wslpi(ji + 1, jj, jk)) * (aeiu(ji, jj, jk - 1) + aeiu(ji, jj, jk)) * umask(ji, jj, jk)
-          zpsi_vw(ji, jj, jk) = - r1_4 * e1v(ji, jj) * (wslpj(ji, jj, jk) + wslpj(ji, jj + 1, jk)) * (aeiv(ji, jj, jk - 1) + aeiv(ji, jj, jk)) * vmask(ji, jj, jk)
+          zpsi_uw(ji, jj, jk) = - r1_4 * e2u(ji, jj) * (wslpi(ji, jj, jk) + wslpi(ji + 1, jj, jk)) * (aeiu(ji, jj, jk - 1) + &
+&aeiu(ji, jj, jk)) * umask(ji, jj, jk)
+          zpsi_vw(ji, jj, jk) = - r1_4 * e1v(ji, jj) * (wslpj(ji, jj, jk) + wslpj(ji, jj + 1, jk)) * (aeiv(ji, jj, jk - 1) + &
+&aeiv(ji, jj, jk)) * vmask(ji, jj, jk)
         END DO
       END DO
     END DO
@@ -614,7 +582,8 @@ MODULE ldftra
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          pwn(ji, jj, jk) = pwn(ji, jj, jk) + (zpsi_uw(ji, jj, jk) - zpsi_uw(ji - 1, jj, jk) + zpsi_vw(ji, jj, jk) - zpsi_vw(ji, jj - 1, jk))
+          pwn(ji, jj, jk) = pwn(ji, jj, jk) + (zpsi_uw(ji, jj, jk) - zpsi_uw(ji - 1, jj, jk) + zpsi_vw(ji, jj, jk) - zpsi_vw(ji, &
+&jj - 1, jk))
         END DO
       END DO
     END DO
@@ -652,7 +621,8 @@ MODULE ldftra
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          zw3d(ji, jj, jk) = (psi_vw(ji, jj, jk) - psi_vw(ji, jj - 1, jk) + psi_uw(ji, jj, jk) - psi_uw(ji - 1, jj, jk)) / e1e2t(ji, jj)
+          zw3d(ji, jj, jk) = (psi_vw(ji, jj, jk) - psi_vw(ji, jj - 1, jk) + psi_uw(ji, jj, jk) - psi_uw(ji - 1, jj, jk)) / &
+&e1e2t(ji, jj)
         END DO
       END DO
     END DO
@@ -670,7 +640,8 @@ MODULE ldftra
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_uw(ji, jj, jk + 1) - psi_uw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_tem) + tsn(ji + 1, jj, jk, jp_tem))
+            zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_uw(ji, jj, jk + 1) - psi_uw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_tem) + &
+&tsn(ji + 1, jj, jk, jp_tem))
             zw2d(ji, jj) = zw2d(ji, jj) + zw3d(ji, jj, jk)
           END DO
         END DO
@@ -690,7 +661,8 @@ MODULE ldftra
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_vw(ji, jj, jk + 1) - psi_vw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_tem) + tsn(ji, jj + 1, jk, jp_tem))
+          zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_vw(ji, jj, jk + 1) - psi_vw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_tem) + tsn(ji, &
+&jj + 1, jk, jp_tem))
           zw2d(ji, jj) = zw2d(ji, jj) + zw3d(ji, jj, jk)
         END DO
       END DO
@@ -713,7 +685,8 @@ MODULE ldftra
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            zw3d(ji, jj, jk) = zw3d(ji, jj, jk) * (psi_uw(ji, jj, jk + 1) - psi_uw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_sal) + tsn(ji + 1, jj, jk, jp_sal))
+            zw3d(ji, jj, jk) = zw3d(ji, jj, jk) * (psi_uw(ji, jj, jk + 1) - psi_uw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_sal) + &
+&tsn(ji + 1, jj, jk, jp_sal))
             zw2d(ji, jj) = zw2d(ji, jj) + zw3d(ji, jj, jk)
           END DO
         END DO
@@ -733,7 +706,8 @@ MODULE ldftra
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
-          zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_vw(ji, jj, jk + 1) - psi_vw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_sal) + tsn(ji, jj + 1, jk, jp_sal))
+          zw3d(ji, jj, jk) = zw3d(ji, jj, jk) + (psi_vw(ji, jj, jk + 1) - psi_vw(ji, jj, jk)) * (tsn(ji, jj, jk, jp_sal) + tsn(ji, &
+&jj + 1, jk, jp_sal))
           zw2d(ji, jj) = zw2d(ji, jj) + zw3d(ji, jj, jk)
         END DO
       END DO

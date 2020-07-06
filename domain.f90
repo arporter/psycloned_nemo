@@ -23,16 +23,12 @@ MODULE domain
   PUBLIC :: domain_cfg
   CONTAINS
   SUBROUTINE dom_init(cdstr)
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk, ik
     INTEGER :: iconf = 0
     CHARACTER(LEN = 64) :: cform = "(A12, 3(A13, I7))"
     CHARACTER(LEN = *), INTENT(IN) :: cdstr
     INTEGER, DIMENSION(jpi, jpj) :: ik_top, ik_bot
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z1_hu_0, z1_hv_0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    CALL profile_psy_data0 % PreStart('dom_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dom_init : domain initialization'
@@ -90,7 +86,6 @@ MODULE domain
     CALL dom_zgr(ik_top, ik_bot)
     CALL dom_msk(ik_top, ik_bot)
     IF (ln_closea) CALL dom_clo
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
@@ -152,7 +147,6 @@ MODULE domain
     ELSE
       IF (.NOT. l_offline) CALL dom_vvl_init
     END IF
-    CALL profile_psy_data1 % PreStart('dom_init', 'r1', 0, 0)
     IF (lk_c1d) CALL cor_c1d
     IF (ln_meshmask .AND. .NOT. ln_iscpl) CALL dom_wri
     IF (ln_meshmask .AND. ln_iscpl .AND. .NOT. ln_rstart) CALL dom_wri
@@ -164,7 +158,6 @@ MODULE domain
       WRITE(numout, FMT = *) '~~~~~~~~'
       WRITE(numout, FMT = *)
     END IF
-    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE dom_init
   SUBROUTINE dom_glo
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
@@ -223,7 +216,9 @@ MODULE domain
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE ioipsl
     INTEGER :: ios
-    NAMELIST /namrun/ cn_ocerst_indir, cn_ocerst_outdir, nn_stocklist, ln_rst_list, nn_no, cn_exp, cn_ocerst_in, cn_ocerst_out, ln_rstart, nn_rstctl, nn_it000, nn_itend, nn_date0, nn_time0, nn_leapy, nn_istate, nn_stock, nn_write, ln_mskland, ln_clobber, nn_chunksz, nn_euler, ln_cfmeta, ln_iscpl, ln_xios_read, nn_wxios, ln_rstdate
+    NAMELIST /namrun/ cn_ocerst_indir, cn_ocerst_outdir, nn_stocklist, ln_rst_list, nn_no, cn_exp, cn_ocerst_in, cn_ocerst_out, &
+&ln_rstart, nn_rstctl, nn_it000, nn_itend, nn_date0, nn_time0, nn_leapy, nn_istate, nn_stock, nn_write, ln_mskland, ln_clobber, &
+&nn_chunksz, nn_euler, ln_cfmeta, ln_iscpl, ln_xios_read, nn_wxios, ln_rstdate
     NAMELIST /namdom/ ln_linssh, rn_isfhmin, rn_rdt, rn_atfp, ln_crs, ln_meshmask
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     CALL profile_psy_data0 % PreStart('dom_nam', 'r0', 0, 0)

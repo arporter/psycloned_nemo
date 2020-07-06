@@ -175,6 +175,8 @@ MODULE restart
     INTEGER :: jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: w3d
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     CALL profile_psy_data0 % PreStart('rst_read', 'r0', 0, 0)
     CALL rst_read_open
     IF (iom_varid(numror, 'rdt', ldstop = .FALSE.) > 0) THEN
@@ -182,13 +184,19 @@ MODULE restart
       IF (zrdt /= rdt) neuler = 0
     END IF
     IF (ln_diurnal) CALL iom_get(numror, jpdom_autoglo, 'Dsst', x_dsst, ldxios = lrxios)
+    CALL profile_psy_data0 % PostEnd
     IF (ln_diurnal_only) THEN
+      CALL profile_psy_data1 % PreStart('rst_read', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) "rst_read:- ln_diurnal_only set, setting rhop=rau0"
       rhop = rau0
       CALL iom_get(numror, jpdom_autoglo, 'tn', w3d, ldxios = lrxios)
+      CALL profile_psy_data1 % PostEnd
+      !$ACC KERNELS
       tsn(:, :, 1, jp_tem) = w3d(:, :, 1)
+      !$ACC END KERNELS
       RETURN
     END IF
+    CALL profile_psy_data2 % PreStart('rst_read', 'r2', 0, 0)
     IF (iom_varid(numror, 'ub', ldstop = .FALSE.) > 0) THEN
       CALL iom_get(numror, jpdom_autoglo, 'ub', ub, ldxios = lrxios)
       CALL iom_get(numror, jpdom_autoglo, 'vb', vb, ldxios = lrxios)
@@ -208,7 +216,7 @@ MODULE restart
     ELSE
       CALL eos(tsn, rhd, rhop, gdept_n(:, :, :))
     END IF
-    CALL profile_psy_data0 % PostEnd
+    CALL profile_psy_data2 % PostEnd
     IF (neuler == 0) THEN
       !$ACC KERNELS
       tsb(:, :, :, :) = tsn(:, :, :, :)

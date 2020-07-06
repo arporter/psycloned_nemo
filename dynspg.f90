@@ -57,8 +57,10 @@ MODULE dynspg
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            spgu(ji, jj) = spgu(ji, jj) + zg_2 * (ssh_ib(ji + 1, jj) - ssh_ib(ji, jj) + ssh_ibb(ji + 1, jj) - ssh_ibb(ji, jj)) * r1_e1u(ji, jj)
-            spgv(ji, jj) = spgv(ji, jj) + zg_2 * (ssh_ib(ji, jj + 1) - ssh_ib(ji, jj) + ssh_ibb(ji, jj + 1) - ssh_ibb(ji, jj)) * r1_e2v(ji, jj)
+            spgu(ji, jj) = spgu(ji, jj) + zg_2 * (ssh_ib(ji + 1, jj) - ssh_ib(ji, jj) + ssh_ibb(ji + 1, jj) - ssh_ibb(ji, jj)) * &
+&r1_e1u(ji, jj)
+            spgv(ji, jj) = spgv(ji, jj) + zg_2 * (ssh_ib(ji, jj + 1) - ssh_ib(ji, jj) + ssh_ibb(ji, jj + 1) - ssh_ibb(ji, jj)) * &
+&r1_e2v(ji, jj)
           END DO
         END DO
       END IF
@@ -134,16 +136,14 @@ MODULE dynspg
       CALL profile_psy_data1 % PostEnd
     END IF
     CALL profile_psy_data2 % PreStart('dyn_spg', 'r2', 0, 0)
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' spg  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' spg  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = &
+&vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_spg')
     CALL profile_psy_data2 % PostEnd
   END SUBROUTINE dyn_spg
   SUBROUTINE dyn_spg_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ioptio, ios
     NAMELIST /namdyn_spg/ ln_dynspg_exp, ln_dynspg_ts, ln_bt_fw, ln_bt_av, ln_bt_auto, nn_baro, rn_bt_cmax, nn_bt_flt, rn_bt_alpha
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('dyn_spg_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dyn_spg_init : choice of the surface pressure gradient scheme'
@@ -183,6 +183,5 @@ MODULE dynspg
     IF (nspg == np_TS) THEN
       CALL dyn_spg_ts_init
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dyn_spg_init
 END MODULE dynspg

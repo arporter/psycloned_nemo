@@ -41,11 +41,8 @@ MODULE dynadv
     CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dyn_adv
   SUBROUTINE dyn_adv_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ioptio, ios
     NAMELIST /namdyn_adv/ ln_dynadv_OFF, ln_dynadv_vec, nn_dynkeg, ln_dynadv_cen2, ln_dynadv_ubs
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('dyn_adv_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dyn_adv_init : choice/control of the momentum advection scheme'
@@ -100,6 +97,5 @@ MODULE dynadv
         WRITE(numout, FMT = *) '   ==>>>   flux form   : UBS       scheme is used'
       END SELECT
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dyn_adv_init
 END MODULE dynadv

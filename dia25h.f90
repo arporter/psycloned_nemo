@@ -19,12 +19,9 @@ MODULE dia25h
   REAL(KIND = wp), SAVE, ALLOCATABLE, DIMENSION(:, :, :) :: en_25h, rmxln_25h
   CONTAINS
   SUBROUTINE dia_25h_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     INTEGER :: ierror
     NAMELIST /nam_dia25h/ ln_dia25h
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('dia_25h_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, nam_dia25h, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'nam_dia25h in reference namelist', lwp)
@@ -40,7 +37,8 @@ MODULE dia25h
       WRITE(numout, FMT = *) '      Switch for 25h diagnostics (T) or not (F)  ln_dia25h  = ', ln_dia25h
     END IF
     IF (.NOT. ln_dia25h) RETURN
-    ALLOCATE(tn_25h(jpi, jpj, jpk), sn_25h(jpi, jpj, jpk), sshn_25h(jpi, jpj), un_25h(jpi, jpj, jpk), vn_25h(jpi, jpj, jpk), wn_25h(jpi, jpj, jpk), avt_25h(jpi, jpj, jpk), avm_25h(jpi, jpj, jpk), STAT = ierror)
+    ALLOCATE(tn_25h(jpi, jpj, jpk), sn_25h(jpi, jpj, jpk), sshn_25h(jpi, jpj), un_25h(jpi, jpj, jpk), vn_25h(jpi, jpj, jpk), &
+&wn_25h(jpi, jpj, jpk), avt_25h(jpi, jpj, jpk), avm_25h(jpi, jpj, jpk), STAT = ierror)
     IF (ierror > 0) THEN
       CALL ctl_stop('dia_25h: unable to allocate ocean arrays')
       RETURN
@@ -59,7 +57,6 @@ MODULE dia25h
         RETURN
       END IF
     END IF
-    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     cnt_25h = 1
     tn_25h(:, :, :) = tsb(:, :, :, jp_tem)
@@ -243,7 +240,8 @@ MODULE dia25h
       END IF
       CALL profile_psy_data4 % PreStart('dia_25h', 'r4', 0, 0)
       cnt_25h = 1
-      IF (lwp) WRITE(numout, FMT = *) 'dia_wri_tide :       After 25hr mean write, reset sum to current value and cnt_25h to one for overlapping average', cnt_25h
+      IF (lwp) WRITE(numout, FMT = *) 'dia_wri_tide :       After 25hr mean write, reset sum to current value and cnt_25h to one &
+&for overlapping average', cnt_25h
       CALL profile_psy_data4 % PostEnd
     END IF
   END SUBROUTINE dia_25h

@@ -63,7 +63,8 @@ MODULE traldf_triad
     l_hst = .FALSE.
     l_ptr = .FALSE.
     IF (cdtype == 'TRA' .AND. ln_diaptr) l_ptr = .TRUE.
-    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. iom_use("vadv_salttr"))) l_hst = .TRUE.
+    IF (cdtype == 'TRA' .AND. (iom_use("uadv_heattr") .OR. iom_use("vadv_heattr") .OR. iom_use("uadv_salttr") .OR. &
+&iom_use("vadv_salttr"))) l_hst = .TRUE.
     IF (neuler == 0 .AND. kt == kit000) THEN
       z2dt = rdt
     ELSE
@@ -99,9 +100,12 @@ MODULE traldf_triad
                 zslope_skew = triadi_g(ji + ip, jj, jk, 1 - ip, kp)
                 zslope2 = zslope_skew + (gdept_n(ji + 1, jj, jk) - gdept_n(ji, jj, jk)) * r1_e1u(ji, jj) * umask(ji, jj, jk + kp)
                 zslope2 = zslope2 * zslope2
-                ah_wslp2(ji + ip, jj, jk + kp) = ah_wslp2(ji + ip, jj, jk + kp) + zah * zbu * ze3wr * r1_e1e2t(ji + ip, jj) * zslope2
-                akz(ji + ip, jj, jk + kp) = akz(ji + ip, jj, jk + kp) + zah * r1_e1u(ji, jj) * r1_e1u(ji, jj) * umask(ji, jj, jk + kp)
-                IF (ln_ldfeiv_dia) zpsi_uw(ji, jj, jk + kp) = zpsi_uw(ji, jj, jk + kp) + 0.25_wp * aeiu(ji, jj, jk) * e2u(ji, jj) * zslope_skew
+                ah_wslp2(ji + ip, jj, jk + kp) = ah_wslp2(ji + ip, jj, jk + kp) + zah * zbu * ze3wr * r1_e1e2t(ji + ip, jj) * &
+&zslope2
+                akz(ji + ip, jj, jk + kp) = akz(ji + ip, jj, jk + kp) + zah * r1_e1u(ji, jj) * r1_e1u(ji, jj) * umask(ji, jj, jk + &
+&kp)
+                IF (ln_ldfeiv_dia) zpsi_uw(ji, jj, jk + kp) = zpsi_uw(ji, jj, jk + kp) + 0.25_wp * aeiu(ji, jj, jk) * e2u(ji, jj) &
+&* zslope_skew
               END DO
             END DO
           END DO
@@ -118,9 +122,12 @@ MODULE traldf_triad
                 zslope_skew = triadj_g(ji, jj + jp, jk, 1 - jp, kp)
                 zslope2 = zslope_skew + (gdept_n(ji, jj + 1, jk) - gdept_n(ji, jj, jk)) * r1_e2v(ji, jj) * vmask(ji, jj, jk + kp)
                 zslope2 = zslope2 * zslope2
-                ah_wslp2(ji, jj + jp, jk + kp) = ah_wslp2(ji, jj + jp, jk + kp) + zah * zbv * ze3wr * r1_e1e2t(ji, jj + jp) * zslope2
-                akz(ji, jj + jp, jk + kp) = akz(ji, jj + jp, jk + kp) + zah * r1_e2v(ji, jj) * r1_e2v(ji, jj) * vmask(ji, jj, jk + kp)
-                IF (ln_ldfeiv_dia) zpsi_vw(ji, jj, jk + kp) = zpsi_vw(ji, jj, jk + kp) + 0.25 * aeiv(ji, jj, jk) * e1v(ji, jj) * zslope_skew
+                ah_wslp2(ji, jj + jp, jk + kp) = ah_wslp2(ji, jj + jp, jk + kp) + zah * zbv * ze3wr * r1_e1e2t(ji, jj + jp) * &
+&zslope2
+                akz(ji, jj + jp, jk + kp) = akz(ji, jj + jp, jk + kp) + zah * r1_e2v(ji, jj) * r1_e2v(ji, jj) * vmask(ji, jj, jk + &
+&kp)
+                IF (ln_ldfeiv_dia) zpsi_vw(ji, jj, jk + kp) = zpsi_vw(ji, jj, jk + kp) + 0.25 * aeiv(ji, jj, jk) * e1v(ji, jj) * &
+&zslope_skew
               END DO
             END DO
           END DO
@@ -134,7 +141,8 @@ MODULE traldf_triad
             !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 1, jpim1
-                akz(ji, jj, jk) = 16._wp * ah_wslp2(ji, jj, jk) * (akz(ji, jj, jk) + ah_wslp2(ji, jj, jk) / (e3w_n(ji, jj, jk) * e3w_n(ji, jj, jk)))
+                akz(ji, jj, jk) = 16._wp * ah_wslp2(ji, jj, jk) * (akz(ji, jj, jk) + ah_wslp2(ji, jj, jk) / (e3w_n(ji, jj, jk) * &
+&e3w_n(ji, jj, jk)))
               END DO
             END DO
           END DO
@@ -296,7 +304,8 @@ MODULE traldf_triad
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (zftu(ji - 1, jj, jk) - zftu(ji, jj, jk) + zftv(ji, jj - 1, jk) - zftv(ji, jj, jk)) / (e1e2t(ji, jj) * e3t_n(ji, jj, jk))
+            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (zftu(ji - 1, jj, jk) - zftu(ji, jj, jk) + zftv(ji, jj - 1, jk) - &
+&zftv(ji, jj, jk)) / (e1e2t(ji, jj) * e3t_n(ji, jj, jk))
           END DO
         END DO
         !$ACC END KERNELS
@@ -307,7 +316,8 @@ MODULE traldf_triad
           !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
             DO ji = 2, jpim1
-              ztfw(ji, jj, jk) = ztfw(ji, jj, jk) - e1e2t(ji, jj) / e3w_n(ji, jj, jk) * tmask(ji, jj, jk) * (ah_wslp2(ji, jj, jk) - akz(ji, jj, jk)) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn))
+              ztfw(ji, jj, jk) = ztfw(ji, jj, jk) - e1e2t(ji, jj) / e3w_n(ji, jj, jk) * tmask(ji, jj, jk) * (ah_wslp2(ji, jj, jk) &
+&- akz(ji, jj, jk)) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn))
             END DO
           END DO
         END DO
@@ -320,7 +330,8 @@ MODULE traldf_triad
             !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
-                ztfw(ji, jj, jk) = ztfw(ji, jj, jk) - e1e2t(ji, jj) / e3w_n(ji, jj, jk) * tmask(ji, jj, jk) * ah_wslp2(ji, jj, jk) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn))
+                ztfw(ji, jj, jk) = ztfw(ji, jj, jk) - e1e2t(ji, jj) / e3w_n(ji, jj, jk) * tmask(ji, jj, jk) * ah_wslp2(ji, jj, jk) &
+&* (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn))
               END DO
             END DO
           END DO
@@ -329,7 +340,8 @@ MODULE traldf_triad
             !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpjm1
               DO ji = 2, jpim1
-                ztfw(ji, jj, jk) = ztfw(ji, jj, jk) - e1e2t(ji, jj) / e3w_n(ji, jj, jk) * tmask(ji, jj, jk) * (ah_wslp2(ji, jj, jk) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn)) + akz(ji, jj, jk) * (ptbb(ji, jj, jk - 1, jn) - ptbb(ji, jj, jk, jn)))
+                ztfw(ji, jj, jk) = ztfw(ji, jj, jk) - e1e2t(ji, jj) / e3w_n(ji, jj, jk) * tmask(ji, jj, jk) * (ah_wslp2(ji, jj, &
+&jk) * (ptb(ji, jj, jk - 1, jn) - ptb(ji, jj, jk, jn)) + akz(ji, jj, jk) * (ptbb(ji, jj, jk - 1, jn) - ptbb(ji, jj, jk, jn)))
               END DO
             END DO
           END DO
@@ -341,7 +353,8 @@ MODULE traldf_triad
         !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (ztfw(ji, jj, jk + 1) - ztfw(ji, jj, jk)) / (e1e2t(ji, jj) * e3t_n(ji, jj, jk))
+            pta(ji, jj, jk, jn) = pta(ji, jj, jk, jn) + zsign * (ztfw(ji, jj, jk + 1) - ztfw(ji, jj, jk)) / (e1e2t(ji, jj) * &
+&e3t_n(ji, jj, jk))
           END DO
         END DO
       END DO

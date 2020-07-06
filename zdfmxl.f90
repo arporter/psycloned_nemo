@@ -32,7 +32,8 @@ MODULE zdfmxl
   INTEGER FUNCTION zdf_mxl_alloc()
     zdf_mxl_alloc = 0
     IF (.NOT. ALLOCATED(nmln)) THEN
-      ALLOCATE(nmln(jpi, jpj), hmld(jpi, jpj), hmlp(jpi, jpj), hmlpt(jpi, jpj), hmld_zint(jpi, jpj), htc_mld(jpi, jpj), ll_found(jpi, jpj), ll_belowml(jpi, jpj, jpk), STAT = zdf_mxl_alloc)
+      ALLOCATE(nmln(jpi, jpj), hmld(jpi, jpj), hmlp(jpi, jpj), hmlpt(jpi, jpj), hmld_zint(jpi, jpj), htc_mld(jpi, jpj), &
+&ll_found(jpi, jpj), ll_belowml(jpi, jpj, jpk), STAT = zdf_mxl_alloc)
       IF (lk_mpp) CALL mpp_sum(zdf_mxl_alloc)
       IF (zdf_mxl_alloc /= 0) CALL ctl_warn('zdf_mxl_alloc: failed to allocate arrays.')
     END IF
@@ -320,7 +321,8 @@ MODULE zdfmxl
     !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
-        htc_mld(ji, jj) = htc_mld(ji, jj) + tsn(ji, jj, ilevel(ji, jj) + 1, jp_tem) * MIN(e3t_n(ji, jj, ilevel(ji, jj) + 1), zthick(ji, jj)) * tmask(ji, jj, ilevel(ji, jj) + 1)
+        htc_mld(ji, jj) = htc_mld(ji, jj) + tsn(ji, jj, ilevel(ji, jj) + 1, jp_tem) * MIN(e3t_n(ji, jj, ilevel(ji, jj) + 1), &
+&zthick(ji, jj)) * tmask(ji, jj, ilevel(ji, jj) + 1)
       END DO
     END DO
     !$ACC END KERNELS

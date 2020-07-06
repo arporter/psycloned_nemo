@@ -148,13 +148,15 @@ MODULE sbcwave
             zdepth = zkb_u
             zsqrt_depth = SQRT(zdepth)
             zexp_depth = EXP(- zdepth)
-            zstokes_psi_u_bot = 1.0_wp - zexp_depth - z_two_thirds * (zsqrtpi * zsqrt_depth * zdepth * ERFC(zsqrt_depth) + 1.0_wp - (1.0_wp + zdepth) * zexp_depth)
+            zstokes_psi_u_bot = 1.0_wp - zexp_depth - z_two_thirds * (zsqrtpi * zsqrt_depth * zdepth * ERFC(zsqrt_depth) + 1.0_wp &
+&- (1.0_wp + zdepth) * zexp_depth)
             zda_u = (zstokes_psi_u_bot - zstokes_psi_u_top(ji, jj)) / zke3_u
             zstokes_psi_u_top(ji, jj) = zstokes_psi_u_bot
             zdepth = zkb_v
             zsqrt_depth = SQRT(zdepth)
             zexp_depth = EXP(- zdepth)
-            zstokes_psi_v_bot = 1.0_wp - zexp_depth - z_two_thirds * (zsqrtpi * zsqrt_depth * zdepth * ERFC(zsqrt_depth) + 1.0_wp - (1.0_wp + zdepth) * zexp_depth)
+            zstokes_psi_v_bot = 1.0_wp - zexp_depth - z_two_thirds * (zsqrtpi * zsqrt_depth * zdepth * ERFC(zsqrt_depth) + 1.0_wp &
+&- (1.0_wp + zdepth) * zexp_depth)
             zda_v = (zstokes_psi_v_bot - zstokes_psi_v_top(ji, jj)) / zke3_v
             zstokes_psi_v_top(ji, jj) = zstokes_psi_v_bot
             usd(ji, jj, jk) = zda_u * zu0_sd(ji, jj) * umask(ji, jj, jk)
@@ -171,7 +173,9 @@ MODULE sbcwave
       !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj
         DO ji = 2, jpi
-          ze3divh(ji, jj, jk) = (e2u(ji, jj) * e3u_n(ji, jj, jk) * usd(ji, jj, jk) - e2u(ji - 1, jj) * e3u_n(ji - 1, jj, jk) * usd(ji - 1, jj, jk) + e1v(ji, jj) * e3v_n(ji, jj, jk) * vsd(ji, jj, jk) - e1v(ji, jj - 1) * e3v_n(ji, jj - 1, jk) * vsd(ji, jj - 1, jk)) * r1_e1e2t(ji, jj)
+          ze3divh(ji, jj, jk) = (e2u(ji, jj) * e3u_n(ji, jj, jk) * usd(ji, jj, jk) - e2u(ji - 1, jj) * e3u_n(ji - 1, jj, jk) * &
+&usd(ji - 1, jj, jk) + e1v(ji, jj) * e3v_n(ji, jj, jk) * vsd(ji, jj, jk) - e1v(ji, jj - 1) * e3v_n(ji, jj - 1, jk) * vsd(ji, jj - &
+&1, jk)) * r1_e1e2t(ji, jj)
         END DO
       END DO
     END DO
@@ -264,22 +268,18 @@ MODULE sbcwave
         CALL fld_read(kt, nn_fsbc, sf_wn)
         wnum(:, :) = sf_wn(1) % fnow(:, :, 1) * tmask(:, :, 1)
       END IF
-      IF ((ll_st_bv_li .AND. jp_hsw > 0 .AND. jp_wmp > 0 .AND. jp_usd > 0 .AND. jp_vsd > 0) .OR. (ll_st_peakfr .AND. jp_wfr > 0 .AND. jp_usd > 0 .AND. jp_vsd > 0)) CALL sbc_stokes
+      IF ((ll_st_bv_li .AND. jp_hsw > 0 .AND. jp_wmp > 0 .AND. jp_usd > 0 .AND. jp_vsd > 0) .OR. (ll_st_peakfr .AND. jp_wfr > 0 &
+&.AND. jp_usd > 0 .AND. jp_vsd > 0)) CALL sbc_stokes
     END IF
     CALL profile_psy_data0 % PostEnd
   END SUBROUTINE sbc_wave
   SUBROUTINE sbc_wave_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ierror, ios
     INTEGER :: ifpr
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N), ALLOCATABLE, DIMENSION(:) :: slf_i, slf_j
     TYPE(FLD_N) :: sn_cdg, sn_usd, sn_vsd, sn_hsw, sn_wmp, sn_wfr, sn_wnum, sn_tauwoc, sn_tauwx, sn_tauwy
     NAMELIST /namsbc_wave/ sn_cdg, cn_dir, sn_usd, sn_vsd, sn_hsw, sn_wmp, sn_wfr, sn_wnum, sn_tauwoc, sn_tauwx, sn_tauwy
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    CALL profile_psy_data0 % PreStart('sbc_wave_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namsbc_wave, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namsbc_wave in reference namelist', lwp)
@@ -323,9 +323,7 @@ MODULE sbcwave
       ALLOCATE(tauw_x(jpi, jpj))
       ALLOCATE(tauw_y(jpi, jpj))
     END IF
-    CALL profile_psy_data0 % PostEnd
     IF (ln_sdw) THEN
-      CALL profile_psy_data1 % PreStart('sbc_wave_init', 'r1', 0, 0)
       jpfld = 0
       jp_usd = 0
       jp_vsd = 0
@@ -373,7 +371,6 @@ MODULE sbcwave
       ALLOCATE(ut0sd(jpi, jpj), vt0sd(jpi, jpj))
       ALLOCATE(div_sd(jpi, jpj))
       ALLOCATE(tsd2d(jpi, jpj))
-      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       ut0sd(:, :) = 0._wp
       vt0sd(:, :) = 0._wp
@@ -383,7 +380,6 @@ MODULE sbcwave
       vsd(:, :, :) = 0._wp
       wsd(:, :, :) = 0._wp
       !$ACC END KERNELS
-      CALL profile_psy_data2 % PreStart('sbc_wave_init', 'r2', 0, 0)
       IF (.NOT. cpl_wnum) THEN
         ALLOCATE(sf_wn(1), STAT = ierror)
         IF (ierror > 0) CALL ctl_stop('STOP', 'sbc_wave_init: unable toallocate sf_wave structure')
@@ -392,7 +388,6 @@ MODULE sbcwave
         CALL fld_fill(sf_wn, (/sn_wnum/), cn_dir, 'sbc_wave', 'Wave module', 'namsbc_wave')
       END IF
       ALLOCATE(wnum(jpi, jpj))
-      CALL profile_psy_data2 % PostEnd
     END IF
   END SUBROUTINE sbc_wave_init
 END MODULE sbcwave

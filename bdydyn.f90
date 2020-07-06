@@ -28,7 +28,8 @@ MODULE bdydyn
     END IF
     ll_orlanski = .FALSE.
     DO ib_bdy = 1, nb_bdy
-      IF (cn_dyn2d(ib_bdy) == 'orlanski' .OR. cn_dyn2d(ib_bdy) == 'orlanski_npo' .OR. cn_dyn3d(ib_bdy) == 'orlanski' .OR. cn_dyn3d(ib_bdy) == 'orlanski_npo') ll_orlanski = .TRUE.
+      IF (cn_dyn2d(ib_bdy) == 'orlanski' .OR. cn_dyn2d(ib_bdy) == 'orlanski_npo' .OR. cn_dyn3d(ib_bdy) == 'orlanski' .OR. &
+&cn_dyn3d(ib_bdy) == 'orlanski_npo') ll_orlanski = .TRUE.
     END DO
     CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS

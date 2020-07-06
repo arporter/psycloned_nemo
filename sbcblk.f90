@@ -70,12 +70,12 @@ MODULE sbcblk
   INTEGER, PARAMETER :: np_ECMWF = 4
   CONTAINS
   INTEGER FUNCTION sbc_blk_alloc()
-    ALLOCATE(Cd_atm(jpi, jpj), Ch_atm(jpi, jpj), Ce_atm(jpi, jpj), t_zu(jpi, jpj), q_zu(jpi, jpj), cdn_oce(jpi, jpj), chn_oce(jpi, jpj), cen_oce(jpi, jpj), STAT = sbc_blk_alloc)
+    ALLOCATE(Cd_atm(jpi, jpj), Ch_atm(jpi, jpj), Ce_atm(jpi, jpj), t_zu(jpi, jpj), q_zu(jpi, jpj), cdn_oce(jpi, jpj), chn_oce(jpi, &
+&jpj), cen_oce(jpi, jpj), STAT = sbc_blk_alloc)
     IF (lk_mpp) CALL mpp_sum(sbc_blk_alloc)
     IF (sbc_blk_alloc /= 0) CALL ctl_warn('sbc_blk_alloc: failed to allocate arrays')
   END FUNCTION sbc_blk_alloc
   SUBROUTINE sbc_blk_init
-    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ifpr, jfld
     INTEGER :: ios, ierror, ioptio
     CHARACTER(LEN = 100) :: cn_dir
@@ -83,9 +83,8 @@ MODULE sbcblk
     TYPE(FLD_N) :: sn_wndi, sn_wndj, sn_humi, sn_qsr
     TYPE(FLD_N) :: sn_qlw, sn_tair, sn_prec, sn_snow
     TYPE(FLD_N) :: sn_slp, sn_tdif
-    NAMELIST /namsbc_blk/ sn_wndi, sn_wndj, sn_humi, sn_qsr, sn_qlw, sn_tair, sn_prec, sn_snow, sn_slp, sn_tdif, ln_NCAR, ln_COARE_3p0, ln_COARE_3p5, ln_ECMWF, cn_dir, ln_taudif, rn_zqt, rn_zu, rn_pfac, rn_efac, rn_vfac, ln_Cd_L12, ln_Cd_L15
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    CALL profile_psy_data0 % PreStart('sbc_blk_init', 'r0', 0, 0)
+    NAMELIST /namsbc_blk/ sn_wndi, sn_wndj, sn_humi, sn_qsr, sn_qlw, sn_tair, sn_prec, sn_snow, sn_slp, sn_tdif, ln_NCAR, &
+&ln_COARE_3p0, ln_COARE_3p5, ln_ECMWF, cn_dir, ln_taudif, rn_zqt, rn_zu, rn_pfac, rn_efac, rn_vfac, ln_Cd_L12, ln_Cd_L15
     IF (sbc_blk_alloc() /= 0) CALL ctl_stop('STOP', 'sbc_blk : unable to allocate standard arrays')
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namsbc_blk, IOSTAT = ios, ERR = 901)
@@ -115,7 +114,8 @@ MODULE sbcblk
     IF (ln_dm2dc) THEN
       IF (sn_qsr % nfreqh /= 24) CALL ctl_stop('sbc_blk_init: ln_dm2dc=T only with daily short-wave input')
       IF (sn_qsr % ln_tint) THEN
-        CALL ctl_warn('sbc_blk_init: ln_dm2dc=T daily qsr time interpolation done by sbcdcy module', '              ==> We force time interpolation = .false. for qsr')
+        CALL ctl_warn('sbc_blk_init: ln_dm2dc=T daily qsr time interpolation done by sbcdcy module', &
+&'              ==> We force time interpolation = .false. for qsr')
         sn_qsr % ln_tint = .FALSE.
       END IF
     END IF
@@ -136,7 +136,9 @@ MODULE sbcblk
     DO ifpr = 1, jfld
       ALLOCATE(sf(ifpr) % fnow(jpi, jpj, 1))
       IF (slf_i(ifpr) % ln_tint) ALLOCATE(sf(ifpr) % fdta(jpi, jpj, 1, 2))
-      IF (slf_i(ifpr) % nfreqh > 0. .AND. MOD(3600. * slf_i(ifpr) % nfreqh, REAL(nn_fsbc) * rdt) /= 0.) CALL ctl_warn('sbc_blk_init: sbcmod timestep rdt*nn_fsbc is NOT a submultiple of atmospheric forcing frequency.', '               This is not ideal. You should consider changing either rdt or nn_fsbc value...')
+      IF (slf_i(ifpr) % nfreqh > 0. .AND. MOD(3600. * slf_i(ifpr) % nfreqh, REAL(nn_fsbc) * rdt) /= 0.) CALL &
+&ctl_warn('sbc_blk_init: sbcmod timestep rdt*nn_fsbc is NOT a submultiple of atmospheric forcing frequency.', '               This &
+&is not ideal. You should consider changing either rdt or nn_fsbc value...')
     END DO
     CALL fld_fill(sf, slf_i, cn_dir, 'sbc_blk_init', 'surface boundary condition -- bulk formulae', 'namsbc_blk')
     IF (ln_wave) THEN
@@ -148,7 +150,9 @@ MODULE sbcblk
         CALL ctl_stop('Stokes-Coriolis term calculated only if activated Stokes Drift ln_sdw=T')
       END IF
     ELSE
-      IF (ln_cdgw .OR. ln_sdw .OR. ln_tauwoc .OR. ln_stcor) CALL ctl_stop('Not Activated Wave Module (ln_wave=F) but asked coupling ', 'with drag coefficient (ln_cdgw =T) ', 'or Stokes Drift (ln_sdw=T) ', 'or ocean stress modification due to waves (ln_tauwoc=T) ', 'or Stokes-Coriolis term (ln_stcori=T)')
+      IF (ln_cdgw .OR. ln_sdw .OR. ln_tauwoc .OR. ln_stcor) CALL ctl_stop('Not Activated Wave Module (ln_wave=F) but asked &
+&coupling ', 'with drag coefficient (ln_cdgw =T) ', 'or Stokes Drift (ln_sdw=T) ', 'or ocean stress modification due to waves &
+&(ln_tauwoc=T) ', 'or Stokes-Coriolis term (ln_stcori=T)')
     END IF
     IF (lwp) THEN
       WRITE(numout, FMT = *)
@@ -178,7 +182,6 @@ MODULE sbcblk
         WRITE(numout, FMT = *) '   ==>>>   "ECMWF" algorithm       (IFS cycle 31)'
       END SELECT
     END IF
-    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE sbc_blk_init
   SUBROUTINE sbc_blk(kt)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
@@ -242,13 +245,17 @@ MODULE sbcblk
     ztpot = sf(jp_tair) % fnow(:, :, 1) + gamma_moist(sf(jp_tair) % fnow(:, :, 1), sf(jp_humi) % fnow(:, :, 1)) * rn_zqt
     SELECT CASE (nblk)
     CASE (np_ncar)
-      CALL turb_ncar(rn_zqt, rn_zu, zst, ztpot, zsq, sf(jp_humi) % fnow, wndm, cd_atm, ch_atm, ce_atm, t_zu, q_zu, zu_zu, cdn_oce, chn_oce, cen_oce)
+      CALL turb_ncar(rn_zqt, rn_zu, zst, ztpot, zsq, sf(jp_humi) % fnow, wndm, cd_atm, ch_atm, ce_atm, t_zu, q_zu, zu_zu, cdn_oce, &
+&chn_oce, cen_oce)
     CASE (np_coare_3p0)
-      CALL turb_coare(rn_zqt, rn_zu, zst, ztpot, zsq, sf(jp_humi) % fnow, wndm, cd_atm, ch_atm, ce_atm, t_zu, q_zu, zu_zu, cdn_oce, chn_oce, cen_oce)
+      CALL turb_coare(rn_zqt, rn_zu, zst, ztpot, zsq, sf(jp_humi) % fnow, wndm, cd_atm, ch_atm, ce_atm, t_zu, q_zu, zu_zu, &
+&cdn_oce, chn_oce, cen_oce)
     CASE (np_coare_3p5)
-      CALL turb_coare3p5(rn_zqt, rn_zu, zst, ztpot, zsq, sf(jp_humi) % fnow, wndm, cd_atm, ch_atm, ce_atm, t_zu, q_zu, zu_zu, cdn_oce, chn_oce, cen_oce)
+      CALL turb_coare3p5(rn_zqt, rn_zu, zst, ztpot, zsq, sf(jp_humi) % fnow, wndm, cd_atm, ch_atm, ce_atm, t_zu, q_zu, zu_zu, &
+&cdn_oce, chn_oce, cen_oce)
     CASE (np_ecmwf)
-      CALL turb_ecmwf(rn_zqt, rn_zu, zst, ztpot, zsq, sf(jp_humi) % fnow, wndm, cd_atm, ch_atm, ce_atm, t_zu, q_zu, zu_zu, cdn_oce, chn_oce, cen_oce)
+      CALL turb_ecmwf(rn_zqt, rn_zu, zst, ztpot, zsq, sf(jp_humi) % fnow, wndm, cd_atm, ch_atm, ce_atm, t_zu, q_zu, zu_zu, &
+&cdn_oce, chn_oce, cen_oce)
     CASE DEFAULT
       CALL ctl_stop('STOP', 'sbc_oce: non-existing bulk formula selected')
     END SELECT
@@ -277,8 +284,10 @@ MODULE sbcblk
     !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
-        utau(ji, jj) = 0.5 * (2. - umask(ji, jj, 1)) * (zwnd_i(ji, jj) + zwnd_i(ji + 1, jj)) * MAX(tmask(ji, jj, 1), tmask(ji + 1, jj, 1))
-        vtau(ji, jj) = 0.5 * (2. - vmask(ji, jj, 1)) * (zwnd_j(ji, jj) + zwnd_j(ji, jj + 1)) * MAX(tmask(ji, jj, 1), tmask(ji, jj + 1, 1))
+        utau(ji, jj) = 0.5 * (2. - umask(ji, jj, 1)) * (zwnd_i(ji, jj) + zwnd_i(ji + 1, jj)) * MAX(tmask(ji, jj, 1), tmask(ji + 1, &
+&jj, 1))
+        vtau(ji, jj) = 0.5 * (2. - vmask(ji, jj, 1)) * (zwnd_j(ji, jj) + zwnd_j(ji, jj + 1)) * MAX(tmask(ji, jj, 1), tmask(ji, jj &
+&+ 1, 1))
       END DO
     END DO
     !$ACC END KERNELS
@@ -306,12 +315,15 @@ MODULE sbcblk
       CALL prt_ctl(tab2d_1 = zqsb, clinfo1 = ' blk_oce: zqsb   : ', tab2d_2 = Ch_atm, clinfo2 = ' Ch_oce  : ')
       CALL prt_ctl(tab2d_1 = zqlw, clinfo1 = ' blk_oce: zqlw   : ', tab2d_2 = qsr, clinfo2 = ' qsr : ')
       CALL prt_ctl(tab2d_1 = zsq, clinfo1 = ' blk_oce: zsq    : ', tab2d_2 = zst, clinfo2 = ' zst : ')
-      CALL prt_ctl(tab2d_1 = utau, clinfo1 = ' blk_oce: utau   : ', mask1 = umask, tab2d_2 = vtau, clinfo2 = ' vtau : ', mask2 = vmask)
+      CALL prt_ctl(tab2d_1 = utau, clinfo1 = ' blk_oce: utau   : ', mask1 = umask, tab2d_2 = vtau, clinfo2 = ' vtau : ', &
+&mask2 = vmask)
       CALL prt_ctl(tab2d_1 = wndm, clinfo1 = ' blk_oce: wndm   : ')
       CALL prt_ctl(tab2d_1 = zst, clinfo1 = ' blk_oce: zst    : ')
     END IF
     emp(:, :) = (zevap(:, :) - sf(jp_prec) % fnow(:, :, 1) * rn_pfac) * tmask(:, :, 1)
-    qns(:, :) = zqlw(:, :) - zqsb(:, :) - zqla(:, :) - sf(jp_snow) % fnow(:, :, 1) * rn_pfac * rLfus - zevap(:, :) * pst(:, :) * rcp + (sf(jp_prec) % fnow(:, :, 1) - sf(jp_snow) % fnow(:, :, 1)) * rn_pfac * (sf(jp_tair) % fnow(:, :, 1) - rt0) * rcp + sf(jp_snow) % fnow(:, :, 1) * rn_pfac * (MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi
+    qns(:, :) = zqlw(:, :) - zqsb(:, :) - zqla(:, :) - sf(jp_snow) % fnow(:, :, 1) * rn_pfac * rLfus - zevap(:, :) * pst(:, :) * &
+&rcp + (sf(jp_prec) % fnow(:, :, 1) - sf(jp_snow) % fnow(:, :, 1)) * rn_pfac * (sf(jp_tair) % fnow(:, :, 1) - rt0) * rcp + &
+&sf(jp_snow) % fnow(:, :, 1) * rn_pfac * (MIN(sf(jp_tair) % fnow(:, :, 1), rt0) - rt0) * rcpi
     CALL profile_psy_data5 % PostEnd
     !$ACC KERNELS
     qns(:, :) = qns(:, :) * tmask(:, :, 1)
@@ -334,7 +346,8 @@ MODULE sbcblk
       CALL prt_ctl(tab2d_1 = zqsb, clinfo1 = ' blk_oce: zqsb   : ', tab2d_2 = zqlw, clinfo2 = ' zqlw  : ')
       CALL prt_ctl(tab2d_1 = zqla, clinfo1 = ' blk_oce: zqla   : ', tab2d_2 = qsr, clinfo2 = ' qsr   : ')
       CALL prt_ctl(tab2d_1 = pst, clinfo1 = ' blk_oce: pst    : ', tab2d_2 = emp, clinfo2 = ' emp   : ')
-      CALL prt_ctl(tab2d_1 = utau, clinfo1 = ' blk_oce: utau   : ', mask1 = umask, tab2d_2 = vtau, clinfo2 = ' vtau  : ', mask2 = vmask)
+      CALL prt_ctl(tab2d_1 = utau, clinfo1 = ' blk_oce: utau   : ', mask1 = umask, tab2d_2 = vtau, clinfo2 = ' vtau  : ', &
+&mask2 = vmask)
     END IF
     CALL profile_psy_data6 % PostEnd
   END SUBROUTINE blk_oce
@@ -369,7 +382,8 @@ MODULE sbcblk
     DO jj = 1, jpj
       DO ji = 1, jpi
         ztmp = rt0 / ptak(ji, jj)
-        ze_sat = 10. ** (10.79574 * (1. - ztmp) - 5.028 * LOG10(ptak(ji, jj) / rt0) + 1.50475 * 10. ** (- 4) * (1. - 10. ** (- 8.2969 * (ptak(ji, jj) / rt0 - 1.))) + 0.42873 * 10. ** (- 3) * (10. ** (4.76955 * (1. - ztmp)) - 1.) + 0.78614)
+        ze_sat = 10. ** (10.79574 * (1. - ztmp) - 5.028 * LOG10(ptak(ji, jj) / rt0) + 1.50475 * 10. ** (- 4) * (1. - 10. ** (- &
+&8.2969 * (ptak(ji, jj) / rt0 - 1.))) + 0.42873 * 10. ** (- 3) * (10. ** (4.76955 * (1. - ztmp)) - 1.) + 0.78614)
         q_sat(ji, jj) = reps0 * ze_sat / (0.01_wp * pslp(ji, jj) - (1._wp - reps0) * ze_sat)
       END DO
     END DO
