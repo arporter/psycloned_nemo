@@ -55,6 +55,7 @@ MODULE step_oce
   USE diahth
   USE diahsb
   USE diaharm
+  USE diaprod
   USE diacfl
   USE diaobs
   USE flo_oce

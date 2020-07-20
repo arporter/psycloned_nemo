@@ -19,55 +19,58 @@ MODULE icedia
   CONTAINS
   INTEGER FUNCTION ice_dia_alloc()
     ALLOCATE(vol_loc_ini(jpi, jpj), sal_loc_ini(jpi, jpj), tem_loc_ini(jpi, jpj), STAT = ice_dia_alloc)
-    IF (lk_mpp) CALL mpp_sum(ice_dia_alloc)
-    IF (ice_dia_alloc /= 0) CALL ctl_warn('ice_dia_alloc: failed to allocate arrays')
+    CALL mpp_sum('icedia', ice_dia_alloc)
+    IF (ice_dia_alloc /= 0) CALL ctl_stop('STOP', 'ice_dia_alloc: failed to allocate arrays')
   END FUNCTION ice_dia_alloc
   SUBROUTINE ice_dia(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp) :: zbg_ivol, zbg_item, zbg_area, zbg_isal
     REAL(KIND = wp) :: zbg_svol, zbg_stem
     REAL(KIND = wp) :: z_frc_voltop, z_frc_temtop, z_frc_sal
     REAL(KIND = wp) :: z_frc_volbot, z_frc_tembot
     REAL(KIND = wp) :: zdiff_vol, zdiff_sal, zdiff_tem
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_dia', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('ice_dia')
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'icedia: output ice diagnostics (integrated over the domain)'
       WRITE(numout, FMT = *) '~~~~~~'
     END IF
-    zbg_ivol = glob_sum(vt_i(:, :) * e1e2t(:, :)) * 1.E-9
-    zbg_svol = glob_sum(vt_s(:, :) * e1e2t(:, :)) * 1.E-9
-    zbg_area = glob_sum(at_i(:, :) * e1e2t(:, :)) * 1.E-6
-    zbg_isal = glob_sum(SUM(sv_i(:, :, :), dim = 3) * e1e2t(:, :)) * 1.E-9
-    zbg_item = glob_sum(et_i * e1e2t(:, :)) * 1.E-20
-    zbg_stem = glob_sum(et_s * e1e2t(:, :)) * 1.E-20
-    z_frc_volbot = r1_rau0 * glob_sum(- (wfx_ice(:, :) + wfx_snw(:, :) + wfx_err_sub(:, :)) * e1e2t(:, :)) * 1.E-9
-    z_frc_voltop = r1_rau0 * glob_sum(- (wfx_sub(:, :) + wfx_spr(:, :)) * e1e2t(:, :)) * 1.E-9
-    z_frc_sal = r1_rau0 * glob_sum(- sfx(:, :) * e1e2t(:, :)) * 1.E-9
-    z_frc_tembot = glob_sum(qt_oce_ai(:, :) * e1e2t(:, :)) * 1.E-20
-    z_frc_temtop = glob_sum(qt_atm_oi(:, :) * e1e2t(:, :)) * 1.E-20
+    zbg_ivol = glob_sum('icedia', vt_i(:, :) * e1e2t(:, :)) * 1.E-9
+    zbg_svol = glob_sum('icedia', vt_s(:, :) * e1e2t(:, :)) * 1.E-9
+    zbg_area = glob_sum('icedia', at_i(:, :) * e1e2t(:, :)) * 1.E-6
+    zbg_isal = glob_sum('icedia', SUM(sv_i(:, :, :), dim = 3) * e1e2t(:, :)) * 1.E-9
+    zbg_item = glob_sum('icedia', et_i * e1e2t(:, :)) * 1.E-20
+    zbg_stem = glob_sum('icedia', et_s * e1e2t(:, :)) * 1.E-20
+    z_frc_volbot = r1_rau0 * glob_sum('icedia', - (wfx_ice(:, :) + wfx_snw(:, :) + wfx_err_sub(:, :)) * e1e2t(:, :)) * 1.E-9
+    z_frc_voltop = r1_rau0 * glob_sum('icedia', - (wfx_sub(:, :) + wfx_spr(:, :)) * e1e2t(:, :)) * 1.E-9
+    z_frc_sal = r1_rau0 * glob_sum('icedia', - sfx(:, :) * e1e2t(:, :)) * 1.E-9
+    z_frc_tembot = glob_sum('icedia', qt_oce_ai(:, :) * e1e2t(:, :)) * 1.E-20
+    z_frc_temtop = glob_sum('icedia', qt_atm_oi(:, :) * e1e2t(:, :)) * 1.E-20
     frc_voltop = frc_voltop + z_frc_voltop * rdt_ice
     frc_volbot = frc_volbot + z_frc_volbot * rdt_ice
     frc_sal = frc_sal + z_frc_sal * rdt_ice
     frc_temtop = frc_temtop + z_frc_temtop * rdt_ice
     frc_tembot = frc_tembot + z_frc_tembot * rdt_ice
-    zdiff_vol = r1_rau0 * glob_sum((rhoi * vt_i(:, :) + rhos * vt_s(:, :) - vol_loc_ini(:, :)) * e1e2t(:, :)) * 1.E-9
-    zdiff_sal = r1_rau0 * glob_sum((rhoi * SUM(sv_i(:, :, :), dim = 3) - sal_loc_ini(:, :)) * e1e2t(:, :)) * 1.E-9
-    zdiff_tem = glob_sum((et_i(:, :) + et_s(:, :) - tem_loc_ini(:, :)) * e1e2t(:, :)) * 1.E-20
+    zdiff_vol = r1_rau0 * glob_sum('icedia', (rhoi * vt_i(:, :) + rhos * vt_s(:, :) - vol_loc_ini(:, :)) * e1e2t(:, :)) * 1.E-9
+    zdiff_sal = r1_rau0 * glob_sum('icedia', (rhoi * SUM(sv_i(:, :, :), dim = 3) - sal_loc_ini(:, :)) * e1e2t(:, :)) * 1.E-9
+    zdiff_tem = glob_sum('icedia', (et_i(:, :) + et_s(:, :) - tem_loc_ini(:, :)) * e1e2t(:, :)) * 1.E-20
     zdiff_vol = zdiff_vol - (frc_voltop + frc_volbot)
     zdiff_sal = zdiff_sal - frc_sal
     zdiff_tem = zdiff_tem - (frc_tembot - frc_temtop)
     IF (iom_use('ibgvolume')) CALL iom_put('ibgvolume', zdiff_vol)
     IF (iom_use('ibgsaltco')) CALL iom_put('ibgsaltco', zdiff_sal)
     IF (iom_use('ibgheatco')) CALL iom_put('ibgheatco', zdiff_tem)
-    IF (iom_use('ibgheatfx')) CALL iom_put('ibgheatfx', zdiff_tem / glob_sum(e1e2t(:, :) * 1.E-20 * kt * rdt))
+    IF (iom_use('ibgheatfx')) CALL iom_put('ibgheatfx', zdiff_tem / glob_sum('icedia', e1e2t(:, :) * 1.E-20 * kt * rdt))
     IF (iom_use('ibgfrcvoltop')) CALL iom_put('ibgfrcvoltop', frc_voltop)
     IF (iom_use('ibgfrcvolbot')) CALL iom_put('ibgfrcvolbot', frc_volbot)
     IF (iom_use('ibgfrcsal')) CALL iom_put('ibgfrcsal', frc_sal)
     IF (iom_use('ibgfrctemtop')) CALL iom_put('ibgfrctemtop', frc_temtop)
     IF (iom_use('ibgfrctembot')) CALL iom_put('ibgfrctembot', frc_tembot)
-    IF (iom_use('ibgfrchfxtop')) CALL iom_put('ibgfrchfxtop', frc_temtop / glob_sum(e1e2t(:, :)) * 1.E-20 * kt * rdt)
-    IF (iom_use('ibgfrchfxbot')) CALL iom_put('ibgfrchfxbot', frc_tembot / glob_sum(e1e2t(:, :)) * 1.E-20 * kt * rdt)
+    IF (iom_use('ibgfrchfxtop')) CALL iom_put('ibgfrchfxtop', frc_temtop / glob_sum('icedia', e1e2t(:, :)) * 1.E-20 * kt * rdt)
+    IF (iom_use('ibgfrchfxbot')) CALL iom_put('ibgfrchfxbot', frc_tembot / glob_sum('icedia', e1e2t(:, :)) * 1.E-20 * kt * rdt)
     IF (iom_use('ibgvol_tot')) CALL iom_put('ibgvol_tot', zbg_ivol)
     IF (iom_use('sbgvol_tot')) CALL iom_put('sbgvol_tot', zbg_svol)
     IF (iom_use('ibgarea_tot')) CALL iom_put('ibgarea_tot', zbg_area)
@@ -76,6 +79,7 @@ MODULE icedia
     IF (iom_use('sbgheat_tot')) CALL iom_put('sbgheat_tot', zbg_stem)
     IF (lrst_ice) CALL ice_dia_rst('WRITE', kt_ice)
     IF (ln_timing) CALL timing_stop('ice_dia')
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_dia
   SUBROUTINE ice_dia_init
     INTEGER :: ios, ierror
@@ -133,8 +137,8 @@ MODULE icedia
         frc_sal = 0._wp
         vol_loc_ini(:, :) = rhoi * vt_i(:, :) + rhos * vt_s(:, :)
         tem_loc_ini(:, :) = et_i(:, :) + et_s(:, :)
-        !$ACC END KERNELS
         sal_loc_ini(:, :) = rhoi * SUM(sv_i(:, :, :), dim = 3)
+        !$ACC END KERNELS
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
       iter = kt + nn_fsbc - 1

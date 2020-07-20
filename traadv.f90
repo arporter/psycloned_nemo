@@ -43,55 +43,60 @@ MODULE traadv
   INTEGER, PARAMETER :: np_QCK = 5
   CONTAINS
   SUBROUTINE tra_adv(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zun, zvn, zwn
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: ztrdt, ztrds
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
     IF (ln_timing) CALL timing_start('tra_adv')
+    !$ACC KERNELS
     IF (neuler == 0 .AND. kt == nit000) THEN
       r2dt = rdt
     ELSE IF (kt <= nit000 + 1) THEN
       r2dt = 2._wp * rdt
     END IF
-    !$ACC KERNELS
     zun(:, :, jpk) = 0._wp
     zvn(:, :, jpk) = 0._wp
     zwn(:, :, jpk) = 0._wp
     !$ACC END KERNELS
     IF (ln_wave .AND. ln_sdw) THEN
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         zun(:, :, jk) = e2u(:, :) * e3u_n(:, :, jk) * (un(:, :, jk) + usd(:, :, jk))
         zvn(:, :, jk) = e1v(:, :) * e3v_n(:, :, jk) * (vn(:, :, jk) + vsd(:, :, jk))
         zwn(:, :, jk) = e1e2t(:, :) * (wn(:, :, jk) + wsd(:, :, jk))
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
     ELSE
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         zun(:, :, jk) = e2u(:, :) * e3u_n(:, :, jk) * un(:, :, jk)
         zvn(:, :, jk) = e1v(:, :) * e3v_n(:, :, jk) * vn(:, :, jk)
         zwn(:, :, jk) = e1e2t(:, :) * wn(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
-    END IF
-    IF (ln_vvl_ztilde .OR. ln_vvl_layer) THEN
-      !$ACC KERNELS
-      zun(:, :, :) = zun(:, :, :) + un_td(:, :, :)
-      zvn(:, :, :) = zvn(:, :, :) + vn_td(:, :, :)
-      !$ACC END KERNELS
     END IF
     !$ACC KERNELS
+    IF (ln_vvl_ztilde .OR. ln_vvl_layer) THEN
+      zun(:, :, :) = zun(:, :, :) + un_td(:, :, :)
+      zvn(:, :, :) = zvn(:, :, :) + vn_td(:, :, :)
+    END IF
     zun(:, :, jpk) = 0._wp
     zvn(:, :, jpk) = 0._wp
     zwn(:, :, jpk) = 0._wp
     !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('tra_adv', 'r0', 0, 0)
     IF (ln_ldfeiv .AND. .NOT. ln_traldf_triad) CALL ldf_eiv_trp(kt, nit000, zun, zvn, zwn, 'TRA')
     IF (ln_mle) CALL tra_mle_trp(kt, nit000, zun, zvn, zwn, 'TRA')
     CALL iom_put("uocetr_eff", zun)
     CALL iom_put("vocetr_eff", zvn)
     CALL iom_put("wocetr_eff", zwn)
     IF (ln_diaptr) CALL dia_ptr(zvn)
+    CALL profile_psy_data0 % PostEnd
     IF (l_trdtra) THEN
       ALLOCATE(ztrdt(jpi, jpj, jpk), ztrds(jpi, jpj, jpk))
       !$ACC KERNELS
@@ -99,6 +104,7 @@ MODULE traadv
       ztrds(:, :, :) = tsa(:, :, :, jp_sal)
       !$ACC END KERNELS
     END IF
+    CALL profile_psy_data1 % PreStart('tra_adv', 'r1', 0, 0)
     SELECT CASE (nadv)
     CASE (np_CEN)
       CALL tra_adv_cen(kt, nit000, 'TRA', zun, zvn, zwn, tsn, tsa, jpts, nn_cen_h, nn_cen_v)
@@ -111,23 +117,30 @@ MODULE traadv
     CASE (np_QCK)
       CALL tra_adv_qck(kt, nit000, 'TRA', r2dt, zun, zvn, zwn, tsb, tsn, tsa, jpts)
     END SELECT
+    CALL profile_psy_data1 % PostEnd
     IF (l_trdtra) THEN
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC KERNELS
         ztrdt(:, :, jk) = tsa(:, :, jk, jp_tem) - ztrdt(:, :, jk)
         ztrds(:, :, jk) = tsa(:, :, jk, jp_sal) - ztrds(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
+      CALL profile_psy_data2 % PreStart('tra_adv', 'r2', 0, 0)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_totad, ztrdt)
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_totad, ztrds)
       DEALLOCATE(ztrdt, ztrds)
+      CALL profile_psy_data2 % PostEnd
     END IF
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' adv  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
+    CALL profile_psy_data3 % PreStart('tra_adv', 'r3', 0, 0)
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' adv  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, &
+&jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_adv')
+    CALL profile_psy_data3 % PostEnd
   END SUBROUTINE tra_adv
   SUBROUTINE tra_adv_init
     INTEGER :: ioptio, ios
-    NAMELIST /namtra_adv/ ln_traadv_OFF, ln_traadv_cen, nn_cen_h, nn_cen_v, ln_traadv_fct, nn_fct_h, nn_fct_v, ln_traadv_mus, ln_mus_ups, ln_traadv_ubs, nn_ubs_v, ln_traadv_qck
+    NAMELIST /namtra_adv/ ln_traadv_OFF, ln_traadv_cen, nn_cen_h, nn_cen_v, ln_traadv_fct, nn_fct_h, nn_fct_v, ln_traadv_mus, &
+&ln_mus_ups, ln_traadv_ubs, nn_ubs_v, ln_traadv_qck
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namtra_adv, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namtra_adv in reference namelist', lwp)
@@ -192,7 +205,8 @@ MODULE traadv
       CALL ctl_warn('tra_adv_init: UBS scheme, only 2nd FCT scheme available on the vertical. It will be used')
     END IF
     IF (ln_isfcav) THEN
-      IF (ln_traadv_cen .AND. nn_cen_v == 4 .OR. ln_traadv_fct .AND. nn_fct_v == 4) CALL ctl_stop('tra_adv_init: 4th order COMPACT scheme not allowed with ISF')
+      IF (ln_traadv_cen .AND. nn_cen_v == 4 .OR. ln_traadv_fct .AND. nn_fct_v == 4) CALL ctl_stop('tra_adv_init: 4th order COMPACT &
+&scheme not allowed with ISF')
     END IF
     IF (lwp) THEN
       WRITE(numout, FMT = *)

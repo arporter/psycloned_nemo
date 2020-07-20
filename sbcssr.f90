@@ -27,7 +27,8 @@ MODULE sbcssr
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_sss
   CONTAINS
   SUBROUTINE sbc_ssr(kt)
-    INTEGER, INTENT(IN   ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zerp
     REAL(KIND = wp) :: zqrp
@@ -36,6 +37,8 @@ MODULE sbcssr
     INTEGER :: ierror
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N) :: sn_sst, sn_sss
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('sbc_ssr', 'r0', 0, 0)
     IF (nn_sstr + nn_sssr /= 0) THEN
       IF (nn_sstr == 1) CALL fld_read(kt, nn_fsbc, sf_sst)
       IF (nn_sssr >= 1) CALL fld_read(kt, nn_fsbc, sf_sss)
@@ -65,7 +68,8 @@ MODULE sbcssr
           zerp_bnd = rn_sssr_bnd / rday
           DO jj = 1, jpj
             DO ji = 1, jpi
-              zerp = zsrp * (1. - 2. * rnfmsk(ji, jj)) * (sss_m(ji, jj) - sf_sss(1) % fnow(ji, jj, 1)) / MAX(sss_m(ji, jj), 1.E-20) * tmask(ji, jj, 1)
+              zerp = zsrp * (1. - 2. * rnfmsk(ji, jj)) * (sss_m(ji, jj) - sf_sss(1) % fnow(ji, jj, 1)) / MAX(sss_m(ji, jj), &
+&1.E-20) * tmask(ji, jj, 1)
               IF (ln_sssr_bnd) zerp = SIGN(1., zerp) * MIN(zerp_bnd, ABS(zerp))
               emp(ji, jj) = emp(ji, jj) + zerp
               qns(ji, jj) = qns(ji, jj) - zerp * rcp * sst_m(ji, jj)
@@ -76,6 +80,7 @@ MODULE sbcssr
         END IF
       END IF
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE sbc_ssr
   SUBROUTINE sbc_ssr_init
     INTEGER :: ji, jj
@@ -130,7 +135,9 @@ MODULE sbcssr
       IF (sf_sss(1) % ln_tint) ALLOCATE(sf_sss(1) % fdta(jpi, jpj, 1, 2), STAT = ierror)
       IF (ierror > 0) CALL ctl_stop('STOP', 'sbc_ssr: unable to allocate sf_sss data array')
     END IF
+    !$ACC KERNELS
     IF (nn_sstr /= 1) qrp(:, :) = 0._wp
     IF (nn_sssr /= 1 .OR. nn_sssr /= 2) erp(:, :) = 0._wp
+    !$ACC END KERNELS
   END SUBROUTINE sbc_ssr_init
 END MODULE sbcssr

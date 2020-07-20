@@ -49,6 +49,20 @@ MODULE in_out_manager
   INTEGER :: numriw
   INTEGER :: nrst_lst
   LOGICAL :: ln_ctl
+  TYPE :: sn_ctl
+    LOGICAL :: l_config = .FALSE.
+    LOGICAL :: l_runstat = .FALSE.
+    LOGICAL :: l_trcstat = .FALSE.
+    LOGICAL :: l_oceout = .FALSE.
+    LOGICAL :: l_layout = .FALSE.
+    LOGICAL :: l_mppout = .FALSE.
+    LOGICAL :: l_mpptop = .FALSE.
+    INTEGER :: procmin = 0
+    INTEGER :: procmax = 1000000
+    INTEGER :: procincr = 1
+    INTEGER :: ptimincr = 1
+  END TYPE
+  TYPE(sn_ctl), SAVE :: sn_cfctl
   LOGICAL :: ln_timing
   LOGICAL :: ln_diacfl
   INTEGER :: nn_print
@@ -58,13 +72,12 @@ MODULE in_out_manager
   INTEGER :: nn_jctle
   INTEGER :: nn_isplt
   INTEGER :: nn_jsplt
-  INTEGER :: nn_bench
-  INTEGER :: nn_bit_cmp = 0
   INTEGER :: nprint, nictls, nictle, njctls, njctle, isplt, jsplt
   INTEGER :: ijsplt = 1
   INTEGER :: numstp = - 1
   INTEGER :: numtime = - 1
   INTEGER :: numout = 6
+  INTEGER :: numnul = - 1
   INTEGER :: numnam_ref = - 1
   INTEGER :: numnam_cfg = - 1
   INTEGER :: numond = - 1

@@ -30,7 +30,8 @@ MODULE tideini
     INTEGER :: ji, jk
     CHARACTER(LEN = 4), DIMENSION(jpmax_harmo) :: clname
     INTEGER :: ios
-    NAMELIST /nam_tide/ ln_tide, ln_tide_pot, ln_scal_load, ln_read_load, cn_tide_load, ln_tide_ramp, rn_scal_load, rdttideramp, clname
+    NAMELIST /nam_tide/ ln_tide, ln_tide_pot, ln_scal_load, ln_read_load, cn_tide_load, ln_tide_ramp, rn_scal_load, rdttideramp, &
+&clname
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, nam_tide, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'nam_tide in reference namelist', lwp)
@@ -70,7 +71,8 @@ MODULE tideini
     IF (ln_read_load .AND. (.NOT. ln_tide_pot)) CALL ctl_stop('ln_read_load requires ln_tide_pot')
     IF (ln_scal_load .AND. (.NOT. ln_tide_pot)) CALL ctl_stop('ln_scal_load requires ln_tide_pot')
     IF (ln_scal_load .AND. ln_read_load) CALL ctl_stop('Choose between ln_scal_load and ln_read_load')
-    IF (ln_tide_ramp .AND. ((nitend - nit000 + 1) * rdt / rday < rdttideramp)) CALL ctl_stop('rdttideramp must be lower than run duration')
+    IF (ln_tide_ramp .AND. ((nitend - nit000 + 1) * rdt / rday < rdttideramp)) CALL ctl_stop('rdttideramp must be lower than run &
+&duration')
     IF (ln_tide_ramp .AND. (rdttideramp < 0.)) CALL ctl_stop('rdttideramp must be positive')
     ALLOCATE(ntide(nb_harmo))
     DO jk = 1, nb_harmo

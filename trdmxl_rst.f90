@@ -11,7 +11,7 @@ MODULE trdmxl_rst
   INTEGER :: nummxlw
   CONTAINS
   SUBROUTINE trd_mxl_rst_write(kt)
-    INTEGER, INTENT( IN ) :: kt
+    INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = 35) :: charout
     INTEGER :: jk
     CHARACTER(LEN = 20) :: clkt
@@ -28,17 +28,14 @@ MODULE trdmxl_rst
       IF (clpath(LEN_TRIM(clpath) :) /= '/') clpath = TRIM(clpath) // '/'
       IF (lwp) THEN
         WRITE(numout, FMT = *)
-        SELECT CASE (jprstlib)
-        CASE DEFAULT
-          WRITE(numout, FMT = *) '             open ocean restart_mxl NetCDF file: ' // clname
-        END SELECT
+        WRITE(numout, FMT = *) '             open ocean restart_mxl NetCDF file: ' // clname
         IF (kt == nitrst - 1) THEN
           WRITE(numout, FMT = *) '             kt = nitrst - 1 = ', kt, ' date= ', ndastp
         ELSE
           WRITE(numout, FMT = *) '             kt = ', kt, ' date= ', ndastp
         END IF
       END IF
-      CALL iom_open(TRIM(clpath) // TRIM(clname), nummxlw, ldwrt = .TRUE., kiolib = jprstlib)
+      CALL iom_open(TRIM(clpath) // TRIM(clname), nummxlw, ldwrt = .TRUE.)
     END IF
     IF (kt == nitrst .AND. lwp) THEN
       WRITE(numout, FMT = *)
@@ -87,7 +84,6 @@ MODULE trdmxl_rst
     INTEGER :: inum
     CHARACTER(LEN = 35) :: charout
     INTEGER :: jk
-    INTEGER :: jlibalt = jprstlib
     LOGICAL :: llok
     CHARACTER(LEN = 256) :: clpath
     IF (lwp) THEN
@@ -97,7 +93,7 @@ MODULE trdmxl_rst
     END IF
     clpath = TRIM(cn_ocerst_indir)
     IF (clpath(LEN_TRIM(clpath) :) /= '/') clpath = TRIM(clpath) // '/'
-    CALL iom_open(TRIM(clpath) // TRIM(cn_trdrst_in), inum, kiolib = jlibalt)
+    CALL iom_open(TRIM(clpath) // TRIM(cn_trdrst_in), inum)
     IF (ln_trdmxl_instant) THEN
       CALL iom_get(inum, jpdom_autoglo, 'tmlbb', tmlbb)
       CALL iom_get(inum, jpdom_autoglo, 'tmlbn', tmlbn)

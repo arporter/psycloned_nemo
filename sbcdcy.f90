@@ -13,9 +13,10 @@ MODULE sbcdcy
   PUBLIC :: sbc_dcy
   CONTAINS
   INTEGER FUNCTION sbc_dcy_alloc()
-    ALLOCATE(raa(jpi, jpj), rbb(jpi, jpj), rcc(jpi, jpj), rab(jpi, jpj), rtmd(jpi, jpj), rdawn(jpi, jpj), rdusk(jpi, jpj), rscal(jpi, jpj), STAT = sbc_dcy_alloc)
-    IF (lk_mpp) CALL mpp_sum(sbc_dcy_alloc)
-    IF (sbc_dcy_alloc /= 0) CALL ctl_warn('sbc_dcy_alloc: failed to allocate arrays')
+    ALLOCATE(raa(jpi, jpj), rbb(jpi, jpj), rcc(jpi, jpj), rab(jpi, jpj), rtmd(jpi, jpj), rdawn(jpi, jpj), rdusk(jpi, jpj), &
+&rscal(jpi, jpj), STAT = sbc_dcy_alloc)
+    CALL mpp_sum('sbcdcy', sbc_dcy_alloc)
+    IF (sbc_dcy_alloc /= 0) CALL ctl_stop('STOP', 'sbc_dcy_alloc: failed to allocate arrays')
   END FUNCTION sbc_dcy_alloc
   FUNCTION sbc_dcy(pqsrin, l_mask) RESULT(zqsrout)
     LOGICAL, OPTIONAL, INTENT(IN) :: l_mask
@@ -29,7 +30,8 @@ MODULE sbcdcy
     REAL(KIND = wp) :: ztmp, ztmp1, ztmp2, ztest
     REAL(KIND = wp) :: ztmpm, ztmpm1, ztmpm2
     REAL(KIND = wp) :: fintegral, pt1, pt2, paaa, pbbb, pccc
-    fintegral (pt1, pt2, paaa, pbbb, pccc) = paaa * pt2 + zinvtwopi * pbbb * SIN(pccc + ztwopi * pt2) - paaa * pt1 - zinvtwopi * pbbb * SIN(pccc + ztwopi * pt1)
+    fintegral(pt1, pt2, paaa, pbbb, pccc) = paaa * pt2 + zinvtwopi * pbbb * SIN(pccc + ztwopi * pt2) - paaa * pt1 - zinvtwopi * &
+&pbbb * SIN(pccc + ztwopi * pt1)
     ztwopi = 2._wp * rpi
     zinvtwopi = 1._wp / ztwopi
     zconvrad = ztwopi / 360._wp
@@ -56,6 +58,7 @@ MODULE sbcdcy
       !$ACC KERNELS
       zsin = SIN(zdecrad)
       zcos = COS(zdecrad)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           ztmp = zconvrad * gphit(ji, jj)
@@ -64,6 +67,7 @@ MODULE sbcdcy
         END DO
       END DO
       rab(:, :) = - raa(:, :) / rbb(:, :)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (ABS(rab(ji, jj)) < 1._wp) THEN
@@ -84,6 +88,7 @@ MODULE sbcdcy
       END DO
       rdawn(:, :) = MOD((rdawn(:, :) + 1._wp), 1._wp)
       rdusk(:, :) = MOD((rdusk(:, :) + 1._wp), 1._wp)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (ABS(rab(ji, jj)) < 1._wp) THEN
@@ -95,7 +100,8 @@ MODULE sbcdcy
               END IF
             ELSE
               IF ((rdusk(ji, jj) + (1._wp - rdawn(ji, jj))) .GE. 0.001_wp) THEN
-                rscal(ji, jj) = fintegral(0._wp, rdusk(ji, jj), raa(ji, jj), rbb(ji, jj), rcc(ji, jj)) + fintegral(rdawn(ji, jj), 1._wp, raa(ji, jj), rbb(ji, jj), rcc(ji, jj))
+                rscal(ji, jj) = fintegral(0._wp, rdusk(ji, jj), raa(ji, jj), rbb(ji, jj), rcc(ji, jj)) + fintegral(rdawn(ji, jj), &
+&1._wp, raa(ji, jj), rbb(ji, jj), rcc(ji, jj))
                 rscal(ji, jj) = 1. / rscal(ji, jj)
               END IF
             END IF
@@ -117,6 +123,7 @@ MODULE sbcdcy
     END IF
     !$ACC KERNELS
     imask_night(:, :) = 0
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ztmpm = 0._wp
@@ -158,7 +165,9 @@ MODULE sbcdcy
     END DO
     !$ACC END KERNELS
     IF (PRESENT(l_mask)) THEN
+      !$ACC KERNELS
       IF (l_mask) zqsrout(:, :) = FLOAT(imask_night(:, :))
+      !$ACC END KERNELS
     END IF
   END FUNCTION sbc_dcy
 END MODULE sbcdcy

@@ -22,9 +22,12 @@ MODULE trabbc
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_qgh
   CONTAINS
   SUBROUTINE tra_bbc(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ztrdt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_timing) CALL timing_start('tra_bbc')
     IF (l_trdtra) THEN
       ALLOCATE(ztrdt(jpi, jpj, jpk))
@@ -33,22 +36,27 @@ MODULE trabbc
       !$ACC END KERNELS
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         tsa(ji, jj, mbkt(ji, jj), jp_tem) = tsa(ji, jj, mbkt(ji, jj), jp_tem) + qgh_trd0(ji, jj) / e3t_n(ji, jj, mbkt(ji, jj))
       END DO
     END DO
     !$ACC END KERNELS
-    CALL lbc_lnk(tsa(:, :, :, jp_tem), 'T', 1.)
+    CALL lbc_lnk('trabbc', tsa(:, :, :, jp_tem), 'T', 1.)
     IF (l_trdtra) THEN
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem) - ztrdt(:, :, :)
       !$ACC END KERNELS
+      CALL profile_psy_data0 % PreStart('tra_bbc', 'r0', 0, 0)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_bbc, ztrdt)
       DEALLOCATE(ztrdt)
+      CALL profile_psy_data0 % PostEnd
     END IF
+    CALL profile_psy_data1 % PreStart('tra_bbc', 'r1', 0, 0)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' bbc  - Ta: ', mask1 = tmask, clinfo3 = 'tra-ta')
     IF (ln_timing) CALL timing_stop('tra_bbc')
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE tra_bbc
   SUBROUTINE tra_bbc_init
     INTEGER :: ji, jj

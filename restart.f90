@@ -9,6 +9,7 @@ MODULE restart
   USE iom
   USE ioipsl, ONLY: ju2ymds
   USE diurnal_bulk
+  USE lib_mpp
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: rst_opn
@@ -17,6 +18,7 @@ MODULE restart
   PUBLIC :: rst_read_open
   CONTAINS
   SUBROUTINE rst_opn(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: iyear, imonth, iday
     REAL(KIND = wp) :: zsec
@@ -26,6 +28,8 @@ MODULE restart
     CHARACTER(LEN = lc) :: clpath
     CHARACTER(LEN = 52) :: clpname
     CHARACTER(LEN = 256) :: clinfo
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('rst_opn', 'r0', 0, 0)
     IF (kt == nit000) THEN
       lrst_oce = .FALSE.
       IF (ln_rst_list) THEN
@@ -59,10 +63,7 @@ MODULE restart
         IF (lwp) THEN
           WRITE(numout, FMT = *)
           IF (.NOT. lwxios) THEN
-            SELECT CASE (jprstlib)
-            CASE DEFAULT
-              WRITE(numout, FMT = *) '             open ocean restart NetCDF file: ', TRIM(clpath) // TRIM(clname)
-            END SELECT
+            WRITE(numout, FMT = *) '             open ocean restart NetCDF file: ', TRIM(clpath) // TRIM(clname)
             IF (snc4set % luse) WRITE(numout, FMT = *) '             opened for NetCDF4 chunking and compression'
             IF (kt == nitrst - 1) THEN
               WRITE(numout, FMT = *) '             kt = nitrst - 1 = ', kt
@@ -72,7 +73,7 @@ MODULE restart
           END IF
         END IF
         IF (.NOT. lwxios) THEN
-          CALL iom_open(TRIM(clpath) // TRIM(clname), numrow, ldwrt = .TRUE., kiolib = jprstlib)
+          CALL iom_open(TRIM(clpath) // TRIM(clname), numrow, ldwrt = .TRUE.)
         ELSE
           clinfo = 'Can not use XIOS in rst_opn'
           CALL ctl_stop(TRIM(clinfo))
@@ -80,11 +81,16 @@ MODULE restart
         lrst_oce = .TRUE.
       END IF
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE rst_opn
   SUBROUTINE rst_write(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('rst_write', 'r0', 0, 0)
     IF (lwxios) CALL iom_swap(cwxios_context)
     CALL iom_rstput(kt, nitrst, numrow, 'rdt', rdt, ldxios = lwxios)
+    CALL iom_delay_rst('WRITE', 'OCE', numrow)
     IF (.NOT. ln_diurnal_only) THEN
       CALL iom_rstput(kt, nitrst, numrow, 'ub', ub, ldxios = lwxios)
       CALL iom_rstput(kt, nitrst, numrow, 'vb', vb, ldxios = lwxios)
@@ -122,25 +128,25 @@ MODULE restart
         nitrst = nstocklist(nrst_lst)
       END IF
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE rst_write
   SUBROUTINE rst_read_open
-    INTEGER :: jlibalt = jprstlib
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     LOGICAL :: llok
     CHARACTER(LEN = lc) :: clpath
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('rst_read_open', 'r0', 0, 0)
     IF (numror <= 0) THEN
       IF (lwp) THEN
         WRITE(numout, FMT = *)
-        SELECT CASE (jprstlib)
-        CASE (jpnf90)
-          WRITE(numout, FMT = *) 'rst_read : read oce NetCDF restart file'
-        END SELECT
+        WRITE(numout, FMT = *) 'rst_read : read oce NetCDF restart file'
         IF (snc4set % luse) WRITE(numout, FMT = *) 'rst_read : configured with NetCDF4 support'
         WRITE(numout, FMT = *) '~~~~~~~~'
       END IF
       lxios_sini = .FALSE.
       clpath = TRIM(cn_ocerst_indir)
       IF (clpath(LEN_TRIM(clpath) :) /= '/') clpath = TRIM(clpath) // '/'
-      CALL iom_open(TRIM(clpath) // cn_ocerst_in, numror, kiolib = jlibalt)
+      CALL iom_open(TRIM(clpath) // cn_ocerst_in, numror)
       IF (.NOT. lxios_set) lrxios = lrxios .AND. lxios_sini
       IF (lrxios) THEN
         crxios_context = 'nemo_rst'
@@ -156,24 +162,37 @@ MODULE restart
         lxios_set = .TRUE.
       END IF
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE rst_read_open
   SUBROUTINE rst_read
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp) :: zrdt
     INTEGER :: jk
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: w3d
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('rst_read', 'r0', 0, 0)
     CALL rst_read_open
     IF (iom_varid(numror, 'rdt', ldstop = .FALSE.) > 0) THEN
       CALL iom_get(numror, 'rdt', zrdt, ldxios = lrxios)
       IF (zrdt /= rdt) neuler = 0
     END IF
+    CALL iom_delay_rst('READ', 'OCE', numror)
     IF (ln_diurnal) CALL iom_get(numror, jpdom_autoglo, 'Dsst', x_dsst, ldxios = lrxios)
+    CALL profile_psy_data0 % PostEnd
     IF (ln_diurnal_only) THEN
+      CALL profile_psy_data1 % PreStart('rst_read', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) "rst_read:- ln_diurnal_only set, setting rhop=rau0"
       rhop = rau0
       CALL iom_get(numror, jpdom_autoglo, 'tn', w3d, ldxios = lrxios)
+      CALL profile_psy_data1 % PostEnd
+      !$ACC KERNELS
       tsn(:, :, 1, jp_tem) = w3d(:, :, 1)
+      !$ACC END KERNELS
       RETURN
     END IF
+    CALL profile_psy_data2 % PreStart('rst_read', 'r2', 0, 0)
     IF (iom_varid(numror, 'ub', ldstop = .FALSE.) > 0) THEN
       CALL iom_get(numror, jpdom_autoglo, 'ub', ub, ldxios = lrxios)
       CALL iom_get(numror, jpdom_autoglo, 'vb', vb, ldxios = lrxios)
@@ -193,6 +212,7 @@ MODULE restart
     ELSE
       CALL eos(tsn, rhd, rhop, gdept_n(:, :, :))
     END IF
+    CALL profile_psy_data2 % PostEnd
     IF (neuler == 0) THEN
       !$ACC KERNELS
       tsb(:, :, :, :) = tsn(:, :, :, :)

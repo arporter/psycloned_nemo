@@ -13,6 +13,7 @@ MODULE obs_read_altbias
   PUBLIC :: obs_rea_altbias
   CONTAINS
   SUBROUTINE obs_rea_altbias(sladata, k2dint, bias_file)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE iom
     TYPE(obs_surf), INTENT(INOUT) :: sladata
     INTEGER, INTENT(IN) :: k2dint
@@ -35,14 +36,19 @@ MODULE obs_read_altbias
     REAL(KIND = wp) :: zphi
     INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: igrdi, igrdj
     INTEGER :: numaltbias
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('obs_rea_altbias', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) ' obs_rea_altbias : '
     IF (lwp) WRITE(numout, FMT = *) ' ------------- '
     IF (lwp) WRITE(numout, FMT = *) '   Read altimeter bias'
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     z_altbias(:, :) = 0.0_wp
     numaltbias = 0
     !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('obs_rea_altbias', 'r1', 0, 0)
     IF (lwp) WRITE(numout, FMT = *) 'Opening ', bias_file
     CALL iom_open(bias_file, numaltbias, ldstop = .FALSE.)
     IF (numaltbias .GT. 0) THEN
@@ -51,7 +57,8 @@ MODULE obs_read_altbias
     ELSE
       IF (lwp) WRITE(numout, FMT = *) 'no file found'
     END IF
-    ALLOCATE(igrdi(2, 2, sladata % nsurf), igrdj(2, 2, sladata % nsurf), zglam(2, 2, sladata % nsurf), zgphi(2, 2, sladata % nsurf), zmask(2, 2, sladata % nsurf), zbias(2, 2, sladata % nsurf))
+    ALLOCATE(igrdi(2, 2, sladata % nsurf), igrdj(2, 2, sladata % nsurf), zglam(2, 2, sladata % nsurf), zgphi(2, 2, sladata % &
+&nsurf), zmask(2, 2, sladata % nsurf), zbias(2, 2, sladata % nsurf))
     DO jobs = 1, sladata % nsurf
       igrdi(1, 1, jobs) = sladata % mi(jobs) - 1
       igrdj(1, 1, jobs) = sladata % mj(jobs) - 1
@@ -76,5 +83,6 @@ MODULE obs_read_altbias
       sladata % rext(jobs, 2) = sladata % rext(jobs, 2) - zext(1)
     END DO
     DEALLOCATE(igrdi, igrdj, zglam, zgphi, zmask, zbias)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE obs_rea_altbias
 END MODULE obs_read_altbias

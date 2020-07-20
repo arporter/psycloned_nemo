@@ -23,7 +23,7 @@ MODULE dyndmp
   CONTAINS
   INTEGER FUNCTION dyn_dmp_alloc()
     ALLOCATE(utrdmp(jpi, jpj, jpk), vtrdmp(jpi, jpj, jpk), resto_uv(jpi, jpj, jpk), STAT = dyn_dmp_alloc)
-    IF (lk_mpp) CALL mpp_sum(dyn_dmp_alloc)
+    CALL mpp_sum('dyndmp', dyn_dmp_alloc)
     IF (dyn_dmp_alloc > 0) CALL ctl_warn('dyn_dmp_alloc: allocation of arrays failed')
   END FUNCTION dyn_dmp_alloc
   SUBROUTINE dyn_dmp_init
@@ -75,16 +75,22 @@ MODULE dyndmp
     END IF
   END SUBROUTINE dyn_dmp_init
   SUBROUTINE dyn_dmp(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zua, zva
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2) :: zuv_dta
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('dyn_dmp', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('dyn_dmp')
     CALL dta_uvd(kt, zuv_dta)
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     SELECT CASE (nn_zdmp)
     CASE (0)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zua = resto_uv(ji, jj, jk) * (zuv_dta(ji, jj, jk, 1) - ub(ji, jj, jk))
@@ -96,13 +102,12 @@ MODULE dyndmp
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (1)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            IF (avt(ji, jj, jk) <= 5.E-4_wp) THEN
+            IF (avt(ji, jj, jk) <= avt_c) THEN
               zua = resto_uv(ji, jj, jk) * (zuv_dta(ji, jj, jk, 1) - ub(ji, jj, jk))
               zva = resto_uv(ji, jj, jk) * (zuv_dta(ji, jj, jk, 2) - vb(ji, jj, jk))
             ELSE
@@ -116,10 +121,9 @@ MODULE dyndmp
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (2)
-      !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (gdept_n(ji, jj, jk) >= hmlp(ji, jj)) THEN
@@ -136,9 +140,12 @@ MODULE dyndmp
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua(:, :, :), clinfo1 = ' dmp  - Ua: ', mask1 = umask, tab3d_2 = va(:, :, :), clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('dyn_dmp', 'r1', 0, 0)
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua(:, :, :), clinfo1 = ' dmp  - Ua: ', mask1 = umask, tab3d_2 = va(:, :, :), clinfo2 = ' &
+&Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_dmp')
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE dyn_dmp
 END MODULE dyndmp

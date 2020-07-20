@@ -8,7 +8,7 @@ MODULE icestp
   USE eosbn2
   USE sbc_oce
   USE sbc_ice
-  USE iceforcing
+  USE icesbc
   USE icedyn
   USE icethd
   USE icecor
@@ -35,9 +35,12 @@ MODULE icestp
   PUBLIC :: ice_init
   CONTAINS
   SUBROUTINE ice_stp(kt, ksbc)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN) :: ksbc
     INTEGER :: jl
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_timing) CALL timing_start('ice_stp')
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
       !$ACC KERNELS
@@ -49,8 +52,9 @@ MODULE icestp
       !$ACC KERNELS
       t_bo(:, :) = (t_bo(:, :) + rt0) * tmask(:, :, 1) + rt0 * (1._wp - tmask(:, :, 1))
       !$ACC END KERNELS
+      CALL profile_psy_data0 % PreStart('ice_stp', 'r0', 0, 0)
       CALL store_fields
-      CALL ice_forcing_tau(kt, ksbc, utau_ice, vtau_ice)
+      CALL ice_sbc_tau(kt, ksbc, utau_ice, vtau_ice)
       CALL diag_set0
       CALL ice_rst_opn(kt)
       IF (ln_icedyn .AND. .NOT. lk_c1d) CALL ice_dyn(kt)
@@ -58,9 +62,9 @@ MODULE icestp
       CALL ice_var_glo2eqv
       CALL ice_var_agg(1)
       CALL store_fields
-      CALL ice_forcing_flx(kt, ksbc)
+      CALL ice_sbc_flx(kt, ksbc)
       IF (ln_icethd) CALL ice_thd(kt)
-      IF (ln_icethd) CALL ice_cor(kt, 2)
+      CALL ice_cor(kt, 2)
       CALL ice_var_glo2eqv
       CALL ice_var_agg(2)
       CALL ice_update_flx(kt)
@@ -68,14 +72,20 @@ MODULE icestp
       CALL ice_wri(kt)
       IF (lrst_ice) CALL ice_rst_write(kt)
       IF (ln_icectl) CALL ice_ctl(kt)
+      CALL profile_psy_data0 % PostEnd
     END IF
+    CALL profile_psy_data1 % PreStart('ice_stp', 'r1', 0, 0)
     IF (ln_icedyn) CALL ice_update_tau(kt, ub(:, :, 1), vb(:, :, 1))
     IF (ln_timing) CALL timing_stop('ice_stp')
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE ice_stp
   SUBROUTINE ice_init
     INTEGER :: ji, jj, ierr
     IF (lwp) WRITE(numout, FMT = *)
-    IF (lwp) WRITE(numout, FMT = *) 'ice_init: Arrays allocation & Initialization off all routines & init state'
+    IF (lwp) WRITE(numout, FMT = *) 'Sea Ice Model: SI3 (Sea Ice modelling Integrated Initiative)'
+    IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~'
+    IF (lwp) WRITE(numout, FMT = *)
+    IF (lwp) WRITE(numout, FMT = *) 'ice_init: Arrays allocation & Initialization of all routines & init state'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~'
     CALL ctl_opn(numnam_ice_ref, 'namelist_ice_ref', 'OLD', 'FORMATTED', 'SEQUENTIAL', - 1, numout, lwp)
     CALL ctl_opn(numnam_ice_cfg, 'namelist_ice_cfg', 'OLD', 'FORMATTED', 'SEQUENTIAL', - 1, numout, lwp)
@@ -84,7 +94,7 @@ MODULE icestp
     ierr = ice_alloc()
     ierr = ierr + sbc_ice_alloc()
     ierr = ierr + ice1D_alloc()
-    IF (lk_mpp) CALL mpp_sum(ierr)
+    CALL mpp_sum('icestp', ierr)
     IF (ierr /= 0) CALL ctl_stop('STOP', 'ice_init : unable to allocate ice arrays')
     CALL ice_itd_init
     CALL ice_thd_init
@@ -96,7 +106,7 @@ MODULE icestp
     END IF
     CALL ice_var_glo2eqv
     CALL ice_var_agg(1)
-    CALL ice_forcing_init
+    CALL ice_sbc_init
     CALL ice_dyn_init
     CALL ice_update_init
     CALL ice_alb_init
@@ -104,17 +114,18 @@ MODULE icestp
     !$ACC KERNELS
     fr_i(:, :) = at_i(:, :)
     tn_ice(:, :, :) = t_su(:, :, :)
-    !$ACC END KERNELS
     WHERE (gphit(:, :) > 0._wp)
       rn_amax_2d(:, :) = rn_amax_n
     ELSEWHERE
       rn_amax_2d(:, :) = rn_amax_s
     END WHERE
+    !$ACC END KERNELS
     IF (ln_rstart) CALL iom_close(numrir)
   END SUBROUTINE ice_init
   SUBROUTINE par_init
     INTEGER :: ios
-    NAMELIST /nampar/ jpl, nlay_i, nlay_s, nn_virtual_itd, ln_icedyn, ln_icethd, rn_amax_n, rn_amax_s, cn_icerst_in, cn_icerst_indir, cn_icerst_out, cn_icerst_outdir
+    NAMELIST /nampar/ jpl, nlay_i, nlay_s, ln_virtual_itd, ln_icedyn, ln_icethd, rn_amax_n, rn_amax_s, cn_icerst_in, &
+&cn_icerst_indir, cn_icerst_out, cn_icerst_outdir
     REWIND(UNIT = numnam_ice_ref)
     READ(numnam_ice_ref, nampar, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'nampar in reference namelist', lwp)
@@ -130,16 +141,18 @@ MODULE icestp
       WRITE(numout, FMT = *) '         number of ice  categories                           jpl       = ', jpl
       WRITE(numout, FMT = *) '         number of ice  layers                               nlay_i    = ', nlay_i
       WRITE(numout, FMT = *) '         number of snow layers                               nlay_s    = ', nlay_s
-      WRITE(numout, FMT = *) '         virtual ITD param for jpl=1 (1-3) or not (0)   nn_virtual_itd = ', nn_virtual_itd
+      WRITE(numout, FMT = *) '         virtual ITD param for jpl=1 (T) or not (F)     ln_virtual_itd = ', ln_virtual_itd
       WRITE(numout, FMT = *) '         Ice dynamics       (T) or not (F)                   ln_icedyn = ', ln_icedyn
       WRITE(numout, FMT = *) '         Ice thermodynamics (T) or not (F)                   ln_icethd = ', ln_icethd
       WRITE(numout, FMT = *) '         maximum ice concentration for NH                              = ', rn_amax_n
       WRITE(numout, FMT = *) '         maximum ice concentration for SH                              = ', rn_amax_s
     END IF
-    IF (jpl > 1 .AND. nn_virtual_itd == 1) THEN
-      nn_virtual_itd = 0
+    rn_amax_n = MIN(rn_amax_n, 1._wp - epsi10)
+    rn_amax_s = MIN(rn_amax_s, 1._wp - epsi10)
+    IF (jpl > 1 .AND. ln_virtual_itd) THEN
+      ln_virtual_itd = .FALSE.
       IF (lwp) WRITE(numout, FMT = *)
-      IF (lwp) WRITE(numout, FMT = *) '   nn_virtual_itd forced to 0 as jpl>1, no need with multiple categories to emulate them'
+      IF (lwp) WRITE(numout, FMT = *) '   ln_virtual_itd forced to false as jpl>1, no need with multiple categories to emulate them'
     END IF
     IF (ln_cpl .AND. nn_cats_cpl /= 1 .AND. nn_cats_cpl /= jpl) THEN
       CALL ctl_stop('STOP', 'par_init: in coupled mode, nn_cats_cpl should be either 1 or jpl')
@@ -162,7 +175,6 @@ MODULE icestp
     oa_i_b(:, :, :) = oa_i(:, :, :)
     e_s_b(:, :, :, :) = e_s(:, :, :, :)
     e_i_b(:, :, :, :) = e_i(:, :, :, :)
-    !$ACC END KERNELS
     WHERE (a_i_b(:, :, :) >= epsi20)
       h_i_b(:, :, :) = v_i_b(:, :, :) / a_i_b(:, :, :)
       h_s_b(:, :, :) = v_s_b(:, :, :) / a_i_b(:, :, :)
@@ -170,8 +182,12 @@ MODULE icestp
       h_i_b(:, :, :) = 0._wp
       h_s_b(:, :, :) = 0._wp
     END WHERE
+    WHERE (a_ip(:, :, :) >= epsi20)
+      h_ip_b(:, :, :) = v_ip(:, :, :) / a_ip(:, :, :)
+    ELSEWHERE
+      h_ip_b(:, :, :) = 0._wp
+    END WHERE
     at_i_b(:, :) = SUM(a_i_b(:, :, :), dim = 3)
-    !$ACC KERNELS
     u_ice_b(:, :) = u_ice(:, :)
     v_ice_b(:, :) = v_ice(:, :)
     !$ACC END KERNELS
@@ -232,7 +248,9 @@ MODULE icestp
     t_si(:, :, :) = rt0
     tau_icebfr(:, :) = 0._wp
     cnd_ice(:, :, :) = 0._wp
+    qcn_ice(:, :, :) = 0._wp
     qtr_ice_bot(:, :, :) = 0._wp
+    qsb_ice_bot(:, :) = 0._wp
     diag_trp_vi(:, :) = 0._wp
     diag_trp_vs(:, :) = 0._wp
     diag_trp_ei(:, :) = 0._wp

@@ -50,7 +50,9 @@ MODULE bdytides
         td => tides(ib_bdy)
         nblen => idx_bdy(ib_bdy) % nblen
         nblenrim => idx_bdy(ib_bdy) % nblenrim
+        !$ACC KERNELS
         filtide(:) = ''
+        !$ACC END KERNELS
         READ(numnam_ref, nambdy_tide, IOSTAT = ios, ERR = 901)
 901     IF (ios /= 0) CALL ctl_nam(ios, 'nambdy_tide in reference namelist', lwp)
         READ(numnam_cfg, nambdy_tide, IOSTAT = ios, ERR = 902)
@@ -69,9 +71,13 @@ MODULE bdytides
         END IF
         IF (lwp) WRITE(numout, FMT = *) ' '
         IF (cn_dyn2d(ib_bdy) == 'frs') THEN
+          !$ACC KERNELS
           ilen0(:) = nblen(:)
+          !$ACC END KERNELS
         ELSE
+          !$ACC KERNELS
           ilen0(:) = nblenrim(:)
+          !$ACC END KERNELS
         END IF
         ALLOCATE(td % ssh0(ilen0(1), nb_harmo, 2))
         ALLOCATE(td % ssh(ilen0(1), nb_harmo, 2))
@@ -178,17 +184,21 @@ MODULE bdytides
     END DO
   END SUBROUTINE bdytide_init
   SUBROUTINE bdytide_update(kt, idx, dta, td, jit, time_offset)
-    INTEGER, INTENT(IN   ) :: kt
-    TYPE(OBC_INDEX), INTENT(IN   ) :: idx
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(OBC_DATA), INTENT(INOUT) :: dta
     TYPE(TIDES_DATA), INTENT(INOUT) :: td
-    INTEGER, OPTIONAL, INTENT(IN   ) :: jit
-    INTEGER, OPTIONAL, INTENT(IN   ) :: time_offset
+    INTEGER, OPTIONAL, INTENT(IN) :: jit
+    INTEGER, OPTIONAL, INTENT(IN) :: time_offset
     INTEGER :: itide, igrd, ib
     INTEGER :: time_add
     INTEGER, DIMENSION(3) :: ilen0
     REAL(KIND = wp) :: z_arg, z_sarg, zflag, zramp
     REAL(KIND = wp), DIMENSION(jpmax_harmo) :: z_sist, z_cost
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('bdytide_update', 'r0', 0, 0)
     ilen0(1) = SIZE(td % ssh(:, 1, 1))
     ilen0(2) = SIZE(td % u(:, 1, 1))
     ilen0(3) = SIZE(td % v(:, 1, 1))
@@ -215,15 +225,17 @@ MODULE bdytides
     ELSE
       z_arg = ((kt - kt_tide) + time_add) * rdt
     END IF
-    !$ACC KERNELS
     zramp = 1._wp
     IF (ln_tide_ramp) zramp = MIN(MAX((z_arg + (kt_tide - nit000) * rdt) / (rdttideramp * rday), 0._wp), 1._wp)
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     DO itide = 1, nb_harmo
       z_sarg = z_arg * omega_tide(itide)
       z_cost(itide) = COS(z_sarg)
       z_sist(itide) = SIN(z_sarg)
     END DO
     !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('bdytide_update', 'r1', 0, 0)
     DO itide = 1, nb_harmo
       igrd = 1
       DO ib = 1, ilen0(igrd)
@@ -238,8 +250,10 @@ MODULE bdytides
         dta % v2d(ib) = dta % v2d(ib) + zramp * (td % v(ib, itide, 1) * z_cost(itide) + td % v(ib, itide, 2) * z_sist(itide))
       END DO
     END DO
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE bdytide_update
   SUBROUTINE bdy_dta_tides(kt, kit, time_offset)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER, OPTIONAL, INTENT(IN) :: kit
     INTEGER, OPTIONAL, INTENT(IN) :: time_offset
@@ -249,6 +263,10 @@ MODULE bdytides
     INTEGER, DIMENSION(jpbgrd) :: ilen0
     INTEGER, DIMENSION(1 : jpbgrd) :: nblen, nblenrim
     REAL(KIND = wp) :: z_arg, z_sarg, zramp, zoff, z_cost, z_sist
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('bdy_dta_tides', 'r0', 0, 0)
     lk_first_btstp = .TRUE.
     IF (PRESENT(kit) .AND. (kit /= 1)) THEN
       lk_first_btstp = .FALSE.
@@ -264,15 +282,23 @@ MODULE bdytides
     END IF
     zramp = 1.
     IF (ln_tide_ramp) zramp = MIN(MAX((z_arg - nit000 * rdt) / (rdttideramp * rday), 0.), 1.)
+    CALL profile_psy_data0 % PostEnd
     DO ib_bdy = 1, nb_bdy
       IF (nn_dyn2d_dta(ib_bdy) >= 2) THEN
+        CALL profile_psy_data1 % PreStart('bdy_dta_tides', 'r1', 0, 0)
         nblen(1 : jpbgrd) = idx_bdy(ib_bdy) % nblen(1 : jpbgrd)
         nblenrim(1 : jpbgrd) = idx_bdy(ib_bdy) % nblenrim(1 : jpbgrd)
+        CALL profile_psy_data1 % PostEnd
         IF (cn_dyn2d(ib_bdy) == 'frs') THEN
+          !$ACC KERNELS
           ilen0(:) = nblen(:)
+          !$ACC END KERNELS
         ELSE
+          !$ACC KERNELS
           ilen0(:) = nblenrim(:)
+          !$ACC END KERNELS
         END IF
+        CALL profile_psy_data2 % PreStart('bdy_dta_tides', 'r2', 0, 0)
         IF ((nsec_day == NINT(0.5_wp * rdt) .OR. kt == nit000) .AND. lk_first_btstp) THEN
           kt_tide = kt - (nsec_day - 0.5_wp * rdt) / rdt
           IF (lwp) THEN
@@ -296,27 +322,31 @@ MODULE bdytides
           IF (dta_bdy(ib_bdy) % ll_ssh) THEN
             igrd = 1
             DO ib = 1, ilen0(igrd)
-              dta_bdy(ib_bdy) % ssh(ib) = dta_bdy(ib_bdy) % ssh(ib) + (tides(ib_bdy) % ssh(ib, itide, 1) * z_cost + tides(ib_bdy) % ssh(ib, itide, 2) * z_sist)
+              dta_bdy(ib_bdy) % ssh(ib) = dta_bdy(ib_bdy) % ssh(ib) + (tides(ib_bdy) % ssh(ib, itide, 1) * z_cost + tides(ib_bdy) &
+&% ssh(ib, itide, 2) * z_sist)
             END DO
           END IF
           IF (dta_bdy(ib_bdy) % ll_u2d) THEN
             igrd = 2
             DO ib = 1, ilen0(igrd)
-              dta_bdy(ib_bdy) % u2d(ib) = dta_bdy(ib_bdy) % u2d(ib) + (tides(ib_bdy) % u(ib, itide, 1) * z_cost + tides(ib_bdy) % u(ib, itide, 2) * z_sist)
+              dta_bdy(ib_bdy) % u2d(ib) = dta_bdy(ib_bdy) % u2d(ib) + (tides(ib_bdy) % u(ib, itide, 1) * z_cost + tides(ib_bdy) % &
+&u(ib, itide, 2) * z_sist)
             END DO
           END IF
           IF (dta_bdy(ib_bdy) % ll_v2d) THEN
             igrd = 3
             DO ib = 1, ilen0(igrd)
-              dta_bdy(ib_bdy) % v2d(ib) = dta_bdy(ib_bdy) % v2d(ib) + (tides(ib_bdy) % v(ib, itide, 1) * z_cost + tides(ib_bdy) % v(ib, itide, 2) * z_sist)
+              dta_bdy(ib_bdy) % v2d(ib) = dta_bdy(ib_bdy) % v2d(ib) + (tides(ib_bdy) % v(ib, itide, 1) * z_cost + tides(ib_bdy) % &
+&v(ib, itide, 2) * z_sist)
             END DO
           END IF
         END DO
+        CALL profile_psy_data2 % PostEnd
       END IF
     END DO
   END SUBROUTINE bdy_dta_tides
   SUBROUTINE tide_init_elevation(idx, td)
-    TYPE(OBC_INDEX), INTENT(IN   ) :: idx
+    TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(TIDES_DATA), INTENT(INOUT) :: td
     INTEGER :: itide, igrd, ib
     INTEGER, DIMENSION(1) :: ilen0
@@ -343,7 +373,7 @@ MODULE bdytides
     DEALLOCATE(mod_tide, phi_tide)
   END SUBROUTINE tide_init_elevation
   SUBROUTINE tide_init_velocities(idx, td)
-    TYPE(OBC_INDEX), INTENT(IN   ) :: idx
+    TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(TIDES_DATA), INTENT(INOUT) :: td
     INTEGER :: itide, igrd, ib
     INTEGER, DIMENSION(3) :: ilen0

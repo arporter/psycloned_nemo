@@ -3,307 +3,445 @@ MODULE lib_fortran
   USE dom_oce
   USE in_out_manager
   USE lib_mpp
+  USE lbclnk
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: glob_sum
   PUBLIC :: glob_sum_full
+  PUBLIC :: local_sum
+  PUBLIC :: sum3x3
   PUBLIC :: DDPDD
   PUBLIC :: glob_min, glob_max
   PUBLIC :: SIGN
   INTERFACE glob_sum
-    MODULE PROCEDURE glob_sum_1d, glob_sum_2d, glob_sum_3d, glob_sum_2d_a, glob_sum_3d_a
+    MODULE PROCEDURE glob_sum_1d, glob_sum_2d, glob_sum_3d
   END INTERFACE
   INTERFACE glob_sum_full
     MODULE PROCEDURE glob_sum_full_2d, glob_sum_full_3d
   END INTERFACE
+  INTERFACE local_sum
+    MODULE PROCEDURE local_sum_2d, local_sum_3d
+  END INTERFACE
+  INTERFACE sum3x3
+    MODULE PROCEDURE sum3x3_2d, sum3x3_3d
+  END INTERFACE
   INTERFACE glob_min
-    MODULE PROCEDURE glob_min_2d, glob_min_3d, glob_min_2d_a, glob_min_3d_a
+    MODULE PROCEDURE glob_min_2d, glob_min_3d
   END INTERFACE
   INTERFACE glob_max
-    MODULE PROCEDURE glob_max_2d, glob_max_3d, glob_max_2d_a, glob_max_3d_a
+    MODULE PROCEDURE glob_max_2d, glob_max_3d
   END INTERFACE
   INTERFACE SIGN
-    MODULE PROCEDURE SIGN_SCALAR, SIGN_ARRAY_1D, SIGN_ARRAY_2D, SIGN_ARRAY_3D, SIGN_ARRAY_1D_A, SIGN_ARRAY_2D_A, SIGN_ARRAY_3D_A, SIGN_ARRAY_1D_B, SIGN_ARRAY_2D_B, SIGN_ARRAY_3D_B
+    MODULE PROCEDURE SIGN_SCALAR, SIGN_ARRAY_1D, SIGN_ARRAY_2D, SIGN_ARRAY_3D, SIGN_ARRAY_1D_A, SIGN_ARRAY_2D_A, SIGN_ARRAY_3D_A, &
+&SIGN_ARRAY_1D_B, SIGN_ARRAY_2D_B, SIGN_ARRAY_3D_B
   END INTERFACE
   CONTAINS
-  FUNCTION glob_sum_1d(ptab, kdim)
-    INTEGER, INTENT(IN) :: kdim
-    REAL(KIND = wp), INTENT(IN), DIMENSION(kdim) :: ptab
-    REAL(KIND = wp) :: glob_sum_1d
-    COMPLEX(KIND = wp) :: ctmp
-    REAL(KIND = wp) :: ztmp
-    INTEGER :: ji
-    ztmp = 0.E0
-    ctmp = CMPLX(0.E0, 0.E0, wp)
-    DO ji = 1, kdim
-      ztmp = ptab(ji)
-      CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
-    END DO
-    IF (lk_mpp) CALL mpp_sum(ctmp)
-    glob_sum_1d = REAL(ctmp, wp)
-  END FUNCTION glob_sum_1d
-  FUNCTION glob_sum_c1d(ptab, kdim)
+  FUNCTION glob_sum_c1d(ptab, kdim, ldcom, cdname)
+    CHARACTER(LEN = *), INTENT(IN) :: cdname
     INTEGER, INTENT(IN) :: kdim
     COMPLEX(KIND = wp), INTENT(IN), DIMENSION(kdim) :: ptab
+    LOGICAL, INTENT(IN) :: ldcom
     REAL(KIND = wp) :: glob_sum_c1d
     COMPLEX(KIND = wp) :: ctmp
     INTEGER :: ji
     ctmp = CMPLX(0.E0, 0.E0, wp)
+    !$ACC LOOP SEQ
     DO ji = 1, kdim
       CALL DDPDD(ptab(ji), ctmp)
-    END DO
-    IF (lk_mpp) CALL mpp_sum(ctmp)
+   END DO
+   !$ACC END LOOP
+    IF (ldcom) CALL mpp_sum(cdname, ctmp)
     glob_sum_c1d = REAL(ctmp, wp)
   END FUNCTION glob_sum_c1d
-  FUNCTION glob_sum_2d(ptab)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: ptab
-    REAL(KIND = wp) :: glob_sum_2d
-    COMPLEX(KIND = wp) :: ctmp
-    REAL(KIND = wp) :: ztmp
-    INTEGER :: ji, jj
-    COMPLEX(KIND = wp) :: hsum(jpj)
-    DO jj = 1, jpj
-      ctmp = CMPLX(0.E0, 0.E0, wp)
-      DO ji = 1, jpi
-        ztmp = ptab(ji, jj) * tmask_i(ji, jj)
-        CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
-      END DO
-      hsum(jj) = ctmp
-    END DO
-    glob_sum_2d = glob_sum_c1d(hsum, jpj)
-  END FUNCTION glob_sum_2d
-  FUNCTION glob_sum_3d(ptab)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: ptab
-    REAL(KIND = wp) :: glob_sum_3d
+  FUNCTION glob_sum_1d(cdname, ptab)
+    CHARACTER(LEN = *), INTENT(IN) :: cdname
+    REAL(KIND = wp), INTENT(IN) :: ptab(:)
+    REAL(KIND = wp) :: glob_sum_1d
+    REAL(KIND = wp) :: FUNCTION_GLOB_OP
     COMPLEX(KIND = wp) :: ctmp
     REAL(KIND = wp) :: ztmp
     INTEGER :: ji, jj, jk
-    INTEGER :: ijpk
+    INTEGER :: ipi, ipj, ipk
+    ipi = SIZE(ptab, 1)
+    ipj = 1
+    ipk = 1
+    ctmp = CMPLX(0.E0, 0.E0, wp)
+    !$ACC LOOP SEQ
+        DO ji = 1, ipi
+          ztmp = ptab(ji) * 1.
+          CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
+       END DO
+       !$ACC END LOOP
+    CALL mpp_sum(cdname, ctmp)
+    glob_sum_1d = REAL(ctmp, wp)
+  END FUNCTION glob_sum_1d
+  FUNCTION glob_sum_2d(cdname, ptab)
+    CHARACTER(LEN = *), INTENT(IN) :: cdname
+    REAL(KIND = wp), INTENT(IN) :: ptab(:, :)
+    REAL(KIND = wp) :: glob_sum_2d
+    REAL(KIND = wp) :: FUNCTION_GLOB_OP
+    COMPLEX(KIND = wp) :: ctmp
+    REAL(KIND = wp) :: ztmp
+    INTEGER :: ji, jj, jk
+    INTEGER :: ipi, ipj, ipk
     COMPLEX(KIND = wp), ALLOCATABLE :: hsum(:)
-    ijpk = SIZE(ptab, 3)
-    ALLOCATE(hsum(ijpk))
-    DO jk = 1, ijpk
+    ipi = SIZE(ptab, 1)
+    ipj = SIZE(ptab, 2)
+    ipk = 1
+    ALLOCATE(hsum(ipj))
+    DO jk = 1, ipk
+      DO jj = 1, ipj
+        ctmp = CMPLX(0.E0, 0.E0, wp)
+        DO ji = 1, ipi
+          ztmp = ptab(ji, jj) * tmask_i(ji, jj)
+          CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
+        END DO
+        hsum(jj) = ctmp
+      END DO
+    END DO
+    glob_sum_2d = glob_sum_c1d(hsum, ipj, .TRUE. .AND. lk_mpp, cdname)
+    DEALLOCATE(hsum)
+  END FUNCTION glob_sum_2d
+  FUNCTION glob_sum_full_2d(cdname, ptab)
+    CHARACTER(LEN = *), INTENT(IN) :: cdname
+    REAL(KIND = wp), INTENT(IN) :: ptab(:, :)
+    REAL(KIND = wp) :: glob_sum_full_2d
+    REAL(KIND = wp) :: FUNCTION_GLOB_OP
+    COMPLEX(KIND = wp) :: ctmp
+    REAL(KIND = wp) :: ztmp
+    INTEGER :: ji, jj, jk
+    INTEGER :: ipi, ipj, ipk
+    COMPLEX(KIND = wp), ALLOCATABLE :: hsum(:)
+    ipi = SIZE(ptab, 1)
+    ipj = SIZE(ptab, 2)
+    ipk = 1
+    ALLOCATE(hsum(ipj))
+    DO jk = 1, ipk
+      DO jj = 1, ipj
+        ctmp = CMPLX(0.E0, 0.E0, wp)
+        DO ji = 1, ipi
+          ztmp = ptab(ji, jj) * tmask_h(ji, jj)
+          CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
+        END DO
+        hsum(jj) = ctmp
+      END DO
+    END DO
+    glob_sum_full_2d = glob_sum_c1d(hsum, ipj, .TRUE. .AND. lk_mpp, cdname)
+    DEALLOCATE(hsum)
+  END FUNCTION glob_sum_full_2d
+  FUNCTION glob_sum_3d(cdname, ptab)
+    CHARACTER(LEN = *), INTENT(IN) :: cdname
+    REAL(KIND = wp), INTENT(IN) :: ptab(:, :, :)
+    REAL(KIND = wp) :: glob_sum_3d
+    REAL(KIND = wp) :: FUNCTION_GLOB_OP
+    COMPLEX(KIND = wp) :: ctmp
+    REAL(KIND = wp) :: ztmp
+    INTEGER :: ji, jj, jk
+    INTEGER :: ipi, ipj, ipk
+    COMPLEX(KIND = wp), ALLOCATABLE :: hsum(:)
+    ipi = SIZE(ptab, 1)
+    ipj = SIZE(ptab, 2)
+    ipk = SIZE(ptab, 3)
+    ALLOCATE(hsum(ipk))
+    DO jk = 1, ipk
       ctmp = CMPLX(0.E0, 0.E0, wp)
-      DO jj = 1, jpj
-        DO ji = 1, jpi
+      DO jj = 1, ipj
+        DO ji = 1, ipi
           ztmp = ptab(ji, jj, jk) * tmask_i(ji, jj)
           CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
         END DO
       END DO
       hsum(jk) = ctmp
     END DO
-    glob_sum_3d = glob_sum_c1d(hsum, ijpk)
+    glob_sum_3d = glob_sum_c1d(hsum, ipk, .TRUE. .AND. lk_mpp, cdname)
     DEALLOCATE(hsum)
   END FUNCTION glob_sum_3d
-  FUNCTION glob_sum_2d_a(ptab1, ptab2)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: ptab1, ptab2
-    REAL(KIND = wp) :: glob_sum_2d_a
-    COMPLEX(KIND = wp) :: ctmp
-    REAL(KIND = wp) :: ztmp
-    INTEGER :: ji, jj
-    COMPLEX(KIND = wp) :: hsum(jpj)
-    DO jj = 1, jpj
-      ctmp = CMPLX(0.E0, 0.E0, wp)
-      DO ji = 1, jpi
-        ztmp = ptab1(ji, jj) * tmask_i(ji, jj)
-        CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
-        ztmp = ptab2(ji, jj) * tmask_i(ji, jj)
-        CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
-      END DO
-      hsum(jj) = ctmp
-    END DO
-    glob_sum_2d_a = glob_sum_c1d(hsum, jpj)
-  END FUNCTION glob_sum_2d_a
-  FUNCTION glob_sum_3d_a(ptab1, ptab2)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: ptab1, ptab2
-    REAL(KIND = wp) :: glob_sum_3d_a
-    COMPLEX(KIND = wp) :: ctmp
-    REAL(KIND = wp) :: ztmp
-    INTEGER :: ji, jj, jk
-    INTEGER :: ijpk
-    COMPLEX(KIND = wp), ALLOCATABLE :: hsum(:)
-    ijpk = SIZE(ptab1, 3)
-    ALLOCATE(hsum(ijpk))
-    DO jk = 1, ijpk
-      ctmp = CMPLX(0.E0, 0.E0, wp)
-      DO jj = 1, jpj
-        DO ji = 1, jpi
-          ztmp = ptab1(ji, jj, jk) * tmask_i(ji, jj)
-          CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
-          ztmp = ptab2(ji, jj, jk) * tmask_i(ji, jj)
-          CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
-        END DO
-      END DO
-      hsum(jk) = ctmp
-    END DO
-    glob_sum_3d_a = glob_sum_c1d(hsum, ijpk)
-    DEALLOCATE(hsum)
-  END FUNCTION glob_sum_3d_a
-  FUNCTION glob_sum_full_2d(ptab)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: ptab
-    REAL(KIND = wp) :: glob_sum_full_2d
-    COMPLEX(KIND = wp) :: ctmp
-    REAL(KIND = wp) :: ztmp
-    INTEGER :: ji, jj
-    COMPLEX(KIND = wp) :: hsum(jpj)
-    DO jj = 1, jpj
-      ctmp = CMPLX(0.E0, 0.E0, wp)
-      DO ji = 1, jpi
-        ztmp = ptab(ji, jj) * tmask_h(ji, jj)
-        CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
-      END DO
-      hsum(jj) = ctmp
-    END DO
-    glob_sum_full_2d = glob_sum_c1d(hsum, jpj)
-  END FUNCTION glob_sum_full_2d
-  FUNCTION glob_sum_full_3d(ptab)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: ptab
+  FUNCTION glob_sum_full_3d(cdname, ptab)
+    CHARACTER(LEN = *), INTENT(IN) :: cdname
+    REAL(KIND = wp), INTENT(IN) :: ptab(:, :, :)
     REAL(KIND = wp) :: glob_sum_full_3d
+    REAL(KIND = wp) :: FUNCTION_GLOB_OP
     COMPLEX(KIND = wp) :: ctmp
     REAL(KIND = wp) :: ztmp
     INTEGER :: ji, jj, jk
-    INTEGER :: ijpk
+    INTEGER :: ipi, ipj, ipk
     COMPLEX(KIND = wp), ALLOCATABLE :: hsum(:)
-    ijpk = SIZE(ptab, 3)
-    ALLOCATE(hsum(ijpk))
-    DO jk = 1, ijpk
+    ipi = SIZE(ptab, 1)
+    ipj = SIZE(ptab, 2)
+    ipk = SIZE(ptab, 3)
+    ALLOCATE(hsum(ipk))
+    DO jk = 1, ipk
       ctmp = CMPLX(0.E0, 0.E0, wp)
-      DO jj = 1, jpj
-        DO ji = 1, jpi
+      DO jj = 1, ipj
+        DO ji = 1, ipi
           ztmp = ptab(ji, jj, jk) * tmask_h(ji, jj)
           CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
         END DO
       END DO
       hsum(jk) = ctmp
     END DO
-    glob_sum_full_3d = glob_sum_c1d(hsum, ijpk)
+    glob_sum_full_3d = glob_sum_c1d(hsum, ipk, .TRUE. .AND. lk_mpp, cdname)
     DEALLOCATE(hsum)
   END FUNCTION glob_sum_full_3d
-  FUNCTION glob_min_2d(ptab)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: ptab
+  FUNCTION glob_min_2d(cdname, ptab)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    CHARACTER(LEN = *), INTENT(IN) :: cdname
+    REAL(KIND = wp), INTENT(IN) :: ptab(:, :)
     REAL(KIND = wp) :: glob_min_2d
-    glob_min_2d = MINVAL(ptab(:, :) * tmask_i(:, :))
-    IF (lk_mpp) CALL mpp_min(glob_min_2d)
+    REAL(KIND = wp) :: FUNCTION_GLOB_OP
+    COMPLEX(KIND = wp) :: ctmp
+    REAL(KIND = wp) :: ztmp
+    INTEGER :: jk
+    INTEGER :: ipk
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('glob_min_2d', 'r0', 0, 0)
+    ipk = 1
+    ztmp = MINVAL(ptab(:, :) * tmask_i(:, :))
+    CALL mpp_min(cdname, ztmp)
+    glob_min_2d = ztmp
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION glob_min_2d
-  FUNCTION glob_min_3d(ptab)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: ptab
-    REAL(KIND = wp) :: glob_min_3d
-    INTEGER :: jk
-    INTEGER :: ijpk
-    ijpk = SIZE(ptab, 3)
-    glob_min_3d = MINVAL(ptab(:, :, 1) * tmask_i(:, :))
-    DO jk = 2, ijpk
-      glob_min_3d = MIN(glob_min_3d, MINVAL(ptab(:, :, jk) * tmask_i(:, :)))
-    END DO
-    IF (lk_mpp) CALL mpp_min(glob_min_3d)
-  END FUNCTION glob_min_3d
-  FUNCTION glob_min_2d_a(ptab1, ptab2)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: ptab1, ptab2
-    REAL(KIND = wp), DIMENSION(2) :: glob_min_2d_a
-    glob_min_2d_a(1) = MINVAL(ptab1(:, :) * tmask_i(:, :))
-    glob_min_2d_a(2) = MINVAL(ptab2(:, :) * tmask_i(:, :))
-    IF (lk_mpp) CALL mpp_min(glob_min_2d_a, 2)
-  END FUNCTION glob_min_2d_a
-  FUNCTION glob_min_3d_a(ptab1, ptab2)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: ptab1, ptab2
-    REAL(KIND = wp), DIMENSION(2) :: glob_min_3d_a
-    INTEGER :: jk
-    INTEGER :: ijpk
-    ijpk = SIZE(ptab1, 3)
-    glob_min_3d_a(1) = MINVAL(ptab1(:, :, 1) * tmask_i(:, :))
-    glob_min_3d_a(2) = MINVAL(ptab2(:, :, 1) * tmask_i(:, :))
-    DO jk = 2, ijpk
-      glob_min_3d_a(1) = MIN(glob_min_3d_a(1), MINVAL(ptab1(:, :, jk) * tmask_i(:, :)))
-      glob_min_3d_a(2) = MIN(glob_min_3d_a(2), MINVAL(ptab2(:, :, jk) * tmask_i(:, :)))
-    END DO
-    IF (lk_mpp) CALL mpp_min(glob_min_3d_a, 2)
-  END FUNCTION glob_min_3d_a
-  FUNCTION glob_max_2d(ptab)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: ptab
+  FUNCTION glob_max_2d(cdname, ptab)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    CHARACTER(LEN = *), INTENT(IN) :: cdname
+    REAL(KIND = wp), INTENT(IN) :: ptab(:, :)
     REAL(KIND = wp) :: glob_max_2d
-    glob_max_2d = MAXVAL(ptab(:, :) * tmask_i(:, :))
-    IF (lk_mpp) CALL mpp_max(glob_max_2d)
+    REAL(KIND = wp) :: FUNCTION_GLOB_OP
+    COMPLEX(KIND = wp) :: ctmp
+    REAL(KIND = wp) :: ztmp
+    INTEGER :: jk
+    INTEGER :: ipk
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('glob_max_2d', 'r0', 0, 0)
+    ipk = 1
+    ztmp = MAXVAL(ptab(:, :) * tmask_i(:, :))
+    CALL mpp_max(cdname, ztmp)
+    glob_max_2d = ztmp
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION glob_max_2d
-  FUNCTION glob_max_3d(ptab)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: ptab
+  FUNCTION glob_min_3d(cdname, ptab)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    CHARACTER(LEN = *), INTENT(IN) :: cdname
+    REAL(KIND = wp), INTENT(IN) :: ptab(:, :, :)
+    REAL(KIND = wp) :: glob_min_3d
+    REAL(KIND = wp) :: FUNCTION_GLOB_OP
+    COMPLEX(KIND = wp) :: ctmp
+    REAL(KIND = wp) :: ztmp
+    INTEGER :: jk
+    INTEGER :: ipk
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('glob_min_3d', 'r0', 0, 0)
+    ipk = SIZE(ptab, 3)
+    ztmp = MINVAL(ptab(:, :, 1) * tmask_i(:, :))
+    DO jk = 2, ipk
+      ztmp = MIN(ztmp, MINVAL(ptab(:, :, jk) * tmask_i(:, :)))
+    END DO
+    CALL mpp_min(cdname, ztmp)
+    glob_min_3d = ztmp
+    CALL profile_psy_data0 % PostEnd
+  END FUNCTION glob_min_3d
+  FUNCTION glob_max_3d(cdname, ptab)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    CHARACTER(LEN = *), INTENT(IN) :: cdname
+    REAL(KIND = wp), INTENT(IN) :: ptab(:, :, :)
     REAL(KIND = wp) :: glob_max_3d
+    REAL(KIND = wp) :: FUNCTION_GLOB_OP
+    COMPLEX(KIND = wp) :: ctmp
+    REAL(KIND = wp) :: ztmp
     INTEGER :: jk
-    INTEGER :: ijpk
-    ijpk = SIZE(ptab, 3)
-    glob_max_3d = MAXVAL(ptab(:, :, 1) * tmask_i(:, :))
-    DO jk = 2, ijpk
-      glob_max_3d = MAX(glob_max_3d, MAXVAL(ptab(:, :, jk) * tmask_i(:, :)))
+    INTEGER :: ipk
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('glob_max_3d', 'r0', 0, 0)
+    ipk = SIZE(ptab, 3)
+    ztmp = MAXVAL(ptab(:, :, 1) * tmask_i(:, :))
+    DO jk = 2, ipk
+      ztmp = MAX(ztmp, MAXVAL(ptab(:, :, jk) * tmask_i(:, :)))
     END DO
-    IF (lk_mpp) CALL mpp_max(glob_max_3d)
+    CALL mpp_max(cdname, ztmp)
+    glob_max_3d = ztmp
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION glob_max_3d
-  FUNCTION glob_max_2d_a(ptab1, ptab2)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :) :: ptab1, ptab2
-    REAL(KIND = wp), DIMENSION(2) :: glob_max_2d_a
-    glob_max_2d_a(1) = MAXVAL(ptab1(:, :) * tmask_i(:, :))
-    glob_max_2d_a(2) = MAXVAL(ptab2(:, :) * tmask_i(:, :))
-    IF (lk_mpp) CALL mpp_max(glob_max_2d_a, 2)
-  END FUNCTION glob_max_2d_a
-  FUNCTION glob_max_3d_a(ptab1, ptab2)
-    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: ptab1, ptab2
-    REAL(KIND = wp), DIMENSION(2) :: glob_max_3d_a
-    INTEGER :: jk
-    INTEGER :: ijpk
-    ijpk = SIZE(ptab1, 3)
-    glob_max_3d_a(1) = MAXVAL(ptab1(:, :, 1) * tmask_i(:, :))
-    glob_max_3d_a(2) = MAXVAL(ptab2(:, :, 1) * tmask_i(:, :))
-    DO jk = 2, ijpk
-      glob_max_3d_a(1) = MAX(glob_max_3d_a(1), MAXVAL(ptab1(:, :, jk) * tmask_i(:, :)))
-      glob_max_3d_a(2) = MAX(glob_max_3d_a(2), MAXVAL(ptab2(:, :, jk) * tmask_i(:, :)))
+  FUNCTION local_sum_2d(ptab)
+    REAL(KIND = wp), INTENT(IN) :: ptab(:, :)
+    COMPLEX(KIND = wp) :: local_sum_2d
+    COMPLEX(KIND = wp) :: ctmp
+    REAL(KIND = wp) :: ztmp
+    INTEGER :: ji, jj
+    INTEGER :: ipi, ipj
+    COMPLEX(KIND = wp), ALLOCATABLE :: hsum(:)
+    ipi = SIZE(ptab, 1)
+    ipj = SIZE(ptab, 2)
+    ALLOCATE(hsum(ipj))
+    DO jj = 1, ipj
+      ctmp = CMPLX(0.E0, 0.E0, wp)
+      DO ji = 1, ipi
+        ztmp = ptab(ji, jj) * tmask_i(ji, jj)
+        CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
+      END DO
+      hsum(jj) = ctmp
     END DO
-    IF (lk_mpp) CALL mpp_max(glob_max_3d_a, 2)
-  END FUNCTION glob_max_3d_a
+    local_sum_2d = glob_sum_c1d(hsum, ipj, .FALSE., 'NONE')
+    DEALLOCATE(hsum)
+  END FUNCTION local_sum_2d
+  FUNCTION local_sum_3d(ptab)
+    REAL(KIND = wp), INTENT(IN) :: ptab(:, :, :)
+    COMPLEX(KIND = wp) :: local_sum_3d
+    COMPLEX(KIND = wp) :: ctmp
+    REAL(KIND = wp) :: ztmp
+    INTEGER :: ji, jj, jk
+    INTEGER :: ipi, ipj, ipk
+    COMPLEX(KIND = wp), ALLOCATABLE :: hsum(:)
+    ipi = SIZE(ptab, 1)
+    ipj = SIZE(ptab, 2)
+    ipk = SIZE(ptab, 3)
+    ALLOCATE(hsum(ipk))
+    ctmp = CMPLX(0.E0, 0.E0, wp)
+    DO jk = 1, ipk
+      ctmp = CMPLX(0.E0, 0.E0, wp)
+      DO jj = 1, ipj
+        DO ji = 1, ipi
+          ztmp = ptab(ji, jj, jk) * tmask_i(ji, jj)
+          CALL DDPDD(CMPLX(ztmp, 0.E0, wp), ctmp)
+        END DO
+      END DO
+      hsum(jk) = ctmp
+    END DO
+    local_sum_3d = glob_sum_c1d(hsum, ipk, .FALSE., 'NONE')
+    DEALLOCATE(hsum)
+  END FUNCTION local_sum_3d
+  SUBROUTINE sum3x3_2d(p2d)
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(INOUT) :: p2d
+    INTEGER :: ji, ji2, jj, jj2
+    IF (SIZE(p2d, 1) /= jpi) CALL ctl_stop('STOP', 'wrong call of sum3x3_2d, the first dimension is not equal to jpi')
+    IF (SIZE(p2d, 2) /= jpj) CALL ctl_stop('STOP', 'wrong call of sum3x3_2d, the second dimension is not equal to jpj')
+    !$ACC KERNELS
+    DO jj = 1, jpj
+      DO ji = 1, jpi
+        IF (MOD(mig(ji), 3) == 1 .AND. MOD(mjg(jj), 3) == 1) THEN
+          ji2 = MIN(mig(ji) + 2, jpiglo) - nimpp + 1
+          jj2 = MIN(mjg(jj) + 2, jpjglo) - njmpp + 1
+          IF (ji2 <= jpi .AND. jj2 <= jpj) THEN
+            p2d(ji : ji2, jj : jj2) = SUM(p2d(ji : ji2, jj : jj2))
+          END IF
+        END IF
+      END DO
+    END DO
+    !$ACC END KERNELS
+    CALL lbc_lnk('lib_fortran', p2d, 'T', 1.)
+    !ARPDBG - 'MISSING BRANCH TARGET BLOCK'
+    !ACC KERNELS
+    IF (nbondi /= - 1) THEN
+      IF (MOD(mig(1), 3) == 1) p2d(1, :) = p2d(2, :)
+      IF (MOD(mig(1), 3) == 2) p2d(2, :) = p2d(1, :)
+    END IF
+    IF (nbondi /= 1) THEN
+      IF (MOD(mig(jpi - 2), 3) == 1) p2d(jpi, :) = p2d(jpi - 1, :)
+      IF (MOD(mig(jpi - 2), 3) == 0) p2d(jpi - 1, :) = p2d(jpi, :)
+    END IF
+    IF (nbondj /= - 1) THEN
+      IF (MOD(mjg(1), 3) == 1) p2d(:, 1) = p2d(:, 2)
+      IF (MOD(mjg(1), 3) == 2) p2d(:, 2) = p2d(:, 1)
+    END IF
+    IF (nbondj /= 1) THEN
+      IF (MOD(mjg(jpj - 2), 3) == 1) p2d(:, jpj) = p2d(:, jpj - 1)
+      IF (MOD(mjg(jpj - 2), 3) == 0) p2d(:, jpj - 1) = p2d(:, jpj)
+    END IF
+    !ACC END KERNELS
+    CALL lbc_lnk('lib_fortran', p2d, 'T', 1.)
+  END SUBROUTINE sum3x3_2d
+  SUBROUTINE sum3x3_3d(p3d)
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p3d
+    INTEGER :: ji, ji2, jj, jj2, jn
+    INTEGER :: ipn
+    IF (SIZE(p3d, 1) /= jpi) CALL ctl_stop('STOP', 'wrong call of sum3x3_3d, the first dimension is not equal to jpi')
+    IF (SIZE(p3d, 2) /= jpj) CALL ctl_stop('STOP', 'wrong call of sum3x3_3d, the second dimension is not equal to jpj')
+    ipn = SIZE(p3d, 3)
+    !$ACC KERNELS
+    DO jn = 1, ipn
+      DO jj = 1, jpj
+        DO ji = 1, jpi
+          IF (MOD(mig(ji), 3) == 1 .AND. MOD(mjg(jj), 3) == 1) THEN
+            ji2 = MIN(mig(ji) + 2, jpiglo) - nimpp + 1
+            jj2 = MIN(mjg(jj) + 2, jpjglo) - njmpp + 1
+            IF (ji2 <= jpi .AND. jj2 <= jpj) THEN
+              p3d(ji : ji2, jj : jj2, jn) = SUM(p3d(ji : ji2, jj : jj2, jn))
+            END IF
+          END IF
+        END DO
+      END DO
+    END DO
+    !$ACC END KERNELS
+    CALL lbc_lnk('lib_fortran', p3d, 'T', 1.)
+    !ARPDBG - 'MISSING BRANCH TARGET BLOCK'
+    !ACC KERNELS
+    IF (nbondi /= - 1) THEN
+      IF (MOD(mig(1), 3) == 1) p3d(1, :, :) = p3d(2, :, :)
+      IF (MOD(mig(1), 3) == 2) p3d(2, :, :) = p3d(1, :, :)
+    END IF
+    IF (nbondi /= 1) THEN
+      IF (MOD(mig(jpi - 2), 3) == 1) p3d(jpi, :, :) = p3d(jpi - 1, :, :)
+      IF (MOD(mig(jpi - 2), 3) == 0) p3d(jpi - 1, :, :) = p3d(jpi, :, :)
+    END IF
+    IF (nbondj /= - 1) THEN
+      IF (MOD(mjg(1), 3) == 1) p3d(:, 1, :) = p3d(:, 2, :)
+      IF (MOD(mjg(1), 3) == 2) p3d(:, 2, :) = p3d(:, 1, :)
+    END IF
+    IF (nbondj /= 1) THEN
+      IF (MOD(mjg(jpj - 2), 3) == 1) p3d(:, jpj, :) = p3d(:, jpj - 1, :)
+      IF (MOD(mjg(jpj - 2), 3) == 0) p3d(:, jpj - 1, :) = p3d(:, jpj, :)
+    END IF
+    !ACC END KERNELS
+    CALL lbc_lnk('lib_fortran', p3d, 'T', 1.)
+  END SUBROUTINE sum3x3_3d
   SUBROUTINE DDPDD(ydda, yddb)
-    COMPLEX(KIND = wp), INTENT(IN   ) :: ydda
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    COMPLEX(KIND = wp), INTENT(IN) :: ydda
     COMPLEX(KIND = wp), INTENT(INOUT) :: yddb
     REAL(KIND = wp) :: zerr, zt1, zt2
+    !$ACC ROUTINE
     zt1 = REAL(ydda) + REAL(yddb)
     zerr = zt1 - REAL(ydda)
     zt2 = ((REAL(yddb) - zerr) + (REAL(ydda) - (zt1 - zerr))) + AIMAG(ydda) + AIMAG(yddb)
     yddb = CMPLX(zt1 + zt2, zt2 - ((zt1 + zt2) - zt1), wp)
   END SUBROUTINE DDPDD
   FUNCTION SIGN_SCALAR(pa, pb)
-    REAL(KIND = wp) :: pa, pb
-    REAL(KIND = wp) :: SIGN_SCALAR
+    REAL(KIND = wp), intent(in), value :: pa, pb
+    REAL(KIND = wp), intent(in)        :: SIGN_SCALAR
     !$ACC ROUTINE
     IF (pb >= 0.E0) THEN
-      sign_scalar = abs(pa)
+      sign_scalar = ABS(pa)
     ELSE
-      sign_scalar = - abs(pa)
+      sign_scalar = - ABS(pa)
     END IF
   END FUNCTION SIGN_SCALAR
   FUNCTION SIGN_ARRAY_1D(pa, pb)
-    REAL(KIND = wp) :: pa, pb(:)
+    REAL(KIND = wp), intent(in) :: pa, pb(:)
     REAL(KIND = wp) :: SIGN_ARRAY_1D(SIZE(pb, 1))
     !$ACC ROUTINE
     WHERE (pb >= 0.E0)
-      sign_array_1d = abs(pa)
+      sign_array_1d = ABS(pa)
     ELSEWHERE
-      sign_array_1d = - abs(pa)
+      sign_array_1d = - ABS(pa)
     END WHERE
   END FUNCTION SIGN_ARRAY_1D
   FUNCTION SIGN_ARRAY_2D(pa, pb)
-    REAL(KIND = wp) :: pa, pb(:, :)
+    REAL(KIND = wp), intent(in) :: pa, pb(:, :)
     REAL(KIND = wp) :: SIGN_ARRAY_2D(SIZE(pb, 1), SIZE(pb, 2))
     !$ACC ROUTINE
     WHERE (pb >= 0.E0)
-      sign_array_2d = abs(pa)
+      sign_array_2d = ABS(pa)
     ELSEWHERE
-      sign_array_2d = - abs(pa)
+      sign_array_2d = - ABS(pa)
     END WHERE
   END FUNCTION SIGN_ARRAY_2D
   FUNCTION SIGN_ARRAY_3D(pa, pb)
-    REAL(KIND = wp) :: pa, pb(:, :, :)
+    REAL(KIND = wp), intent(in) :: pa, pb(:, :, :)
     REAL(KIND = wp) :: SIGN_ARRAY_3D(SIZE(pb, 1), SIZE(pb, 2), SIZE(pb, 3))
     !$ACC ROUTINE
     WHERE (pb >= 0.E0)
-      sign_array_3d = abs(pa)
+      sign_array_3d = ABS(pa)
     ELSEWHERE
-      sign_array_3d = - abs(pa)
+      sign_array_3d = - ABS(pa)
     END WHERE
   END FUNCTION SIGN_ARRAY_3D
   FUNCTION SIGN_ARRAY_1D_A(pa, pb)
@@ -311,9 +449,9 @@ MODULE lib_fortran
     REAL(KIND = wp) :: SIGN_ARRAY_1D_A(SIZE(pb, 1))
     !$ACC ROUTINE
     WHERE (pb >= 0.E0)
-      sign_array_1d_a = abs(pa)
+      sign_array_1d_a = ABS(pa)
     ELSEWHERE
-      sign_array_1d_a = - abs(pa)
+      sign_array_1d_a = - ABS(pa)
     END WHERE
   END FUNCTION SIGN_ARRAY_1D_A
   FUNCTION SIGN_ARRAY_2D_A(pa, pb)
@@ -321,9 +459,9 @@ MODULE lib_fortran
     REAL(KIND = wp) :: SIGN_ARRAY_2D_A(SIZE(pb, 1), SIZE(pb, 2))
     !$ACC ROUTINE
     WHERE (pb >= 0.E0)
-      sign_array_2d_a = abs(pa)
+      sign_array_2d_a = ABS(pa)
     ELSEWHERE
-      sign_array_2d_a = - abs(pa)
+      sign_array_2d_a = - ABS(pa)
     END WHERE
   END FUNCTION SIGN_ARRAY_2D_A
   FUNCTION SIGN_ARRAY_3D_A(pa, pb)
@@ -331,9 +469,9 @@ MODULE lib_fortran
     REAL(KIND = wp) :: SIGN_ARRAY_3D_A(SIZE(pb, 1), SIZE(pb, 2), SIZE(pb, 3))
     !$ACC ROUTINE
     WHERE (pb >= 0.E0)
-      sign_array_3d_a = abs(pa)
+      sign_array_3d_a = ABS(pa)
     ELSEWHERE
-      sign_array_3d_a = - abs(pa)
+      sign_array_3d_a = - ABS(pa)
     END WHERE
   END FUNCTION SIGN_ARRAY_3D_A
   FUNCTION SIGN_ARRAY_1D_B(pa, pb)
@@ -341,9 +479,9 @@ MODULE lib_fortran
     REAL(KIND = wp) :: SIGN_ARRAY_1D_B(SIZE(pa, 1))
     !$ACC ROUTINE
     IF (pb >= 0.E0) THEN
-      sign_array_1d_b = abs(pa)
+      sign_array_1d_b = ABS(pa)
     ELSE
-      sign_array_1d_b = - abs(pa)
+      sign_array_1d_b = - ABS(pa)
     END IF
   END FUNCTION SIGN_ARRAY_1D_B
   FUNCTION SIGN_ARRAY_2D_B(pa, pb)
@@ -351,9 +489,9 @@ MODULE lib_fortran
     REAL(KIND = wp) :: SIGN_ARRAY_2D_B(SIZE(pa, 1), SIZE(pa, 2))
     !$ACC ROUTINE
     IF (pb >= 0.E0) THEN
-      sign_array_2d_b = abs(pa)
+      sign_array_2d_b = ABS(pa)
     ELSE
-      sign_array_2d_b = - abs(pa)
+      sign_array_2d_b = - ABS(pa)
     END IF
   END FUNCTION SIGN_ARRAY_2D_B
   FUNCTION SIGN_ARRAY_3D_B(pa, pb)
@@ -361,9 +499,9 @@ MODULE lib_fortran
     REAL(KIND = wp) :: SIGN_ARRAY_3D_B(SIZE(pa, 1), SIZE(pa, 2), SIZE(pa, 3))
     !$ACC ROUTINE
     IF (pb >= 0.E0) THEN
-      sign_array_3d_b = abs(pa)
+      sign_array_3d_b = ABS(pa)
     ELSE
-      sign_array_3d_b = - abs(pa)
+      sign_array_3d_b = - ABS(pa)
     END IF
   END FUNCTION SIGN_ARRAY_3D_B
 END MODULE lib_fortran

@@ -18,7 +18,7 @@ MODULE iscplini
   CONTAINS
   INTEGER FUNCTION iscpl_alloc()
     ALLOCATE(htsc_iscpl(jpi, jpj, jpk, jpts), hdiv_iscpl(jpi, jpj, jpk), STAT = iscpl_alloc)
-    IF (lk_mpp) CALL mpp_sum(iscpl_alloc)
+    CALL mpp_sum('iscplini', iscpl_alloc)
     IF (iscpl_alloc > 0) CALL ctl_warn('iscpl_alloc: allocation of arrays failed')
   END FUNCTION iscpl_alloc
   SUBROUTINE iscpl_init
@@ -41,7 +41,8 @@ MODULE iscplini
       WRITE(numout, FMT = *) ' coupling     flag (ln_iscpl )            = ', ln_iscpl
       WRITE(numout, FMT = *) ' conservation flag (ln_hsb   )            = ', ln_hsb
       WRITE(numout, FMT = *) ' nb of stp for cons (rn_fiscpl)           = ', nstp_iscpl
-      IF (nstp_iscpl .NE. nn_fiscpl) WRITE(numout, FMT = *) 'W A R N I N G: nb of stp for cons has been modified                                            (larger than run length)'
+      IF (nstp_iscpl .NE. nn_fiscpl) WRITE(numout, FMT = *) 'W A R N I N G: nb of stp for cons has been modified                   &
+&                         (larger than run length)'
       WRITE(numout, FMT = *) ' coupling time step                       = ', rdt_iscpl
       WRITE(numout, FMT = *) ' number of call of the extrapolation loop = ', nn_drown
     END IF

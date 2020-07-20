@@ -7,28 +7,23 @@ MODULE iom_nf90
   USE lib_mpp
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: iom_nf90_open, iom_nf90_close, iom_nf90_varid, iom_nf90_get, iom_nf90_gettime, iom_nf90_rstput
-  PUBLIC :: iom_nf90_getatt, iom_nf90_putatt
+  PUBLIC :: iom_nf90_open, iom_nf90_close, iom_nf90_varid, iom_nf90_get, iom_nf90_rstput
+  PUBLIC :: iom_nf90_chkatt, iom_nf90_getatt, iom_nf90_putatt
   INTERFACE iom_nf90_get
     MODULE PROCEDURE iom_nf90_g0d, iom_nf90_g123d
-  END INTERFACE
-  INTERFACE iom_nf90_getatt
-    MODULE PROCEDURE iom_nf90_giatt, iom_nf90_gratt, iom_nf90_gcatt
-  END INTERFACE
-  INTERFACE iom_nf90_putatt
-    MODULE PROCEDURE iom_nf90_piatt, iom_nf90_pratt, iom_nf90_pcatt
   END INTERFACE
   INTERFACE iom_nf90_rstput
     MODULE PROCEDURE iom_nf90_rp0123d
   END INTERFACE
   CONTAINS
   SUBROUTINE iom_nf90_open(cdname, kiomid, ldwrt, ldok, kdompar, kdlev)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *), INTENT(INOUT) :: cdname
-    INTEGER, INTENT(  OUT) :: kiomid
-    LOGICAL, INTENT(IN   ) :: ldwrt
-    LOGICAL, INTENT(IN   ) :: ldok
-    INTEGER, DIMENSION(2, 5), INTENT(IN   ), OPTIONAL :: kdompar
-    INTEGER, INTENT(IN   ), OPTIONAL :: kdlev
+    INTEGER, INTENT(OUT) :: kiomid
+    LOGICAL, INTENT(IN) :: ldwrt
+    LOGICAL, INTENT(IN) :: ldok
+    INTEGER, DIMENSION(2, 5), INTENT(IN), OPTIONAL :: kdompar
+    INTEGER, INTENT(IN), OPTIONAL :: kdlev
     CHARACTER(LEN = 256) :: clinfo
     CHARACTER(LEN = 256) :: cltmp
     INTEGER :: iln
@@ -41,6 +36,8 @@ MODULE iom_nf90
     INTEGER :: ihdf5
     LOGICAL :: llclobber
     INTEGER :: ilevels
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('iom_nf90_open', 'r0', 0, 0)
     clinfo = '                    iom_nf90_open ~~~  '
     istop = nstop
     IF (PRESENT(kdlev)) THEN
@@ -71,7 +68,7 @@ MODULE iom_nf90
       iln = INDEX(cdname, '.nc')
       IF (ldwrt) THEN
         IF (jpnij > 1) THEN
-          WRITE(cltmp, FMT = '(a,a,i4.4,a)') cdname(1 : iln - 1), '_', narea - 1, '.nc'
+          WRITE(cltmp, FMT = '(a,a,i6.6,a)') cdname(1 : iln - 1), '_', narea - 1, '.nc'
           cdname = TRIM(cltmp)
         END IF
         IF (lwp) WRITE(numout, FMT = *) TRIM(clinfo) // ' create new file: ' // TRIM(cdname) // ' in WRITE mode'
@@ -95,12 +92,9 @@ MODULE iom_nf90
         CALL iom_nf90_check(NF90_SET_FILL(if90id, NF90_NOFILL, idmy), clinfo)
         CALL iom_nf90_check(NF90_DEF_DIM(if90id, 'x', kdompar(1, 1), idmy), clinfo)
         CALL iom_nf90_check(NF90_DEF_DIM(if90id, 'y', kdompar(2, 1), idmy), clinfo)
-        IF (PRESENT(kdlev)) THEN
-          CALL iom_nf90_check(NF90_DEF_DIM(if90id, 'numcat', ilevels, idmy), clinfo)
-        ELSE
-          CALL iom_nf90_check(NF90_DEF_DIM(if90id, 'nav_lev', ilevels, idmy), clinfo)
-        END IF
+        CALL iom_nf90_check(NF90_DEF_DIM(if90id, 'nav_lev', jpk, idmy), clinfo)
         CALL iom_nf90_check(NF90_DEF_DIM(if90id, 'time_counter', NF90_UNLIMITED, idmy), clinfo)
+        IF (PRESENT(kdlev)) CALL iom_nf90_check(NF90_DEF_DIM(if90id, 'numcat', kdlev, idmy), clinfo)
         CALL iom_nf90_check(NF90_PUT_ATT(if90id, NF90_GLOBAL, 'DOMAIN_number_total', jpnij), clinfo)
         CALL iom_nf90_check(NF90_PUT_ATT(if90id, NF90_GLOBAL, 'DOMAIN_number', narea - 1), clinfo)
         CALL iom_nf90_check(NF90_PUT_ATT(if90id, NF90_GLOBAL, 'DOMAIN_dimensions_ids', (/1, 2/)), clinfo)
@@ -122,31 +116,37 @@ MODULE iom_nf90
       END DO
       iom_file(kiomid) % name = TRIM(cdname)
       iom_file(kiomid) % nfid = if90id
-      iom_file(kiomid) % iolib = jpnf90
       iom_file(kiomid) % nvars = 0
       iom_file(kiomid) % irec = - 1
       iom_file(kiomid) % nlev = ilevels
       CALL iom_nf90_check(NF90_Inquire(if90id, unlimitedDimId = iom_file(kiomid) % iduld), clinfo)
       IF (iom_file(kiomid) % iduld .GE. 0) THEN
-        CALL iom_nf90_check(NF90_Inquire_Dimension(if90id, iom_file(kiomid) % iduld, name = iom_file(kiomid) % uldname, len = iom_file(kiomid) % lenuld), clinfo)
+        CALL iom_nf90_check(NF90_Inquire_Dimension(if90id, iom_file(kiomid) % iduld, name = iom_file(kiomid) % uldname, &
+&len = iom_file(kiomid) % lenuld), clinfo)
       END IF
       IF (lwp) WRITE(numout, FMT = *) '                   ---> ' // TRIM(cdname) // ' OK'
     ELSE
       kiomid = 0
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE iom_nf90_open
   SUBROUTINE iom_nf90_close(kiomid)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kiomid
     CHARACTER(LEN = 100) :: clinfo
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('iom_nf90_close', 'r0', 0, 0)
     clinfo = '      iom_nf90_close    , file: ' // TRIM(iom_file(kiomid) % name)
     CALL iom_nf90_check(NF90_CLOSE(iom_file(kiomid) % nfid), clinfo)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE iom_nf90_close
   FUNCTION iom_nf90_varid(kiomid, cdvar, kiv, kdimsz, kndims)
-    INTEGER, INTENT(IN   ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdvar
-    INTEGER, INTENT(IN   ) :: kiv
-    INTEGER, DIMENSION(:), INTENT(  OUT), OPTIONAL :: kdimsz
-    INTEGER, INTENT(  OUT), OPTIONAL :: kndims
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kiomid
+    CHARACTER(LEN = *), INTENT(IN) :: cdvar
+    INTEGER, INTENT(IN) :: kiv
+    INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL :: kdimsz
+    INTEGER, INTENT(OUT), OPTIONAL :: kndims
     INTEGER :: iom_nf90_varid
     INTEGER :: if90id
     INTEGER :: ji
@@ -155,6 +155,8 @@ MODULE iom_nf90
     INTEGER, DIMENSION(jpmax_dims) :: idimid
     LOGICAL :: llok
     CHARACTER(LEN = 100) :: clinfo
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('iom_nf90_varid', 'r0', 0, 0)
     clinfo = '          iom_nf90_varid, file: ' // TRIM(iom_file(kiomid) % name) // ', var: ' // TRIM(cdvar)
     iom_nf90_varid = 0
     IF (PRESENT(kdimsz)) kdimsz(:) = 0
@@ -198,249 +200,184 @@ MODULE iom_nf90
     ELSE
       iom_nf90_varid = - 1
     END IF
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION iom_nf90_varid
   SUBROUTINE iom_nf90_g0d(kiomid, kvid, pvar, kstart)
-    INTEGER, INTENT(IN   ) :: kiomid
-    INTEGER, INTENT(IN   ) :: kvid
-    REAL(KIND = wp), INTENT(  OUT) :: pvar
-    INTEGER, DIMENSION(1), INTENT(IN   ), OPTIONAL :: kstart
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kiomid
+    INTEGER, INTENT(IN) :: kvid
+    REAL(KIND = wp), INTENT(OUT) :: pvar
+    INTEGER, DIMENSION(1), INTENT(IN), OPTIONAL :: kstart
     CHARACTER(LEN = 100) :: clinfo
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('iom_nf90_g0d', 'r0', 0, 0)
     clinfo = 'iom_nf90_g0d , file: ' // TRIM(iom_file(kiomid) % name) // ', var: ' // TRIM(iom_file(kiomid) % cn_var(kvid))
     CALL iom_nf90_check(NF90_GET_VAR(iom_file(kiomid) % nfid, iom_file(kiomid) % nvid(kvid), pvar, start = kstart), clinfo)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE iom_nf90_g0d
   SUBROUTINE iom_nf90_g123d(kiomid, kvid, knbdim, kstart, kcount, kx1, kx2, ky1, ky2, pv_r1d, pv_r2d, pv_r3d)
-    INTEGER, INTENT(IN   ) :: kiomid
-    INTEGER, INTENT(IN   ) :: kvid
-    INTEGER, INTENT(IN   ) :: knbdim
-    INTEGER, DIMENSION(:), INTENT(IN   ) :: kstart
-    INTEGER, DIMENSION(:), INTENT(IN   ) :: kcount
-    INTEGER, INTENT(IN   ) :: kx1, kx2, ky1, ky2
-    REAL(KIND = wp), DIMENSION(:), INTENT(  OUT), OPTIONAL :: pv_r1d
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(  OUT), OPTIONAL :: pv_r2d
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(  OUT), OPTIONAL :: pv_r3d
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kiomid
+    INTEGER, INTENT(IN) :: kvid
+    INTEGER, INTENT(IN) :: knbdim
+    INTEGER, DIMENSION(:), INTENT(IN) :: kstart
+    INTEGER, DIMENSION(:), INTENT(IN) :: kcount
+    INTEGER, INTENT(IN) :: kx1, kx2, ky1, ky2
+    REAL(KIND = wp), DIMENSION(:), INTENT(OUT), OPTIONAL :: pv_r1d
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT), OPTIONAL :: pv_r2d
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(OUT), OPTIONAL :: pv_r3d
     CHARACTER(LEN = 100) :: clinfo
     INTEGER :: if90id
     INTEGER :: ivid
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('iom_nf90_g123d', 'r0', 0, 0)
     clinfo = 'iom_nf90_g123d , file: ' // TRIM(iom_file(kiomid) % name) // ', var: ' // TRIM(iom_file(kiomid) % cn_var(kvid))
     if90id = iom_file(kiomid) % nfid
     ivid = iom_file(kiomid) % nvid(kvid)
     IF (PRESENT(pv_r1d)) THEN
       CALL iom_nf90_check(NF90_GET_VAR(if90id, ivid, pv_r1d(:), start = kstart(1 : knbdim), count = kcount(1 : knbdim)), clinfo)
     ELSE IF (PRESENT(pv_r2d)) THEN
-      CALL iom_nf90_check(NF90_GET_VAR(if90id, ivid, pv_r2d(kx1 : kx2, ky1 : ky2), start = kstart(1 : knbdim), count = kcount(1 : knbdim)), clinfo)
+      CALL iom_nf90_check(NF90_GET_VAR(if90id, ivid, pv_r2d(kx1 : kx2, ky1 : ky2), start = kstart(1 : knbdim), &
+&count = kcount(1 : knbdim)), clinfo)
     ELSE IF (PRESENT(pv_r3d)) THEN
-      CALL iom_nf90_check(NF90_GET_VAR(if90id, ivid, pv_r3d(kx1 : kx2, ky1 : ky2, :), start = kstart(1 : knbdim), count = kcount(1 : knbdim)), clinfo)
+      CALL iom_nf90_check(NF90_GET_VAR(if90id, ivid, pv_r3d(kx1 : kx2, ky1 : ky2, :), start = kstart(1 : knbdim), &
+&count = kcount(1 : knbdim)), clinfo)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE iom_nf90_g123d
-  SUBROUTINE iom_nf90_giatt(kiomid, cdatt, pv_i0d, cdvar)
-    INTEGER, INTENT(IN   ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
-    INTEGER, INTENT(  OUT) :: pv_i0d
-    CHARACTER(LEN = *), INTENT(IN   ), OPTIONAL :: cdvar
+  SUBROUTINE iom_nf90_chkatt(kiomid, cdatt, llok, ksize, cdvar)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kiomid
+    CHARACTER(LEN = *), INTENT(IN) :: cdatt
+    LOGICAL, INTENT(OUT) :: llok
+    INTEGER, INTENT(OUT), OPTIONAL :: ksize
+    CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cdvar
+    INTEGER :: if90id
+    INTEGER :: isize
+    INTEGER :: ivarid
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('iom_nf90_chkatt', 'r0', 0, 0)
+    if90id = iom_file(kiomid) % nfid
+    IF (PRESENT(cdvar)) THEN
+      llok = NF90_INQ_VARID(if90id, TRIM(cdvar), ivarid) == nf90_noerr
+      IF (llok) llok = NF90_Inquire_attribute(if90id, ivarid, cdatt, len = isize) == nf90_noerr
+    ELSE
+      llok = NF90_Inquire_attribute(if90id, NF90_GLOBAL, cdatt, len = isize) == nf90_noerr
+    END IF
+    IF (PRESENT(ksize)) ksize = isize
+    IF (.NOT. llok) CALL ctl_warn('iom_nf90_chkatt: no attribute ' // cdatt // ' found')
+    CALL profile_psy_data0 % PostEnd
+  END SUBROUTINE iom_nf90_chkatt
+  SUBROUTINE iom_nf90_getatt(kiomid, cdatt, katt0d, katt1d, patt0d, patt1d, cdatt0d, cdvar)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kiomid
+    CHARACTER(LEN = *), INTENT(IN) :: cdatt
+    INTEGER, INTENT(OUT), OPTIONAL :: katt0d
+    INTEGER, DIMENSION(:), INTENT(OUT), OPTIONAL :: katt1d
+    REAL(KIND = wp), INTENT(OUT), OPTIONAL :: patt0d
+    REAL(KIND = wp), DIMENSION(:), INTENT(OUT), OPTIONAL :: patt1d
+    CHARACTER(LEN = *), INTENT(OUT), OPTIONAL :: cdatt0d
+    CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cdvar
     INTEGER :: if90id
     INTEGER :: ivarid
     LOGICAL :: llok
     CHARACTER(LEN = 100) :: clinfo
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('iom_nf90_getatt', 'r0', 0, 0)
     if90id = iom_file(kiomid) % nfid
     IF (PRESENT(cdvar)) THEN
       llok = NF90_INQ_VARID(if90id, TRIM(cdvar), ivarid) == nf90_noerr
       IF (llok) THEN
         llok = NF90_Inquire_attribute(if90id, ivarid, cdatt) == nf90_noerr
       ELSE
-        CALL ctl_warn('iom_nf90_getatt: no variable ' // cdvar // ' found')
+        CALL ctl_warn('iom_nf90_getatt: no variable ' // TRIM(cdvar) // ' found')
       END IF
     ELSE
       llok = NF90_Inquire_attribute(if90id, NF90_GLOBAL, cdatt) == nf90_noerr
       ivarid = NF90_GLOBAL
     END IF
     IF (llok) THEN
-      clinfo = 'iom_nf90_getatt, file: ' // TRIM(iom_file(kiomid) % name) // ', giatt: ' // TRIM(cdatt)
-      CALL iom_nf90_check(NF90_GET_ATT(if90id, ivarid, cdatt, values = pv_i0d), clinfo)
+      clinfo = 'iom_nf90_getatt, file: ' // TRIM(iom_file(kiomid) % name) // ', att: ' // TRIM(cdatt)
+      IF (PRESENT(katt0d)) CALL iom_nf90_check(NF90_GET_ATT(if90id, ivarid, cdatt, values = katt0d), clinfo)
+      IF (PRESENT(katt1d)) CALL iom_nf90_check(NF90_GET_ATT(if90id, ivarid, cdatt, values = katt1d), clinfo)
+      IF (PRESENT(patt0d)) CALL iom_nf90_check(NF90_GET_ATT(if90id, ivarid, cdatt, values = patt0d), clinfo)
+      IF (PRESENT(patt1d)) CALL iom_nf90_check(NF90_GET_ATT(if90id, ivarid, cdatt, values = patt1d), clinfo)
+      IF (PRESENT(cdatt0d)) CALL iom_nf90_check(NF90_GET_ATT(if90id, ivarid, cdatt, values = cdatt0d), clinfo)
     ELSE
-      CALL ctl_warn('iom_nf90_getatt: no attribute ' // cdatt // ' found')
-      pv_i0d = - 999
+      CALL ctl_warn('iom_nf90_getatt: no attribute ' // TRIM(cdatt) // ' found')
+      IF (PRESENT(katt0d)) katt0d = - 999
+      IF (PRESENT(katt1d)) katt1d(:) = - 999
+      IF (PRESENT(patt0d)) patt0d = - 999._wp
+      IF (PRESENT(patt1d)) patt1d(:) = - 999._wp
+      IF (PRESENT(cdatt0d)) cdatt0d = '!'
     END IF
-  END SUBROUTINE iom_nf90_giatt
-  SUBROUTINE iom_nf90_gratt(kiomid, cdatt, pv_r0d, cdvar)
-    INTEGER, INTENT(IN   ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
-    REAL(KIND = wp), INTENT(  OUT) :: pv_r0d
-    CHARACTER(LEN = *), OPTIONAL, INTENT(IN   ) :: cdvar
+    CALL profile_psy_data0 % PostEnd
+  END SUBROUTINE iom_nf90_getatt
+  SUBROUTINE iom_nf90_putatt(kiomid, cdatt, katt0d, katt1d, patt0d, patt1d, cdatt0d, cdvar)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kiomid
+    CHARACTER(LEN = *), INTENT(IN) :: cdatt
+    INTEGER, INTENT(IN), OPTIONAL :: katt0d
+    INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL :: katt1d
+    REAL(KIND = wp), INTENT(IN), OPTIONAL :: patt0d
+    REAL(KIND = wp), DIMENSION(:), INTENT(IN), OPTIONAL :: patt1d
+    CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cdatt0d
+    CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: cdvar
     INTEGER :: if90id
     INTEGER :: ivarid
+    INTEGER :: isize
+    INTEGER :: itype
     LOGICAL :: llok
+    LOGICAL :: llatt
+    LOGICAL :: lldata
     CHARACTER(LEN = 100) :: clinfo
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    CALL profile_psy_data0 % PreStart('iom_nf90_putatt', 'r0', 0, 0)
     if90id = iom_file(kiomid) % nfid
+    CALL profile_psy_data0 % PostEnd
     IF (PRESENT(cdvar)) THEN
+      CALL profile_psy_data1 % PreStart('iom_nf90_putatt', 'r1', 0, 0)
       llok = NF90_INQ_VARID(if90id, TRIM(cdvar), ivarid) == nf90_noerr
-      IF (llok) THEN
-        llok = NF90_Inquire_attribute(if90id, ivarid, cdatt) == nf90_noerr
-      ELSE
-        CALL ctl_warn('iom_nf90_getatt: no variable ' // cdvar // ' found')
-      END IF
-    ELSE
-      llok = NF90_Inquire_attribute(if90id, NF90_GLOBAL, cdatt) == nf90_noerr
-      ivarid = NF90_GLOBAL
-    END IF
-    IF (llok) THEN
-      clinfo = 'iom_nf90_getatt, file: ' // TRIM(iom_file(kiomid) % name) // ', gratt: ' // TRIM(cdatt)
-      CALL iom_nf90_check(NF90_GET_ATT(if90id, ivarid, cdatt, values = pv_r0d), clinfo)
-    ELSE
-      CALL ctl_warn('iom_nf90_getatt: no attribute ' // cdatt // ' found')
-      pv_r0d = - 999._wp
-    END IF
-  END SUBROUTINE iom_nf90_gratt
-  SUBROUTINE iom_nf90_gcatt(kiomid, cdatt, pv_c0d, cdvar)
-    INTEGER, INTENT(IN   ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
-    CHARACTER(LEN = *), INTENT(  OUT) :: pv_c0d
-    CHARACTER(LEN = *), OPTIONAL, INTENT(IN   ) :: cdvar
-    INTEGER :: if90id
-    INTEGER :: ivarid
-    LOGICAL :: llok
-    CHARACTER(LEN = 100) :: clinfo
-    if90id = iom_file(kiomid) % nfid
-    IF (PRESENT(cdvar)) THEN
-      llok = NF90_INQ_VARID(if90id, TRIM(cdvar), ivarid) == nf90_noerr
-      IF (llok) THEN
-        llok = NF90_Inquire_attribute(if90id, ivarid, cdatt) == nf90_noerr
-      ELSE
-        CALL ctl_warn('iom_nf90_getatt: no variable ' // cdvar // ' found')
-      END IF
-    ELSE
-      llok = NF90_Inquire_attribute(if90id, NF90_GLOBAL, cdatt) == nf90_noerr
-      ivarid = NF90_GLOBAL
-    END IF
-    IF (llok) THEN
-      clinfo = 'iom_nf90_getatt, file: ' // TRIM(iom_file(kiomid) % name) // ', gcatt: ' // TRIM(cdatt)
-      CALL iom_nf90_check(NF90_GET_ATT(if90id, ivarid, cdatt, values = pv_c0d), clinfo)
-    ELSE
-      CALL ctl_warn('iom_nf90_getatt: no attribute ' // cdatt // ' found')
-      pv_c0d = '!'
-    END IF
-  END SUBROUTINE iom_nf90_gcatt
-  SUBROUTINE iom_nf90_piatt(kiomid, cdatt, pv_i0d, cdvar)
-    INTEGER, INTENT(IN   ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
-    INTEGER, INTENT(IN   ) :: pv_i0d
-    CHARACTER(LEN = *), INTENT(IN   ), OPTIONAL :: cdvar
-    INTEGER :: if90id
-    INTEGER :: ivarid
-    LOGICAL :: llok
-    LOGICAL :: lenddef
-    CHARACTER(LEN = 100) :: clinfo
-    if90id = iom_file(kiomid) % nfid
-    lenddef = .FALSE.
-    IF (PRESENT(cdvar)) THEN
-      llok = NF90_INQ_VARID(if90id, TRIM(cdvar), ivarid) == nf90_noerr
+      CALL profile_psy_data1 % PostEnd
       IF (.NOT. llok) THEN
-        CALL ctl_warn('iom_nf90_putatt: no variable ' // cdvar // ' found')
+        CALL ctl_warn('iom_nf90_putatt: no variable ' // TRIM(cdvar) // ' found', &
+&'                 no attribute ' // cdatt // ' written')
+        RETURN
       END IF
     ELSE
-      llok = .TRUE.
+      CALL profile_psy_data2 % PreStart('iom_nf90_putatt', 'r2', 0, 0)
       ivarid = NF90_GLOBAL
+      CALL profile_psy_data2 % PostEnd
     END IF
-    IF (llok) THEN
-      clinfo = 'iom_nf90_putatt, file: ' // TRIM(iom_file(kiomid) % name) // ', piatt: ' // TRIM(cdatt)
-      IF (iom_file(kiomid) % irec /= - 1) THEN
-        CALL iom_nf90_check(NF90_REDEF(if90id), clinfo)
-        lenddef = .TRUE.
-      END IF
-      CALL iom_nf90_check(NF90_PUT_ATT(if90id, ivarid, cdatt, values = pv_i0d), clinfo)
-      IF (lenddef) THEN
-        CALL iom_nf90_check(NF90_ENDDEF(if90id), clinfo)
-      END IF
-    ELSE
-      CALL ctl_warn('iom_nf90_putatt: no attribute ' // cdatt // ' written')
+    CALL profile_psy_data3 % PreStart('iom_nf90_putatt', 'r3', 0, 0)
+    llatt = NF90_Inquire_attribute(if90id, ivarid, cdatt, len = isize, xtype = itype) == nf90_noerr
+    lldata = iom_file(kiomid) % irec /= - 1
+    IF (lldata .AND. llatt) THEN
+      IF (PRESENT(katt0d) .OR. PRESENT(katt1d)) llok = itype == NF90_INT
+      IF (PRESENT(patt0d) .OR. PRESENT(patt1d)) llok = itype == NF90_DOUBLE
+      IF (PRESENT(cdatt0d)) llok = itype == NF90_CHAR
+      IF (PRESENT(katt0d)) llok = llok .AND. isize == 1
+      IF (PRESENT(katt1d)) llok = llok .AND. isize == SIZE(katt1d)
+      IF (PRESENT(patt0d)) llok = llok .AND. isize == 1
+      IF (PRESENT(patt1d)) llok = llok .AND. isize == SIZE(patt1d)
+      IF (PRESENT(cdatt0d)) llok = llok .AND. isize == LEN_TRIM(cdatt0d)
+      lldata = .NOT. llok
     END IF
-  END SUBROUTINE iom_nf90_piatt
-  SUBROUTINE iom_nf90_pratt(kiomid, cdatt, pv_r0d, cdvar)
-    INTEGER, INTENT(IN   ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
-    REAL(KIND = wp), INTENT(IN   ) :: pv_r0d
-    CHARACTER(LEN = *), OPTIONAL, INTENT(IN   ) :: cdvar
-    INTEGER :: if90id
-    INTEGER :: ivarid
-    LOGICAL :: llok
-    LOGICAL :: lenddef
-    CHARACTER(LEN = 100) :: clinfo
-    if90id = iom_file(kiomid) % nfid
-    lenddef = .FALSE.
-    IF (PRESENT(cdvar)) THEN
-      llok = NF90_INQ_VARID(if90id, TRIM(cdvar), ivarid) == nf90_noerr
-      IF (.NOT. llok) THEN
-        CALL ctl_warn('iom_nf90_putatt: no variable ' // cdvar // ' found')
-      END IF
-    ELSE
-      llok = .TRUE.
-      ivarid = NF90_GLOBAL
-    END IF
-    IF (llok) THEN
-      clinfo = 'iom_nf90_putatt, file: ' // TRIM(iom_file(kiomid) % name) // ', pratt: ' // TRIM(cdatt)
-      IF (iom_file(kiomid) % irec /= - 1) THEN
-        CALL iom_nf90_check(NF90_REDEF(if90id), clinfo)
-        lenddef = .TRUE.
-      END IF
-      CALL iom_nf90_check(NF90_PUT_ATT(if90id, ivarid, cdatt, values = pv_r0d), clinfo)
-      IF (lenddef) THEN
-        CALL iom_nf90_check(NF90_ENDDEF(if90id), clinfo)
-      END IF
-    ELSE
-      CALL ctl_warn('iom_nf90_putatt: no attribute ' // cdatt // ' written')
-    END IF
-  END SUBROUTINE iom_nf90_pratt
-  SUBROUTINE iom_nf90_pcatt(kiomid, cdatt, pv_c0d, cdvar)
-    INTEGER, INTENT(IN   ) :: kiomid
-    CHARACTER(LEN = *), INTENT(IN   ) :: cdatt
-    CHARACTER(LEN = *), INTENT(IN   ) :: pv_c0d
-    CHARACTER(LEN = *), OPTIONAL, INTENT(IN   ) :: cdvar
-    INTEGER :: if90id
-    INTEGER :: ivarid
-    LOGICAL :: llok
-    LOGICAL :: lenddef
-    CHARACTER(LEN = 100) :: clinfo
-    if90id = iom_file(kiomid) % nfid
-    lenddef = .FALSE.
-    IF (PRESENT(cdvar)) THEN
-      llok = NF90_INQ_VARID(if90id, TRIM(cdvar), ivarid) == nf90_noerr
-      IF (.NOT. llok) THEN
-        CALL ctl_warn('iom_nf90_putatt: no variable ' // cdvar // ' found')
-      END IF
-    ELSE
-      llok = .TRUE.
-      ivarid = NF90_GLOBAL
-    END IF
-    IF (llok) THEN
-      clinfo = 'iom_nf90_putatt, file: ' // TRIM(iom_file(kiomid) % name) // ', pcatt: ' // TRIM(cdatt)
-      IF (iom_file(kiomid) % irec /= - 1) THEN
-        CALL iom_nf90_check(NF90_REDEF(if90id), clinfo)
-        lenddef = .TRUE.
-      END IF
-      CALL iom_nf90_check(NF90_PUT_ATT(if90id, ivarid, cdatt, values = pv_c0d), clinfo)
-      IF (lenddef) THEN
-        CALL iom_nf90_check(NF90_ENDDEF(if90id), clinfo)
-      END IF
-    ELSE
-      CALL ctl_warn('iom_nf90_putatt: no attribute ' // cdatt // ' written')
-    END IF
-  END SUBROUTINE iom_nf90_pcatt
-  SUBROUTINE iom_nf90_gettime(kiomid, kvid, ptime, cdunits, cdcalendar)
-    INTEGER, INTENT(IN   ) :: kiomid
-    INTEGER, INTENT(IN   ) :: kvid
-    REAL(KIND = wp), DIMENSION(:), INTENT(  OUT) :: ptime
-    CHARACTER(LEN = *), OPTIONAL, INTENT(  OUT) :: cdunits
-    CHARACTER(LEN = *), OPTIONAL, INTENT(  OUT) :: cdcalendar
-    CHARACTER(LEN = 100) :: clinfo
-    clinfo = 'iom_nf90_gettime, file: ' // TRIM(iom_file(kiomid) % name) // ', var: ' // TRIM(iom_file(kiomid) % cn_var(kvid))
-    CALL iom_nf90_check(NF90_GET_VAR(iom_file(kiomid) % nfid, iom_file(kiomid) % nvid(kvid), ptime(:), start = (/1/), count = (/iom_file(kiomid) % dimsz(1, kvid)/)), clinfo)
-    IF (PRESENT(cdunits)) THEN
-      CALL iom_nf90_check(NF90_GET_ATT(iom_file(kiomid) % nfid, iom_file(kiomid) % nvid(kvid), "units", values = cdunits), clinfo)
-    END IF
-    IF (PRESENT(cdcalendar)) THEN
-      CALL iom_nf90_check(NF90_GET_ATT(iom_file(kiomid) % nfid, iom_file(kiomid) % nvid(kvid), "calendar", values = cdcalendar), clinfo)
-    END IF
-  END SUBROUTINE iom_nf90_gettime
+    clinfo = 'iom_nf90_putatt, file: ' // TRIM(iom_file(kiomid) % name) // ', att: ' // TRIM(cdatt)
+    IF (lldata) CALL iom_nf90_check(NF90_REDEF(if90id), clinfo)
+    IF (PRESENT(katt0d)) CALL iom_nf90_check(NF90_PUT_ATT(if90id, ivarid, cdatt, values = katt0d), clinfo)
+    IF (PRESENT(katt1d)) CALL iom_nf90_check(NF90_PUT_ATT(if90id, ivarid, cdatt, values = katt1d), clinfo)
+    IF (PRESENT(patt0d)) CALL iom_nf90_check(NF90_PUT_ATT(if90id, ivarid, cdatt, values = patt0d), clinfo)
+    IF (PRESENT(patt1d)) CALL iom_nf90_check(NF90_PUT_ATT(if90id, ivarid, cdatt, values = patt1d), clinfo)
+    IF (PRESENT(cdatt0d)) CALL iom_nf90_check(NF90_PUT_ATT(if90id, ivarid, cdatt, values = TRIM(cdatt0d)), clinfo)
+    IF (lldata) CALL iom_nf90_check(NF90_ENDDEF(if90id), clinfo)
+    CALL profile_psy_data3 % PostEnd
+  END SUBROUTINE iom_nf90_putatt
   SUBROUTINE iom_nf90_rp0123d(kt, kwrite, kiomid, cdvar, kvid, ktype, pv_r0d, pv_r1d, pv_r2d, pv_r3d)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN) :: kwrite
     INTEGER, INTENT(IN) :: kiomid
@@ -458,7 +395,7 @@ MODULE iom_nf90
     INTEGER, DIMENSION(4) :: idimsz
     INTEGER, DIMENSION(4) :: idimid
     CHARACTER(LEN = 256) :: clinfo
-    CHARACTER(LEN = 12), DIMENSION(4) :: cltmp
+    CHARACTER(LEN = 12), DIMENSION(5) :: cltmp
     INTEGER :: if90id
     INTEGER :: idmy
     INTEGER :: itype
@@ -466,6 +403,9 @@ MODULE iom_nf90
     INTEGER :: ichunkalg, ishuffle, ideflate, ideflate_level
     LOGICAL :: lchunk
     INTEGER :: idlv
+    INTEGER :: idim3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('iom_nf90_rp0123d', 'r0', 0, 0)
     clinfo = '          iom_nf90_rp0123d, file: ' // TRIM(iom_file(kiomid) % name) // ', var: ' // TRIM(cdvar)
     if90id = iom_file(kiomid) % nfid
     IF (iom_file(kiomid) % nvars == 0) THEN
@@ -473,19 +413,22 @@ MODULE iom_nf90
         CALL iom_nf90_check(nf90_redef(if90id), clinfo)
         iom_file(kiomid) % irec = - 1
       END IF
-      IF (iom_file(kiomid) % nlev == jpk) THEN
-        cltmp = (/'nav_lon     ', 'nav_lat     ', 'nav_lev     ', 'time_counter'/)
-      ELSE
-        cltmp = (/'nav_lon     ', 'nav_lat     ', 'numcat      ', 'time_counter'/)
-      END IF
+      cltmp = (/'nav_lon     ', 'nav_lat     ', 'nav_lev     ', 'time_counter', 'numcat      '/)
       CALL iom_nf90_check(NF90_DEF_VAR(if90id, TRIM(cltmp(1)), NF90_FLOAT, (/1, 2/), iom_file(kiomid) % nvid(1)), clinfo)
       CALL iom_nf90_check(NF90_DEF_VAR(if90id, TRIM(cltmp(2)), NF90_FLOAT, (/1, 2/), iom_file(kiomid) % nvid(2)), clinfo)
       CALL iom_nf90_check(NF90_DEF_VAR(if90id, TRIM(cltmp(3)), NF90_FLOAT, (/3/), iom_file(kiomid) % nvid(3)), clinfo)
       CALL iom_nf90_check(NF90_DEF_VAR(if90id, TRIM(cltmp(4)), NF90_DOUBLE, (/4/), iom_file(kiomid) % nvid(4)), clinfo)
       iom_file(kiomid) % nvars = 4
       iom_file(kiomid) % luld(1 : 4) = (/.FALSE., .FALSE., .FALSE., .TRUE./)
-      iom_file(kiomid) % cn_var(1 : 4) = cltmp
+      iom_file(kiomid) % cn_var(1 : 4) = cltmp(1 : 4)
       iom_file(kiomid) % ndims(1 : 4) = (/2, 2, 1, 1/)
+      IF (NF90_INQ_DIMID(if90id, 'numcat', idmy) == nf90_noerr) THEN
+        CALL iom_nf90_check(NF90_DEF_VAR(if90id, TRIM(cltmp(5)), NF90_FLOAT, (/5/), iom_file(kiomid) % nvid(5)), clinfo)
+        iom_file(kiomid) % nvars = 5
+        iom_file(kiomid) % luld(5) = .FALSE.
+        iom_file(kiomid) % cn_var(5) = cltmp(5)
+        iom_file(kiomid) % ndims(5) = 1
+      END IF
       iom_file(kiomid) % dimsz(1, 1) = 0
       IF (lwp) WRITE(numout, FMT = *) TRIM(clinfo) // ' define dimension variables done'
     END IF
@@ -502,14 +445,24 @@ MODULE iom_nf90
       IF (PRESENT(pv_r0d)) THEN
         idims = 0
       ELSE IF (PRESENT(pv_r1d)) THEN
+        IF (SIZE(pv_r1d, 1) == jpk) THEN
+          idim3 = 3
+        ELSE
+          idim3 = 5
+        END IF
         idims = 2
-        idimid(1 : idims) = (/3, 4/)
+        idimid(1 : idims) = (/idim3, 4/)
       ELSE IF (PRESENT(pv_r2d)) THEN
         idims = 3
         idimid(1 : idims) = (/1, 2, 4/)
       ELSE IF (PRESENT(pv_r3d)) THEN
+        IF (SIZE(pv_r3d, 3) == jpk) THEN
+          idim3 = 3
+        ELSE
+          idim3 = 5
+        END IF
         idims = 4
-        idimid(1 : idims) = (/1, 2, 3, 4/)
+        idimid(1 : idims) = (/1, 2, idim3, 4/)
       END IF
       IF (PRESENT(ktype)) THEN
         SELECT CASE (ktype)
@@ -593,11 +546,9 @@ MODULE iom_nf90
           CALL iom_nf90_check(NF90_PUT_VAR(if90id, idmy, glamt(ix1 : ix2, iy1 : iy2)), clinfo)
           CALL iom_nf90_check(NF90_INQ_VARID(if90id, 'nav_lat', idmy), clinfo)
           CALL iom_nf90_check(NF90_PUT_VAR(if90id, idmy, gphit(ix1 : ix2, iy1 : iy2)), clinfo)
-          IF (iom_file(kiomid) % nlev == jpk) THEN
-            CALL iom_nf90_check(NF90_INQ_VARID(if90id, 'nav_lev', idmy), clinfo)
-            CALL iom_nf90_check(NF90_PUT_VAR(if90id, idmy, gdept_1d), clinfo)
-          ELSE
-            CALL iom_nf90_check(NF90_INQ_VARID(if90id, 'numcat', idmy), clinfo)
+          CALL iom_nf90_check(NF90_INQ_VARID(if90id, 'nav_lev', idmy), clinfo)
+          CALL iom_nf90_check(NF90_PUT_VAR(if90id, idmy, gdept_1d), clinfo)
+          IF (NF90_INQ_VARID(if90id, 'numcat', idmy) == nf90_noerr) THEN
             CALL iom_nf90_check(NF90_PUT_VAR(if90id, idmy, (/(idlv, idlv = 1, iom_file(kiomid) % nlev)/)), clinfo)
           END IF
           CALL iom_nf90_check(NF90_INQ_VARID(if90id, 'time_counter', idmy), clinfo)
@@ -619,9 +570,11 @@ MODULE iom_nf90
       ELSE IF (PRESENT(pv_r3d)) THEN
         CALL iom_nf90_check(NF90_PUT_VAR(if90id, idvar, pv_r3d(ix1 : ix2, iy1 : iy2, :)), clinfo)
       END IF
-      IF (iom_file(kiomid) % luld(idvar)) iom_file(kiomid) % dimsz(iom_file(kiomid) % ndims(idvar), idvar) = iom_file(kiomid) % dimsz(iom_file(kiomid) % ndims(idvar), idvar) + 1
+      IF (iom_file(kiomid) % luld(idvar)) iom_file(kiomid) % dimsz(iom_file(kiomid) % ndims(idvar), idvar) = iom_file(kiomid) % &
+&dimsz(iom_file(kiomid) % ndims(idvar), idvar) + 1
       IF (lwp) WRITE(numout, FMT = *) TRIM(clinfo) // ' written ok'
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE iom_nf90_rp0123d
   SUBROUTINE iom_nf90_check(kstatus, cdinfo)
     INTEGER, INTENT(IN) :: kstatus

@@ -49,22 +49,33 @@ MODULE cpl_oasis3
   REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: exfld
   CONTAINS
   SUBROUTINE cpl_init(cd_modname, kl_comm)
-    CHARACTER(LEN = *), INTENT(IN   ) :: cd_modname
-    INTEGER, INTENT(  OUT) :: kl_comm
+    CHARACTER(LEN = *), INTENT(IN) :: cd_modname
+    INTEGER, INTENT(OUT) :: kl_comm
     CALL oasis_init_comp(ncomp_id, TRIM(cd_modname), nerror)
     IF (nerror /= OASIS_Ok) CALL oasis_abort(ncomp_id, 'cpl_init', 'Failure in oasis_init_comp')
     CALL oasis_get_localcomm(kl_comm, nerror)
     IF (nerror /= OASIS_Ok) CALL oasis_abort(ncomp_id, 'cpl_init', 'Failure in oasis_get_localcomm')
   END SUBROUTINE cpl_init
   SUBROUTINE cpl_define(krcv, ksnd, kcplmodel)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: krcv, ksnd
     INTEGER, INTENT(IN) :: kcplmodel
     INTEGER :: id_part
     INTEGER :: paral(5)
-    INTEGER :: ishape(2, 2)
+    INTEGER :: ishape(4)
     INTEGER :: ji, jc, jm
     CHARACTER(LEN = 64) :: zclname
     CHARACTER(LEN = 2) :: cli2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data8
+    CALL profile_psy_data0 % PreStart('cpl_define', 'r0', 0, 0)
     IF (ltmp_wapatch) THEN
       nldi_save = nldi
       nlei_save = nlei
@@ -80,29 +91,37 @@ MODULE cpl_oasis3
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~~~~~'
     IF (lwp) WRITE(numout, FMT = *)
     ncplmodel = kcplmodel
+    CALL profile_psy_data0 % PostEnd
     IF (kcplmodel > nmaxcpl) THEN
       CALL oasis_abort(ncomp_id, 'cpl_define', 'ncplmodel is larger than nmaxcpl, increase nmaxcpl')
       RETURN
     END IF
+    CALL profile_psy_data1 % PreStart('cpl_define', 'r1', 0, 0)
     nrcv = krcv
+    CALL profile_psy_data1 % PostEnd
     IF (nrcv > nmaxfld) THEN
       CALL oasis_abort(ncomp_id, 'cpl_define', 'nrcv is larger than nmaxfld, increase nmaxfld')
       RETURN
     END IF
+    CALL profile_psy_data2 % PreStart('cpl_define', 'r2', 0, 0)
     nsnd = ksnd
+    CALL profile_psy_data2 % PostEnd
     IF (nsnd > nmaxfld) THEN
       CALL oasis_abort(ncomp_id, 'cpl_define', 'nsnd is larger than nmaxfld, increase nmaxfld')
       RETURN
     END IF
-    !$ACC KERNELS
-    ishape(:, 1) = (/1, nlei - nldi + 1/)
-    ishape(:, 2) = (/1, nlej - nldj + 1/)
-    !$ACC END KERNELS
+    CALL profile_psy_data3 % PreStart('cpl_define', 'r3', 0, 0)
+    ishape(1) = 1
+    ishape(2) = nlei - nldi + 1
+    ishape(3) = 1
+    ishape(4) = nlej - nldj + 1
     ALLOCATE(exfld(nlei - nldi + 1, nlej - nldj + 1), STAT = nerror)
+    CALL profile_psy_data3 % PostEnd
     IF (nerror > 0) THEN
       CALL oasis_abort(ncomp_id, 'cpl_define', 'Failure in allocating exfld')
       RETURN
     END IF
+    CALL profile_psy_data4 % PreStart('cpl_define', 'r4', 0, 0)
     paral(1) = 2
     paral(2) = jpiglo * (nldj - 1 + njmpp - 1) + (nldi - 1 + nimpp - 1)
     paral(3) = nlei - nldi + 1
@@ -116,12 +135,15 @@ MODULE cpl_oasis3
     END IF
     CALL oasis_def_partition(id_part, paral, nerror, jpiglo * jpjglo)
     ssnd(:) % ncplmodel = kcplmodel
+    CALL profile_psy_data4 % PostEnd
     DO ji = 1, ksnd
       IF (ssnd(ji) % laction) THEN
         IF (ssnd(ji) % nct > nmaxcat) THEN
-          CALL oasis_abort(ncomp_id, 'cpl_define', 'Number of categories of ' // TRIM(ssnd(ji) % clname) // ' is larger than nmaxcat, increase nmaxcat')
+          CALL oasis_abort(ncomp_id, 'cpl_define', &
+&'Number of categories of ' // TRIM(ssnd(ji) % clname) // ' is larger than nmaxcat, increase nmaxcat')
           RETURN
         END IF
+        CALL profile_psy_data5 % PreStart('cpl_define', 'r5', 0, 0)
         DO jc = 1, ssnd(ji) % nct
           DO jm = 1, kcplmodel
             IF (ssnd(ji) % nct .GT. 1) THEN
@@ -135,7 +157,7 @@ MODULE cpl_oasis3
               zclname = 'model' // cli2 // '_' // TRIM(zclname)
             END IF
             IF (ln_ctl) WRITE(numout, FMT = *) "Define", ji, jc, jm, " " // TRIM(zclname), " for ", OASIS_Out
-            CALL oasis_def_var(ssnd(ji) % nid(jc, jm), zclname, id_part, (/2, 0/), OASIS_Out, ishape, OASIS_REAL, nerror)
+            CALL oasis_def_var(ssnd(ji) % nid(jc, jm), zclname, id_part, (/2, 1/), OASIS_Out, ishape, OASIS_REAL, nerror)
             IF (nerror /= OASIS_Ok) THEN
               WRITE(numout, FMT = *) 'Failed to define transient ', ji, jc, jm, " " // TRIM(zclname)
               CALL oasis_abort(ssnd(ji) % nid(jc, jm), 'cpl_define', 'Failure in oasis_def_var')
@@ -144,15 +166,20 @@ MODULE cpl_oasis3
             IF (ln_ctl .AND. ssnd(ji) % nid(jc, jm) == - 1) WRITE(numout, FMT = *) "variable NOT defined in the namcouple"
           END DO
         END DO
+        CALL profile_psy_data5 % PostEnd
       END IF
     END DO
+    CALL profile_psy_data6 % PreStart('cpl_define', 'r6', 0, 0)
     srcv(:) % ncplmodel = kcplmodel
+    CALL profile_psy_data6 % PostEnd
     DO ji = 1, krcv
       IF (srcv(ji) % laction) THEN
         IF (srcv(ji) % nct > nmaxcat) THEN
-          CALL oasis_abort(ncomp_id, 'cpl_define', 'Number of categories of ' // TRIM(srcv(ji) % clname) // ' is larger than nmaxcat, increase nmaxcat')
+          CALL oasis_abort(ncomp_id, 'cpl_define', &
+&'Number of categories of ' // TRIM(srcv(ji) % clname) // ' is larger than nmaxcat, increase nmaxcat')
           RETURN
         END IF
+        CALL profile_psy_data7 % PreStart('cpl_define', 'r7', 0, 0)
         DO jc = 1, srcv(ji) % nct
           DO jm = 1, kcplmodel
             IF (srcv(ji) % nct .GT. 1) THEN
@@ -166,7 +193,7 @@ MODULE cpl_oasis3
               zclname = 'model' // cli2 // '_' // TRIM(zclname)
             END IF
             IF (ln_ctl) WRITE(numout, FMT = *) "Define", ji, jc, jm, " " // TRIM(zclname), " for ", OASIS_In
-            CALL oasis_def_var(srcv(ji) % nid(jc, jm), zclname, id_part, (/2, 0/), OASIS_In, ishape, OASIS_REAL, nerror)
+            CALL oasis_def_var(srcv(ji) % nid(jc, jm), zclname, id_part, (/2, 1/), OASIS_In, ishape, OASIS_REAL, nerror)
             IF (nerror /= OASIS_Ok) THEN
               WRITE(numout, FMT = *) 'Failed to define transient ', ji, jc, jm, " " // TRIM(zclname)
               CALL oasis_abort(srcv(ji) % nid(jc, jm), 'cpl_define', 'Failure in oasis_def_var')
@@ -175,8 +202,10 @@ MODULE cpl_oasis3
             IF (ln_ctl .AND. srcv(ji) % nid(jc, jm) == - 1) WRITE(numout, FMT = *) "variable NOT defined in the namcouple"
           END DO
         END DO
+        CALL profile_psy_data7 % PostEnd
       END IF
     END DO
+    CALL profile_psy_data8 % PreStart('cpl_define', 'r8', 0, 0)
     CALL oasis_enddef(nerror)
     IF (nerror /= OASIS_Ok) CALL oasis_abort(ncomp_id, 'cpl_define', 'Failure in oasis_enddef')
     IF (ltmp_wapatch) THEN
@@ -185,13 +214,17 @@ MODULE cpl_oasis3
       nldj = nldj_save
       nlej = nlej_save
     END IF
+    CALL profile_psy_data8 % PostEnd
   END SUBROUTINE cpl_define
   SUBROUTINE cpl_snd(kid, kstep, pdata, kinfo)
-    INTEGER, INTENT(IN   ) :: kid
-    INTEGER, INTENT(  OUT) :: kinfo
-    INTEGER, INTENT(IN   ) :: kstep
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pdata
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kid
+    INTEGER, INTENT(OUT) :: kinfo
+    INTEGER, INTENT(IN) :: kstep
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: pdata
     INTEGER :: jc, jm
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('cpl_snd', 'r0', 0, 0)
     IF (ltmp_wapatch) THEN
       nldi_save = nldi
       nlei_save = nlei
@@ -228,15 +261,24 @@ MODULE cpl_oasis3
       nldj = nldj_save
       nlej = nlej_save
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE cpl_snd
   SUBROUTINE cpl_rcv(kid, kstep, pdata, pmask, kinfo)
-    INTEGER, INTENT(IN   ) :: kid
-    INTEGER, INTENT(IN   ) :: kstep
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kid
+    INTEGER, INTENT(IN) :: kstep
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: pdata
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN   ) :: pmask
-    INTEGER, INTENT(  OUT) :: kinfo
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: pmask
+    INTEGER, INTENT(OUT) :: kinfo
     INTEGER :: jc, jm
     LOGICAL :: llaction, llfisrt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    CALL profile_psy_data0 % PreStart('cpl_rcv', 'r0', 0, 0)
     IF (ltmp_wapatch) THEN
       nldi_save = nldi
       nlei_save = nlei
@@ -244,7 +286,9 @@ MODULE cpl_oasis3
       nlej_save = nlej
     END IF
     kinfo = OASIS_idle
+    CALL profile_psy_data0 % PostEnd
     DO jc = 1, srcv(kid) % nct
+      CALL profile_psy_data1 % PreStart('cpl_rcv', 'r1', 0, 0)
       IF (ltmp_wapatch) THEN
         IF (nimpp == 1) nldi = 1
         IF (nimpp + jpi - 1 == jpiglo) nlei = jpi
@@ -252,13 +296,18 @@ MODULE cpl_oasis3
         IF (njmpp + jpj - 1 == jpjglo) nlej = jpj
       END IF
       llfisrt = .TRUE.
+      CALL profile_psy_data1 % PostEnd
       DO jm = 1, srcv(kid) % ncplmodel
         IF (srcv(kid) % nid(jc, jm) /= - 1) THEN
+          CALL profile_psy_data2 % PreStart('cpl_rcv', 'r2', 0, 0)
           CALL oasis_get(srcv(kid) % nid(jc, jm), kstep, exfld, kinfo)
           llaction = kinfo == OASIS_Recvd .OR. kinfo == OASIS_FromRest .OR. kinfo == OASIS_RecvOut .OR. kinfo == OASIS_FromRestOut
           IF (ln_ctl) WRITE(numout, FMT = *) "llaction, kinfo, kstep, ivarid: ", llaction, kinfo, kstep, srcv(kid) % nid(jc, jm)
+          CALL profile_psy_data2 % PostEnd
           IF (llaction) THEN
+            CALL profile_psy_data3 % PreStart('cpl_rcv', 'r3', 0, 0)
             kinfo = OASIS_Rcv
+            CALL profile_psy_data3 % PostEnd
             IF (llfisrt) THEN
               !$ACC KERNELS
               pdata(nldi : nlei, nldj : nlej, jc) = exfld(:, :) * pmask(nldi : nlei, nldj : nlej, jm)
@@ -266,9 +315,11 @@ MODULE cpl_oasis3
               !$ACC END KERNELS
             ELSE
               !$ACC KERNELS
-              pdata(nldi : nlei, nldj : nlej, jc) = pdata(nldi : nlei, nldj : nlej, jc) + exfld(:, :) * pmask(nldi : nlei, nldj : nlej, jm)
+              pdata(nldi : nlei, nldj : nlej, jc) = pdata(nldi : nlei, nldj : nlej, jc) + exfld(:, :) * pmask(nldi : nlei, nldj : &
+&nlej, jm)
               !$ACC END KERNELS
             END IF
+            CALL profile_psy_data4 % PreStart('cpl_rcv', 'r4', 0, 0)
             IF (ln_ctl) THEN
               WRITE(numout, FMT = *) '****************'
               WRITE(numout, FMT = *) 'oasis_get: Incoming ', srcv(kid) % clname
@@ -280,25 +331,33 @@ MODULE cpl_oasis3
               WRITE(numout, FMT = *) '     -     Sum value is ', SUM(pdata(:, :, jc))
               WRITE(numout, FMT = *) '****************'
             END IF
+            CALL profile_psy_data4 % PostEnd
           END IF
         END IF
       END DO
+      CALL profile_psy_data5 % PreStart('cpl_rcv', 'r5', 0, 0)
       IF (ltmp_wapatch) THEN
         nldi = nldi_save
         nlei = nlei_save
         nldj = nldj_save
         nlej = nlej_save
       END IF
-      IF (.NOT. llfisrt) CALL lbc_lnk(pdata(:, :, jc), srcv(kid) % clgrid, srcv(kid) % nsgn)
+      IF (.NOT. llfisrt) THEN
+        CALL lbc_lnk('cpl_oasis3', pdata(:, :, jc), srcv(kid) % clgrid, srcv(kid) % nsgn)
+      END IF
+      CALL profile_psy_data5 % PostEnd
     END DO
   END SUBROUTINE cpl_rcv
   INTEGER FUNCTION cpl_freq(cdfieldname)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *), INTENT(IN) :: cdfieldname
     INTEGER :: id
     INTEGER :: info
     INTEGER, DIMENSION(1) :: itmp
     INTEGER :: ji, jm
     INTEGER :: mop
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('cpl_freq', 'r0', 0, 0)
     cpl_freq = 0
     id = - 1
     DO ji = 1, nsnd
@@ -326,9 +385,10 @@ MODULE cpl_oasis3
       END IF
     END DO
     IF (id /= - 1) THEN
-      CALL oasis_get_freqs(id, 1, itmp, info)
+      CALL oasis_get_freqs(id, mop, 1, itmp, info)
       cpl_freq = itmp(1)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION cpl_freq
   SUBROUTINE cpl_finalize
     DEALLOCATE(exfld)
@@ -339,70 +399,103 @@ MODULE cpl_oasis3
     END IF
   END SUBROUTINE cpl_finalize
   SUBROUTINE oasis_init_comp(k1, cd1, k2)
-    CHARACTER(LEN = *), INTENT(IN   ) :: cd1
-    INTEGER, INTENT(  OUT) :: k1, k2
+    CHARACTER(LEN = *), INTENT(IN) :: cd1
+    INTEGER, INTENT(OUT) :: k1, k2
     k1 = - 1
     k2 = - 1
     WRITE(numout, FMT = *) 'oasis_init_comp: Error you sould not be there...', cd1
   END SUBROUTINE oasis_init_comp
   SUBROUTINE oasis_abort(k1, cd1, cd2)
-    INTEGER, INTENT(IN   ) :: k1
-    CHARACTER(LEN = *), INTENT(IN   ) :: cd1, cd2
+    INTEGER, INTENT(IN) :: k1
+    CHARACTER(LEN = *), INTENT(IN) :: cd1, cd2
     WRITE(numout, FMT = *) 'oasis_abort: Error you sould not be there...', cd1, cd2
   END SUBROUTINE oasis_abort
   SUBROUTINE oasis_get_localcomm(k1, k2)
-    INTEGER, INTENT(  OUT) :: k1, k2
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(OUT) :: k1, k2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('oasis_get_localcomm', 'r0', 0, 0)
     k1 = - 1
     k2 = - 1
     WRITE(numout, FMT = *) 'oasis_get_localcomm: Error you sould not be there...'
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE oasis_get_localcomm
   SUBROUTINE oasis_def_partition(k1, k2, k3, k4)
-    INTEGER, INTENT(  OUT) :: k1, k3
-    INTEGER, INTENT(IN   ) :: k2(5)
-    INTEGER, INTENT(IN   ) :: k4
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(OUT) :: k1, k3
+    INTEGER, INTENT(IN) :: k2(5)
+    INTEGER, INTENT(IN) :: k4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('oasis_def_partition', 'r0', 0, 0)
     k1 = k2(1)
     k3 = k2(5) + k4
     WRITE(numout, FMT = *) 'oasis_def_partition: Error you sould not be there...'
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE oasis_def_partition
   SUBROUTINE oasis_def_var(k1, cd1, k2, k3, k4, k5, k6, k7)
-    CHARACTER(LEN = *), INTENT(IN   ) :: cd1
-    INTEGER, INTENT(IN   ) :: k2, k3(2), k4, k5(2, 2), k6
-    INTEGER, INTENT(  OUT) :: k1, k7
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    CHARACTER(LEN = *), INTENT(IN) :: cd1
+    INTEGER, INTENT(IN) :: k2, k3(2), k4, k5(2, 2), k6
+    INTEGER, INTENT(OUT) :: k1, k7
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('oasis_def_var', 'r0', 0, 0)
     k1 = - 1
     k7 = - 1
     WRITE(numout, FMT = *) 'oasis_def_var: Error you sould not be there...', cd1
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE oasis_def_var
   SUBROUTINE oasis_enddef(k1)
-    INTEGER, INTENT(  OUT) :: k1
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(OUT) :: k1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('oasis_enddef', 'r0', 0, 0)
     k1 = - 1
     WRITE(numout, FMT = *) 'oasis_enddef: Error you sould not be there...'
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE oasis_enddef
   SUBROUTINE oasis_put(k1, k2, p1, k3)
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: p1
-    INTEGER, INTENT(IN   ) :: k1, k2
-    INTEGER, INTENT(  OUT) :: k3
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: p1
+    INTEGER, INTENT(IN) :: k1, k2
+    INTEGER, INTENT(OUT) :: k3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('oasis_put', 'r0', 0, 0)
     k3 = - 1
     WRITE(numout, FMT = *) 'oasis_put: Error you sould not be there...'
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE oasis_put
   SUBROUTINE oasis_get(k1, k2, p1, k3)
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(  OUT) :: p1
-    INTEGER, INTENT(IN   ) :: k1, k2
-    INTEGER, INTENT(  OUT) :: k3
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: p1
+    INTEGER, INTENT(IN) :: k1, k2
+    INTEGER, INTENT(OUT) :: k3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('oasis_get', 'r0', 0, 0)
     p1(1, 1) = - 1.
     k3 = - 1
     WRITE(numout, FMT = *) 'oasis_get: Error you sould not be there...'
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE oasis_get
-  SUBROUTINE oasis_get_freqs(k1, k2, k3, k4)
-    INTEGER, INTENT(IN   ) :: k1, k2
-    INTEGER, DIMENSION(1), INTENT(  OUT) :: k3
-    INTEGER, INTENT(  OUT) :: k4
+  SUBROUTINE oasis_get_freqs(k1, k5, k2, k3, k4)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: k1, k2
+    INTEGER, DIMENSION(1), INTENT(OUT) :: k3
+    INTEGER, INTENT(OUT) :: k4, k5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('oasis_get_freqs', 'r0', 0, 0)
     k3(1) = k1
     k4 = k2
+    k5 = k2
     WRITE(numout, FMT = *) 'oasis_get_freqs: Error you sould not be there...'
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE oasis_get_freqs
   SUBROUTINE oasis_terminate(k1)
-    INTEGER, INTENT(  OUT) :: k1
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(OUT) :: k1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('oasis_terminate', 'r0', 0, 0)
     k1 = - 1
     WRITE(numout, FMT = *) 'oasis_terminate: Error you sould not be there...'
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE oasis_terminate
 END MODULE cpl_oasis3

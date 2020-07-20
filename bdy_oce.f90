@@ -1,6 +1,5 @@
 MODULE bdy_oce
   USE par_oce
-  USE lib_mpp
   IMPLICIT NONE
   PUBLIC
   INTEGER, PUBLIC, PARAMETER :: jp_bdy = 10
@@ -49,7 +48,7 @@ MODULE bdy_oce
   LOGICAL :: ln_mask_file
   LOGICAL :: ln_vol
   INTEGER :: nb_bdy
-  INTEGER :: nb_jpk_bdy
+  INTEGER, DIMENSION(jp_bdy) :: nb_jpk_bdy
   INTEGER, DIMENSION(jp_bdy) :: nn_rimwidth
   INTEGER :: nn_volctl
   CHARACTER(LEN = 20), DIMENSION(jp_bdy) :: cn_dyn2d
@@ -82,7 +81,7 @@ MODULE bdy_oce
   TYPE(OBC_DATA), DIMENSION(jp_bdy), TARGET :: dta_bdy
   CONTAINS
   FUNCTION bdy_oce_alloc()
-    USE lib_mpp, ONLY: ctl_warn, mpp_sum
+    USE lib_mpp, ONLY: ctl_stop, mpp_sum
     INTEGER :: bdy_oce_alloc
     ALLOCATE(bdytmask(jpi, jpj), bdyumask(jpi, jpj), bdyvmask(jpi, jpj), STAT = bdy_oce_alloc)
     !$ACC KERNELS
@@ -90,7 +89,7 @@ MODULE bdy_oce
     bdyumask(:, :) = 1._wp
     bdyvmask(:, :) = 1._wp
     !$ACC END KERNELS
-    IF (lk_mpp) CALL mpp_sum(bdy_oce_alloc)
-    IF (bdy_oce_alloc /= 0) CALL ctl_warn('bdy_oce_alloc: failed to allocate arrays.')
+    CALL mpp_sum('bdy_oce', bdy_oce_alloc)
+    IF (bdy_oce_alloc /= 0) CALL ctl_stop('STOP', 'bdy_oce_alloc: failed to allocate arrays.')
   END FUNCTION bdy_oce_alloc
 END MODULE bdy_oce

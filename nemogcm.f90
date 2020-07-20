@@ -43,15 +43,19 @@ MODULE nemogcm
   PUBLIC :: nemo_init
   PUBLIC :: nemo_alloc
   CHARACTER(LEN = lc) :: cform_aaa = "( /, 'AAAAAAAA', / ) "
+  INCLUDE 'mpif.h'
   CONTAINS
   SUBROUTINE nemo_gcm
     INTEGER :: istp
     CALL nemo_init
-    IF (lk_mpp) CALL mpp_max(nstop)
+    CALL mpp_max('nemogcm', nstop)
     IF (lwp) WRITE(numout, cform_aaa)
     istp = nit000
     IF (.NOT. ln_diurnal_only) THEN
       DO WHILE (istp <= nitend .AND. nstop == 0)
+        ncom_stp = istp
+        IF (istp == (nit000 + 1)) elapsed_time = MPI_Wtime()
+        IF (istp == nitend) elapsed_time = MPI_Wtime() - elapsed_time
         CALL stp(istp)
         istp = istp + 1
       END DO
@@ -74,14 +78,21 @@ MODULE nemogcm
     IF (lk_oasis) THEN
       CALL cpl_finalize
     ELSE IF (lk_mpp) THEN
-      CALL mppstop
+      CALL mppstop(ldfinal = .TRUE.)
+    END IF
+    IF (lwm) THEN
+      IF (nstop == 0) THEN
+        STOP 0
+      ELSE
+        STOP 999
+      END IF
     END IF
   END SUBROUTINE nemo_gcm
   SUBROUTINE nemo_init
     INTEGER :: ji
     INTEGER :: ios, ilocal_comm
     CHARACTER(LEN = 120), DIMENSION(60) :: cltxt, cltxt2, clnam
-    NAMELIST /namctl/ ln_ctl, nn_print, nn_ictls, nn_ictle, nn_isplt, nn_jsplt, nn_jctls, nn_jctle, ln_timing, ln_diacfl
+    NAMELIST /namctl/ ln_ctl, sn_cfctl, nn_print, nn_ictls, nn_ictle, nn_isplt, nn_jsplt, nn_jctls, nn_jctle, ln_timing, ln_diacfl
     NAMELIST /namcfg/ ln_read_cfg, cn_domcfg, ln_closea, ln_write_cfg, cn_domcfg_out, ln_use_jattr
     cltxt = ''
     cltxt2 = ''
@@ -116,6 +127,12 @@ MODULE nemogcm
       narea = mynode(cltxt, 'output.namelist.dyn', numnam_ref, numnam_cfg, numond, nstop)
     END IF
     narea = narea + 1
+    IF (sn_cfctl % l_config) THEN
+      IF ((narea < sn_cfctl % procmin .OR. narea > sn_cfctl % procmax) .OR. (MOD(narea - sn_cfctl % procmin, sn_cfctl % procincr) &
+&/= 0)) CALL nemo_set_cfctl(sn_cfctl, .FALSE., .FALSE.)
+    ELSE
+      CALL nemo_set_cfctl(sn_cfctl, ln_ctl, .TRUE.)
+    END IF
     lwm = (narea == 1)
     lwp = (narea == 1) .OR. ln_ctl
     IF (lwm) THEN
@@ -133,19 +150,33 @@ MODULE nemogcm
       WRITE(numout, FMT = *) '   CNRS - NERC - Met OFFICE - MERCATOR-ocean - INGV - CMCC'
       WRITE(numout, FMT = *) '                       NEMO team'
       WRITE(numout, FMT = *) '            Ocean General Circulation Model'
-      WRITE(numout, FMT = *) '                NEMO version 4.0  (2017) '
+      WRITE(numout, FMT = *) '                NEMO version 4.0  (2019) '
       WRITE(numout, FMT = *)
+      WRITE(numout, FMT = *) "           ._      ._      ._      ._      ._    "
+      WRITE(numout, FMT = *) "       _.-._)`\_.-._)`\_.-._)`\_.-._)`\_.-._)`\_ "
+      WRITE(numout, FMT = *)
+      WRITE(numout, FMT = *) "           o         _,           _,             "
+      WRITE(numout, FMT = *) "            o      .' (        .-' /             "
+      WRITE(numout, FMT = *) "           o     _/..._'.    .'   /              "
+      WRITE(numout, FMT = *) "      (    o .-'`      ` '-./  _.'               "
+      WRITE(numout, FMT = *) "       )    ( o)           ;= <_         (       "
+      WRITE(numout, FMT = *) "      (      '-.,\\__ __.-;`\   '.        )      "
+      WRITE(numout, FMT = *) "       )  )       \) |`\ \)  '.   \      (   (   "
+      WRITE(numout, FMT = *) "      (  (           \_/       '-._\      )   )  "
+      WRITE(numout, FMT = *) "       )  ) jgs                     `    (   (   "
+      WRITE(numout, FMT = *) "     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ "
       WRITE(numout, FMT = *)
       DO ji = 1, SIZE(cltxt)
-        IF (TRIM(cltxt(ji)) /= '') WRITE(numout, FMT = *) cltxt(ji)
+        IF (TRIM(cltxt(ji)) /= '') WRITE(numout, FMT = *) TRIM(cltxt(ji))
       END DO
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *)
       DO ji = 1, SIZE(cltxt2)
-        IF (TRIM(cltxt2(ji)) /= '') WRITE(numout, FMT = *) cltxt2(ji)
+        IF (TRIM(cltxt2(ji)) /= '') WRITE(numout, FMT = *) TRIM(cltxt2(ji))
       END DO
       WRITE(numout, cform_aaa)
     END IF
+    CALL ctl_opn(numnul, '/dev/null', 'REPLACE', 'FORMATTED', 'SEQUENTIAL', - 1, 6, .FALSE.)
     CALL mpp_init
     CALL nemo_alloc
     CALL nemo_ctl
@@ -181,7 +212,7 @@ MODULE nemogcm
     CALL ldf_dyn_init
     IF (ln_traqsr) CALL tra_qsr_init
     CALL tra_bbc_init
-    IF (ln_trabbl) CALL tra_bbl_init
+    CALL tra_bbl_init
     CALL tra_dmp_init
     CALL tra_adv_init
     CALL tra_ldf_init
@@ -216,6 +247,17 @@ MODULE nemogcm
       WRITE(numout, FMT = *) '~~~~~~~~'
       WRITE(numout, FMT = *) '   Namelist namctl'
       WRITE(numout, FMT = *) '      run control (for debugging)     ln_ctl     = ', ln_ctl
+      WRITE(numout, FMT = *) '       finer control over o/p sn_cfctl%l_config  = ', sn_cfctl % l_config
+      WRITE(numout, FMT = *) '                              sn_cfctl%l_runstat = ', sn_cfctl % l_runstat
+      WRITE(numout, FMT = *) '                              sn_cfctl%l_trcstat = ', sn_cfctl % l_trcstat
+      WRITE(numout, FMT = *) '                              sn_cfctl%l_oceout  = ', sn_cfctl % l_oceout
+      WRITE(numout, FMT = *) '                              sn_cfctl%l_layout  = ', sn_cfctl % l_layout
+      WRITE(numout, FMT = *) '                              sn_cfctl%l_mppout  = ', sn_cfctl % l_mppout
+      WRITE(numout, FMT = *) '                              sn_cfctl%l_mpptop  = ', sn_cfctl % l_mpptop
+      WRITE(numout, FMT = *) '                              sn_cfctl%procmin   = ', sn_cfctl % procmin
+      WRITE(numout, FMT = *) '                              sn_cfctl%procmax   = ', sn_cfctl % procmax
+      WRITE(numout, FMT = *) '                              sn_cfctl%procincr  = ', sn_cfctl % procincr
+      WRITE(numout, FMT = *) '                              sn_cfctl%ptimincr  = ', sn_cfctl % ptimincr
       WRITE(numout, FMT = *) '      level of print                  nn_print   = ', nn_print
       WRITE(numout, FMT = *) '      Start i indice for SUM control  nn_ictls   = ', nn_ictls
       WRITE(numout, FMT = *) '      End i indice for SUM control    nn_ictle   = ', nn_ictle
@@ -279,7 +321,8 @@ MODULE nemogcm
         END IF
       END IF
     END IF
-    IF (1._wp /= SIGN(1._wp, - 0._wp)) CALL ctl_stop('nemo_ctl: The intrinsec SIGN function follows f2003 standard.', 'Compile with key_nosignedzero enabled')
+    IF (1._wp /= SIGN(1._wp, - 0._wp)) CALL ctl_stop('nemo_ctl: The intrinsec SIGN function follows f2003 standard.', 'Compile &
+&with key_nosignedzero enabled:', '--> add -Dkey_nosignedzero to the definition of %CPP in your arch file')
   END SUBROUTINE nemo_ctl
   SUBROUTINE nemo_closefile
     IF (lk_mpp) CALL mppsync
@@ -311,7 +354,23 @@ MODULE nemogcm
     ierr = ierr + zdf_oce_alloc()
     ierr = ierr + trc_oce_alloc()
     ierr = ierr + bdy_oce_alloc()
-    IF (lk_mpp) CALL mpp_sum(ierr)
+    CALL mpp_sum('nemogcm', ierr)
     IF (ierr /= 0) CALL ctl_stop('STOP', 'nemo_alloc: unable to allocate standard ocean arrays')
   END SUBROUTINE nemo_alloc
+  SUBROUTINE nemo_set_cfctl(sn_cfctl, setto, for_all)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    LOGICAL :: setto, for_all
+    TYPE(sn_ctl) :: sn_cfctl
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('nemo_set_cfctl', 'r0', 0, 0)
+    IF (for_all) THEN
+      sn_cfctl % l_runstat = setto
+      sn_cfctl % l_trcstat = setto
+    END IF
+    sn_cfctl % l_oceout = setto
+    sn_cfctl % l_layout = setto
+    sn_cfctl % l_mppout = setto
+    sn_cfctl % l_mpptop = setto
+    CALL profile_psy_data0 % PostEnd
+  END SUBROUTINE nemo_set_cfctl
 END MODULE nemogcm

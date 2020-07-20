@@ -20,10 +20,11 @@ MODULE trdpen
   CONTAINS
   INTEGER FUNCTION trd_pen_alloc()
     ALLOCATE(rab_pe(jpi, jpj, jpk, jpts), STAT = trd_pen_alloc)
-    IF (lk_mpp) CALL mpp_sum(trd_pen_alloc)
-    IF (trd_pen_alloc /= 0) CALL ctl_warn('trd_pen_alloc: failed to allocate arrays')
+    CALL mpp_sum('trdpen', trd_pen_alloc)
+    IF (trd_pen_alloc /= 0) CALL ctl_stop('STOP', 'trd_pen_alloc: failed to allocate arrays')
   END FUNCTION trd_pen_alloc
   SUBROUTINE trd_pen(ptrdx, ptrdy, ktrd, kt, pdt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: ptrdx, ptrdy
     INTEGER, INTENT(IN) :: ktrd
     INTEGER, INTENT(IN) :: kt
@@ -31,9 +32,13 @@ MODULE trdpen
     INTEGER :: jk
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: z2d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zpe
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     !$ACC KERNELS
     zpe(:, :, :) = 0._wp
     !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('trd_pen', 'r0', 0, 0)
     IF (kt /= nkstp) THEN
       nkstp = kt
       CALL eos_pen(tsn, rab_PE, zpe)
@@ -41,10 +46,12 @@ MODULE trdpen
       CALL iom_put("betaPE", rab_pe(:, :, :, jp_sal))
       CALL iom_put("PEanom", zpe)
     END IF
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zpe(:, :, jpk) = 0._wp
     DO jk = 1, jpkm1
-      zpe(:, :, jk) = (- (rab_n(:, :, jk, jp_tem) + rab_pe(:, :, jk, jp_tem)) * ptrdx(:, :, jk) + (rab_n(:, :, jk, jp_sal) + rab_pe(:, :, jk, jp_sal)) * ptrdy(:, :, jk))
+      zpe(:, :, jk) = (- (rab_n(:, :, jk, jp_tem) + rab_pe(:, :, jk, jp_tem)) * ptrdx(:, :, jk) + (rab_n(:, :, jk, jp_sal) + &
+&rab_pe(:, :, jk, jp_sal)) * ptrdy(:, :, jk))
     END DO
     !$ACC END KERNELS
     SELECT CASE (ktrd)
@@ -57,13 +64,18 @@ MODULE trdpen
       IF (ln_linssh) THEN
         ALLOCATE(z2d(jpi, jpj))
         !$ACC KERNELS
-        z2d(:, :) = wn(:, :, 1) * (- (rab_n(:, :, 1, jp_tem) + rab_pe(:, :, 1, jp_tem)) * tsn(:, :, 1, jp_tem) + (rab_n(:, :, 1, jp_sal) + rab_pe(:, :, 1, jp_sal)) * tsn(:, :, 1, jp_sal)) / e3t_n(:, :, 1)
+        z2d(:, :) = wn(:, :, 1) * (- (rab_n(:, :, 1, jp_tem) + rab_pe(:, :, 1, jp_tem)) * tsn(:, :, 1, jp_tem) + (rab_n(:, :, 1, &
+&jp_sal) + rab_pe(:, :, 1, jp_sal)) * tsn(:, :, 1, jp_sal)) / e3t_n(:, :, 1)
         !$ACC END KERNELS
+        CALL profile_psy_data1 % PreStart('trd_pen', 'r1', 0, 0)
         CALL iom_put("petrd_sad", z2d)
         DEALLOCATE(z2d)
+        CALL profile_psy_data1 % PostEnd
       END IF
     CASE (jptra_ldf)
+      CALL profile_psy_data2 % PreStart('trd_pen', 'r2', 0, 0)
       CALL iom_put("petrd_ldf", zpe)
+      CALL profile_psy_data2 % PostEnd
     CASE (jptra_zdf)
       CALL iom_put("petrd_zdf", zpe)
     CASE (jptra_zdfp)

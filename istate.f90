@@ -45,6 +45,21 @@ MODULE istate
         CALL dta_tsd(nit000, tsb)
         !$ACC KERNELS
         sshb(:, :) = 0._wp
+        !$ACC END KERNELS
+        IF (ll_wd) THEN
+          !$ACC KERNELS
+          sshb(:, :) = - ssh_ref
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
+          DO jj = 1, jpj
+            DO ji = 1, jpi
+              IF (ht_0(ji, jj) + sshb(ji, jj) < rn_wdmin1) THEN
+                sshb(ji, jj) = tmask(ji, jj, 1) * (rn_wdmin1 - (ht_0(ji, jj)))
+              END IF
+            END DO
+          END DO
+          !$ACC END KERNELS
+        END IF
+        !$ACC KERNELS
         ub(:, :, :) = 0._wp
         vb(:, :, :) = 0._wp
         !$ACC END KERNELS
@@ -66,6 +81,7 @@ MODULE istate
     ub_b(:, :) = 0._wp
     vb_b(:, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           un_b(ji, jj) = un_b(ji, jj) + e3u_n(ji, jj, jk) * un(ji, jj, jk) * umask(ji, jj, jk)

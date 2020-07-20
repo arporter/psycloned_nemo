@@ -20,7 +20,9 @@ MODULE obs_read_prof
   PRIVATE
   PUBLIC :: obs_rea_prof
   CONTAINS
-  SUBROUTINE obs_rea_prof(profdata, knumfiles, cdfilenames, kvars, kextr, kstp, ddobsini, ddobsend, ldvar1, ldvar2, ldignmis, ldsatt, ldmod, kdailyavtypes)
+  SUBROUTINE obs_rea_prof(profdata, knumfiles, cdfilenames, kvars, kextr, kstp, ddobsini, ddobsend, ldvar1, ldvar2, ldignmis, &
+&ldsatt, ldmod, kdailyavtypes)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obs_prof), INTENT(OUT) :: profdata
     INTEGER, INTENT(IN) :: knumfiles
     CHARACTER(LEN = 128), INTENT(IN) :: cdfilenames(knumfiles)
@@ -77,20 +79,42 @@ MODULE obs_read_prof
     LOGICAL :: llvalprof
     LOGICAL :: lldavtimset
     TYPE(obfbdata), POINTER, DIMENSION(:) :: inpfiles
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data8
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data9
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data10
+    CALL profile_psy_data0 % PreStart('obs_rea_prof', 'r0', 0, 0)
     iprof = 0
     ivar1t0 = 0
     ivar2t0 = 0
     ip3dt = 0
     lldavtimset = .FALSE.
+    CALL profile_psy_data0 % PostEnd
     IF (PRESENT(kdailyavtypes)) THEN
+      !$ACC KERNELS
       idailyavtypes(:) = kdailyavtypes(:)
+      !$ACC END KERNELS
+      CALL profile_psy_data1 % PreStart('obs_rea_prof', 'r1', 0, 0)
       IF (ANY(idailyavtypes(:) /= - 1)) lldavtimset = .TRUE.
+      CALL profile_psy_data1 % PostEnd
     ELSE
+      !$ACC KERNELS
       idailyavtypes(:) = - 1
+      !$ACC END KERNELS
     END IF
+    CALL profile_psy_data2 % PreStart('obs_rea_prof', 'r2', 0, 0)
     inobf = knumfiles
     ALLOCATE(inpfiles(inobf))
+    CALL profile_psy_data2 % PostEnd
     prof_files:DO jj = 1, inobf
+      CALL profile_psy_data3 % PreStart('obs_rea_prof', 'r3', 0, 0)
       IF (lwp) THEN
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) ' obs_rea_pro_dri : Reading from file = ', TRIM(TRIM(cdfilenames(jj)))
@@ -98,14 +122,18 @@ MODULE obs_read_prof
         WRITE(numout, FMT = *)
       END IF
       iflag = nf90_open(TRIM(cdfilenames(jj)), nf90_nowrite, i_file_id)
+      CALL profile_psy_data3 % PostEnd
       IF (iflag /= nf90_noerr) THEN
+        CALL profile_psy_data4 % PreStart('obs_rea_prof', 'r4', 0, 0)
         IF (ldignmis) THEN
           inpfiles(jj) % nobs = 0
           CALL ctl_warn('File ' // TRIM(cdfilenames(jj)) // ' not found')
         ELSE
           CALL ctl_stop('File ' // TRIM(cdfilenames(jj)) // ' not found')
         END IF
+        CALL profile_psy_data4 % PostEnd
       ELSE
+        CALL profile_psy_data5 % PreStart('obs_rea_prof', 'r5', 0, 0)
         iflag = nf90_close(i_file_id)
         CALL init_obfbdata(inpfiles(jj))
         CALL read_obfbdata(TRIM(cdfilenames(jj)), inpfiles(jj), ldgrid = .TRUE.)
@@ -187,15 +215,21 @@ MODULE obs_read_prof
             zphi(inowin) = inpfiles(jj) % pphi(ji)
           END IF
         END DO
+        CALL profile_psy_data5 % PostEnd
         IF (TRIM(inpfiles(jj) % cname(1)) == 'POTM') THEN
           CALL obs_grid_search(inowin, zlam, zphi, iobsi1, iobsj1, iproc1, 'T')
+          !$ACC KERNELS
           iobsi2(:) = iobsi1(:)
           iobsj2(:) = iobsj1(:)
           iproc2(:) = iproc1(:)
+          !$ACC END KERNELS
         ELSE IF (TRIM(inpfiles(jj) % cname(1)) == 'UVEL') THEN
+          CALL profile_psy_data6 % PreStart('obs_rea_prof', 'r6', 0, 0)
           CALL obs_grid_search(inowin, zlam, zphi, iobsi1, iobsj1, iproc1, 'U')
           CALL obs_grid_search(inowin, zlam, zphi, iobsi2, iobsj2, iproc2, 'V')
+          CALL profile_psy_data6 % PostEnd
         END IF
+        CALL profile_psy_data7 % PreStart('obs_rea_prof', 'r7', 0, 0)
         inowin = 0
         DO ji = 1, inpfiles(jj) % nobs
           IF (BTEST(inpfiles(jj) % ioqc(ji), 2)) CYCLE
@@ -242,7 +276,8 @@ MODULE obs_read_prof
             END IF
             loop_p_count:DO ij = 1, inpfiles(jj) % nlev
               IF (inpfiles(jj) % pdep(ij, ji) >= 6000.) CYCLE
-              IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) .OR. (.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2)) THEN
+              IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) &
+&.OR. (.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2)) THEN
                 ip3dt = ip3dt + 1
                 llvalprof = .TRUE.
               END IF
@@ -250,8 +285,10 @@ MODULE obs_read_prof
             IF (llvalprof) iprof = iprof + 1
           END IF
         END DO
+        CALL profile_psy_data7 % PostEnd
       END IF
     END DO prof_files
+    CALL profile_psy_data8 % PreStart('obs_rea_prof', 'r8', 0, 0)
     iproftot = 0
     DO jj = 1, inobf
       DO ji = 1, inpfiles(jj) % nobs
@@ -277,7 +314,11 @@ MODULE obs_read_prof
       END DO
     END DO
     CALL sort_dp_indx(iproftot, zdat, iindx)
+    CALL profile_psy_data8 % PostEnd
+    !$ACC KERNELS
     iv3dt(:) = - 1
+    !$ACC END KERNELS
+    CALL profile_psy_data9 % PreStart('obs_rea_prof', 'r9', 0, 0)
     IF (ldsatt) THEN
       iv3dt(1) = ip3dt
       iv3dt(2) = ip3dt
@@ -289,6 +330,8 @@ MODULE obs_read_prof
     profdata % nprof = 0
     profdata % nvprot(:) = 0
     profdata % cvars(:) = clvars(:)
+    CALL profile_psy_data9 % PostEnd
+    !$ACC KERNELS
     iprof = 0
     ip3dt = 0
     ivar1t = 0
@@ -298,6 +341,8 @@ MODULE obs_read_prof
     itypvar2(:) = 0
     itypvar2mpp(:) = 0
     ioserrcount = 0
+    !$ACC END KERNELS
+    CALL profile_psy_data10 % PreStart('obs_rea_prof', 'r10', 0, 0)
     DO jk = 1, iproftot
       jj = ifileidx(iindx(jk))
       ji = iprofidx(iindx(jk))
@@ -360,13 +405,15 @@ MODULE obs_read_prof
           loop_p:DO ij = 1, inpfiles(jj) % nlev
             IF (inpfiles(jj) % pdep(ij, ji) >= 6000.) CYCLE
             IF (ldsatt) THEN
-              IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) .OR. (.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2)) THEN
+              IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) &
+&.OR. (.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2)) THEN
                 ip3dt = ip3dt + 1
               ELSE
                 CYCLE
               END IF
             END IF
-            IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) .OR. ldsatt) THEN
+            IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 1), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar1) &
+&.OR. ldsatt) THEN
               IF (ldsatt) THEN
                 ivar1t = ip3dt
               ELSE
@@ -392,7 +439,8 @@ MODULE obs_read_prof
                 profdata % var(1) % vext(ivar1t, 1) = inpfiles(jj) % pext(ij, ji, 1)
               END IF
             END IF
-            IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2) .OR. ldsatt) THEN
+            IF ((.NOT. BTEST(inpfiles(jj) % ivlqc(ij, ji, 2), 2) .AND. .NOT. BTEST(inpfiles(jj) % idqc(ij, ji), 2) .AND. ldvar2) &
+&.OR. ldsatt) THEN
               IF (ldsatt) THEN
                 ivar2t = ip3dt
               ELSE
@@ -437,7 +485,8 @@ MODULE obs_read_prof
         END IF
       END DO
       WRITE(numout, FMT = '(1X,A)') '---------------------------------------------------------------'
-      WRITE(numout, FMT = '(1X,A55,I8)') 'Total profile data for variable ' // TRIM(profdata % cvars(1)) // '             = ', ivar1tmpp
+      WRITE(numout, FMT = '(1X,A55,I8)') 'Total profile data for variable ' // TRIM(profdata % cvars(1)) // '             = ', &
+&ivar1tmpp
       WRITE(numout, FMT = '(1X,A)') '---------------------------------------------------------------'
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = '(1X,A)') 'Profile data, ' // TRIM(profdata % cvars(2))
@@ -448,7 +497,8 @@ MODULE obs_read_prof
         END IF
       END DO
       WRITE(numout, FMT = '(1X,A)') '---------------------------------------------------------------'
-      WRITE(numout, FMT = '(1X,A55,I8)') 'Total profile data for variable ' // TRIM(profdata % cvars(2)) // '             = ', ivar2tmpp
+      WRITE(numout, FMT = '(1X,A55,I8)') 'Total profile data for variable ' // TRIM(profdata % cvars(2)) // '             = ', &
+&ivar2tmpp
       WRITE(numout, FMT = '(1X,A)') '---------------------------------------------------------------'
       WRITE(numout, FMT = *)
     END IF
@@ -480,5 +530,6 @@ MODULE obs_read_prof
       CALL dealloc_obfbdata(inpfiles(jj))
     END DO
     DEALLOCATE(inpfiles)
+    CALL profile_psy_data10 % PostEnd
   END SUBROUTINE obs_rea_prof
 END MODULE obs_read_prof

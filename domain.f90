@@ -87,6 +87,7 @@ MODULE domain
     CALL dom_msk(ik_top, ik_bot)
     IF (ln_closea) CALL dom_clo
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ik = mikt(ji, jj)
@@ -96,12 +97,14 @@ MODULE domain
     ht_0(:, :) = 0._wp
     hu_0(:, :) = 0._wp
     hv_0(:, :) = 0._wp
+    !$ACC END KERNELS
     DO jk = 1, jpk
+      !$ACC KERNELS
       ht_0(:, :) = ht_0(:, :) + e3t_0(:, :, jk) * tmask(:, :, jk)
       hu_0(:, :) = hu_0(:, :) + e3u_0(:, :, jk) * umask(:, :, jk)
       hv_0(:, :) = hv_0(:, :) + e3v_0(:, :, jk) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
     IF (ln_linssh) THEN
       !$ACC KERNELS
       gdept_b = gdept_0
@@ -157,7 +160,9 @@ MODULE domain
     END IF
   END SUBROUTINE dom_init
   SUBROUTINE dom_glo
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     DO ji = 1, jpi
       mig(ji) = ji + nimpp - 1
@@ -174,6 +179,7 @@ MODULE domain
       mj1(jj) = MAX(0, MIN(jj - njmpp + 1, jpj))
     END DO
     !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('dom_glo', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dom_glo : domain: global <<==>> local '
@@ -204,12 +210,18 @@ MODULE domain
       END IF
     END IF
 25  FORMAT(100(10X, 19I4, /))
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dom_glo
   SUBROUTINE dom_nam
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE ioipsl
     INTEGER :: ios
-    NAMELIST /namrun/ cn_ocerst_indir, cn_ocerst_outdir, nn_stocklist, ln_rst_list, nn_no, cn_exp, cn_ocerst_in, cn_ocerst_out, ln_rstart, nn_rstctl, nn_it000, nn_itend, nn_date0, nn_time0, nn_leapy, nn_istate, nn_stock, nn_write, ln_mskland, ln_clobber, nn_chunksz, nn_euler, ln_cfmeta, ln_iscpl, ln_xios_read, nn_wxios, ln_rstdate
+    NAMELIST /namrun/ cn_ocerst_indir, cn_ocerst_outdir, nn_stocklist, ln_rst_list, nn_no, cn_exp, cn_ocerst_in, cn_ocerst_out, &
+&ln_rstart, nn_rstctl, nn_it000, nn_itend, nn_date0, nn_time0, nn_leapy, nn_istate, nn_stock, nn_write, ln_mskland, ln_clobber, &
+&nn_chunksz, nn_euler, ln_cfmeta, ln_iscpl, ln_xios_read, nn_wxios, ln_rstdate
     NAMELIST /namdom/ ln_linssh, rn_isfhmin, rn_rdt, rn_atfp, ln_crs, ln_meshmask
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dom_nam', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dom_nam : domain initialization through namelist read'
@@ -323,45 +335,51 @@ MODULE domain
       nxioso = nn_wxios
     END IF
     snc4set % luse = .FALSE.
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dom_nam
   SUBROUTINE dom_ctl
-    INTEGER :: iimi1, ijmi1, iimi2, ijmi2, iima1, ijma1, iima2, ijma2
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, DIMENSION(2) :: imi1, imi2, ima1, ima2
     INTEGER, DIMENSION(2) :: iloc
     REAL(KIND = wp) :: ze1min, ze1max, ze2min, ze2max
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dom_ctl', 'r0', 0, 0)
     IF (lk_mpp) THEN
-      CALL mpp_minloc(e1t(:, :), tmask_i(:, :), ze1min, iimi1, ijmi1)
-      CALL mpp_minloc(e2t(:, :), tmask_i(:, :), ze2min, iimi2, ijmi2)
-      CALL mpp_maxloc(e1t(:, :), tmask_i(:, :), ze1max, iima1, ijma1)
-      CALL mpp_maxloc(e2t(:, :), tmask_i(:, :), ze2max, iima2, ijma2)
+      CALL mpp_minloc('domain', e1t(:, :), tmask_i(:, :), ze1min, imi1)
+      CALL mpp_minloc('domain', e2t(:, :), tmask_i(:, :), ze2min, imi2)
+      CALL mpp_maxloc('domain', e1t(:, :), tmask_i(:, :), ze1max, ima1)
+      CALL mpp_maxloc('domain', e2t(:, :), tmask_i(:, :), ze2max, ima2)
     ELSE
       ze1min = MINVAL(e1t(:, :), mask = tmask_i(:, :) == 1._wp)
       ze2min = MINVAL(e2t(:, :), mask = tmask_i(:, :) == 1._wp)
       ze1max = MAXVAL(e1t(:, :), mask = tmask_i(:, :) == 1._wp)
       ze2max = MAXVAL(e2t(:, :), mask = tmask_i(:, :) == 1._wp)
       iloc = MINLOC(e1t(:, :), mask = tmask_i(:, :) == 1._wp)
-      iimi1 = iloc(1) + nimpp - 1
-      ijmi1 = iloc(2) + njmpp - 1
+      imi1(1) = iloc(1) + nimpp - 1
+      imi1(2) = iloc(2) + njmpp - 1
       iloc = MINLOC(e2t(:, :), mask = tmask_i(:, :) == 1._wp)
-      iimi2 = iloc(1) + nimpp - 1
-      ijmi2 = iloc(2) + njmpp - 1
+      imi2(1) = iloc(1) + nimpp - 1
+      imi2(2) = iloc(2) + njmpp - 1
       iloc = MAXLOC(e1t(:, :), mask = tmask_i(:, :) == 1._wp)
-      iima1 = iloc(1) + nimpp - 1
-      ijma1 = iloc(2) + njmpp - 1
+      ima1(1) = iloc(1) + nimpp - 1
+      ima1(2) = iloc(2) + njmpp - 1
       iloc = MAXLOC(e2t(:, :), mask = tmask_i(:, :) == 1._wp)
-      iima2 = iloc(1) + nimpp - 1
-      ijma2 = iloc(2) + njmpp - 1
+      ima2(1) = iloc(1) + nimpp - 1
+      ima2(2) = iloc(2) + njmpp - 1
     END IF
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dom_ctl : extrema of the masked scale factors'
       WRITE(numout, FMT = *) '~~~~~~~'
-      WRITE(numout, "(14x,'e1t maxi: ',1f10.2,' at i = ',i5,' j= ',i5)") ze1max, iima1, ijma1
-      WRITE(numout, "(14x,'e1t mini: ',1f10.2,' at i = ',i5,' j= ',i5)") ze1min, iimi1, ijmi1
-      WRITE(numout, "(14x,'e2t maxi: ',1f10.2,' at i = ',i5,' j= ',i5)") ze2max, iima2, ijma2
-      WRITE(numout, "(14x,'e2t mini: ',1f10.2,' at i = ',i5,' j= ',i5)") ze2min, iimi2, ijmi2
+      WRITE(numout, "(14x,'e1t maxi: ',1f10.2,' at i = ',i5,' j= ',i5)") ze1max, ima1(1), ima1(2)
+      WRITE(numout, "(14x,'e1t mini: ',1f10.2,' at i = ',i5,' j= ',i5)") ze1min, imi1(1), imi1(2)
+      WRITE(numout, "(14x,'e2t maxi: ',1f10.2,' at i = ',i5,' j= ',i5)") ze2max, ima2(1), ima2(2)
+      WRITE(numout, "(14x,'e2t mini: ',1f10.2,' at i = ',i5,' j= ',i5)") ze2min, imi2(1), imi2(2)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dom_ctl
   SUBROUTINE domain_cfg(ldtxt, cd_cfg, kk_cfg, kpi, kpj, kpk, kperio)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *), DIMENSION(:), INTENT(OUT) :: ldtxt
     CHARACTER(LEN = *), INTENT(OUT) :: cd_cfg
     INTEGER, INTENT(OUT) :: kk_cfg
@@ -370,6 +388,8 @@ MODULE domain
     INTEGER :: inum, ii
     REAL(KIND = wp) :: zorca_res
     REAL(KIND = wp) :: ziglo, zjglo, zkglo, zperio
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('domain_cfg', 'r0', 0, 0)
     ii = 1
     WRITE(ldtxt(ii), FMT = *) '           '
     ii = ii + 1
@@ -391,12 +411,10 @@ MODULE domain
     ELSE
       cd_cfg = 'UNKNOWN'
       kk_cfg = - 9999999
-      IF (iom_file(inum) % iolib == jpnf90) THEN
-        CALL iom_getatt(inum, 'cn_cfg', cd_cfg)
-        CALL iom_getatt(inum, 'nn_cfg', kk_cfg)
-        IF (TRIM(cd_cfg) == '!') cd_cfg = 'UNKNOWN'
-        IF (kk_cfg == - 999) kk_cfg = - 9999999
-      END IF
+      CALL iom_getatt(inum, 'cn_cfg', cd_cfg)
+      CALL iom_getatt(inum, 'nn_cfg', kk_cfg)
+      IF (TRIM(cd_cfg) == '!') cd_cfg = 'UNKNOWN'
+      IF (kk_cfg == - 999) kk_cfg = - 9999999
     END IF
     CALL iom_get(inum, 'jpiglo', ziglo)
     kpi = NINT(ziglo)
@@ -417,18 +435,22 @@ MODULE domain
     ii = ii + 1
     WRITE(ldtxt(ii), FMT = *) '      type of global domain lateral boundary   jperio = ', kperio
     ii = ii + 1
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE domain_cfg
   SUBROUTINE cfg_write
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: izco, izps, isco, icav
     INTEGER :: inum
     CHARACTER(LEN = 21) :: clnam
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z2d
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('cfg_write', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'cfg_write : create the domain configuration file (', TRIM(cn_domcfg_out), '.nc)'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~'
     clnam = cn_domcfg_out
-    CALL iom_open(TRIM(clnam), inum, ldwrt = .TRUE., kiolib = jprstlib)
+    CALL iom_open(TRIM(clnam), inum, ldwrt = .TRUE.)
     IF (cn_cfg == "ORCA") THEN
       CALL iom_rstput(0, 0, inum, 'ORCA', 1._wp, ktype = jp_i4)
       CALL iom_rstput(0, 0, inum, 'ORCA_index', REAL(nn_cfg, wp), ktype = jp_i4)
@@ -497,10 +519,9 @@ MODULE domain
     IF (ll_wd) THEN
       CALL iom_rstput(0, 0, inum, 'ht_0', ht_0, ktype = jp_r8)
     END IF
-    IF (iom_file(inum) % iolib == jpnf90) THEN
-      CALL iom_putatt(inum, 'nn_cfg', nn_cfg)
-      CALL iom_putatt(inum, 'cn_cfg', TRIM(cn_cfg))
-    END IF
+    CALL iom_putatt(inum, 'nn_cfg', nn_cfg)
+    CALL iom_putatt(inum, 'cn_cfg', TRIM(cn_cfg))
     CALL iom_close(inum)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE cfg_write
 END MODULE domain

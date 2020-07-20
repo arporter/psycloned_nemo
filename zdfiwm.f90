@@ -26,16 +26,18 @@ MODULE zdfiwm
   REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :) :: hcri_iwm
   CONTAINS
   INTEGER FUNCTION zdf_iwm_alloc()
-    ALLOCATE(ebot_iwm(jpi, jpj), epyc_iwm(jpi, jpj), ecri_iwm(jpi, jpj), hbot_iwm(jpi, jpj), hcri_iwm(jpi, jpj), STAT = zdf_iwm_alloc)
-    IF (lk_mpp) CALL mpp_sum(zdf_iwm_alloc)
-    IF (zdf_iwm_alloc /= 0) CALL ctl_warn('zdf_iwm_alloc: failed to allocate arrays')
+    ALLOCATE(ebot_iwm(jpi, jpj), epyc_iwm(jpi, jpj), ecri_iwm(jpi, jpj), hbot_iwm(jpi, jpj), hcri_iwm(jpi, jpj), STAT = &
+&zdf_iwm_alloc)
+    CALL mpp_sum('zdfiwm', zdf_iwm_alloc)
+    IF (zdf_iwm_alloc /= 0) CALL ctl_stop('STOP', 'zdf_iwm_alloc: failed to allocate arrays')
   END FUNCTION zdf_iwm_alloc
   SUBROUTINE zdf_iwm(kt, p_avm, p_avt, p_avs)
-    INTEGER, INTENT(IN   ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avt, p_avs
     INTEGER :: ji, jj, jk
-    REAL(KIND = wp) :: zztmp
+    REAL(KIND = wp) :: zztmp, ztmp1, ztmp2
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zfact
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zhdep
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwkb
@@ -48,6 +50,10 @@ MODULE zdfiwm
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zav_wave
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: z3d
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: z2d
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
     !$ACC KERNELS
     zemx_iwm(:, :, 1) = 0._wp
     zemx_iwm(:, :, jpk) = 0._wp
@@ -55,6 +61,7 @@ MODULE zdfiwm
     zav_ratio(:, :, jpk) = 0._wp
     zav_wave(:, :, 1) = 0._wp
     zav_wave(:, :, jpk) = 0._wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zhdep(ji, jj) = gdepw_0(ji, jj, mbkt(ji, jj) + 1)
@@ -63,16 +70,25 @@ MODULE zdfiwm
       END DO
     END DO
     DO jk = 2, jpkm1
-      zemx_iwm(:, :, jk) = zfact(:, :) * (EXP((gde3w_n(:, :, jk) - zhdep(:, :)) / hcri_iwm(:, :)) - EXP((gde3w_n(:, :, jk - 1) - zhdep(:, :)) / hcri_iwm(:, :))) * wmask(:, :, jk) / (gde3w_n(:, :, jk) - gde3w_n(:, :, jk - 1))
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
+      DO jj = 1, jpj
+        DO ji = 1, jpi
+          IF (zfact(ji, jj) == 0._wp .OR. wmask(ji, jj, jk) == 0._wp) THEN
+            zemx_iwm(ji, jj, jk) = 0._wp
+          ELSE
+            zemx_iwm(ji, jj, jk) = zfact(ji, jj) * (EXP((gde3w_n(ji, jj, jk) - zhdep(ji, jj)) / hcri_iwm(ji, jj)) - &
+&EXP((gde3w_n(ji, jj, jk - 1) - zhdep(ji, jj)) / hcri_iwm(ji, jj))) / (gde3w_n(ji, jj, jk) - gde3w_n(ji, jj, jk - 1))
+          END IF
+        END DO
+      END DO
     END DO
-    !$ACC END KERNELS
     SELECT CASE (nn_zpyc)
     CASE (1)
-      !$ACC KERNELS
       zfact(:, :) = 0._wp
       DO jk = 2, jpkm1
         zfact(:, :) = zfact(:, :) + e3w_n(:, :, jk) * SQRT(MAX(0._wp, rn2(:, :, jk))) * wmask(:, :, jk)
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (zfact(ji, jj) /= 0) zfact(ji, jj) = epyc_iwm(ji, jj) / (rau0 * zfact(ji, jj))
@@ -81,13 +97,12 @@ MODULE zdfiwm
       DO jk = 2, jpkm1
         zemx_iwm(:, :, jk) = zemx_iwm(:, :, jk) + zfact(:, :) * SQRT(MAX(0._wp, rn2(:, :, jk))) * wmask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     CASE (2)
-      !$ACC KERNELS
       zfact(:, :) = 0._wp
       DO jk = 2, jpkm1
         zfact(:, :) = zfact(:, :) + e3w_n(:, :, jk) * MAX(0._wp, rn2(:, :, jk)) * wmask(:, :, jk)
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (zfact(ji, jj) /= 0) zfact(ji, jj) = epyc_iwm(ji, jj) / (rau0 * zfact(ji, jj))
@@ -96,40 +111,56 @@ MODULE zdfiwm
       DO jk = 2, jpkm1
         zemx_iwm(:, :, jk) = zemx_iwm(:, :, jk) + zfact(:, :) * MAX(0._wp, rn2(:, :, jk)) * wmask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     zwkb(:, :, :) = 0._wp
     zfact(:, :) = 0._wp
+    !$ACC END KERNELS
     DO jk = 2, jpkm1
+      !$ACC KERNELS
       zfact(:, :) = zfact(:, :) + e3w_n(:, :, jk) * SQRT(MAX(0._wp, rn2(:, :, jk))) * wmask(:, :, jk)
       zwkb(:, :, jk) = zfact(:, :)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
-          IF (zfact(ji, jj) /= 0) zwkb(ji, jj, jk) = zhdep(ji, jj) * (zfact(ji, jj) - zwkb(ji, jj, jk)) * wmask(ji, jj, jk) / zfact(ji, jj)
+          IF (zfact(ji, jj) /= 0) zwkb(ji, jj, jk) = zhdep(ji, jj) * (zfact(ji, jj) - zwkb(ji, jj, jk)) * wmask(ji, jj, jk) / &
+&zfact(ji, jj)
         END DO
       END DO
     END DO
     zwkb(:, :, 1) = zhdep(:, :) * wmask(:, :, 1)
-    zweight(:, :, :) = 0._wp
     DO jk = 2, jpkm1
-      zweight(:, :, jk) = MAX(0._wp, rn2(:, :, jk)) * hbot_iwm(:, :) * wmask(:, :, jk) * (EXP(- zwkb(:, :, jk) / hbot_iwm(:, :)) - EXP(- zwkb(:, :, jk - 1) / hbot_iwm(:, :)))
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
+      DO jj = 1, jpj
+        DO ji = 1, jpi
+          IF (rn2(ji, jj, jk) <= 0._wp .OR. wmask(ji, jj, jk) == 0._wp) THEN
+            zweight(ji, jj, jk) = 0._wp
+          ELSE
+            zweight(ji, jj, jk) = rn2(ji, jj, jk) * hbot_iwm(ji, jj) * (EXP(- zwkb(ji, jj, jk) / hbot_iwm(ji, jj)) - EXP(- &
+&zwkb(ji, jj, jk - 1) / hbot_iwm(ji, jj)))
+          END IF
+        END DO
+      END DO
     END DO
     zfact(:, :) = 0._wp
     DO jk = 2, jpkm1
       zfact(:, :) = zfact(:, :) + zweight(:, :, jk)
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (zfact(ji, jj) /= 0) zfact(ji, jj) = ebot_iwm(ji, jj) / (rau0 * zfact(ji, jj))
       END DO
     END DO
     DO jk = 2, jpkm1
-      zemx_iwm(:, :, jk) = zemx_iwm(:, :, jk) + zweight(:, :, jk) * zfact(:, :) * wmask(:, :, jk) / (gde3w_n(:, :, jk) - gde3w_n(:, :, jk - 1))
+      zemx_iwm(:, :, jk) = zemx_iwm(:, :, jk) + zweight(:, :, jk) * zfact(:, :) * wmask(:, :, jk) / (gde3w_n(:, :, jk) - &
+&gde3w_n(:, :, jk - 1))
     END DO
-    znu_t(:, :, :) = 1.E-4_wp * (17.91_wp - 0.53810_wp * tsn(:, :, :, jp_tem) + 0.00694_wp * tsn(:, :, :, jp_tem) * tsn(:, :, :, jp_tem) + 0.02305_wp * tsn(:, :, :, jp_sal)) * tmask(:, :, :) * r1_rau0
+    znu_t(:, :, :) = 1.E-4_wp * (17.91_wp - 0.53810_wp * tsn(:, :, :, jp_tem) + 0.00694_wp * tsn(:, :, :, jp_tem) * tsn(:, :, :, &
+&jp_tem) + 0.02305_wp * tsn(:, :, :, jp_sal)) * tmask(:, :, :) * r1_rau0
     DO jk = 2, jpkm1
       znu_w(:, :, jk) = 0.5_wp * (znu_t(:, :, jk - 1) + znu_t(:, :, jk)) * wmask(:, :, jk)
     END DO
@@ -143,6 +174,7 @@ MODULE zdfiwm
     IF (ln_mevar) THEN
       !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (zReb(ji, jj, jk) > 480.00_wp) THEN
@@ -164,14 +196,17 @@ MODULE zdfiwm
       !$ACC KERNELS
       zztmp = 0._wp
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
-            zztmp = zztmp + e3w_n(ji, jj, jk) * e1e2t(ji, jj) * MAX(0._wp, rn2(ji, jj, jk)) * zav_wave(ji, jj, jk) * wmask(ji, jj, jk) * tmask_i(ji, jj)
+            zztmp = zztmp + e3w_n(ji, jj, jk) * e1e2t(ji, jj) * MAX(0._wp, rn2(ji, jj, jk)) * zav_wave(ji, jj, jk) * wmask(ji, jj, &
+&jk) * tmask_i(ji, jj)
           END DO
         END DO
       END DO
       !$ACC END KERNELS
-      IF (lk_mpp) CALL mpp_sum(zztmp)
+      CALL profile_psy_data0 % PreStart('zdf_iwm', 'r0', 0, 0)
+      CALL mpp_sum('zdfiwm', zztmp)
       zztmp = rau0 * zztmp
       IF (lwp) THEN
         WRITE(numout, FMT = *)
@@ -180,31 +215,40 @@ MODULE zdfiwm
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) '      Total power consumption by av_wave =  ', zztmp * 1.E-12_wp, 'TW'
       END IF
+      CALL profile_psy_data0 % PostEnd
     END IF
     IF (ln_tsdiff) THEN
+      CALL profile_psy_data1 % PreStart('zdf_iwm', 'r1', 0, 0)
+      ztmp1 = 0.505_wp + 0.495_wp * TANH(0.92_wp * (LOG10(1.E-20_wp) - 0.60_wp))
       DO jk = 2, jpkm1
         DO jj = 1, jpj
           DO ji = 1, jpi
-            zav_ratio(ji, jj, jk) = (0.505_wp + 0.495_wp * TANH(0.92_wp * (LOG10(MAX(1.E-20_wp, zReb(ji, jj, jk) * 5._wp * r1_6)) - 0.60_wp))) * wmask(ji, jj, jk)
+            ztmp2 = zReb(ji, jj, jk) * 5._wp * r1_6
+            IF (ztmp2 > 1.E-20_wp .AND. wmask(ji, jj, jk) == 1._wp) THEN
+              zav_ratio(ji, jj, jk) = 0.505_wp + 0.495_wp * TANH(0.92_wp * (LOG10(ztmp2) - 0.60_wp))
+            ELSE
+              zav_ratio(ji, jj, jk) = ztmp1 * wmask(ji, jj, jk)
+            END IF
           END DO
         END DO
       END DO
       CALL iom_put("av_ratio", zav_ratio)
-      !$ACC KERNELS
+      CALL profile_psy_data1 % PostEnd
       DO jk = 2, jpkm1
+        !$ACC KERNELS
         p_avs(:, :, jk) = p_avs(:, :, jk) + zav_wave(:, :, jk) * zav_ratio(:, :, jk)
         p_avt(:, :, jk) = p_avt(:, :, jk) + zav_wave(:, :, jk)
         p_avm(:, :, jk) = p_avm(:, :, jk) + zav_wave(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
     ELSE
-      !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC KERNELS
         p_avs(:, :, jk) = p_avs(:, :, jk) + zav_wave(:, :, jk)
         p_avt(:, :, jk) = p_avt(:, :, jk) + zav_wave(:, :, jk)
         p_avm(:, :, jk) = p_avm(:, :, jk) + zav_wave(:, :, jk)
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
     END IF
     CALL iom_put("av_wave", zav_wave)
     IF (iom_use("bflx_iwm") .OR. iom_use("pcmap_iwm")) THEN
@@ -217,12 +261,16 @@ MODULE zdfiwm
       END DO
       z2d(:, :) = rau0 * z2d(:, :)
       !$ACC END KERNELS
+      CALL profile_psy_data2 % PreStart('zdf_iwm', 'r2', 0, 0)
       CALL iom_put("bflx_iwm", z3d)
       CALL iom_put("pcmap_iwm", z2d)
       DEALLOCATE(z2d, z3d)
+      CALL profile_psy_data2 % PostEnd
     END IF
+    CALL profile_psy_data3 % PreStart('zdf_iwm', 'r3', 0, 0)
     CALL iom_put("emix_iwm", zemx_iwm)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = zav_wave, clinfo1 = ' iwm - av_wave: ', tab3d_2 = avt, clinfo2 = ' avt: ', kdim = jpk)
+    CALL profile_psy_data3 % PostEnd
   END SUBROUTINE zdf_iwm
   SUBROUTINE zdf_iwm_init
     INTEGER :: ji, jj, jk
@@ -246,14 +294,15 @@ MODULE zdfiwm
       WRITE(numout, FMT = *) '      Variable (T) or constant (F) mixing efficiency            = ', ln_mevar
       WRITE(numout, FMT = *) '      Differential internal wave-driven mixing (T) or not (F)   = ', ln_tsdiff
     END IF
+    !$ACC KERNELS
     avmb(:) = 1.4E-6_wp
     avtb(:) = 1.E-10_wp
-    !$ACC KERNELS
     avtb_2d(:, :) = 1.E0_wp
     !$ACC END KERNELS
     IF (lwp) THEN
       WRITE(numout, FMT = *)
-      WRITE(numout, FMT = *) '   Force the background value applied to avm & avt in TKE to be everywhere ', 'the viscous molecular value & a very small diffusive value, resp.'
+      WRITE(numout, FMT = *) '   Force the background value applied to avm & avt in TKE to be everywhere ', 'the viscous molecular &
+&value & a very small diffusive value, resp.'
     END IF
     IF (zdf_iwm_alloc() /= 0) CALL ctl_stop('STOP', 'zdf_iwm_init : unable to allocate iwm arrays')
     CALL iom_open('mixing_power_bot', inum)
@@ -276,9 +325,9 @@ MODULE zdfiwm
     epyc_iwm(:, :) = epyc_iwm(:, :) * ssmask(:, :)
     ecri_iwm(:, :) = ecri_iwm(:, :) * ssmask(:, :)
     !$ACC END KERNELS
-    zbot = glob_sum(e1e2t(:, :) * ebot_iwm(:, :))
-    zpyc = glob_sum(e1e2t(:, :) * epyc_iwm(:, :))
-    zcri = glob_sum(e1e2t(:, :) * ecri_iwm(:, :))
+    zbot = glob_sum('zdfiwm', e1e2t(:, :) * ebot_iwm(:, :))
+    zpyc = glob_sum('zdfiwm', e1e2t(:, :) * epyc_iwm(:, :))
+    zcri = glob_sum('zdfiwm', e1e2t(:, :) * ecri_iwm(:, :))
     IF (lwp) THEN
       WRITE(numout, FMT = *) '      High-mode wave-breaking energy:             ', zbot * 1.E-12_wp, 'TW'
       WRITE(numout, FMT = *) '      Pycnocline-intensifed wave-breaking energy: ', zpyc * 1.E-12_wp, 'TW'

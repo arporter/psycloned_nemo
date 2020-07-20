@@ -5,6 +5,7 @@ MODULE obs_inter_z1d
   PUBLIC :: obs_int_z1d, obs_int_z1d_spl
   CONTAINS
   SUBROUTINE obs_int_z1d(kpk, kkco, k1dint, kdep, pobsdep, pobsk, pobs2k, pobs, pdep, pobsmask)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kpk
     INTEGER, INTENT(IN) :: k1dint
     INTEGER, INTENT(IN) :: kdep
@@ -17,7 +18,8 @@ MODULE obs_inter_z1d
     REAL(KIND = wp) :: zsum
     REAL(KIND = wp) :: zsum2
     INTEGER :: jdep
-    !$ACC KERNELS
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_int_z1d', 'r0', 0, 0)
     DO jdep = 1, kdep
       z1dm = (pdep(kkco(jdep)) - pobsdep(jdep))
       z1dp = (pobsdep(jdep) - pdep(kkco(jdep) - 1))
@@ -27,12 +29,14 @@ MODULE obs_inter_z1d
         pobs(jdep) = (z1dm * pobsk(kkco(jdep) - 1) + z1dp * pobsk(kkco(jdep))) / zsum
       ELSE IF (k1dint == 1) THEN
         zsum2 = zsum * zsum
-        pobs(jdep) = (z1dm * pobsk(kkco(jdep) - 1) + z1dp * pobsk(kkco(jdep)) + (z1dm * (z1dm * z1dm - zsum2) * pobs2k(kkco(jdep) - 1) + z1dp * (z1dp * z1dp - zsum2) * pobs2k(kkco(jdep))) / 6.0_wp) / zsum
+        pobs(jdep) = (z1dm * pobsk(kkco(jdep) - 1) + z1dp * pobsk(kkco(jdep)) + (z1dm * (z1dm * z1dm - zsum2) * pobs2k(kkco(jdep) &
+&- 1) + z1dp * (z1dp * z1dp - zsum2) * pobs2k(kkco(jdep))) / 6.0_wp) / zsum
       END IF
     END DO
-    !$ACC END KERNELS
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_int_z1d
   SUBROUTINE obs_int_z1d_spl(kpk, pobsk, pobs2k, pdep, pobsmask)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kpk
     REAL(KIND = wp), INTENT(IN), DIMENSION(kpk) :: pobsk, pdep, pobsmask
     REAL(KIND = wp), INTENT(OUT), DIMENSION(kpk) :: pobs2k
@@ -45,6 +49,7 @@ MODULE obs_inter_z1d
     REAL(KIND = wp) :: zkp
     REAL(KIND = wp) :: zk
     REAL(KIND = wp), DIMENSION(kpk - 1) :: zs, zp, zu, zv
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     zs(1) = 0.0_wp
     zp(1) = 0.0_wp
@@ -66,10 +71,12 @@ MODULE obs_inter_z1d
       zu(jk) = pobsk(jk + 1) * zkp + pobsk(jk) * zk + pobsk(jk - 1) * zkm + zu(jk - 1) * (- zs(jk) / zp(jk))
     END DO
     pobs2k(kpk) = 0.0_wp
+    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('obs_int_z1d_spl', 'r0', 0, 0)
     DO jk = kpk - 1, 1, - 1
       pobs2k(jk) = zv(jk) * pobs2k(jk + 1) + zu(jk)
       IF (pobsmask(jk + 1) == 0.0_wp) pobs2k(jk) = 0.0_wp
     END DO
-    !$ACC END KERNELS
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_int_z1d_spl
 END MODULE obs_inter_z1d

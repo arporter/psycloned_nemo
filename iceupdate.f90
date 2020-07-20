@@ -26,22 +26,28 @@ MODULE iceupdate
   CONTAINS
   INTEGER FUNCTION ice_update_alloc()
     ALLOCATE(utau_oce(jpi, jpj), vtau_oce(jpi, jpj), tmod_io(jpi, jpj), STAT = ice_update_alloc)
-    IF (lk_mpp) CALL mpp_sum(ice_update_alloc)
-    IF (ice_update_alloc /= 0) CALL ctl_warn('ice_update_alloc: failed to allocate arrays')
+    CALL mpp_sum('iceupdate', ice_update_alloc)
+    IF (ice_update_alloc /= 0) CALL ctl_stop('STOP', 'ice_update_alloc: failed to allocate arrays')
   END FUNCTION ice_update_alloc
   SUBROUTINE ice_update_flx(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jl, jk
     REAL(KIND = wp) :: zqmass
     REAL(KIND = wp) :: zqsr
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z2d
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: zalb_cs, zalb_os
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('ice_update_flx', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('ice_update')
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'ice_update_flx: update fluxes (mass, salt and heat) at the ice-ocean interface'
       WRITE(numout, FMT = *) '~~~~~~~~~~~~~~'
     END IF
+    CALL profile_psy_data0 % PostEnd
     IF (.NOT. ln_icethd) THEN
       !$ACC KERNELS
       qt_atm_oi(:, :) = (1._wp - at_i_b(:, :)) * (qns_oce(:, :) + qsr_oce(:, :)) + qemp_oce(:, :)
@@ -51,25 +57,30 @@ MODULE iceupdate
       qevap_ice(:, :, :) = 0._wp
       !$ACC END KERNELS
     END IF
+    CALL profile_psy_data1 % PreStart('ice_update_flx', 'r1', 0, 0)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zqsr = qsr_tot(ji, jj) - SUM(a_i_b(ji, jj, :) * (qsr_ice(ji, jj, :) - qtr_ice_bot(ji, jj, :)))
         zqmass = hfx_thd(ji, jj) + hfx_dyn(ji, jj) + hfx_res(ji, jj)
         qt_oce_ai(ji, jj) = qt_oce_ai(ji, jj) + zqmass + zqsr
-        qt_oce_ai(ji, jj) = qt_oce_ai(ji, jj) + hfx_err_dif(ji, jj) + (hfx_sub(ji, jj) - SUM(qevap_ice(ji, jj, :) * a_i_b(ji, jj, :)))
+        qt_oce_ai(ji, jj) = qt_oce_ai(ji, jj) + hfx_err_dif(ji, jj) + (hfx_sub(ji, jj) - SUM(qevap_ice(ji, jj, :) * a_i_b(ji, jj, &
+&:)))
         qsr(ji, jj) = zqsr
         qns(ji, jj) = qt_oce_ai(ji, jj) - zqsr
         wfx_sub(ji, jj) = wfx_snw_sub(ji, jj) + wfx_ice_sub(ji, jj)
-        wfx_ice(ji, jj) = wfx_bog(ji, jj) + wfx_bom(ji, jj) + wfx_sum(ji, jj) + wfx_sni(ji, jj) + wfx_opw(ji, jj) + wfx_dyn(ji, jj) + wfx_res(ji, jj) + wfx_lam(ji, jj) + wfx_pnd(ji, jj)
+        wfx_ice(ji, jj) = wfx_bog(ji, jj) + wfx_bom(ji, jj) + wfx_sum(ji, jj) + wfx_sni(ji, jj) + wfx_opw(ji, jj) + wfx_dyn(ji, &
+&jj) + wfx_res(ji, jj) + wfx_lam(ji, jj) + wfx_pnd(ji, jj)
         wfx_snw(ji, jj) = wfx_snw_sni(ji, jj) + wfx_snw_dyn(ji, jj) + wfx_snw_sum(ji, jj)
         fmmflx(ji, jj) = - (wfx_ice(ji, jj) + wfx_snw(ji, jj) + wfx_err_sub(ji, jj))
         emp(ji, jj) = emp_oce(ji, jj) - wfx_ice(ji, jj) - wfx_snw(ji, jj) - wfx_err_sub(ji, jj)
-        sfx(ji, jj) = sfx_bog(ji, jj) + sfx_bom(ji, jj) + sfx_sum(ji, jj) + sfx_sni(ji, jj) + sfx_opw(ji, jj) + sfx_res(ji, jj) + sfx_dyn(ji, jj) + sfx_bri(ji, jj) + sfx_sub(ji, jj) + sfx_lam(ji, jj)
+        sfx(ji, jj) = sfx_bog(ji, jj) + sfx_bom(ji, jj) + sfx_sum(ji, jj) + sfx_sni(ji, jj) + sfx_opw(ji, jj) + sfx_res(ji, jj) + &
+&sfx_dyn(ji, jj) + sfx_bri(ji, jj) + sfx_sub(ji, jj) + sfx_lam(ji, jj)
         snwice_mass_b(ji, jj) = snwice_mass(ji, jj)
         snwice_mass(ji, jj) = tmask(ji, jj, 1) * (rhos * vt_s(ji, jj) + rhoi * vt_i(ji, jj))
         snwice_fmass(ji, jj) = (snwice_mass(ji, jj) - snwice_mass_b(ji, jj)) * r1_rdtice
       END DO
     END DO
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     fr_i(:, :) = at_i(:, :)
     tn_ice(:, :, :) = t_su(:, :, :)
@@ -78,6 +89,7 @@ MODULE iceupdate
     !$ACC KERNELS
     alb_ice(:, :, :) = (1._wp - cldf_ice) * zalb_cs(:, :, :) + cldf_ice * zalb_os(:, :, :)
     !$ACC END KERNELS
+    CALL profile_psy_data2 % PreStart('ice_update_flx', 'r2', 0, 0)
     IF (lrst_ice) THEN
       CALL update_rst('WRITE', kt)
     END IF
@@ -152,13 +164,18 @@ MODULE iceupdate
     IF (ln_icectl) CALL ice_prt(kt, iiceprt, jiceprt, 3, 'Final state ice_update')
     IF (ln_ctl) CALL ice_prt3D('iceupdate')
     IF (ln_timing) CALL timing_stop('ice_update')
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE ice_update_flx
   SUBROUTINE ice_update_tau(kt, pu_oce, pv_oce)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pu_oce, pv_oce
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zat_u, zutau_ice, zu_t, zmodt
     REAL(KIND = wp) :: zat_v, zvtau_ice, zv_t, zrhoco
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('ice_update_tau', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('ice_update_tau')
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
@@ -166,8 +183,10 @@ MODULE iceupdate
       WRITE(numout, FMT = *) '~~~~~~~~~~~~~~'
     END IF
     zrhoco = rau0 * rn_cio
+    CALL profile_psy_data0 % PostEnd
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zu_t = u_ice(ji, jj) + u_ice(ji - 1, jj) - u_oce(ji, jj) - u_oce(ji - 1, jj)
@@ -178,17 +197,20 @@ MODULE iceupdate
         END DO
       END DO
       !$ACC END KERNELS
-      CALL lbc_lnk_multi(taum, 'T', 1., tmod_io, 'T', 1.)
+      CALL lbc_lnk_multi('iceupdate', taum, 'T', 1., tmod_io, 'T', 1.)
       !$ACC KERNELS
       utau_oce(:, :) = utau(:, :)
       vtau_oce(:, :) = vtau(:, :)
       !$ACC END KERNELS
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
-        zat_u = (at_i(ji, jj) * tmask(ji, jj, 1) + at_i(ji + 1, jj) * tmask(ji + 1, jj, 1)) / MAX(1.0_wp, tmask(ji, jj, 1) + tmask(ji + 1, jj, 1))
-        zat_v = (at_i(ji, jj) * tmask(ji, jj, 1) + at_i(ji, jj + 1) * tmask(ji, jj + 1, 1)) / MAX(1.0_wp, tmask(ji, jj, 1) + tmask(ji, jj + 1, 1))
+        zat_u = (at_i(ji, jj) * tmask(ji, jj, 1) + at_i(ji + 1, jj) * tmask(ji + 1, jj, 1)) / MAX(1.0_wp, tmask(ji, jj, 1) + &
+&tmask(ji + 1, jj, 1))
+        zat_v = (at_i(ji, jj) * tmask(ji, jj, 1) + at_i(ji, jj + 1) * tmask(ji, jj + 1, 1)) / MAX(1.0_wp, tmask(ji, jj, 1) + &
+&tmask(ji, jj + 1, 1))
         zutau_ice = 0.5_wp * (tmod_io(ji, jj) + tmod_io(ji + 1, jj)) * (u_ice(ji, jj) - pu_oce(ji, jj))
         zvtau_ice = 0.5_wp * (tmod_io(ji, jj) + tmod_io(ji, jj + 1)) * (v_ice(ji, jj) - pv_oce(ji, jj))
         utau(ji, jj) = (1._wp - zat_u) * utau_oce(ji, jj) + zat_u * zutau_ice
@@ -196,8 +218,10 @@ MODULE iceupdate
       END DO
     END DO
     !$ACC END KERNELS
-    CALL lbc_lnk_multi(utau, 'U', - 1., vtau, 'V', - 1.)
+    CALL profile_psy_data1 % PreStart('ice_update_tau', 'r1', 0, 0)
+    CALL lbc_lnk_multi('iceupdate', utau, 'U', - 1., vtau, 'V', - 1.)
     IF (ln_timing) CALL timing_stop('ice_update_tau')
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE ice_update_tau
   SUBROUTINE ice_update_init
     INTEGER :: ji, jj, jk

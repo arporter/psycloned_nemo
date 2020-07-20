@@ -47,6 +47,7 @@ MODULE sbcwave
   REAL(KIND = wp), PUBLIC, ALLOCATABLE, DIMENSION(:, :, :) :: usd, vsd, wsd
   CONTAINS
   SUBROUTINE sbc_stokes
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jj, ji, jk
     INTEGER :: ik
     REAL(KIND = wp) :: ztransp, zfac, zsp0
@@ -57,11 +58,17 @@ MODULE sbcwave
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zk_t, zk_u, zk_v, zu0_sd, zv0_sd
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zstokes_psi_u_top, zstokes_psi_v_top
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: ze3divh
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('sbc_stokes', 'r0', 0, 0)
     ALLOCATE(ze3divh(jpi, jpj, jpk))
     ALLOCATE(zk_t(jpi, jpj), zk_u(jpi, jpj), zk_v(jpi, jpj), zu0_sd(jpi, jpj), zv0_sd(jpi, jpj))
+    CALL profile_psy_data0 % PostEnd
     IF (ll_st_bv_li) THEN
       !$ACC KERNELS
       zfac = 2.0_wp * rpi / 16.0_wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           ztransp = zfac * hsw(ji, jj) * hsw(ji, jj) / MAX(wmp(ji, jj), 0.0000001_wp)
@@ -69,6 +76,7 @@ MODULE sbcwave
           zk_t(ji, jj) = ABS(tsd2d(ji, jj)) / MAX(ABS(5.97_wp * ztransp), 0.0000001_wp)
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zk_u(ji, jj) = 0.5_wp * (zk_t(ji, jj) + zk_t(ji + 1, jj))
@@ -80,11 +88,13 @@ MODULE sbcwave
       !$ACC END KERNELS
     ELSE IF (ll_st_peakfr) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zk_t(ji, jj) = (2.0_wp * rpi * wfreq(ji, jj)) * (2.0_wp * rpi * wfreq(ji, jj)) / grav
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zk_u(ji, jj) = 0.5_wp * (zk_t(ji, jj) + zk_t(ji + 1, jj))
@@ -98,6 +108,7 @@ MODULE sbcwave
     IF (ll_st_bv2014) THEN
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zdep_u = 0.5_wp * (gdept_n(ji, jj, jk) + gdept_n(ji + 1, jj, jk))
@@ -115,6 +126,7 @@ MODULE sbcwave
     ELSE IF (ll_st_li2017 .OR. ll_st_peakfr) THEN
       ALLOCATE(zstokes_psi_u_top(jpi, jpj), zstokes_psi_v_top(jpi, jpj))
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zstokes_psi_u_top(ji, jj) = 0._wp
@@ -124,6 +136,7 @@ MODULE sbcwave
       zsqrtpi = SQRT(rpi)
       z_two_thirds = 2.0_wp / 3.0_wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zbot_u = (gdepw_n(ji, jj, jk + 1) + gdepw_n(ji + 1, jj, jk + 1))
@@ -135,13 +148,15 @@ MODULE sbcwave
             zdepth = zkb_u
             zsqrt_depth = SQRT(zdepth)
             zexp_depth = EXP(- zdepth)
-            zstokes_psi_u_bot = 1.0_wp - zexp_depth - z_two_thirds * (zsqrtpi * zsqrt_depth * zdepth * ERFC(zsqrt_depth) + 1.0_wp - (1.0_wp + zdepth) * zexp_depth)
+            zstokes_psi_u_bot = 1.0_wp - zexp_depth - z_two_thirds * (zsqrtpi * zsqrt_depth * zdepth * ERFC(zsqrt_depth) + 1.0_wp &
+&- (1.0_wp + zdepth) * zexp_depth)
             zda_u = (zstokes_psi_u_bot - zstokes_psi_u_top(ji, jj)) / zke3_u
             zstokes_psi_u_top(ji, jj) = zstokes_psi_u_bot
             zdepth = zkb_v
             zsqrt_depth = SQRT(zdepth)
             zexp_depth = EXP(- zdepth)
-            zstokes_psi_v_bot = 1.0_wp - zexp_depth - z_two_thirds * (zsqrtpi * zsqrt_depth * zdepth * ERFC(zsqrt_depth) + 1.0_wp - (1.0_wp + zdepth) * zexp_depth)
+            zstokes_psi_v_bot = 1.0_wp - zexp_depth - z_two_thirds * (zsqrtpi * zsqrt_depth * zdepth * ERFC(zsqrt_depth) + 1.0_wp &
+&- (1.0_wp + zdepth) * zexp_depth)
             zda_v = (zstokes_psi_v_bot - zstokes_psi_v_top(ji, jj)) / zke3_v
             zstokes_psi_v_top(ji, jj) = zstokes_psi_v_bot
             usd(ji, jj, jk) = zda_u * zu0_sd(ji, jj) * umask(ji, jj, jk)
@@ -152,22 +167,27 @@ MODULE sbcwave
       !$ACC END KERNELS
       DEALLOCATE(zstokes_psi_u_top, zstokes_psi_v_top)
     END IF
-    CALL lbc_lnk_multi(usd, 'U', - 1., vsd, 'V', - 1.)
+    CALL lbc_lnk_multi('sbcwave', usd, 'U', - 1., vsd, 'V', - 1.)
     !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpj
         DO ji = 2, jpi
-          ze3divh(ji, jj, jk) = (e2u(ji, jj) * e3u_n(ji, jj, jk) * usd(ji, jj, jk) - e2u(ji - 1, jj) * e3u_n(ji - 1, jj, jk) * usd(ji - 1, jj, jk) + e1v(ji, jj) * e3v_n(ji, jj, jk) * vsd(ji, jj, jk) - e1v(ji, jj - 1) * e3v_n(ji, jj - 1, jk) * vsd(ji, jj - 1, jk)) * r1_e1e2t(ji, jj)
+          ze3divh(ji, jj, jk) = (e2u(ji, jj) * e3u_n(ji, jj, jk) * usd(ji, jj, jk) - e2u(ji - 1, jj) * e3u_n(ji - 1, jj, jk) * &
+&usd(ji - 1, jj, jk) + e1v(ji, jj) * e3v_n(ji, jj, jk) * vsd(ji, jj, jk) - e1v(ji, jj - 1) * e3v_n(ji, jj - 1, jk) * vsd(ji, jj - &
+&1, jk)) * r1_e1e2t(ji, jj)
         END DO
       END DO
     END DO
     !$ACC END KERNELS
-    CALL lbc_lnk(ze3divh, 'T', 1.)
+    CALL profile_psy_data1 % PreStart('sbc_stokes', 'r1', 0, 0)
+    CALL lbc_lnk('sbcwave', ze3divh, 'T', 1.)
     IF (ln_linssh) THEN
       ik = 1
     ELSE
       ik = 2
     END IF
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     DO jk = jpkm1, ik, - 1
       wsd(:, :, jk) = wsd(:, :, jk + 1) - ze3divh(:, :, jk)
@@ -186,11 +206,13 @@ MODULE sbcwave
       div_sd(:, :) = div_sd(:, :) + ze3divh(:, :, jk)
     END DO
     !$ACC END KERNELS
+    CALL profile_psy_data2 % PreStart('sbc_stokes', 'r2', 0, 0)
     CALL iom_put("ustokes", usd)
     CALL iom_put("vstokes", vsd)
     CALL iom_put("wstokes", wsd)
     DEALLOCATE(ze3divh)
     DEALLOCATE(zk_t, zk_u, zk_v, zu0_sd, zv0_sd)
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE sbc_stokes
   SUBROUTINE sbc_wstress
     INTEGER :: jj, ji
@@ -203,6 +225,7 @@ MODULE sbcwave
     END IF
     IF (ln_tauw) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           utau(ji, jj) = 0.5_wp * (tauw_x(ji, jj) + tauw_x(ji + 1, jj))
@@ -211,11 +234,14 @@ MODULE sbcwave
         END DO
       END DO
       !$ACC END KERNELS
-      CALL lbc_lnk_multi(utau(:, :), 'U', - 1., vtau(:, :), 'V', - 1., taum(:, :), 'T', - 1.)
+      CALL lbc_lnk_multi('sbcwave', utau(:, :), 'U', - 1., vtau(:, :), 'V', - 1., taum(:, :), 'T', - 1.)
     END IF
   END SUBROUTINE sbc_wstress
   SUBROUTINE sbc_wave(kt)
-    INTEGER, INTENT(IN   ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('sbc_wave', 'r0', 0, 0)
     IF (ln_cdgw .AND. .NOT. cpl_wdrag) THEN
       CALL fld_read(kt, nn_fsbc, sf_cd)
       cdn_wave(:, :) = sf_cd(1) % fnow(:, :, 1) * tmask(:, :, 1)
@@ -242,8 +268,10 @@ MODULE sbcwave
         CALL fld_read(kt, nn_fsbc, sf_wn)
         wnum(:, :) = sf_wn(1) % fnow(:, :, 1) * tmask(:, :, 1)
       END IF
-      IF ((ll_st_bv_li .AND. jp_hsw > 0 .AND. jp_wmp > 0 .AND. jp_usd > 0 .AND. jp_vsd > 0) .OR. (ll_st_peakfr .AND. jp_wfr > 0 .AND. jp_usd > 0 .AND. jp_vsd > 0)) CALL sbc_stokes
+      IF ((ll_st_bv_li .AND. jp_hsw > 0 .AND. jp_wmp > 0 .AND. jp_usd > 0 .AND. jp_vsd > 0) .OR. (ll_st_peakfr .AND. jp_wfr > 0 &
+&.AND. jp_usd > 0 .AND. jp_vsd > 0)) CALL sbc_stokes
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE sbc_wave
   SUBROUTINE sbc_wave_init
     INTEGER :: ierror, ios

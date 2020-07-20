@@ -8,6 +8,7 @@ MODULE bdydta
   USE bdytides
   USE ice
   USE icevar
+  USE lib_mpp, ONLY: ctl_stop, ctl_nam
   USE fldread
   USE iom
   USE in_out_manager
@@ -26,6 +27,7 @@ MODULE bdydta
   INTEGER, DIMENSION(jp_bdy) :: jfld_htit, jfld_htst, jfld_ait
   CONTAINS
   SUBROUTINE bdy_dta(kt, jit, time_offset)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN), OPTIONAL :: jit
     INTEGER, INTENT(IN), OPTIONAL :: time_offset
@@ -34,14 +36,27 @@ MODULE bdydta
     INTEGER, DIMENSION(jpbgrd) :: ilen1
     INTEGER, POINTER, DIMENSION(:) :: nblen, nblenrim
     TYPE(OBC_DATA), POINTER :: dta
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
     IF (ln_timing) CALL timing_start('bdy_dta')
     IF (kt == nit000 .AND. .NOT. PRESENT(jit)) THEN
       DO jbdy = 1, nb_bdy
+        CALL profile_psy_data0 % PreStart('bdy_dta', 'r0', 0, 0)
         nblen => idx_bdy(jbdy) % nblen
         nblenrim => idx_bdy(jbdy) % nblenrim
         dta => dta_bdy(jbdy)
+        CALL profile_psy_data0 % PostEnd
         IF (nn_dyn2d_dta(jbdy) == 0) THEN
+          !$ACC KERNELS
           ilen1(:) = nblen(:)
+          !$ACC END KERNELS
+          CALL profile_psy_data1 % PreStart('bdy_dta', 'r1', 0, 0)
           IF (dta % ll_ssh) THEN
             igrd = 1
             DO ib = 1, ilen1(igrd)
@@ -66,9 +81,13 @@ MODULE bdydta
               dta_bdy(jbdy) % v2d(ib) = vn_b(ii, ij) * vmask(ii, ij, 1)
             END DO
           END IF
+          CALL profile_psy_data1 % PostEnd
         END IF
         IF (nn_dyn3d_dta(jbdy) == 0) THEN
+          !$ACC KERNELS
           ilen1(:) = nblen(:)
+          !$ACC END KERNELS
+          CALL profile_psy_data2 % PreStart('bdy_dta', 'r2', 0, 0)
           IF (dta % ll_u3d) THEN
             igrd = 2
             DO ib = 1, ilen1(igrd)
@@ -89,9 +108,13 @@ MODULE bdydta
               END DO
             END DO
           END IF
+          CALL profile_psy_data2 % PostEnd
         END IF
         IF (nn_tra_dta(jbdy) == 0) THEN
+          !$ACC KERNELS
           ilen1(:) = nblen(:)
+          !$ACC END KERNELS
+          CALL profile_psy_data3 % PreStart('bdy_dta', 'r3', 0, 0)
           IF (dta % ll_tem) THEN
             igrd = 1
             DO ib = 1, ilen1(igrd)
@@ -112,9 +135,13 @@ MODULE bdydta
               END DO
             END DO
           END IF
+          CALL profile_psy_data3 % PostEnd
         END IF
         IF (nn_ice_dta(jbdy) == 0) THEN
+          !$ACC KERNELS
           ilen1(:) = nblen(:)
+          !$ACC END KERNELS
+          CALL profile_psy_data4 % PreStart('bdy_dta', 'r4', 0, 0)
           IF (dta % ll_a_i) THEN
             igrd = 1
             DO jl = 1, jpl
@@ -145,9 +172,11 @@ MODULE bdydta
               END DO
             END DO
           END IF
+          CALL profile_psy_data4 % PostEnd
         END IF
       END DO
     END IF
+    CALL profile_psy_data5 % PreStart('bdy_dta', 'r5', 0, 0)
     jstart = 1
     DO jbdy = 1, nb_bdy
       dta => dta_bdy(jbdy)
@@ -163,11 +192,14 @@ MODULE bdydta
               IF (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3) THEN
                 jend = jstart + dta % nread(2) - 1
                 IF (ln_full_vel_array(jbdy)) THEN
-                  CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kit = jit, kt_offset = time_offset, jpk_bdy = nb_jpk_bdy, fvl = ln_full_vel_array(jbdy))
+                  CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kit = jit, &
+&kt_offset = time_offset, jpk_bdy = nb_jpk_bdy(jbdy), fvl = ln_full_vel_array(jbdy))
                 ELSE
-                  CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kit = jit, kt_offset = time_offset)
+                  CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kit = jit, &
+&kt_offset = time_offset)
                 END IF
-                IF (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3 .OR. nn_dyn3d_dta(jbdy) == 1)) THEN
+                IF (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3 .OR. nn_dyn3d_dta(jbdy) == &
+&1)) THEN
                   igrd = 2
                   dta % u2d(:) = 0._wp
                   DO ib = 1, idx_bdy(jbdy) % nblen(igrd)
@@ -219,9 +251,11 @@ MODULE bdydta
             END IF
             IF (dta % nread(1) .GT. 0) THEN
               jend = jstart + dta % nread(1) - 1
-              CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kt_offset = time_offset, jpk_bdy = nb_jpk_bdy, fvl = ln_full_vel_array(jbdy))
+              CALL fld_read(kt = kt, kn_fsbc = 1, sd = bf(jstart : jend), map = nbmap_ptr(jstart : jend), kt_offset = time_offset, &
+&jpk_bdy = nb_jpk_bdy(jbdy), fvl = ln_full_vel_array(jbdy))
             END IF
-            IF (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3 .OR. nn_dyn3d_dta(jbdy) == 1)) THEN
+            IF (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3 .OR. nn_dyn3d_dta(jbdy) == 1)) &
+&THEN
               igrd = 2
               dta % u2d(:) = 0._wp
               DO ib = 1, idx_bdy(jbdy) % nblen(igrd)
@@ -255,35 +289,17 @@ MODULE bdydta
             jfld_hts = jfld_htst(jbdy)
             jfld_ai = jfld_ait(jbdy)
             IF (jpl /= 1 .AND. nice_cat == 1) THEN
-              CALL ice_var_itd(bf(jfld_hti) % fnow(:, 1, 1), bf(jfld_hts) % fnow(:, 1, 1), bf(jfld_ai) % fnow(:, 1, 1), dta_bdy(jbdy) % h_i, dta_bdy(jbdy) % h_s, dta_bdy(jbdy) % a_i)
+              CALL ice_var_itd(bf(jfld_hti) % fnow(:, 1, 1), bf(jfld_hts) % fnow(:, 1, 1), bf(jfld_ai) % fnow(:, 1, 1), &
+&dta_bdy(jbdy) % h_i, dta_bdy(jbdy) % h_s, dta_bdy(jbdy) % a_i)
             ELSE IF (jpl /= 1 .AND. nice_cat /= 1 .AND. nice_cat /= jpl) THEN
-              CALL ice_var_itd2(bf(jfld_hti) % fnow(:, 1, :), bf(jfld_hts) % fnow(:, 1, :), bf(jfld_ai) % fnow(:, 1, :), dta_bdy(jbdy) % h_i, dta_bdy(jbdy) % h_s, dta_bdy(jbdy) % a_i)
+              CALL ice_var_itd2(bf(jfld_hti) % fnow(:, 1, :), bf(jfld_hts) % fnow(:, 1, :), bf(jfld_ai) % fnow(:, 1, :), &
+&dta_bdy(jbdy) % h_i, dta_bdy(jbdy) % h_s, dta_bdy(jbdy) % a_i)
             END IF
           END IF
         END IF
         jstart = jstart + dta % nread(1)
       END IF
     END DO
-    IF (ln_tide) THEN
-      IF (ln_dynspg_ts) THEN
-        DO jbdy = 1, nb_bdy
-          IF (nn_dyn2d_dta(jbdy) .GE. 2) THEN
-            nblen => idx_bdy(jbdy) % nblen
-            nblenrim => idx_bdy(jbdy) % nblenrim
-            IF (cn_dyn2d(jbdy) == 'frs') THEN
-              ilen1(:) = nblen(:)
-            ELSE
-              ilen1(:) = nblenrim(:)
-            END IF
-            IF (dta_bdy(jbdy) % ll_ssh) dta_bdy_s(jbdy) % ssh(1 : ilen1(1)) = dta_bdy(jbdy) % ssh(1 : ilen1(1))
-            IF (dta_bdy(jbdy) % ll_u2d) dta_bdy_s(jbdy) % u2d(1 : ilen1(2)) = dta_bdy(jbdy) % u2d(1 : ilen1(2))
-            IF (dta_bdy(jbdy) % ll_v2d) dta_bdy_s(jbdy) % v2d(1 : ilen1(3)) = dta_bdy(jbdy) % v2d(1 : ilen1(3))
-          END IF
-        END DO
-      ELSE
-        CALL bdy_dta_tides(kt = kt, time_offset = time_offset)
-      END IF
-    END IF
     IF (ln_apr_obc) THEN
       DO jbdy = 1, nb_bdy
         IF (cn_tra(jbdy) /= 'runoff') THEN
@@ -295,6 +311,35 @@ MODULE bdydta
           END DO
         END IF
       END DO
+    END IF
+    CALL profile_psy_data5 % PostEnd
+    IF (ln_tide) THEN
+      IF (ln_dynspg_ts) THEN
+        DO jbdy = 1, nb_bdy
+          IF (nn_dyn2d_dta(jbdy) .GE. 2) THEN
+            CALL profile_psy_data6 % PreStart('bdy_dta', 'r6', 0, 0)
+            nblen => idx_bdy(jbdy) % nblen
+            nblenrim => idx_bdy(jbdy) % nblenrim
+            CALL profile_psy_data6 % PostEnd
+            IF (cn_dyn2d(jbdy) == 'frs') THEN
+              !$ACC KERNELS
+              ilen1(:) = nblen(:)
+              !$ACC END KERNELS
+            ELSE
+              !$ACC KERNELS
+              ilen1(:) = nblenrim(:)
+              !$ACC END KERNELS
+            END IF
+            CALL profile_psy_data7 % PreStart('bdy_dta', 'r7', 0, 0)
+            IF (dta_bdy(jbdy) % ll_ssh) dta_bdy_s(jbdy) % ssh(1 : ilen1(1)) = dta_bdy(jbdy) % ssh(1 : ilen1(1))
+            IF (dta_bdy(jbdy) % ll_u2d) dta_bdy_s(jbdy) % u2d(1 : ilen1(2)) = dta_bdy(jbdy) % u2d(1 : ilen1(2))
+            IF (dta_bdy(jbdy) % ll_v2d) dta_bdy_s(jbdy) % v2d(1 : ilen1(3)) = dta_bdy(jbdy) % v2d(1 : ilen1(3))
+            CALL profile_psy_data7 % PostEnd
+          END IF
+        END DO
+      ELSE
+        CALL bdy_dta_tides(kt = kt, time_offset = time_offset)
+      END IF
     END IF
     IF (ln_timing) CALL timing_stop('bdy_dta')
   END SUBROUTINE bdy_dta
@@ -319,19 +364,19 @@ MODULE bdydta
     TYPE(FLD_N) :: bn_a_i, bn_h_i, bn_h_s
     NAMELIST /nambdy_dta/ cn_dir, bn_tem, bn_sal, bn_u3d, bn_v3d, bn_ssh, bn_u2d, bn_v2d
     NAMELIST /nambdy_dta/ bn_a_i, bn_h_i, bn_h_s
-    NAMELIST /nambdy_dta/ ln_full_vel, nb_jpk_bdy
+    NAMELIST /nambdy_dta/ ln_full_vel
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'bdy_dta_ini : initialization of data at the open boundaries'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~'
     IF (lwp) WRITE(numout, FMT = *) ''
-    !$ACC KERNELS
     DO jbdy = 1, nb_bdy
       nn_dta(jbdy) = MAX(nn_dyn2d_dta(jbdy), nn_dyn3d_dta(jbdy), nn_tra_dta(jbdy), nn_ice_dta(jbdy))
       IF (nn_dta(jbdy) > 1) nn_dta(jbdy) = 1
     END DO
-    !$ACC END KERNELS
     ALLOCATE(nb_bdy_fld(nb_bdy))
+    !$ACC KERNELS
     nb_bdy_fld(:) = 0
+    !$ACC END KERNELS
     DO jbdy = 1, nb_bdy
       IF (cn_dyn2d(jbdy) /= 'none' .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3)) THEN
         nb_bdy_fld(jbdy) = nb_bdy_fld(jbdy) + 3
@@ -366,11 +411,11 @@ MODULE bdydta
     ALLOCATE(ilen1(nb_bdy_fld_sum), ilen3(nb_bdy_fld_sum))
     ALLOCATE(ibdy(nb_bdy_fld_sum))
     ALLOCATE(igrid(nb_bdy_fld_sum))
-    REWIND(UNIT = numnam_ref)
     REWIND(UNIT = numnam_cfg)
     jfld = 0
     DO jbdy = 1, nb_bdy
       IF (nn_dta(jbdy) == 1) THEN
+        REWIND(UNIT = numnam_ref)
         READ(numnam_ref, nambdy_dta, IOSTAT = ios, ERR = 901)
 901     IF (ios /= 0) CALL ctl_nam(ios, 'nambdy_dta in reference namelist', lwp)
         READ(numnam_cfg, nambdy_dta, IOSTAT = ios, ERR = 902)
@@ -414,7 +459,8 @@ MODULE bdydta
             dta % nread(2) = dta % nread(2) + 1
           END IF
         END IF
-        IF (nn_dyn3d_dta(jbdy) == 1 .OR. (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3))) THEN
+        IF (nn_dyn3d_dta(jbdy) == 1 .OR. (ln_full_vel_array(jbdy) .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3))) &
+&THEN
           IF (dta % ll_u3d .OR. (ln_full_vel_array(jbdy) .AND. dta % ll_u2d)) THEN
             IF (lwp) WRITE(numout, FMT = *) '++++++ reading in u3d field'
             jfld = jfld + 1
@@ -464,7 +510,8 @@ MODULE bdydta
           ELSE
             IF (bn_a_i % cltype /= 'yearly') WRITE(clname, FMT = '(a,"_m",i2.2)') TRIM(clname), nmonth
           END IF
-          IF (bn_a_i % cltype == 'daily' .OR. bn_a_i % cltype(1 : 4) == 'week') WRITE(clname, FMT = '(a,"d" ,i2.2)') TRIM(clname), nday
+          IF (bn_a_i % cltype == 'daily' .OR. bn_a_i % cltype(1 : 4) == 'week') WRITE(clname, FMT = '(a,"d" ,i2.2)') TRIM(clname), &
+&nday
           CALL iom_open(clname, inum)
           id1 = iom_varid(inum, bn_a_i % clvar, kdimsz = kdimsz, kndims = kndims, ldstop = .FALSE.)
           CALL iom_close(inum)
@@ -518,7 +565,8 @@ MODULE bdydta
     jstart = 1
     DO jbdy = 1, nb_bdy
       jend = jstart - 1 + nb_bdy_fld(jbdy)
-      CALL fld_fill(bf(jstart : jend), blf_i(jstart : jend), cn_dir_array(jbdy), 'bdy_dta', 'open boundary conditions', 'nambdy_dta')
+      CALL fld_fill(bf(jstart : jend), blf_i(jstart : jend), cn_dir_array(jbdy), 'bdy_dta', 'open boundary conditions', &
+&'nambdy_dta')
       jstart = jend + 1
     END DO
     DO jfld = 1, nb_bdy_fld_sum

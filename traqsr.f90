@@ -38,6 +38,7 @@ MODULE traqsr
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_chl
   CONTAINS
   SUBROUTINE tra_qsr(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: irgb
@@ -50,12 +51,21 @@ MODULE traqsr
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zekb, zekg, zekr
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ze0, ze1, ze2, ze3, zea, ztrdt
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: zetot, zchl3d
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    CALL profile_psy_data0 % PreStart('tra_qsr', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('tra_qsr')
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'tra_qsr : penetration of the surface solar radiation'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~'
     END IF
+    CALL profile_psy_data0 % PostEnd
     IF (l_trdtra) THEN
       ALLOCATE(ztrdt(jpi, jpj, jpk))
       !$ACC KERNELS
@@ -64,9 +74,11 @@ MODULE traqsr
     END IF
     IF (kt == nit000) THEN
       IF (ln_rstart .AND. iom_varid(numror, 'qsr_hc_b', ldstop = .FALSE.) > 0) THEN
+        CALL profile_psy_data1 % PreStart('tra_qsr', 'r1', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 qsr tracer content forcing field read in the restart file'
         z1_2 = 0.5_wp
         CALL iom_get(numror, jpdom_autoglo, 'qsr_hc_b', qsr_hc_b, ldxios = lrxios)
+        CALL profile_psy_data1 % PostEnd
       ELSE
         !$ACC KERNELS
         z1_2 = 1._wp
@@ -87,8 +99,10 @@ MODULE traqsr
       END DO
       !$ACC END KERNELS
     CASE (np_RGB, np_RGBc)
-      ALLOCATE(zekb(jpi, jpj), zekg(jpi, jpj), zekr(jpi, jpj), ze0(jpi, jpj, jpk), ze1(jpi, jpj, jpk), ze2(jpi, jpj, jpk), ze3(jpi, jpj, jpk), zea(jpi, jpj, jpk), zchl3d(jpi, jpj, jpk))
+      ALLOCATE(zekb(jpi, jpj), zekg(jpi, jpj), zekr(jpi, jpj), ze0(jpi, jpj, jpk), ze1(jpi, jpj, jpk), ze2(jpi, jpj, jpk), &
+&ze3(jpi, jpj, jpk), zea(jpi, jpj, jpk), zchl3d(jpi, jpj, jpk))
       IF (nqsr == np_RGBc) THEN
+        CALL profile_psy_data2 % PreStart('tra_qsr', 'r2', 0, 0)
         CALL fld_read(kt, 1, sf_chl)
         DO jk = 1, nksr + 1
           DO jj = 2, jpjm1
@@ -110,6 +124,7 @@ MODULE traqsr
             END DO
           END DO
         END DO
+        CALL profile_psy_data2 % PostEnd
       ELSE
         !$ACC KERNELS
         DO jk = 1, nksr + 1
@@ -119,6 +134,7 @@ MODULE traqsr
       END IF
       !$ACC KERNELS
       zcoef = (1. - rn_abs) / 3._wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ze0(ji, jj, 1) = rn_abs * qsr(ji, jj)
@@ -130,6 +146,8 @@ MODULE traqsr
       END DO
       !$ACC END KERNELS
       DO jk = 2, nksr + 1
+        !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zchl = MIN(10., MAX(0.03, zchl3d(ji, jj, jk)))
@@ -139,7 +157,7 @@ MODULE traqsr
             zekr(ji, jj) = rkrgb(3, irgb)
           END DO
         END DO
-        !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zc0 = ze0(ji, jj, jk - 1) * EXP(- e3t_n(ji, jj, jk - 1) * xsi0r)
@@ -157,6 +175,7 @@ MODULE traqsr
       END DO
       !$ACC KERNELS
       DO jk = 1, nksr
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             qsr_hc(ji, jj, jk) = r1_rau0_rcp * (zea(ji, jj, jk) - zea(ji, jj, jk + 1))
@@ -170,6 +189,7 @@ MODULE traqsr
       zz0 = rn_abs * r1_rau0_rcp
       zz1 = (1. - rn_abs) * r1_rau0_rcp
       DO jk = 1, nksr
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zc0 = zz0 * EXP(- gdepw_n(ji, jj, jk) * xsi0r) + zz1 * EXP(- gdepw_n(ji, jj, jk) * xsi1r)
@@ -182,12 +202,14 @@ MODULE traqsr
     END SELECT
     !$ACC KERNELS
     DO jk = 1, nksr
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + z1_2 * (qsr_hc_b(ji, jj, jk) + qsr_hc(ji, jj, jk)) / e3t_n(ji, jj, jk)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (qsr(ji, jj) /= 0._wp) THEN
@@ -198,7 +220,7 @@ MODULE traqsr
       END DO
     END DO
     !$ACC END KERNELS
-    CALL lbc_lnk(fraqsr_1lev(:, :), 'T', 1._wp)
+    CALL lbc_lnk('traqsr', fraqsr_1lev(:, :), 'T', 1._wp)
     IF (iom_use('qsr3d')) THEN
       ALLOCATE(zetot(jpi, jpj, jpk))
       !$ACC KERNELS
@@ -207,24 +229,32 @@ MODULE traqsr
         zetot(:, :, jk) = zetot(:, :, jk + 1) + qsr_hc(:, :, jk) * rau0_rcp
       END DO
       !$ACC END KERNELS
+      CALL profile_psy_data3 % PreStart('tra_qsr', 'r3', 0, 0)
       CALL iom_put('qsr3d', zetot)
       DEALLOCATE(zetot)
+      CALL profile_psy_data3 % PostEnd
     END IF
+    CALL profile_psy_data4 % PreStart('tra_qsr', 'r4', 0, 0)
     IF (lrst_oce) THEN
       IF (lwxios) CALL iom_swap(cwxios_context)
       CALL iom_rstput(kt, nitrst, numrow, 'qsr_hc_b', qsr_hc, ldxios = lwxios)
       CALL iom_rstput(kt, nitrst, numrow, 'fraqsr_1lev', fraqsr_1lev, ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
+    CALL profile_psy_data4 % PostEnd
     IF (l_trdtra) THEN
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem) - ztrdt(:, :, :)
       !$ACC END KERNELS
+      CALL profile_psy_data5 % PreStart('tra_qsr', 'r5', 0, 0)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_qsr, ztrdt)
       DEALLOCATE(ztrdt)
+      CALL profile_psy_data5 % PostEnd
     END IF
+    CALL profile_psy_data6 % PreStart('tra_qsr', 'r6', 0, 0)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' qsr  - Ta: ', mask1 = tmask, clinfo3 = 'tra-ta')
     IF (ln_timing) CALL timing_stop('tra_qsr')
+    CALL profile_psy_data6 % PostEnd
   END SUBROUTINE tra_qsr
   SUBROUTINE tra_qsr_init
     INTEGER :: ji, jj, jk
@@ -259,7 +289,8 @@ MODULE traqsr
     IF (ln_qsr_rgb) ioptio = ioptio + 1
     IF (ln_qsr_2bd) ioptio = ioptio + 1
     IF (ln_qsr_bio) ioptio = ioptio + 1
-    IF (ioptio /= 1) CALL ctl_stop('Choose ONE type of light penetration in namelist namtra_qsr', ' 2 bands, 3 RGB bands or bio-model light penetration')
+    IF (ioptio /= 1) CALL ctl_stop('Choose ONE type of light penetration in namelist namtra_qsr', ' 2 bands, 3 RGB bands or &
+&bio-model light penetration')
     IF (ln_qsr_rgb .AND. nn_chldta == 0) nqsr = np_RGB
     IF (ln_qsr_rgb .AND. nn_chldta == 1) nqsr = np_RGBc
     IF (ln_qsr_2bd) nqsr = np_2BD
@@ -281,7 +312,8 @@ MODULE traqsr
         END IF
         ALLOCATE(sf_chl(1) % fnow(jpi, jpj, 1))
         IF (sn_chl % ln_tint) ALLOCATE(sf_chl(1) % fdta(jpi, jpj, 1, 2))
-        CALL fld_fill(sf_chl, (/sn_chl/), cn_dir, 'tra_qsr_init', 'Solar penetration function of read chlorophyll', 'namtra_qsr', no_print)
+        CALL fld_fill(sf_chl, (/sn_chl/), cn_dir, 'tra_qsr_init', 'Solar penetration function of read chlorophyll', 'namtra_qsr', &
+&no_print)
       END IF
       IF (nqsr == np_RGB) THEN
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   Constant Chlorophyll concentration = 0.05'

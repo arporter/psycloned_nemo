@@ -25,6 +25,7 @@ MODULE obs_write
   END TYPE obswriinfo
   CONTAINS
   SUBROUTINE obs_wri_prof(profdata, padd, pext)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obs_prof), INTENT(INOUT) :: profdata
     TYPE(obswriinfo), OPTIONAL :: padd
     TYPE(obswriinfo), OPTIONAL :: pext
@@ -41,6 +42,8 @@ MODULE obs_write
     INTEGER :: iadd
     INTEGER :: iext
     REAL(KIND = wp) :: zpres
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_wri_prof', 'r0', 0, 0)
     IF (PRESENT(padd)) THEN
       iadd = padd % inum
     ELSE
@@ -150,7 +153,8 @@ MODULE obs_write
           fbdata % iobsj(jo, jvar) = mjg(profdata % mj(jo, jvar))
         END IF
       END DO
-      CALL greg2jul(0, profdata % nmin(jo), profdata % nhou(jo), profdata % nday(jo), profdata % nmon(jo), profdata % nyea(jo), fbdata % ptim(jo), krefdate = 19500101)
+      CALL greg2jul(0, profdata % nmin(jo), profdata % nhou(jo), profdata % nday(jo), profdata % nmon(jo), profdata % nyea(jo), &
+&fbdata % ptim(jo), krefdate = 19500101)
       DO jvar = 1, 2
         DO jk = profdata % npvsta(jo, jvar), profdata % npvend(jo, jvar)
           ik = profdata % var(jvar) % nvlidx(jk)
@@ -184,9 +188,11 @@ MODULE obs_write
       DO jo = 1, fbdata % nobs
         IF (fbdata % pphi(jo) < 9999.0) THEN
           DO jk = 1, fbdata % nlev
-            IF ((fbdata % pob(jk, jo, 1) >= 9999.0) .AND. (fbdata % pdep(jk, jo) < 9999.0) .AND. (fbdata % padd(jk, jo, 1, 2) < 9999.0) .AND. (fbdata % pext(jk, jo, 1) < 9999.0)) THEN
+            IF ((fbdata % pob(jk, jo, 1) >= 9999.0) .AND. (fbdata % pdep(jk, jo) < 9999.0) .AND. (fbdata % padd(jk, jo, 1, 2) < &
+&9999.0) .AND. (fbdata % pext(jk, jo, 1) < 9999.0)) THEN
               zpres = dep_to_p(REAL(fbdata % pdep(jk, jo), wp), REAL(fbdata % pphi(jo), wp))
-              fbdata % pob(jk, jo, 1) = potemp(REAL(fbdata % padd(jk, jo, 1, 2), wp), REAL(fbdata % pext(jk, jo, 1), wp), zpres, 0.0_wp)
+              fbdata % pob(jk, jo, 1) = potemp(REAL(fbdata % padd(jk, jo, 1, 2), wp), REAL(fbdata % pext(jk, jo, 1), wp), zpres, &
+&0.0_wp)
             END IF
           END DO
         END IF
@@ -195,8 +201,10 @@ MODULE obs_write
     CALL write_obfbdata(clfname, fbdata)
     CALL obs_wri_stats(fbdata)
     CALL dealloc_obfbdata(fbdata)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_wri_prof
   SUBROUTINE obs_wri_surf(surfdata, padd, pext)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     IMPLICIT NONE
     TYPE(obs_surf), INTENT(INOUT) :: surfdata
     TYPE(obswriinfo), OPTIONAL :: padd
@@ -210,6 +218,8 @@ MODULE obs_write
     INTEGER :: je
     INTEGER :: iadd
     INTEGER :: iext
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_wri_surf', 'r0', 0, 0)
     IF (PRESENT(padd)) THEN
       iadd = padd % inum
     ELSE
@@ -343,7 +353,8 @@ MODULE obs_write
         fbdata % iobsi(jo, 1) = mig(surfdata % mi(jo))
         fbdata % iobsj(jo, 1) = mjg(surfdata % mj(jo))
       END IF
-      CALL greg2jul(0, surfdata % nmin(jo), surfdata % nhou(jo), surfdata % nday(jo), surfdata % nmon(jo), surfdata % nyea(jo), fbdata % ptim(jo), krefdate = 19500101)
+      CALL greg2jul(0, surfdata % nmin(jo), surfdata % nhou(jo), surfdata % nday(jo), surfdata % nmon(jo), surfdata % nyea(jo), &
+&fbdata % ptim(jo), krefdate = 19500101)
       fbdata % padd(1, jo, 1, 1) = surfdata % rmod(jo, 1)
       IF (TRIM(surfdata % cvars(1)) == 'SLA') fbdata % padd(1, jo, 2, 1) = surfdata % rext(jo, 1)
       fbdata % pob(1, jo, 1) = surfdata % robs(jo, 1)
@@ -372,8 +383,10 @@ MODULE obs_write
     CALL write_obfbdata(clfname, fbdata)
     CALL obs_wri_stats(fbdata)
     CALL dealloc_obfbdata(fbdata)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_wri_surf
   SUBROUTINE obs_wri_stats(fbdata)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obfbdata) :: fbdata
     INTEGER :: jvar
     INTEGER :: jo
@@ -383,6 +396,8 @@ MODULE obs_write
     REAL(KIND = wp) :: zsumx
     REAL(KIND = wp) :: zsumx2
     REAL(KIND = wp) :: zomb
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_wri_stats', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *) ''
       WRITE(numout, FMT = *) 'obs_wri_stats :'
@@ -394,7 +409,8 @@ MODULE obs_write
       inumgoodobs = 0
       DO jo = 1, fbdata % nobs
         DO jk = 1, fbdata % nlev
-          IF ((fbdata % pob(jk, jo, jvar) < 9999.0) .AND. (fbdata % pdep(jk, jo) < 9999.0) .AND. (fbdata % padd(jk, jo, 1, jvar) < 9999.0)) THEN
+          IF ((fbdata % pob(jk, jo, jvar) < 9999.0) .AND. (fbdata % pdep(jk, jo) < 9999.0) .AND. (fbdata % padd(jk, jo, 1, jvar) < &
+&9999.0)) THEN
             zomb = fbdata % pob(jk, jo, jvar) - fbdata % padd(jk, jo, 1, jvar)
             zsumx = zsumx + zomb
             zsumx2 = zsumx2 + zomb ** 2
@@ -403,8 +419,8 @@ MODULE obs_write
         END DO
       END DO
       CALL obs_mpp_sum_integer(inumgoodobs, inumgoodobsmpp)
-      CALL mpp_sum(zsumx)
-      CALL mpp_sum(zsumx2)
+      CALL mpp_sum('obs_write', zsumx)
+      CALL mpp_sum('obs_write', zsumx2)
       IF (lwp) THEN
         WRITE(numout, FMT = *) 'Type: ', fbdata % cname(jvar), '  Total number of good observations: ', inumgoodobsmpp
         WRITE(numout, FMT = *) 'Overall mean obs minus model of the good observations: ', zsumx / inumgoodobsmpp
@@ -412,5 +428,6 @@ MODULE obs_write
         WRITE(numout, FMT = *) ''
       END IF
     END DO
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_wri_stats
 END MODULE obs_write

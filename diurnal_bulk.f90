@@ -37,7 +37,9 @@ MODULE diurnal_bulk
       END IF
     END IF
   END SUBROUTINE diurnal_sst_bulk_init
-  SUBROUTINE diurnal_sst_takaya_step(kt, psolflux, pqflux, ptauflux, prho, p_rdt, pla, pthick, pcoolthick, pmu, p_fvel_bkginc, p_hflux_bkginc)
+  SUBROUTINE diurnal_sst_takaya_step(kt, psolflux, pqflux, ptauflux, prho, p_rdt, pla, pthick, pcoolthick, pmu, p_fvel_bkginc, &
+&p_hflux_bkginc)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: psolflux
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqflux
@@ -56,6 +58,9 @@ MODULE diurnal_bulk
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zthick, zcoolthick, zmu, zla
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z_abflux
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z_fla
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     IF (.NOT. PRESENT(pthick)) THEN
       !$ACC KERNELS
       zthick(:, :) = 3._wp
@@ -92,19 +97,27 @@ MODULE diurnal_bulk
       zla(:, :) = pla(:, :)
       !$ACC END KERNELS
     END IF
+    CALL profile_psy_data0 % PreStart('diurnal_sst_takaya_step', 'r0', 0, 0)
     IF (kt == nit000) THEN
       DO jj = 1, jpj
         DO ji = 1, jpi
-          IF ((x_solfrac(ji, jj) == 0._wp) .AND. (tmask(ji, jj, 1) == 1._wp)) x_solfrac(ji, jj) = solfrac(zcoolthick(ji, jj), zthick(ji, jj))
+          IF ((x_solfrac(ji, jj) == 0._wp) .AND. (tmask(ji, jj, 1) == 1._wp)) x_solfrac(ji, jj) = solfrac(zcoolthick(ji, jj), &
+&zthick(ji, jj))
         END DO
       END DO
     END IF
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     WHERE (tmask(:, :, 1) == 1._wp)
       z_abflux(:, :) = (x_solfrac(:, :) * psolflux(:, :)) + pqflux(:, :)
     ELSEWHERE
       z_abflux(:, :) = 0._wp
     END WHERE
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('diurnal_sst_takaya_step', 'r1', 0, 0)
     IF (PRESENT(p_hflux_bkginc)) z_abflux(:, :) = z_abflux(:, :) + p_hflux_bkginc
+    CALL profile_psy_data1 % PostEnd
+    !$ACC KERNELS
     WHERE (ABS(z_abflux(:, :)) < rsmall)
       z_abflux(:, :) = rsmall
     END WHERE
@@ -113,15 +126,22 @@ MODULE diurnal_bulk
     ELSEWHERE
       z_fvel(:, :) = 0._wp
     END WHERE
+    !$ACC END KERNELS
+    CALL profile_psy_data2 % PreStart('diurnal_sst_takaya_step', 'r2', 0, 0)
     IF (PRESENT(p_fvel_bkginc)) z_fvel(:, :) = z_fvel(:, :) + p_fvel_bkginc
+    CALL profile_psy_data2 % PostEnd
+    !$ACC KERNELS
     WHERE (tmask(:, :, 1) == 1.)
       z_fla(:, :) = MAX(1._wp, zla(:, :) ** (- 2._wp / 3._wp))
     ELSEWHERE
       z_fla(:, :) = 0._wp
     END WHERE
+    !$ACC END KERNELS
+    !ARPDBG putting t_imp inside kernels region is difficult
     x_dsst(:, :) = t_imp(x_dsst(:, :), p_rdt, z_abflux(:, :), z_fvel(:, :), z_fla(:, :), zmu(:, :), zthick(:, :), prho(:, :))
   END SUBROUTINE diurnal_sst_takaya_step
   FUNCTION t_imp(p_dsst, p_rdt, p_abflux, p_fvel, p_fla, pmu, pthick, prho)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     IMPLICIT NONE
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: t_imp
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: p_dsst
@@ -147,7 +167,8 @@ MODULE diurnal_bulk
         END IF
         IF (p_fvel(ji, jj) < pp_min_fvel) THEN
           z_fvel = pp_min_fvel
-          WRITE(warn_string, FMT = *) "diurnal_sst_takaya step: " // "friction velocity < minimum\n" // "Setting friction velocity =", pp_min_fvel
+          WRITE(warn_string, FMT = *) "diurnal_sst_takaya step: " // "friction velocity < minimum\n" // "Setting friction velocity &
+&=", pp_min_fvel
           CALL ctl_warn(warn_string)
         ELSE
           z_fvel = p_fvel(ji, jj)

@@ -14,6 +14,7 @@ MODULE icethd_da
   REAL(KIND = wp) :: rn_dmin
   CONTAINS
   SUBROUTINE ice_thd_da
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji
     REAL(KIND = wp) :: zastar, zdfloe, zperi, zwlat, zda
     REAL(KIND = wp), PARAMETER :: zdmax = 300._wp
@@ -21,6 +22,8 @@ MODULE icethd_da
     REAL(KIND = wp), PARAMETER :: zm1 = 3.E-6_wp
     REAL(KIND = wp), PARAMETER :: zm2 = 1.36_wp
     REAL(KIND = wp), DIMENSION(jpij) :: zda_tot
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_thd_da', 'r0', 0, 0)
     zastar = 1._wp / (1._wp - (rn_dmin / zdmax) ** (1._wp / rn_beta))
     DO ji = 1, npti
       zdfloe = rn_dmin * (zastar / (zastar - at_i_1d(ji))) ** rn_beta
@@ -30,7 +33,8 @@ MODULE icethd_da
       IF (a_i_1d(ji) > 0._wp) THEN
         zda = MIN(a_i_1d(ji), zda_tot(ji) * a_i_1d(ji) / at_i_1d(ji))
         sfx_lam_1d(ji) = sfx_lam_1d(ji) + rhoi * h_i_1d(ji) * zda * s_i_1d(ji) * r1_rdtice
-        hfx_thd_1d(ji) = hfx_thd_1d(ji) - zda * r1_rdtice * (h_i_1d(ji) * r1_nlay_i * SUM(e_i_1d(ji, 1 : nlay_i)) + h_s_1d(ji) * r1_nlay_s * SUM(e_s_1d(ji, 1 : nlay_s)))
+        hfx_thd_1d(ji) = hfx_thd_1d(ji) - zda * r1_rdtice * (h_i_1d(ji) * r1_nlay_i * SUM(e_i_1d(ji, 1 : nlay_i)) + h_s_1d(ji) * &
+&r1_nlay_s * SUM(e_s_1d(ji, 1 : nlay_s)))
         wfx_lam_1d(ji) = wfx_lam_1d(ji) + zda * r1_rdtice * (rhoi * h_i_1d(ji) + rhos * h_s_1d(ji))
         a_i_1d(ji) = a_i_1d(ji) - zda
         IF (a_i_1d(ji) == 0._wp) THEN
@@ -39,6 +43,7 @@ MODULE icethd_da
         END IF
       END IF
     END DO
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_thd_da
   SUBROUTINE ice_thd_da_init
     INTEGER :: ios

@@ -18,8 +18,12 @@ MODULE dynldf
   PUBLIC :: dyn_ldf_init
   CONTAINS
   SUBROUTINE dyn_ldf(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ztrdu, ztrdv
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     IF (ln_timing) CALL timing_start('dyn_ldf')
     IF (l_trddyn) THEN
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
@@ -28,6 +32,7 @@ MODULE dynldf
       ztrdv(:, :, :) = va(:, :, :)
       !$ACC END KERNELS
     END IF
+    CALL profile_psy_data0 % PreStart('dyn_ldf', 'r0', 0, 0)
     SELECT CASE (nldf_dyn)
     CASE (np_lap)
       CALL dyn_ldf_lap(kt, ub, vb, ua, va, 1)
@@ -36,16 +41,22 @@ MODULE dynldf
     CASE (np_blp)
       CALL dyn_ldf_blp(kt, ub, vb, ua, va)
     END SELECT
+    CALL profile_psy_data0 % PostEnd
     IF (l_trddyn) THEN
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :) - ztrdu(:, :, :)
       ztrdv(:, :, :) = va(:, :, :) - ztrdv(:, :, :)
       !$ACC END KERNELS
+      CALL profile_psy_data1 % PreStart('dyn_ldf', 'r1', 0, 0)
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_ldf, kt)
       DEALLOCATE(ztrdu, ztrdv)
+      CALL profile_psy_data1 % PostEnd
     END IF
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' ldf  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    CALL profile_psy_data2 % PreStart('dyn_ldf', 'r2', 0, 0)
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' ldf  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = &
+&vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_ldf')
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE dyn_ldf
   SUBROUTINE dyn_ldf_init
     IF (lwp) THEN

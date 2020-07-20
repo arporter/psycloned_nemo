@@ -32,8 +32,8 @@ MODULE ldfdyn
   INTEGER, PUBLIC :: nldf_dyn
   LOGICAL, PUBLIC :: l_ldfdyn_time
   REAL(KIND = wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:, :, :) :: ahmt, ahmf
-  REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :) :: dtensq
-  REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :) :: dshesq
+  REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :, :) :: dtensq
+  REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :, :) :: dshesq
   REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :) :: esqt, esqf
   REAL(KIND = wp) :: r1_2 = 0.5_wp
   REAL(KIND = wp) :: r1_4 = 0.25_wp
@@ -46,7 +46,8 @@ MODULE ldfdyn
     INTEGER :: ioptio, ierr, inum, ios, inn
     REAL(KIND = wp) :: zah0, zah_max, zUfac
     CHARACTER(LEN = 5) :: cl_Units
-    NAMELIST /namdyn_ldf/ ln_dynldf_OFF, ln_dynldf_lap, ln_dynldf_blp, ln_dynldf_lev, ln_dynldf_hor, ln_dynldf_iso, nn_ahm_ijk_t, rn_Uv, rn_Lv, rn_ahm_b, rn_csmc, rn_minfac, rn_maxfac
+    NAMELIST /namdyn_ldf/ ln_dynldf_OFF, ln_dynldf_lap, ln_dynldf_blp, ln_dynldf_lev, ln_dynldf_hor, ln_dynldf_iso, nn_ahm_ijk_t, &
+&rn_Uv, rn_Lv, rn_ahm_b, rn_csmc, rn_minfac, rn_maxfac
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namdyn_ldf, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namdyn_ldf in reference namelist', lwp)
@@ -157,8 +158,8 @@ MODULE ldfdyn
       ALLOCATE(ahmt(jpi, jpj, jpk), ahmf(jpi, jpj, jpk), STAT = ierr)
       IF (ierr /= 0) CALL ctl_stop('STOP', 'ldf_dyn_init: failed to allocate arrays')
       !$ACC KERNELS
-      ahmt(:, :, jpk) = 0._wp
-      ahmf(:, :, jpk) = 0._wp
+      ahmt(:, :, :) = 0._wp
+      ahmf(:, :, :) = 0._wp
       !$ACC END KERNELS
       IF (ln_dynldf_lap) THEN
         zufac = r1_2 * rn_uv
@@ -192,15 +193,17 @@ MODULE ldfdyn
         CALL iom_get(inum, jpdom_data, 'ahmt_2d', ahmt(:, :, 1))
         CALL iom_get(inum, jpdom_data, 'ahmf_2d', ahmf(:, :, 1))
         CALL iom_close(inum)
-        !$ACC KERNELS
         DO jk = 2, jpkm1
+          !$ACC KERNELS
           ahmt(:, :, jk) = ahmt(:, :, 1)
           ahmf(:, :, jk) = ahmf(:, :, 1)
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       CASE (20)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( e1, e2 ) or F( e1^3, e2^3 ) (lap. or blp. case)'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed viscous velocity = ', rn_Uv, ' m/s   and   Lv = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for &
+&e1=1°)'
         CALL ldf_c2d('DYN', zUfac, inn, ahmt, ahmf)
       CASE (- 30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F(i,j,k) read in eddy_viscosity_3D.nc file'
@@ -211,6 +214,8 @@ MODULE ldfdyn
       CASE (30)
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( latitude, longitude, depth )'
         IF (lwp) WRITE(numout, FMT = *) '           using a fixed viscous velocity = ', rn_Uv, ' m/s   and   Ld = Max(e1,e2)'
+        IF (lwp) WRITE(numout, FMT = *) '           maximum reachable coefficient (at the Equator) = ', zah_max, cl_Units, '  for &
+&e1=1°)'
         CALL ldf_c2d('DYN', zUfac, inn, ahmt, ahmf)
         CALL ldf_c1d('DYN', ahmt(:, :, 1), ahmf(:, :, 1), ahmt, ahmf)
       CASE (31)
@@ -221,11 +226,12 @@ MODULE ldfdyn
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   eddy viscosity = F( latitude, longitude, depth , time )'
         IF (lwp) WRITE(numout, FMT = *) '           proportional to the local deformation rate and gridscale (Smagorinsky)'
         l_ldfdyn_time = .TRUE.
-        ALLOCATE(dtensq(jpi, jpj), dshesq(jpi, jpj), esqt(jpi, jpj), esqf(jpi, jpj), STAT = ierr)
+        ALLOCATE(dtensq(jpi, jpj, jpk), dshesq(jpi, jpj, jpk), esqt(jpi, jpj), esqf(jpi, jpj), STAT = ierr)
         IF (ierr /= 0) CALL ctl_stop('STOP', 'ldf_dyn_init: failed to allocate Smagorinsky arrays')
         !$ACC KERNELS
-        DO jj = 2, jpjm1
-          DO ji = 2, jpim1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
+        DO jj = 1, jpj
+          DO ji = 1, jpi
             esqt(ji, jj) = (e1e2t(ji, jj) / (e1t(ji, jj) + e2t(ji, jj))) ** 2
             esqf(ji, jj) = (e1e2f(ji, jj) / (e1f(ji, jj) + e2f(ji, jj))) ** 2
           END DO
@@ -250,103 +256,148 @@ MODULE ldfdyn
     END IF
   END SUBROUTINE ldf_dyn_init
   SUBROUTINE ldf_dyn(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
-    REAL(KIND = wp) :: zu2pv2_ij_p1, zu2pv2_ij, zu2pv2_ij_m1, zetmax, zefmax
+    REAL(KIND = wp) :: zu2pv2_ij_p1, zu2pv2_ij, zu2pv2_ij_m1, zemax
     REAL(KIND = wp) :: zcmsmag, zstabf_lo, zstabf_up, zdelta, zdb
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_timing) CALL timing_start('ldf_dyn')
     SELECT CASE (nn_ahm_ijk_t)
     CASE (31)
       IF (ln_dynldf_lap) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
-              zu2pv2_ij_p1 = ub(ji, jj + 1, jk) * ub(ji, jj + 1, jk) + vb(ji + 1, jj, jk) * vb(ji + 1, jj, jk)
               zu2pv2_ij = ub(ji, jj, jk) * ub(ji, jj, jk) + vb(ji, jj, jk) * vb(ji, jj, jk)
               zu2pv2_ij_m1 = ub(ji - 1, jj, jk) * ub(ji - 1, jj, jk) + vb(ji, jj - 1, jk) * vb(ji, jj - 1, jk)
-              zetmax = MAX(e1t(ji, jj), e2t(ji, jj))
-              zefmax = MAX(e1f(ji, jj), e2f(ji, jj))
-              ahmt(ji, jj, jk) = SQRT((zu2pv2_ij + zu2pv2_ij_m1) * r1_288) * zetmax * tmask(ji, jj, jk)
-              ahmf(ji, jj, jk) = SQRT((zu2pv2_ij + zu2pv2_ij_p1) * r1_288) * zefmax * fmask(ji, jj, jk)
+              zemax = MAX(e1t(ji, jj), e2t(ji, jj))
+              ahmt(ji, jj, jk) = SQRT((zu2pv2_ij + zu2pv2_ij_m1) * r1_288) * zemax * tmask(ji, jj, jk)
             END DO
           END DO
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
+          DO jj = 1, jpjm1
+            DO ji = 1, jpim1
+              zu2pv2_ij_p1 = ub(ji, jj + 1, jk) * ub(ji, jj + 1, jk) + vb(ji + 1, jj, jk) * vb(ji + 1, jj, jk)
+              zu2pv2_ij = ub(ji, jj, jk) * ub(ji, jj, jk) + vb(ji, jj, jk) * vb(ji, jj, jk)
+              zemax = MAX(e1f(ji, jj), e2f(ji, jj))
+              ahmf(ji, jj, jk) = SQRT((zu2pv2_ij + zu2pv2_ij_p1) * r1_288) * zemax * fmask(ji, jj, jk)
+            END DO
+          END DO
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       ELSE IF (ln_dynldf_blp) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
-              zu2pv2_ij_p1 = ub(ji, jj + 1, jk) * ub(ji, jj + 1, jk) + vb(ji + 1, jj, jk) * vb(ji + 1, jj, jk)
               zu2pv2_ij = ub(ji, jj, jk) * ub(ji, jj, jk) + vb(ji, jj, jk) * vb(ji, jj, jk)
               zu2pv2_ij_m1 = ub(ji - 1, jj, jk) * ub(ji - 1, jj, jk) + vb(ji, jj - 1, jk) * vb(ji, jj - 1, jk)
-              zetmax = MAX(e1t(ji, jj), e2t(ji, jj))
-              zefmax = MAX(e1f(ji, jj), e2f(ji, jj))
-              ahmt(ji, jj, jk) = SQRT(SQRT((zu2pv2_ij + zu2pv2_ij_m1) * r1_288) * zetmax) * zetmax * tmask(ji, jj, jk)
-              ahmf(ji, jj, jk) = SQRT(SQRT((zu2pv2_ij + zu2pv2_ij_p1) * r1_288) * zefmax) * zefmax * fmask(ji, jj, jk)
+              zemax = MAX(e1t(ji, jj), e2t(ji, jj))
+              ahmt(ji, jj, jk) = SQRT(SQRT((zu2pv2_ij + zu2pv2_ij_m1) * r1_288) * zemax) * zemax * tmask(ji, jj, jk)
             END DO
           END DO
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
+          DO jj = 1, jpjm1
+            DO ji = 1, jpim1
+              zu2pv2_ij_p1 = ub(ji, jj + 1, jk) * ub(ji, jj + 1, jk) + vb(ji + 1, jj, jk) * vb(ji + 1, jj, jk)
+              zu2pv2_ij = ub(ji, jj, jk) * ub(ji, jj, jk) + vb(ji, jj, jk) * vb(ji, jj, jk)
+              zemax = MAX(e1f(ji, jj), e2f(ji, jj))
+              ahmf(ji, jj, jk) = SQRT(SQRT((zu2pv2_ij + zu2pv2_ij_p1) * r1_288) * zemax) * zemax * fmask(ji, jj, jk)
+            END DO
+          END DO
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
-      CALL lbc_lnk_multi(ahmt, 'T', 1., ahmf, 'F', 1.)
+      CALL lbc_lnk_multi('ldfdyn', ahmt, 'T', 1., ahmf, 'F', 1.)
     CASE (32)
       IF (ln_dynldf_lap .OR. ln_dynldf_blp) THEN
-        !$ACC KERNELS
+        CALL profile_psy_data0 % PreStart('ldf_dyn', 'r0', 0, 0)
         zcmsmag = (rn_csmc / rpi) ** 2
         zstabf_lo = rn_minfac * rn_minfac / (2._wp * 4._wp * zcmsmag)
         zstabf_up = rn_maxfac / (4._wp * zcmsmag * 2._wp * rdt)
         IF (ln_dynldf_blp) zstabf_lo = (16._wp / 9._wp) * zstabf_lo
+        CALL profile_psy_data0 % PostEnd
         DO jk = 1, jpkm1
-          DO jj = 2, jpj
-            DO ji = 2, jpi
-              zdb = ((ub(ji, jj, jk) * r1_e2u(ji, jj) - ub(ji - 1, jj, jk) * r1_e2u(ji - 1, jj)) * r1_e1t(ji, jj) * e2t(ji, jj) - (vb(ji, jj, jk) * r1_e1v(ji, jj) - vb(ji, jj - 1, jk) * r1_e1v(ji, jj - 1)) * r1_e2t(ji, jj) * e1t(ji, jj)) * tmask(ji, jj, jk)
-              dtensq(ji, jj) = zdb * zdb
-            END DO
-          END DO
-          DO jj = 1, jpjm1
-            DO ji = 1, jpim1
-              zdb = ((ub(ji, jj + 1, jk) * r1_e1u(ji, jj + 1) - ub(ji, jj, jk) * r1_e1u(ji, jj)) * r1_e2f(ji, jj) * e1f(ji, jj) + (vb(ji + 1, jj, jk) * r1_e2v(ji + 1, jj) - vb(ji, jj, jk) * r1_e2v(ji, jj)) * r1_e1f(ji, jj) * e2f(ji, jj)) * fmask(ji, jj, jk)
-              dshesq(ji, jj) = zdb * zdb
-            END DO
-          END DO
+          !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
-              zu2pv2_ij_p1 = ub(ji, jj + 1, jk) * ub(ji, jj + 1, jk) + vb(ji + 1, jj, jk) * vb(ji + 1, jj, jk)
+              zdb = (ub(ji, jj, jk) * r1_e2u(ji, jj) - ub(ji - 1, jj, jk) * r1_e2u(ji - 1, jj)) * r1_e1t(ji, jj) * e2t(ji, jj) - &
+&(vb(ji, jj, jk) * r1_e1v(ji, jj) - vb(ji, jj - 1, jk) * r1_e1v(ji, jj - 1)) * r1_e2t(ji, jj) * e1t(ji, jj)
+              dtensq(ji, jj, jk) = zdb * zdb * tmask(ji, jj, jk)
+            END DO
+          END DO
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
+          DO jj = 1, jpjm1
+            DO ji = 1, jpim1
+              zdb = (ub(ji, jj + 1, jk) * r1_e1u(ji, jj + 1) - ub(ji, jj, jk) * r1_e1u(ji, jj)) * r1_e2f(ji, jj) * e1f(ji, jj) + &
+&(vb(ji + 1, jj, jk) * r1_e2v(ji + 1, jj) - vb(ji, jj, jk) * r1_e2v(ji, jj)) * r1_e1f(ji, jj) * e2f(ji, jj)
+              dshesq(ji, jj, jk) = zdb * zdb * fmask(ji, jj, jk)
+            END DO
+          END DO
+          !$ACC END KERNELS
+        END DO
+        CALL lbc_lnk_multi('ldfdyn', dtensq, 'T', 1.)
+        DO jk = 1, jpkm1
+          !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
+          DO jj = 2, jpjm1
+            DO ji = 2, jpim1
               zu2pv2_ij = ub(ji, jj, jk) * ub(ji, jj, jk) + vb(ji, jj, jk) * vb(ji, jj, jk)
               zu2pv2_ij_m1 = ub(ji - 1, jj, jk) * ub(ji - 1, jj, jk) + vb(ji, jj - 1, jk) * vb(ji, jj - 1, jk)
               zdelta = zcmsmag * esqt(ji, jj)
-              ahmt(ji, jj, jk) = zdelta * SQRT(dtensq(ji, jj) + r1_4 * (dshesq(ji, jj) + dshesq(ji, jj - 1) + dshesq(ji - 1, jj) + dshesq(ji - 1, jj - 1)))
+              ahmt(ji, jj, jk) = zdelta * SQRT(dtensq(ji, jj, jk) + r1_4 * (dshesq(ji, jj, jk) + dshesq(ji, jj - 1, jk) + &
+&dshesq(ji - 1, jj, jk) + dshesq(ji - 1, jj - 1, jk)))
               ahmt(ji, jj, jk) = MAX(ahmt(ji, jj, jk), SQRT((zu2pv2_ij + zu2pv2_ij_m1) * zdelta * zstabf_lo))
               ahmt(ji, jj, jk) = MIN(ahmt(ji, jj, jk), zdelta * zstabf_up)
+            END DO
+          END DO
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
+          DO jj = 1, jpjm1
+            DO ji = 1, jpim1
+              zu2pv2_ij_p1 = ub(ji, jj + 1, jk) * ub(ji, jj + 1, jk) + vb(ji + 1, jj, jk) * vb(ji + 1, jj, jk)
+              zu2pv2_ij = ub(ji, jj, jk) * ub(ji, jj, jk) + vb(ji, jj, jk) * vb(ji, jj, jk)
               zdelta = zcmsmag * esqf(ji, jj)
-              ahmf(ji, jj, jk) = zdelta * SQRT(dshesq(ji, jj) + r1_4 * (dtensq(ji, jj) + dtensq(ji, jj + 1) + dtensq(ji + 1, jj) + dtensq(ji + 1, jj + 1)))
+              ahmf(ji, jj, jk) = zdelta * SQRT(dshesq(ji, jj, jk) + r1_4 * (dtensq(ji, jj, jk) + dtensq(ji, jj + 1, jk) + &
+&dtensq(ji + 1, jj, jk) + dtensq(ji + 1, jj + 1, jk)))
               ahmf(ji, jj, jk) = MAX(ahmf(ji, jj, jk), SQRT((zu2pv2_ij + zu2pv2_ij_p1) * zdelta * zstabf_lo))
               ahmf(ji, jj, jk) = MIN(ahmf(ji, jj, jk), zdelta * zstabf_up)
             END DO
           END DO
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
       IF (ln_dynldf_blp) THEN
-        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC KERNELS
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               ahmt(ji, jj, jk) = SQRT(r1_8 * esqt(ji, jj) * ahmt(ji, jj, jk))
+            END DO
+          END DO
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
+          DO jj = 1, jpjm1
+            DO ji = 1, jpim1
               ahmf(ji, jj, jk) = SQRT(r1_8 * esqf(ji, jj) * ahmf(ji, jj, jk))
             END DO
           END DO
+          !$ACC END KERNELS
         END DO
-        !$ACC END KERNELS
       END IF
-      CALL lbc_lnk_multi(ahmt, 'T', 1., ahmf, 'F', 1.)
+      CALL lbc_lnk_multi('ldfdyn', ahmt, 'T', 1., ahmf, 'F', 1.)
     END SELECT
+    CALL profile_psy_data1 % PreStart('ldf_dyn', 'r1', 0, 0)
     CALL iom_put("ahmt_2d", ahmt(:, :, 1))
     CALL iom_put("ahmf_2d", ahmf(:, :, 1))
     CALL iom_put("ahmt_3d", ahmt(:, :, :))
     CALL iom_put("ahmf_3d", ahmf(:, :, :))
     IF (ln_timing) CALL timing_stop('ldf_dyn')
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE ldf_dyn
 END MODULE ldfdyn

@@ -43,11 +43,17 @@ MODULE sbc_ice
   CONTAINS
   INTEGER FUNCTION sbc_ice_alloc()
     INTEGER :: ierr(4)
+    !$ACC KERNELS
     ierr(:) = 0
+    !$ACC END KERNELS
     ALLOCATE(snwice_mass(jpi, jpj), snwice_mass_b(jpi, jpj), snwice_fmass(jpi, jpj), STAT = ierr(1))
-    ALLOCATE(qns_ice(jpi, jpj, jpl), qsr_ice(jpi, jpj, jpl), qla_ice(jpi, jpj, jpl), dqla_ice(jpi, jpj, jpl), dqns_ice(jpi, jpj, jpl), tn_ice(jpi, jpj, jpl), alb_ice(jpi, jpj, jpl), qml_ice(jpi, jpj, jpl), qcn_ice(jpi, jpj, jpl), qtr_ice_top(jpi, jpj, jpl), utau_ice(jpi, jpj), vtau_ice(jpi, jpj), wndm_ice(jpi, jpj), evap_ice(jpi, jpj, jpl), devap_ice(jpi, jpj, jpl), qprec_ice(jpi, jpj), qemp_ice(jpi, jpj), qevap_ice(jpi, jpj, jpl), qemp_oce(jpi, jpj), qns_oce(jpi, jpj), qsr_oce(jpi, jpj), emp_oce(jpi, jpj), emp_ice(jpi, jpj), tsfc_ice(jpi, jpj, jpl), sstfrz(jpi, jpj), STAT = ierr(2))
+    ALLOCATE(qns_ice(jpi, jpj, jpl), qsr_ice(jpi, jpj, jpl), qla_ice(jpi, jpj, jpl), dqla_ice(jpi, jpj, jpl), dqns_ice(jpi, jpj, &
+&jpl), tn_ice(jpi, jpj, jpl), alb_ice(jpi, jpj, jpl), qml_ice(jpi, jpj, jpl), qcn_ice(jpi, jpj, jpl), qtr_ice_top(jpi, jpj, jpl), &
+&utau_ice(jpi, jpj), vtau_ice(jpi, jpj), wndm_ice(jpi, jpj), evap_ice(jpi, jpj, jpl), devap_ice(jpi, jpj, jpl), qprec_ice(jpi, &
+&jpj), qemp_ice(jpi, jpj), qevap_ice(jpi, jpj, jpl), qemp_oce(jpi, jpj), qns_oce(jpi, jpj), qsr_oce(jpi, jpj), emp_oce(jpi, jpj), &
+&emp_ice(jpi, jpj), tsfc_ice(jpi, jpj, jpl), sstfrz(jpi, jpj), STAT = ierr(2))
     sbc_ice_alloc = MAXVAL(ierr)
-    IF (lk_mpp) CALL mpp_sum(sbc_ice_alloc)
+    CALL mpp_sum('sbc_ice', sbc_ice_alloc)
     IF (sbc_ice_alloc > 0) CALL ctl_warn('sbc_ice_alloc: allocation of arrays failed')
   END FUNCTION sbc_ice_alloc
 END MODULE sbc_ice

@@ -17,7 +17,12 @@ MODULE icedyn_rhg
   LOGICAL :: ln_rhg_EVP
   CONTAINS
   SUBROUTINE ice_dyn_rhg(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
+    INTEGER :: jl
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('ice_dyn_rhg', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('icedyn_rhg')
     IF (ln_icediachk) CALL ice_cons_hsm(0, 'icedyn_rhg', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (kt == nit000 .AND. lwp) THEN
@@ -25,6 +30,16 @@ MODULE icedyn_rhg
       WRITE(numout, FMT = *) 'ice_dyn_rhg: sea-ice rheology'
       WRITE(numout, FMT = *) '~~~~~~~~~~~'
     END IF
+    CALL profile_psy_data0 % PostEnd
+    IF (ln_landfast_home) THEN
+      !$ACC KERNELS
+      tau_icebfr(:, :) = 0._wp
+      DO jl = 1, jpl
+        WHERE (h_i(:, :, jl) > ht_n(:, :) * rn_depfra) tau_icebfr(:, :) = tau_icebfr(:, :) + a_i(:, :, jl) * rn_icebfr
+      END DO
+      !$ACC END KERNELS
+    END IF
+    CALL profile_psy_data1 % PreStart('ice_dyn_rhg', 'r1', 0, 0)
     SELECT CASE (nice_rhg)
     CASE (np_rhgEVP)
       CALL ice_dyn_rhg_evp(kt, stress1_i, stress2_i, stress12_i, shear_i, divu_i, delta_i)
@@ -35,6 +50,7 @@ MODULE icedyn_rhg
     IF (ln_icediachk) CALL ice_cons_hsm(1, 'icedyn_rhg', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (ln_ctl) CALL ice_prt3D('icedyn_rhg')
     IF (ln_timing) CALL timing_stop('icedyn_rhg')
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE ice_dyn_rhg
   SUBROUTINE ice_dyn_rhg_init
     INTEGER :: ios, ioptio

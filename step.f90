@@ -6,10 +6,15 @@ MODULE step
   PUBLIC :: stp
   CONTAINS
   SUBROUTINE stp(kstp)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kstp
     INTEGER :: ji, jj, jk
     INTEGER :: indic
     INTEGER :: kcall
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('stp', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('stp')
     indic = 0
     IF (kstp == nit000) THEN
@@ -45,13 +50,16 @@ MODULE step
     CALL ssh_nxt(kstp)
     IF (.NOT. ln_linssh) CALL dom_vvl_sf_nxt(kstp)
     CALL wzv(kstp)
+    IF (ln_zad_Aimp) CALL wAimp(kstp)
     CALL eos(tsn, rhd, rhop, gdept_n(:, :, :))
     IF (ln_zps .AND. .NOT. ln_isfcav) CALL zps_hde(kstp, jpts, tsn, gtsu, gtsv, rhd, gru, grv)
     IF (ln_zps .AND. ln_isfcav) CALL zps_hde_isf(kstp, jpts, tsn, gtsu, gtsv, gtui, gtvi, rhd, gru, grv, grui, grvi)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     ua(:, :, :) = 0._wp
     va(:, :, :) = 0._wp
     !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('stp', 'r1', 0, 0)
     IF (lk_asminc .AND. ln_asmiau .AND. ln_dyninc) CALL dyn_asm_inc(kstp)
     IF (ln_bdy) CALL bdy_dyn3d_dmp(kstp)
     CALL dyn_adv(kstp)
@@ -64,6 +72,7 @@ MODULE step
       CALL div_hor(kstp)
       IF (.NOT. ln_linssh) CALL dom_vvl_sf_nxt(kstp, kcall = 2)
       CALL wzv(kstp)
+      IF (ln_zad_Aimp) CALL wAimp(kstp)
     END IF
     CALL dyn_zdf(kstp)
     IF (ln_diurnal) CALL stp_diurnal(kstp)
@@ -73,11 +82,14 @@ MODULE step
     IF (lk_diadct) CALL dia_dct(kstp)
     CALL dia_ar5(kstp)
     IF (lk_diaharm) CALL dia_harm(kstp)
+    CALL dia_prod(kstp)
     CALL dia_wri(kstp)
     IF (ln_crs) CALL crs_fld(kstp)
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     tsa(:, :, :, :) = 0._wp
     !$ACC END KERNELS
+    CALL profile_psy_data2 % PreStart('stp', 'r2', 0, 0)
     IF (lk_asminc .AND. ln_asmiau .AND. ln_trainc) CALL tra_asm_inc(kstp)
     CALL tra_sbc(kstp)
     IF (ln_traqsr) CALL tra_qsr(kstp)
@@ -108,5 +120,6 @@ MODULE step
     END IF
     IF (lk_oasis) CALL sbc_cpl_snd(kstp)
     IF (ln_timing) CALL timing_stop('stp')
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE stp
 END MODULE step

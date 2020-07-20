@@ -44,21 +44,34 @@ MODULE sbcrnf
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_t_rnf
   CONTAINS
   INTEGER FUNCTION sbc_rnf_alloc()
-    ALLOCATE(rnfmsk(jpi, jpj), rnfmsk_z(jpk), h_rnf(jpi, jpj), nk_rnf(jpi, jpj), rnf_tsc_b(jpi, jpj, jpts), rnf_tsc(jpi, jpj, jpts), STAT = sbc_rnf_alloc)
-    IF (lk_mpp) CALL mpp_sum(sbc_rnf_alloc)
+    ALLOCATE(rnfmsk(jpi, jpj), rnfmsk_z(jpk), h_rnf(jpi, jpj), nk_rnf(jpi, jpj), rnf_tsc_b(jpi, jpj, jpts), rnf_tsc(jpi, jpj, &
+&jpts), STAT = sbc_rnf_alloc)
+    CALL mpp_sum('sbcrnf', sbc_rnf_alloc)
     IF (sbc_rnf_alloc > 0) CALL ctl_warn('sbc_rnf_alloc: allocation of arrays failed')
   END FUNCTION sbc_rnf_alloc
   SUBROUTINE sbc_rnf(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj
     INTEGER :: z_err = 0
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztfrz
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    CALL profile_psy_data0 % PreStart('sbc_rnf', 'r0', 0, 0)
     IF (.NOT. l_rnfcpl) CALL fld_read(kt, nn_fsbc, sf_rnf)
     IF (ln_rnf_tem) CALL fld_read(kt, nn_fsbc, sf_t_rnf)
     IF (ln_rnf_sal) CALL fld_read(kt, nn_fsbc, sf_s_rnf)
+    CALL profile_psy_data0 % PostEnd
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
+      CALL profile_psy_data1 % PreStart('sbc_rnf', 'r1', 0, 0)
       IF (.NOT. l_rnfcpl) rnf(:, :) = rn_rfact * (sf_rnf(1) % fnow(:, :, 1)) * tmask(:, :, 1)
+      CALL profile_psy_data1 % PostEnd
       IF (ln_rnf_tem) THEN
+        CALL profile_psy_data2 % PreStart('sbc_rnf', 'r2', 0, 0)
         rnf_tsc(:, :, jp_tem) = (sf_t_rnf(1) % fnow(:, :, 1)) * rnf(:, :) * r1_rau0
         CALL eos_fzp(sss_m(:, :), ztfrz(:, :))
         WHERE (sf_t_rnf(1) % fnow(:, :, 1) == - 999._wp)
@@ -67,21 +80,26 @@ MODULE sbcrnf
         WHERE (sf_t_rnf(1) % fnow(:, :, 1) == - 222._wp)
           rnf_tsc(:, :, jp_tem) = ztfrz(:, :) * rnf(:, :) * r1_rau0 - rnf(:, :) * rLfusisf * r1_rau0_rcp
         END WHERE
+        CALL profile_psy_data2 % PostEnd
       ELSE
         !$ACC KERNELS
         rnf_tsc(:, :, jp_tem) = MAX(sst_m(:, :), 0.0_wp) * rnf(:, :) * r1_rau0
         !$ACC END KERNELS
       END IF
+      CALL profile_psy_data3 % PreStart('sbc_rnf', 'r3', 0, 0)
       IF (ln_rnf_sal) rnf_tsc(:, :, jp_sal) = (sf_s_rnf(1) % fnow(:, :, 1)) * rnf(:, :) * r1_rau0
       IF (iom_use('runoffs')) CALL iom_put('runoffs', rnf(:, :))
       IF (iom_use('hflx_rnf_cea')) CALL iom_put('hflx_rnf_cea', rnf_tsc(:, :, jp_tem) * rau0 * rcp)
+      CALL profile_psy_data3 % PostEnd
     END IF
     IF (kt == nit000) THEN
       IF (ln_rstart .AND. iom_varid(numror, 'rnf_b', ldstop = .FALSE.) > 0) THEN
+        CALL profile_psy_data4 % PreStart('sbc_rnf', 'r4', 0, 0)
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 runoff forcing fields red in the restart file', lrxios
         CALL iom_get(numror, jpdom_autoglo, 'rnf_b', rnf_b, ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'rnf_hc_b', rnf_tsc_b(:, :, jp_tem), ldxios = lrxios)
         CALL iom_get(numror, jpdom_autoglo, 'rnf_sc_b', rnf_tsc_b(:, :, jp_sal), ldxios = lrxios)
+        CALL profile_psy_data4 % PostEnd
       ELSE
         IF (lwp) WRITE(numout, FMT = *) '          nit000-1 runoff forcing fields set to nit000'
         !$ACC KERNELS
@@ -90,9 +108,11 @@ MODULE sbcrnf
         !$ACC END KERNELS
       END IF
     END IF
+    CALL profile_psy_data5 % PreStart('sbc_rnf', 'r5', 0, 0)
     IF (lrst_oce) THEN
       IF (lwp) WRITE(numout, FMT = *)
-      IF (lwp) WRITE(numout, FMT = *) 'sbcrnf : runoff forcing fields written in ocean restart file ', 'at it= ', kt, ' date= ', ndastp
+      IF (lwp) WRITE(numout, FMT = *) 'sbcrnf : runoff forcing fields written in ocean restart file ', 'at it= ', kt, ' date= ', &
+&ndastp
       IF (lwp) WRITE(numout, FMT = *) '~~~~'
       IF (lwxios) CALL iom_swap(cwxios_context)
       CALL iom_rstput(kt, nitrst, numrow, 'rnf_b', rnf, ldxios = lwxios)
@@ -100,25 +120,31 @@ MODULE sbcrnf
       CALL iom_rstput(kt, nitrst, numrow, 'rnf_sc_b', rnf_tsc(:, :, jp_sal), ldxios = lwxios)
       IF (lwxios) CALL iom_swap(cxios_context)
     END IF
+    CALL profile_psy_data5 % PostEnd
   END SUBROUTINE sbc_rnf
   SUBROUTINE sbc_rnf_div(phdivn)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: phdivn
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zfact
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('sbc_rnf_div', 'r0', 0, 0)
     zfact = 0.5_wp
+    CALL profile_psy_data0 % PostEnd
     IF (ln_rnf_depth .OR. ln_rnf_depth_ini) THEN
       IF (ln_linssh) THEN
-        !$ACC KERNELS
         DO jj = 1, jpj
           DO ji = 1, jpi
+            !$ACC KERNELS
             DO jk = 1, nk_rnf(ji, jj)
               phdivn(ji, jj, jk) = phdivn(ji, jj, jk) - (rnf(ji, jj) + rnf_b(ji, jj)) * zfact * r1_rau0 / h_rnf(ji, jj)
             END DO
+            !$ACC END KERNELS
           END DO
         END DO
-        !$ACC END KERNELS
       ELSE
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             h_rnf(ji, jj) = 0._wp
@@ -146,10 +172,9 @@ MODULE sbcrnf
     INTEGER :: ios
     INTEGER :: nbrec
     REAL(KIND = wp) :: zacoef
-    REAL(KIND = wp), DIMENSION(12) :: zrec
-    REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: zrnfcl
-    REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zrnf
-    NAMELIST /namsbc_rnf/ cn_dir, ln_rnf_depth, ln_rnf_tem, ln_rnf_sal, sn_rnf, sn_cnf, sn_s_rnf, sn_t_rnf, sn_dep_rnf, ln_rnf_mouth, rn_hrnf, rn_avt_rnf, rn_rfact, ln_rnf_depth_ini, rn_dep_max, rn_rnf_max, nn_rnf_depth_file
+    REAL(KIND = wp), DIMENSION(jpi, jpj, 2) :: zrnfcl
+    NAMELIST /namsbc_rnf/ cn_dir, ln_rnf_depth, ln_rnf_tem, ln_rnf_sal, sn_rnf, sn_cnf, sn_s_rnf, sn_t_rnf, sn_dep_rnf, &
+&ln_rnf_mouth, rn_hrnf, rn_avt_rnf, rn_rfact, ln_rnf_depth_ini, rn_dep_max, rn_rnf_max, nn_rnf_depth_file
     IF (sbc_rnf_alloc() /= 0) CALL ctl_stop('STOP', 'sbc_rnf_alloc : unable to allocate arrays')
     IF (.NOT. ln_rnf) THEN
       !$ACC KERNELS
@@ -158,8 +183,8 @@ MODULE sbcrnf
       rnf(:, :) = 0.0_wp
       rnf_b(:, :) = 0.0_wp
       rnfmsk(:, :) = 0.0_wp
-      !$ACC END KERNELS
       rnfmsk_z(:) = 0.0_wp
+      !$ACC END KERNELS
       RETURN
     END IF
     REWIND(UNIT = numnam_ref)
@@ -248,6 +273,7 @@ MODULE sbcrnf
         END DO
       END DO
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           h_rnf(ji, jj) = 0._wp
@@ -262,28 +288,28 @@ MODULE sbcrnf
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   depth of runoff computed once from max value of runoff'
       IF (lwp) WRITE(numout, FMT = *) '        max value of the runoff climatologie (over global domain) rn_rnf_max = ', rn_rnf_max
       IF (lwp) WRITE(numout, FMT = *) '        depth over which runoffs is spread                        rn_dep_max = ', rn_dep_max
-      IF (lwp) WRITE(numout, FMT = *) '        create (=1) a runoff depth file or not (=0)      nn_rnf_depth_file  = ', nn_rnf_depth_file
+      IF (lwp) WRITE(numout, FMT = *) '        create (=1) a runoff depth file or not (=0)      nn_rnf_depth_file  = ', &
+&nn_rnf_depth_file
       CALL iom_open(TRIM(sn_rnf % clname), inum)
-      CALL iom_gettime(inum, zrec, kntime = nbrec)
-      ALLOCATE(zrnfcl(jpi, jpj, nbrec))
-      ALLOCATE(zrnf(jpi, jpj))
+      !$ACC KERNELS
+      nbrec = iom_getszuld(inum)
+      zrnfcl(:, :, 1) = 0._wp
+      !$ACC END KERNELS
       DO jm = 1, nbrec
-        CALL iom_get(inum, jpdom_data, TRIM(sn_rnf % clvar), zrnfcl(:, :, jm), jm)
+        CALL iom_get(inum, jpdom_data, TRIM(sn_rnf % clvar), zrnfcl(:, :, 2), jm)
+        !$ACC KERNELS
+        zrnfcl(:, :, 1) = MAXVAL(zrnfcl(:, :, :), DIM = 3)
+        !$ACC END KERNELS
       END DO
       CALL iom_close(inum)
       !$ACC KERNELS
-      zrnf(:, :) = MAXVAL(zrnfcl(:, :, :), DIM = 3)
-      !$ACC END KERNELS
-      DEALLOCATE(zrnfcl)
-      !$ACC KERNELS
       h_rnf(:, :) = 1.
       zacoef = rn_dep_max / rn_rnf_max
-      !$ACC END KERNELS
-      WHERE (zrnf(:, :) > 0._wp) h_rnf(:, :) = zacoef * zrnf(:, :)
-      !$ACC KERNELS
+      WHERE (zrnfcl(:, :, 1) > 0._wp) h_rnf(:, :) = zacoef * zrnfcl(:, :, 1)
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
-          IF (zrnf(ji, jj) > 0._wp) THEN
+          IF (zrnfcl(ji, jj, 1) > 0._wp) THEN
             jk = mbkt(ji, jj)
             h_rnf(ji, jj) = MIN(h_rnf(ji, jj), gdept_0(ji, jj, jk))
           END IF
@@ -293,7 +319,7 @@ MODULE sbcrnf
       !$ACC END KERNELS
       DO jj = 1, jpj
         DO ji = 1, jpi
-          IF (zrnf(ji, jj) > 0._wp) THEN
+          IF (zrnfcl(ji, jj, 1) > 0._wp) THEN
             jk = 2
             DO WHILE (jk /= mbkt(ji, jj) .AND. gdept_0(ji, jj, jk) < h_rnf(ji, jj))
               jk = jk + 1
@@ -304,8 +330,8 @@ MODULE sbcrnf
           END IF
         END DO
       END DO
-      DEALLOCATE(zrnf)
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           h_rnf(ji, jj) = 0._wp
@@ -317,7 +343,7 @@ MODULE sbcrnf
       !$ACC END KERNELS
       IF (nn_rnf_depth_file == 1) THEN
         IF (lwp) WRITE(numout, FMT = *) '   ==>>>   create runoff depht file'
-        CALL iom_open(TRIM(sn_dep_rnf % clname), inum, ldwrt = .TRUE., kiolib = jprstlib)
+        CALL iom_open(TRIM(sn_dep_rnf % clname), inum, ldwrt = .TRUE.)
         CALL iom_rstput(0, 0, inum, 'rodepth', h_rnf)
         CALL iom_close(inum)
       END IF
@@ -332,7 +358,8 @@ MODULE sbcrnf
     rnf_tsc(:, :, :) = 0._wp
     !$ACC END KERNELS
     IF (ln_rnf_mouth) THEN
-      IF (ln_rnf_depth) CALL ctl_warn('sbc_rnf_init: increased mixing turned on but effects may already', 'be spread through depth by ln_rnf_depth')
+      IF (ln_rnf_depth) CALL ctl_warn('sbc_rnf_init: increased mixing turned on but effects may already', 'be spread through depth &
+&by ln_rnf_depth')
       nkrnf = 0
       IF (rn_hrnf > 0._wp) THEN
         nkrnf = 2
@@ -353,9 +380,9 @@ MODULE sbcrnf
       IF (lwp) WRITE(numout, FMT = *) '   ==>>>   No specific treatment at river mouths'
       !$ACC KERNELS
       rnfmsk(:, :) = 0._wp
-      !$ACC END KERNELS
       rnfmsk_z(:) = 0._wp
       nkrnf = 0
+      !$ACC END KERNELS
     END IF
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('rnf_b')
@@ -364,8 +391,11 @@ MODULE sbcrnf
     END IF
   END SUBROUTINE sbc_rnf_init
   SUBROUTINE rnf_mouth
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: inum
     CHARACTER(LEN = 140) :: cl_rnfile
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('rnf_mouth', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) '   rnf_mouth : river mouth mask'
     IF (lwp) WRITE(numout, FMT = *) '   ~~~~~~~~~ '
@@ -378,11 +408,14 @@ MODULE sbcrnf
     CALL iom_get(inum, jpdom_data, sn_cnf % clvar, rnfmsk)
     CALL iom_close(inum)
     IF (l_clo_rnf) CALL clo_rnf(rnfmsk)
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     rnfmsk_z(:) = 0._wp
     rnfmsk_z(1) = 1.0
     rnfmsk_z(2) = 1.0
     rnfmsk_z(3) = 0.5
     rnfmsk_z(4) = 0.25
     rnfmsk_z(5) = 0.125
+    !$ACC END KERNELS
   END SUBROUTINE rnf_mouth
 END MODULE sbcrnf

@@ -24,14 +24,17 @@ MODULE tradmp
   CONTAINS
   INTEGER FUNCTION tra_dmp_alloc()
     ALLOCATE(resto(jpi, jpj, jpk), STAT = tra_dmp_alloc)
-    IF (lk_mpp) CALL mpp_sum(tra_dmp_alloc)
+    CALL mpp_sum('tradmp', tra_dmp_alloc)
     IF (tra_dmp_alloc > 0) CALL ctl_warn('tra_dmp_alloc: allocation of arrays failed')
   END FUNCTION tra_dmp_alloc
   SUBROUTINE tra_dmp(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts) :: zts_dta
     REAL(KIND = wp), DIMENSION(:, :, :, :), ALLOCATABLE :: ztrdts
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_timing) CALL timing_start('tra_dmp')
     IF (l_trdtra) THEN
       ALLOCATE(ztrdts(jpi, jpj, jpk, jpts))
@@ -42,25 +45,29 @@ MODULE tradmp
     CALL dta_tsd(kt, zts_dta)
     SELECT CASE (nn_zdmp)
     CASE (0)
-      !$ACC KERNELS
       DO jn = 1, jpts
+        !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               tsa(ji, jj, jk, jn) = tsa(ji, jj, jk, jn) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jn) - tsb(ji, jj, jk, jn))
             END DO
           END DO
         END DO
+        !$ACC END KERNELS
       END DO
-      !$ACC END KERNELS
     CASE (1)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
-            IF (avt(ji, jj, jk) <= 5.E-4_wp) THEN
-              tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_tem) - tsb(ji, jj, jk, jp_tem))
-              tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_sal) - tsb(ji, jj, jk, jp_sal))
+            IF (avt(ji, jj, jk) <= avt_c) THEN
+              tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_tem) - tsb(ji, jj, &
+&jk, jp_tem))
+              tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_sal) - tsb(ji, jj, &
+&jk, jp_sal))
             END IF
           END DO
         END DO
@@ -69,11 +76,14 @@ MODULE tradmp
     CASE (2)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (gdept_n(ji, jj, jk) >= hmlp(ji, jj)) THEN
-              tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_tem) - tsb(ji, jj, jk, jp_tem))
-              tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_sal) - tsb(ji, jj, jk, jp_sal))
+              tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_tem) - tsb(ji, jj, &
+&jk, jp_tem))
+              tsa(ji, jj, jk, jp_sal) = tsa(ji, jj, jk, jp_sal) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jp_sal) - tsb(ji, jj, &
+&jk, jp_sal))
             END IF
           END DO
         END DO
@@ -84,12 +94,17 @@ MODULE tradmp
       !$ACC KERNELS
       ztrdts(:, :, :, :) = tsa(:, :, :, :) - ztrdts(:, :, :, :)
       !$ACC END KERNELS
+      CALL profile_psy_data0 % PreStart('tra_dmp', 'r0', 0, 0)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_dmp, ztrdts(:, :, :, jp_tem))
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_dmp, ztrdts(:, :, :, jp_sal))
       DEALLOCATE(ztrdts)
+      CALL profile_psy_data0 % PostEnd
     END IF
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' dmp  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
+    CALL profile_psy_data1 % PreStart('tra_dmp', 'r1', 0, 0)
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' dmp  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, &
+&jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_dmp')
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE tra_dmp
   SUBROUTINE tra_dmp_init
     INTEGER :: ios, imask

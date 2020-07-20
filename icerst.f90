@@ -42,17 +42,14 @@ MODULE icerst
         IF (clpath(LEN_TRIM(clpath) :) /= '/') clpath = TRIM(clpath) // '/'
         IF (lwp) THEN
           WRITE(numout, FMT = *)
-          SELECT CASE (jprstlib)
-          CASE DEFAULT
-            WRITE(numout, FMT = *) '             open ice restart NetCDF file: ', TRIM(clpath) // clname
-          END SELECT
+          WRITE(numout, FMT = *) '             open ice restart NetCDF file: ', TRIM(clpath) // clname
           IF (kt == nitrst - 2 * nn_fsbc + 1) THEN
             WRITE(numout, FMT = *) '             kt = nitrst - 2*nn_fsbc + 1 = ', kt, ' date= ', ndastp
           ELSE
             WRITE(numout, FMT = *) '             kt = ', kt, ' date= ', ndastp
           END IF
         END IF
-        CALL iom_open(TRIM(clpath) // TRIM(clname), numriw, ldwrt = .TRUE., kiolib = jprstlib, kdlev = jpl)
+        CALL iom_open(TRIM(clpath) // TRIM(clname), numriw, ldwrt = .TRUE., kdlev = jpl)
         lrst_ice = .TRUE.
       END IF
     END IF
@@ -60,7 +57,7 @@ MODULE icerst
   END SUBROUTINE ice_rst_opn
   SUBROUTINE ice_rst_write(kt)
     INTEGER, INTENT(IN) :: kt
-    INTEGER :: jk, jl
+    INTEGER :: jk
     INTEGER :: iter
     CHARACTER(LEN = 25) :: znam
     CHARACTER(LEN = 2) :: zchar, zchar1
@@ -73,6 +70,7 @@ MODULE icerst
     END IF
     CALL iom_rstput(iter, nitrst, numriw, 'nn_fsbc', REAL(nn_fsbc, wp))
     CALL iom_rstput(iter, nitrst, numriw, 'kt_ice', REAL(iter, wp))
+    CALL iom_delay_rst('WRITE', 'ICE', numriw)
     CALL iom_rstput(iter, nitrst, numriw, 'v_i', v_i)
     CALL iom_rstput(iter, nitrst, numriw, 'v_s', v_s)
     CALL iom_rstput(iter, nitrst, numriw, 'sv_i', sv_i)
@@ -109,10 +107,9 @@ MODULE icerst
     END IF
   END SUBROUTINE ice_rst_write
   SUBROUTINE ice_rst_read
-    INTEGER :: jk, jl
+    INTEGER :: jk
     LOGICAL :: llok
     INTEGER :: id1
-    INTEGER :: jlibalt = jprstlib
     CHARACTER(LEN = 25) :: znam
     CHARACTER(LEN = 2) :: zchar, zchar1
     REAL(KIND = wp) :: zfice, ziter
@@ -122,13 +119,15 @@ MODULE icerst
       WRITE(numout, FMT = *) 'ice_rst_read: read ice NetCDF restart file'
       WRITE(numout, FMT = *) '~~~~~~~~~~~~'
     END IF
-    CALL iom_open(TRIM(cn_icerst_indir) // '/' // cn_icerst_in, numrir, kiolib = jprstlib, kdlev = jpl)
+    CALL iom_open(TRIM(cn_icerst_indir) // '/' // cn_icerst_in, numrir, kdlev = jpl)
     CALL iom_get(numrir, 'nn_fsbc', zfice)
     CALL iom_get(numrir, 'kt_ice', ziter)
     IF (lwp) WRITE(numout, FMT = *) '   read ice restart file at time step    : ', ziter
     IF (lwp) WRITE(numout, FMT = *) '   in any case we force it to nit000 - 1 : ', nit000 - 1
-    IF ((nit000 - NINT(ziter)) /= 1 .AND. ABS(nrstdt) == 1) CALL ctl_stop('ice_rst_read ===>>>> : problem with nit000 in ice restart', '   verify the file or rerun with the value 0 for the', '   control of time parameter  nrstdt')
-    IF (NINT(zfice) /= nn_fsbc .AND. ABS(nrstdt) == 1) CALL ctl_stop('ice_rst_read ===>>>> : problem with nn_fsbc in ice restart', '   verify the file or rerun with the value 0 for the', '   control of time parameter  nrstdt')
+    IF ((nit000 - NINT(ziter)) /= 1 .AND. ABS(nrstdt) == 1) CALL ctl_stop('ice_rst_read ===>>>> : problem with nit000 in ice &
+&restart', '   verify the file or rerun with the value 0 for the', '   control of time parameter  nrstdt')
+    IF (NINT(zfice) /= nn_fsbc .AND. ABS(nrstdt) == 1) CALL ctl_stop('ice_rst_read ===>>>> : problem with nn_fsbc in ice restart', &
+&'   verify the file or rerun with the value 0 for the', '   control of time parameter  nrstdt')
     CALL iom_get(numrir, jpdom_autoglo, 'v_i', v_i)
     CALL iom_get(numrir, jpdom_autoglo, 'v_s', v_s)
     CALL iom_get(numrir, jpdom_autoglo, 'sv_i', sv_i)
@@ -164,6 +163,7 @@ MODULE icerst
     END DO
     CALL iom_get(numrir, jpdom_autoglo, 'u_ice', u_ice)
     CALL iom_get(numrir, jpdom_autoglo, 'v_ice', v_ice)
+    CALL iom_delay_rst('READ', 'ICE', numrir)
     IF (ln_cpl) THEN
       CALL iom_get(numrir, jpdom_autoglo, 'cnd_ice', cnd_ice)
       CALL iom_get(numrir, jpdom_autoglo, 't1_ice', t1_ice)

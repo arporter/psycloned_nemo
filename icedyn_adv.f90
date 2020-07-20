@@ -20,35 +20,26 @@ MODULE icedyn_adv
   INTEGER :: nice_adv
   INTEGER, PARAMETER :: np_advPRA = 1
   INTEGER, PARAMETER :: np_advUMx = 2
-  LOGICAL :: ln_adv_Pra
-  LOGICAL :: ln_adv_UMx
   INTEGER :: nn_UMx
   CONTAINS
   SUBROUTINE ice_dyn_adv(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
-    INTEGER :: jl
-    REAL(KIND = wp), DIMENSION(jpi, jpj) :: zmask
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_dyn_adv', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('icedyn_adv')
+    IF (ln_icediachk) CALL ice_cons_hsm(0, 'icedyn_adv', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'ice_dyn_adv: sea-ice advection'
       WRITE(numout, FMT = *) '~~~~~~~~~~~'
     END IF
-    IF (ln_icediachk) CALL ice_cons_hsm(0, 'icedyn_adv', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     SELECT CASE (nice_adv)
     CASE (np_advUMx)
-      CALL ice_dyn_adv_umx(nn_UMx, kt, u_ice, v_ice, ato_i, v_i, v_s, sv_i, oa_i, a_i, a_ip, v_ip, e_s, e_i)
+      CALL ice_dyn_adv_umx(nn_UMx, kt, u_ice, v_ice, h_i, h_s, h_ip, ato_i, v_i, v_s, sv_i, oa_i, a_i, a_ip, v_ip, e_s, e_i)
     CASE (np_advPRA)
       CALL ice_dyn_adv_pra(kt, u_ice, v_ice, ato_i, v_i, v_s, sv_i, oa_i, a_i, a_ip, v_ip, e_s, e_i)
     END SELECT
-    zmask(:, :) = 0._wp
-    DO jl = 1, jpl
-      WHERE (v_i(:, :, jl) < 0._wp) zmask(:, :) = 1._wp
-    END DO
-    IF (iom_use('iceneg_pres')) CALL iom_put("iceneg_pres", zmask)
-    IF (iom_use('iceneg_volu')) CALL iom_put("iceneg_volu", SUM(MIN(v_i, 0.), dim = 3))
-    IF (iom_use('iceneg_hfx')) CALL iom_put("iceneg_hfx", (SUM(SUM(MIN(e_i(:, :, 1 : nlay_i, :), 0.), dim = 4), dim = 3)) * r1_rdtice)
-    CALL ice_var_zapneg(ato_i, v_i, v_s, sv_i, oa_i, a_i, a_ip, v_ip, e_s, e_i)
     diag_trp_ei(:, :) = SUM(SUM(e_i(:, :, 1 : nlay_i, :) - e_i_b(:, :, 1 : nlay_i, :), dim = 4), dim = 3) * r1_rdtice
     diag_trp_es(:, :) = SUM(SUM(e_s(:, :, 1 : nlay_s, :) - e_s_b(:, :, 1 : nlay_s, :), dim = 4), dim = 3) * r1_rdtice
     diag_trp_sv(:, :) = SUM(sv_i(:, :, :) - sv_i_b(:, :, :), dim = 3) * r1_rdtice
@@ -62,6 +53,7 @@ MODULE icedyn_adv
     IF (ln_icediachk) CALL ice_cons_hsm(1, 'icedyn_adv', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (ln_icectl) CALL ice_prt(kt, iiceprt, jiceprt, - 1, ' - ice dyn & trp - ')
     IF (ln_timing) CALL timing_stop('icedyn_adv')
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_dyn_adv
   SUBROUTINE ice_dyn_adv_init
     INTEGER :: ios, ioptio

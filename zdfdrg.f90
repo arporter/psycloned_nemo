@@ -40,19 +40,20 @@ MODULE zdfdrg
   REAL(KIND = wp), ALLOCATABLE, SAVE, DIMENSION(:, :), PUBLIC :: rCdU_top, rCdU_bot
   CONTAINS
   SUBROUTINE zdf_drg(kt, k_mk, pCdmin, pCdmax, pz0, pke0, pCd0, pCdU)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, DIMENSION(:, :), INTENT(IN   ) :: k_mk
-    REAL(KIND = wp), INTENT(IN   ) :: pCdmin
-    REAL(KIND = wp), INTENT(IN   ) :: pCdmax
-    REAL(KIND = wp), INTENT(IN   ) :: pz0
-    REAL(KIND = wp), INTENT(IN   ) :: pke0
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN   ) :: pCd0
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(  OUT) :: pCdU
+    INTEGER, INTENT(IN) :: kt
+    INTEGER, DIMENSION(:, :), INTENT(IN) :: k_mk
+    REAL(KIND = wp), INTENT(IN) :: pCdmin
+    REAL(KIND = wp), INTENT(IN) :: pCdmax
+    REAL(KIND = wp), INTENT(IN) :: pz0
+    REAL(KIND = wp), INTENT(IN) :: pke0
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: pCd0
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: pCdU
     INTEGER :: ji, jj
     INTEGER :: imk
     REAL(KIND = wp) :: zzz, zut, zvt, zcd
     IF (l_log_not_linssh) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           imk = k_mk(ji, jj)
@@ -67,6 +68,7 @@ MODULE zdfdrg
       !$ACC END KERNELS
     ELSE
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           imk = k_mk(ji, jj)
@@ -80,7 +82,8 @@ MODULE zdfdrg
     IF (ln_ctl) CALL prt_ctl(tab2d_1 = pCdU, clinfo1 = ' Cd*U ')
   END SUBROUTINE zdf_drg
   SUBROUTINE zdf_drg_exp(kt, pub, pvb, pua, pva)
-    INTEGER, INTENT(IN   ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pub, pvb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pua, pva
     INTEGER :: ji, jj
@@ -88,7 +91,11 @@ MODULE zdfdrg
     REAL(KIND = wp) :: zm1_2dt
     REAL(KIND = wp) :: zCdu, zCdv
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: ztrdu, ztrdv
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('zdf_drg_exp', 'r0', 0, 0)
     zm1_2dt = - 1._wp / (2._wp * rdt)
+    CALL profile_psy_data0 % PostEnd
     IF (l_trddyn) THEN
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
       !$ACC KERNELS
@@ -97,6 +104,7 @@ MODULE zdfdrg
       !$ACC END KERNELS
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ikbu = mbku(ji, jj)
@@ -110,6 +118,7 @@ MODULE zdfdrg
     !$ACC END KERNELS
     IF (ln_isfcav) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ikbu = miku(ji, jj)
@@ -127,10 +136,13 @@ MODULE zdfdrg
       ztrdu(:, :, :) = pua(:, :, :) - ztrdu(:, :, :)
       ztrdv(:, :, :) = pva(:, :, :) - ztrdv(:, :, :)
       !$ACC END KERNELS
+      CALL profile_psy_data1 % PreStart('zdf_drg_exp', 'r1', 0, 0)
       CALL trd_dyn(ztrdu(:, :, :), ztrdv(:, :, :), jpdyn_bfr, kt)
       DEALLOCATE(ztrdu, ztrdv)
+      CALL profile_psy_data1 % PostEnd
     END IF
-    IF (ln_ctl) CALL prt_ctl(tab3d_1 = pua, clinfo1 = ' bfr  - Ua: ', mask1 = umask, tab3d_2 = pva, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
+    IF (ln_ctl) CALL prt_ctl(tab3d_1 = pua, clinfo1 = ' bfr  - Ua: ', mask1 = umask, tab3d_2 = pva, clinfo2 = ' Va: ', mask2 = &
+&vmask, clinfo3 = 'dyn')
   END SUBROUTINE zdf_drg_exp
   SUBROUTINE zdf_drg_init
     INTEGER :: ji, jj
@@ -180,13 +192,13 @@ MODULE zdfdrg
     END IF
   END SUBROUTINE zdf_drg_init
   SUBROUTINE drg_init(cd_topbot, k_mk, pCdmin, pCdmax, pz0, pke0, pCd0, pCdU)
-    CHARACTER(LEN = 6), INTENT(IN   ) :: cd_topbot
-    INTEGER, DIMENSION(:, :), INTENT(IN   ) :: k_mk
-    REAL(KIND = wp), INTENT(  OUT) :: pCdmin, pCdmax
-    REAL(KIND = wp), INTENT(  OUT) :: pz0
-    REAL(KIND = wp), INTENT(  OUT) :: pke0
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(  OUT) :: pCd0
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(  OUT) :: pCdU
+    CHARACTER(LEN = 6), INTENT(IN) :: cd_topbot
+    INTEGER, DIMENSION(:, :), INTENT(IN) :: k_mk
+    REAL(KIND = wp), INTENT(OUT) :: pCdmin, pCdmax
+    REAL(KIND = wp), INTENT(OUT) :: pz0
+    REAL(KIND = wp), INTENT(OUT) :: pke0
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: pCd0
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: pCdU
     CHARACTER(LEN = 40) :: cl_namdrg, cl_file, cl_varname, cl_namref, cl_namcfg
     INTEGER :: ji, jj
     LOGICAL :: ll_top, ll_bot
@@ -255,8 +267,10 @@ MODULE zdfdrg
       zmsk_boost(:, :) = 1._wp
       !$ACC END KERNELS
     END IF
+    !$ACC KERNELS
     IF (ll_top) zmsk_boost(:, :) = zmsk_boost(:, :) * ssmask(:, :) * (1. - tmask(:, :, 1))
     IF (ll_bot) zmsk_boost(:, :) = zmsk_boost(:, :) * ssmask(:, :)
+    !$ACC END KERNELS
     SELECT CASE (ndrg)
     CASE (np_OFF)
       IF (lwp) WRITE(numout, FMT = *)
@@ -268,7 +282,8 @@ MODULE zdfdrg
       !$ACC END KERNELS
     CASE (np_lin)
       IF (lwp) WRITE(numout, FMT = *)
-      IF (lwp) WRITE(numout, FMT = *) '   ==>>>   linear ', TRIM(cd_topbot), ' friction (constant coef = Cd0*Uc0 = ', rn_Cd0 * rn_Uc0, ')'
+      IF (lwp) WRITE(numout, FMT = *) '   ==>>>   linear ', TRIM(cd_topbot), ' friction (constant coef = Cd0*Uc0 = ', rn_Cd0 * &
+&rn_Uc0, ')'
       !$ACC KERNELS
       l_zdfdrg = .FALSE.
       pCd0(:, :) = rn_Cd0 * zmsk_boost(:, :)
@@ -297,6 +312,7 @@ MODULE zdfdrg
         IF (lwp) WRITE(numout, FMT = *) '   N.B.   linear free surface case, Cd0 computed one for all'
         !$ACC KERNELS
         l_log_not_linssh = .FALSE.
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zzz = 0.5_wp * e3t_0(ji, jj, k_mk(ji, jj))

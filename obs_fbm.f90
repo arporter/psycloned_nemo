@@ -57,7 +57,10 @@ MODULE obs_fbm
   PRIVATE :: putvaratt_obfbdata
   CONTAINS
   SUBROUTINE init_obfbdata(fbdata)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obfbdata) :: fbdata
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('init_obfbdata', 'r0', 0, 0)
     fbdata % nvar = 0
     fbdata % nobs = 0
     fbdata % nlev = 0
@@ -66,6 +69,7 @@ MODULE obs_fbm
     fbdata % nqcf = idefnqcf
     fbdata % lalloc = .FALSE.
     fbdata % lgrid = .FALSE.
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE init_obfbdata
   SUBROUTINE alloc_obfbdata(fbdata, kvar, kobs, klev, kadd, kext, lgrid, kqcf)
     TYPE(obfbdata) :: fbdata
@@ -105,7 +109,8 @@ MODULE obs_fbm
       fbdata % lgrid = .TRUE.
     END IF
     IF (fbdata % nadd > 0) THEN
-      ALLOCATE(fbdata % caddname(fbdata % nadd), fbdata % caddlong(fbdata % nadd, fbdata % nvar), fbdata % caddunit(fbdata % nadd, fbdata % nvar))
+      ALLOCATE(fbdata % caddname(fbdata % nadd), fbdata % caddlong(fbdata % nadd, fbdata % nvar), fbdata % caddunit(fbdata % nadd, &
+&fbdata % nvar))
       DO ji = 1, fbdata % nadd
         WRITE(fbdata % caddname(ji), FMT = '(A,I2.2)') 'A', ji
       END DO
@@ -125,7 +130,13 @@ MODULE obs_fbm
       END DO
     END IF
     IF (fbdata % nobs > 0) THEN
-      ALLOCATE(fbdata % cdwmo(fbdata % nobs), fbdata % cdtyp(fbdata % nobs), fbdata % ioqc(fbdata % nobs), fbdata % ioqcf(fbdata % nqcf, fbdata % nobs), fbdata % ipqc(fbdata % nobs), fbdata % ipqcf(fbdata % nqcf, fbdata % nobs), fbdata % itqc(fbdata % nobs), fbdata % itqcf(fbdata % nqcf, fbdata % nobs), fbdata % idqc(fbdata % nlev, fbdata % nobs), fbdata % idqcf(fbdata % nqcf, fbdata % nlev, fbdata % nobs), fbdata % plam(fbdata % nobs), fbdata % pphi(fbdata % nobs), fbdata % pdep(fbdata % nlev, fbdata % nobs), fbdata % ptim(fbdata % nobs), fbdata % kindex(fbdata % nobs), fbdata % ivqc(fbdata % nobs, fbdata % nvar), fbdata % ivqcf(fbdata % nqcf, fbdata % nobs, fbdata % nvar), fbdata % ivlqc(fbdata % nlev, fbdata % nobs, fbdata % nvar), fbdata % ivlqcf(fbdata % nqcf, fbdata % nlev, fbdata % nobs, fbdata % nvar), fbdata % pob(fbdata % nlev, fbdata % nobs, fbdata % nvar))
+      ALLOCATE(fbdata % cdwmo(fbdata % nobs), fbdata % cdtyp(fbdata % nobs), fbdata % ioqc(fbdata % nobs), fbdata % ioqcf(fbdata % &
+&nqcf, fbdata % nobs), fbdata % ipqc(fbdata % nobs), fbdata % ipqcf(fbdata % nqcf, fbdata % nobs), fbdata % itqc(fbdata % nobs), &
+&fbdata % itqcf(fbdata % nqcf, fbdata % nobs), fbdata % idqc(fbdata % nlev, fbdata % nobs), fbdata % idqcf(fbdata % nqcf, fbdata % &
+&nlev, fbdata % nobs), fbdata % plam(fbdata % nobs), fbdata % pphi(fbdata % nobs), fbdata % pdep(fbdata % nlev, fbdata % nobs), &
+&fbdata % ptim(fbdata % nobs), fbdata % kindex(fbdata % nobs), fbdata % ivqc(fbdata % nobs, fbdata % nvar), fbdata % ivqcf(fbdata &
+&% nqcf, fbdata % nobs, fbdata % nvar), fbdata % ivlqc(fbdata % nlev, fbdata % nobs, fbdata % nvar), fbdata % ivlqcf(fbdata % &
+&nqcf, fbdata % nlev, fbdata % nobs, fbdata % nvar), fbdata % pob(fbdata % nlev, fbdata % nobs, fbdata % nvar))
       fbdata % kindex(:) = fbimdi
       fbdata % cdwmo(:) = REPEAT('X', ilenwmo)
       fbdata % cdtyp(:) = REPEAT('X', ilentyp)
@@ -147,7 +158,8 @@ MODULE obs_fbm
       fbdata % ivlqcf(:, :, :, :) = fbimdi
       fbdata % pob(:, :, :) = fbrmdi
       IF (lgrid) THEN
-        ALLOCATE(fbdata % iproc(fbdata % nobs, fbdata % nvar), fbdata % iobsi(fbdata % nobs, fbdata % nvar), fbdata % iobsj(fbdata % nobs, fbdata % nvar), fbdata % iobsk(fbdata % nlev, fbdata % nobs, fbdata % nvar))
+        ALLOCATE(fbdata % iproc(fbdata % nobs, fbdata % nvar), fbdata % iobsi(fbdata % nobs, fbdata % nvar), fbdata % iobsj(fbdata &
+&% nobs, fbdata % nvar), fbdata % iobsk(fbdata % nlev, fbdata % nobs, fbdata % nvar))
         fbdata % iproc(:, :) = fbimdi
         fbdata % iobsi(:, :) = fbimdi
         fbdata % iobsj(:, :) = fbimdi
@@ -177,7 +189,9 @@ MODULE obs_fbm
       DEALLOCATE(fbdata % cextname, fbdata % cextlong, fbdata % cextunit)
     END IF
     IF (fbdata % nobs > 0) THEN
-      DEALLOCATE(fbdata % cdwmo, fbdata % cdtyp, fbdata % ioqc, fbdata % ioqcf, fbdata % ipqc, fbdata % ipqcf, fbdata % itqc, fbdata % itqcf, fbdata % idqc, fbdata % idqcf, fbdata % plam, fbdata % pphi, fbdata % pdep, fbdata % ptim, fbdata % kindex, fbdata % ivqc, fbdata % ivqcf, fbdata % ivlqc, fbdata % ivlqcf, fbdata % pob)
+      DEALLOCATE(fbdata % cdwmo, fbdata % cdtyp, fbdata % ioqc, fbdata % ioqcf, fbdata % ipqc, fbdata % ipqcf, fbdata % itqc, &
+&fbdata % itqcf, fbdata % idqc, fbdata % idqcf, fbdata % plam, fbdata % pphi, fbdata % pdep, fbdata % ptim, fbdata % kindex, &
+&fbdata % ivqc, fbdata % ivqcf, fbdata % ivlqc, fbdata % ivlqcf, fbdata % pob)
       IF (fbdata % lgrid) THEN
         DEALLOCATE(fbdata % iproc, fbdata % iobsi, fbdata % iobsj, fbdata % iobsk)
       END IF
@@ -197,6 +211,7 @@ MODULE obs_fbm
     fbdata % next = 0
   END SUBROUTINE dealloc_obfbdata
   SUBROUTINE copy_obfbdata(fbdata1, fbdata2, kadd, kext, lgrid, kqcf)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obfbdata) :: fbdata1
     TYPE(obfbdata) :: fbdata2
     INTEGER, INTENT(IN), OPTIONAL :: kadd
@@ -212,6 +227,8 @@ MODULE obs_fbm
     INTEGER :: ji
     INTEGER :: jk
     INTEGER :: jq
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('copy_obfbdata', 'r0', 0, 0)
     IF (.NOT. fbdata1 % lalloc) THEN
       CALL fatal_error('copy_obfbdata: input data not allocated', 511)
     END IF
@@ -356,8 +373,10 @@ MODULE obs_fbm
         END DO
       END DO
     END DO
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE copy_obfbdata
   SUBROUTINE subsamp_obfbdata(fbdata1, fbdata2, llvalid)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(obfbdata) :: fbdata1
     TYPE(obfbdata) :: fbdata2
     LOGICAL, DIMENSION(fbdata1 % nobs) :: llvalid
@@ -368,6 +387,8 @@ MODULE obs_fbm
     INTEGER :: jk
     INTEGER :: jq
     INTEGER :: ij
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('subsamp_obfbdata', 'r0', 0, 0)
     IF (.NOT. fbdata1 % lalloc) THEN
       CALL fatal_error('copy_obfbdata: input data not allocated', 726)
     END IF
@@ -375,7 +396,8 @@ MODULE obs_fbm
       CALL fatal_error('subsample_obfbdata: ' // 'fbdata2 already allocated', 733)
     END IF
     nobs = COUNT(llvalid)
-    CALL alloc_obfbdata(fbdata2, fbdata1 % nvar, nobs, fbdata1 % nlev, fbdata1 % nadd, fbdata1 % next, fbdata1 % lgrid, kqcf = fbdata1 % nqcf)
+    CALL alloc_obfbdata(fbdata2, fbdata1 % nvar, nobs, fbdata1 % nlev, fbdata1 % nadd, fbdata1 % next, fbdata1 % lgrid, &
+&kqcf = fbdata1 % nqcf)
     fbdata2 % cdjuldref = fbdata1 % cdjuldref
     ij = 0
     DO ji = 1, fbdata1 % nobs
@@ -477,8 +499,10 @@ MODULE obs_fbm
         END IF
       END DO
     END DO
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE subsamp_obfbdata
   SUBROUTINE merge_obfbdata(nsets, fbdatain, fbdataout, iset, inum, iind)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: nsets
     TYPE(obfbdata), DIMENSION(nsets) :: fbdatain
     TYPE(obfbdata) :: fbdataout
@@ -492,6 +516,8 @@ MODULE obs_fbm
     INTEGER :: ji
     INTEGER :: jk
     INTEGER :: jq
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('merge_obfbdata', 'r0', 0, 0)
     DO js = 1, nsets
       IF (.NOT. fbdatain(js) % lalloc) THEN
         CALL fatal_error('merge_obfbdata: input data not allocated', 906)
@@ -584,8 +610,10 @@ MODULE obs_fbm
         END DO
       END DO
     END DO
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE merge_obfbdata
   SUBROUTINE write_obfbdata(cdfilename, fbdata)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *) :: cdfilename
     TYPE(obfbdata) :: fbdata
     CHARACTER(LEN = 14), PARAMETER :: cpname = 'write_obfbdata'
@@ -634,6 +662,11 @@ MODULE obs_fbm
     CHARACTER(LEN = 16), PARAMETER :: cdqcconv = 'q where q =[0,9]'
     CHARACTER(LEN = 24), PARAMETER :: cdqcfconv = 'NEMOVAR flag conventions'
     CHARACTER(LEN = ilenlong) :: cdltmp
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    CALL profile_psy_data0 % PreStart('write_obfbdata', 'r0', 0, 0)
     CALL chkerr(nf90_create(TRIM(cdfilename), nf90_clobber, idfile), cpname, 1107)
     CALL chkerr(nf90_set_fill(idfile, nf90_nofill, ioldfill), cpname, 1109)
     CALL chkerr(nf90_put_att(idfile, nf90_global, 'title', 'NEMO observation operator output'), cpname, 1112)
@@ -696,7 +729,8 @@ MODULE obs_fbm
     CALL chkerr(nf90_def_var(idfile, 'DEPTH_QC_FLAGS', nf90_int, incdim3, ididqcf), cpname, 1224)
     CALL putvaratt_obfbdata(idfile, ididqcf, 'Quality flags on depth', conventions = cdqcfconv)
     CALL chkerr(nf90_def_var(idfile, 'JULD', nf90_double, incdim1, idptim), cpname, 1230)
-    CALL putvaratt_obfbdata(idfile, idptim, 'Julian day', cdunits = 'days since JULD_REFERENCE', conventions = 'relative julian days with ' // 'decimal part (as parts of day)', rfillvalue = fbrmdi)
+    CALL putvaratt_obfbdata(idfile, idptim, 'Julian day', cdunits = 'days since JULD_REFERENCE', &
+&conventions = 'relative julian days with ' // 'decimal part (as parts of day)', rfillvalue = fbrmdi)
     incdim1(1) = idjddim
     CALL chkerr(nf90_def_var(idfile, 'JULD_REFERENCE', nf90_char, incdim1, idptimr), cpname, 1240)
     CALL putvaratt_obfbdata(idfile, idptimr, 'Date of reference for julian days ', conventions = 'YYYYMMDDHHMMSS')
@@ -717,7 +751,9 @@ MODULE obs_fbm
     CALL putvaratt_obfbdata(idfile, iditqcf, 'Quality flags on date and time', conventions = cdqcfconv, ifillvalue = 0)
     CALL chkerr(nf90_def_var(idfile, 'ORIGINAL_FILE_INDEX', nf90_int, incdim1, idkindex), cpname, 1291)
     CALL putvaratt_obfbdata(idfile, idkindex, 'Index in original data file', ifillvalue = fbimdi)
+    CALL profile_psy_data0 % PostEnd
     DO jv = 1, fbdata % nvar
+      CALL profile_psy_data1 % PreStart('write_obfbdata', 'r1', 0, 0)
       incdim1(1) = idodim
       incdim2(1) = idldim
       incdim2(2) = idodim
@@ -728,11 +764,17 @@ MODULE obs_fbm
         DO je = 1, fbdata % nadd
           WRITE(cdtmp, FMT = '(3A)') TRIM(fbdata % cname(jv)), '_', TRIM(fbdata % caddname(je))
           CALL chkerr(nf90_def_var(idfile, cdtmp, nf90_float, incdim2, idpadd(je, jv)), cpname, 1318)
-          CALL putvaratt_obfbdata(idfile, idpadd(je, jv), fbdata % caddlong(je, jv), cdunits = fbdata % caddunit(je, jv), rfillvalue = fbrmdi)
+          CALL putvaratt_obfbdata(idfile, idpadd(je, jv), fbdata % caddlong(je, jv), cdunits = fbdata % caddunit(je, jv), &
+&rfillvalue = fbrmdi)
         END DO
       END IF
       cdltmp = fbdata % coblong(jv)
+      CALL profile_psy_data1 % PostEnd
+      !ARPDBG character substring manipulation wrongly identified as loop
+      !CC KERNELS
       IF ((cdltmp(1 : 1) >= 'A') .AND. (cdltmp(1 : 1) <= 'Z')) cdltmp(1 : 1) = ACHAR(IACHAR(cdltmp(1 : 1)) + 32)
+      !CC END KERNELS
+      CALL profile_psy_data2 % PreStart('write_obfbdata', 'r2', 0, 0)
       WRITE(cdtmp, FMT = '(2A)') TRIM(fbdata % cname(jv)), '_QC'
       CALL chkerr(nf90_def_var(idfile, cdtmp, nf90_int, incdim1, idivqc(jv)), cpname, 1332)
       CALL putvaratt_obfbdata(idfile, idivqc(jv), 'Quality on ' // cdltmp, conventions = cdqcconv, ifillvalue = 0)
@@ -751,7 +793,8 @@ MODULE obs_fbm
       incdim3(3) = idodim
       WRITE(cdtmp, FMT = '(2A)') TRIM(fbdata % cname(jv)), '_LEVEL_QC_FLAGS'
       CALL chkerr(nf90_def_var(idfile, cdtmp, nf90_int, incdim3, idivlqcf(jv)), cpname, 1363)
-      CALL putvaratt_obfbdata(idfile, idivlqcf(jv), 'Quality flags for each level on ' // cdltmp, conventions = cdqcfconv, ifillvalue = 0)
+      CALL putvaratt_obfbdata(idfile, idivlqcf(jv), 'Quality flags for each level on ' // cdltmp, conventions = cdqcfconv, &
+&ifillvalue = 0)
       IF (fbdata % lgrid) THEN
         incdim2(1) = idldim
         incdim2(2) = idodim
@@ -769,7 +812,9 @@ MODULE obs_fbm
         CALL chkerr(nf90_def_var(idfile, cdtmp, nf90_char, incdim1, idcgrid(jv)), cpname, 1394)
         CALL putvaratt_obfbdata(idfile, idcgrid(jv), 'ORCA grid search grid (T,U,V)')
       END IF
+      CALL profile_psy_data2 % PostEnd
     END DO
+    CALL profile_psy_data3 % PreStart('write_obfbdata', 'r3', 0, 0)
     IF (fbdata % next > 0) THEN
       DO je = 1, fbdata % next
         incdim2(1) = idldim
@@ -829,8 +874,10 @@ MODULE obs_fbm
       END IF
     END IF
     CALL chkerr(nf90_close(idfile), cpname, 1523)
+    CALL profile_psy_data3 % PostEnd
   END SUBROUTINE write_obfbdata
   SUBROUTINE putvaratt_obfbdata(idfile, idvar, cdlongname, cdunits, conventions, cfillvalue, ifillvalue, rfillvalue)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: idfile
     INTEGER :: idvar
     CHARACTER(LEN = *) :: cdlongname
@@ -840,6 +887,8 @@ MODULE obs_fbm
     REAL(KIND = fbsp), OPTIONAL :: rfillvalue
     CHARACTER(LEN = *), OPTIONAL :: conventions
     CHARACTER(LEN = 18), PARAMETER :: cpname = 'putvaratt_obfbdata'
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('putvaratt_obfbdata', 'r0', 0, 0)
     CALL chkerr(nf90_put_att(idfile, idvar, 'long_name', TRIM(cdlongname)), cpname, 1556)
     IF (PRESENT(cdunits)) THEN
       CALL chkerr(nf90_put_att(idfile, idvar, 'units', TRIM(cdunits)), cpname, 1562)
@@ -856,8 +905,10 @@ MODULE obs_fbm
     IF (PRESENT(rfillvalue)) THEN
       CALL chkerr(nf90_put_att(idfile, idvar, '_Fillvalue', rfillvalue), cpname, 1594)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE putvaratt_obfbdata
   SUBROUTINE read_obfbdata(cdfilename, fbdata, ldgrid)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *) :: cdfilename
     TYPE(obfbdata) :: fbdata
     LOGICAL, OPTIONAL :: ldgrid
@@ -899,6 +950,8 @@ MODULE obs_fbm
     INTEGER :: next
     LOGICAL :: lgrid
     CHARACTER(LEN = NF90_MAX_NAME) :: cdtmp
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('read_obfbdata', 'r0', 0, 0)
     IF (fbdata % lalloc) THEN
       CALL dealloc_obfbdata(fbdata)
     END IF
@@ -925,7 +978,8 @@ MODULE obs_fbm
     ELSE
       CALL alloc_obfbdata(fbdata, nvar, nobs, nlev, nadd, next, lgrid)
     END IF
-    ALLOCATE(idpob(fbdata % nvar), idivqc(fbdata % nvar), idivqcf(fbdata % nvar), idivlqc(fbdata % nvar), idivlqcf(fbdata % nvar), idiobsi(fbdata % nvar), idiobsj(fbdata % nvar), idiobsk(fbdata % nvar), idcgrid(fbdata % nvar))
+    ALLOCATE(idpob(fbdata % nvar), idivqc(fbdata % nvar), idivqcf(fbdata % nvar), idivlqc(fbdata % nvar), idivlqcf(fbdata % nvar), &
+&idiobsi(fbdata % nvar), idiobsj(fbdata % nvar), idiobsk(fbdata % nvar), idcgrid(fbdata % nvar))
     IF (fbdata % nadd > 0) THEN
       ALLOCATE(idpadd(fbdata % nadd, fbdata % nvar))
     END IF
@@ -1045,14 +1099,19 @@ MODULE obs_fbm
       END IF
     END IF
     CALL chkerr(nf90_close(idfile), cpname, 1965)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE read_obfbdata
   SUBROUTINE getvaratt_obfbdata(idfile, idvar, cdlongname, cdunits)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: idfile
     INTEGER :: idvar
     CHARACTER(LEN = *) :: cdlongname
     CHARACTER(LEN = *) :: cdunits
     CHARACTER(LEN = 18), PARAMETER :: cpname = 'getvaratt_obfbdata'
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('getvaratt_obfbdata', 'r0', 0, 0)
     CALL chkerr(nf90_get_att(idfile, idvar, 'long_name', cdlongname), cpname, 1990)
     CALL chkerr(nf90_get_att(idfile, idvar, 'units', cdunits), cpname, 1994)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE getvaratt_obfbdata
 END MODULE obs_fbm

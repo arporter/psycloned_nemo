@@ -12,7 +12,7 @@ MODULE zdfswm
   PUBLIC :: zdf_swm_init
   CONTAINS
   SUBROUTINE zdf_swm(kt, p_avm, p_avt, p_avs)
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avt, p_avs
     INTEGER :: ji, jj, jk
@@ -20,6 +20,7 @@ MODULE zdfswm
     !$ACC KERNELS
     zcoef = 1._wp * 0.353553_wp
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zqb = zcoef * hsw(ji, jj) * tsd2d(ji, jj) * EXP(- 3. * wnum(ji, jj) * gdepw_n(ji, jj, jk)) * wmask(ji, jj, jk)

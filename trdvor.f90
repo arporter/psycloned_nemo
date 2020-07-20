@@ -34,16 +34,20 @@ MODULE trdvor
   CHARACTER(LEN = 12) :: cvort
   CONTAINS
   INTEGER FUNCTION trd_vor_alloc()
-    ALLOCATE(vor_avr(jpi, jpj), vor_avrb(jpi, jpj), vor_avrbb(jpi, jpj), vor_avrbn(jpi, jpj), rotot(jpi, jpj), vor_avrtot(jpi, jpj), vor_avrres(jpi, jpj), vortrd(jpi, jpj, jpltot_vor), ndexvor1(jpi * jpj), STAT = trd_vor_alloc)
-    IF (lk_mpp) CALL mpp_sum(trd_vor_alloc)
-    IF (trd_vor_alloc /= 0) CALL ctl_warn('trd_vor_alloc: failed to allocate arrays')
+    ALLOCATE(vor_avr(jpi, jpj), vor_avrb(jpi, jpj), vor_avrbb(jpi, jpj), vor_avrbn(jpi, jpj), rotot(jpi, jpj), vor_avrtot(jpi, &
+&jpj), vor_avrres(jpi, jpj), vortrd(jpi, jpj, jpltot_vor), ndexvor1(jpi * jpj), STAT = trd_vor_alloc)
+    CALL mpp_sum('trdvor', trd_vor_alloc)
+    IF (trd_vor_alloc /= 0) CALL ctl_stop('STOP', 'trd_vor_alloc: failed to allocate arrays')
   END FUNCTION trd_vor_alloc
   SUBROUTINE trd_vor(putrd, pvtrd, ktrd, kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: putrd, pvtrd
-    INTEGER, INTENT(IN   ) :: ktrd
-    INTEGER, INTENT(IN   ) :: kt
+    INTEGER, INTENT(IN) :: ktrd
+    INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztswu, ztswv
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     SELECT CASE (ktrd)
     CASE (jpdyn_hpg)
       CALL trd_vor_zint(putrd, pvtrd, jpvor_prg)
@@ -63,6 +67,7 @@ MODULE trdvor
       !$ACC KERNELS
       ztswu(:, :) = 0.E0
       ztswv(:, :) = 0.E0
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ztswu(ji, jj) = 0.5 * (utau_b(ji, jj) + utau(ji, jj)) / (e3u_n(ji, jj, 1) * rau0)
@@ -70,29 +75,36 @@ MODULE trdvor
         END DO
       END DO
       !$ACC END KERNELS
+      CALL profile_psy_data0 % PreStart('trd_vor', 'r0', 0, 0)
       CALL trd_vor_zint(putrd, pvtrd, jpvor_zdf)
       CALL trd_vor_zint(ztswu, ztswv, jpvor_swf)
+      CALL profile_psy_data0 % PostEnd
     CASE (jpdyn_bfr)
+      CALL profile_psy_data1 % PreStart('trd_vor', 'r1', 0, 0)
       CALL trd_vor_zint(putrd, pvtrd, jpvor_bfr)
+      CALL profile_psy_data1 % PostEnd
     CASE (jpdyn_atf)
       CALL trd_vor_iom(kt)
     END SELECT
   END SUBROUTINE trd_vor
   SUBROUTINE trd_vor_zint_2d(putrdvor, pvtrdvor, ktrd)
-    INTEGER, INTENT(IN   ) :: ktrd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: ktrd
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: putrdvor
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(INOUT) :: pvtrdvor
     INTEGER :: ji, jj
     INTEGER :: ikbu, ikbv
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zudpvor, zvdpvor
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     zudpvor(:, :) = 0._wp
     zvdpvor(:, :) = 0._wp
     !$ACC END KERNELS
-    CALL lbc_lnk_multi(putrdvor, 'U', - 1., pvtrdvor, 'V', - 1.)
+    CALL lbc_lnk_multi('trdvor', putrdvor, 'U', - 1., pvtrdvor, 'V', - 1.)
+    !$ACC KERNELS
     SELECT CASE (ktrd)
     CASE (jpvor_bfr)
-      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ikbu = mbkv(ji, jj)
@@ -101,134 +113,147 @@ MODULE trdvor
           zvdpvor(ji, jj) = pvtrdvor(ji, jj) * e3v_n(ji, jj, ikbv) * e2v(ji, jj) * vmask(ji, jj, ikbv)
         END DO
       END DO
-      !$ACC END KERNELS
     CASE (jpvor_swf)
-      !$ACC KERNELS
       zudpvor(:, :) = putrdvor(:, :) * e3u_n(:, :, 1) * e1u(:, :) * umask(:, :, 1)
       zvdpvor(:, :) = pvtrdvor(:, :) * e3v_n(:, :, 1) * e2v(:, :) * vmask(:, :, 1)
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     zudpvor(:, :) = zudpvor(:, :) * r1_hu_n(:, :)
     zvdpvor(:, :) = zvdpvor(:, :) * r1_hv_n(:, :)
     DO ji = 1, jpim1
       DO jj = 1, jpjm1
-        vortrd(ji, jj, ktrd) = (zvdpvor(ji + 1, jj) - zvdpvor(ji, jj) - (zudpvor(ji, jj + 1) - zudpvor(ji, jj))) / (e1f(ji, jj) * e2f(ji, jj))
+        vortrd(ji, jj, ktrd) = (zvdpvor(ji + 1, jj) - zvdpvor(ji, jj) - (zudpvor(ji, jj + 1) - zudpvor(ji, jj))) / (e1f(ji, jj) * &
+&e2f(ji, jj))
       END DO
     END DO
     vortrd(:, :, ktrd) = vortrd(:, :, ktrd) * fmask(:, :, 1)
     !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('trd_vor_zint_2d', 'r0', 0, 0)
     IF (ndebug /= 0) THEN
       IF (lwp) WRITE(numout, FMT = *) ' debuging trd_vor_zint: I done'
       CALL FLUSH(numout)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE trd_vor_zint_2d
   SUBROUTINE trd_vor_zint_3d(putrdvor, pvtrdvor, ktrd)
-    INTEGER, INTENT(IN   ) :: ktrd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: ktrd
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: putrdvor
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pvtrdvor
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zubet, zvbet
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zudpvor, zvdpvor
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     zubet(:, :) = 0._wp
     zvbet(:, :) = 0._wp
     zudpvor(:, :) = 0._wp
     zvdpvor(:, :) = 0._wp
     !$ACC END KERNELS
-    CALL lbc_lnk_multi(putrdvor, 'U', - 1., pvtrdvor, 'V', - 1.)
-    !$ACC KERNELS
+    CALL lbc_lnk_multi('trdvor', putrdvor, 'U', - 1., pvtrdvor, 'V', - 1.)
     DO jk = 1, jpk
+      !$ACC KERNELS
       zudpvor(:, :) = zudpvor(:, :) + putrdvor(:, :, jk) * e3u_n(:, :, jk) * e1u(:, :) * umask(:, :, jk)
       zvdpvor(:, :) = zvdpvor(:, :) + pvtrdvor(:, :, jk) * e3v_n(:, :, jk) * e2v(:, :) * vmask(:, :, jk)
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
+    !$ACC KERNELS
     IF (ktrd == jpvor_pvo) THEN
-      !$ACC KERNELS
       zubet(:, :) = zudpvor(:, :)
       zvbet(:, :) = zvdpvor(:, :)
       DO ji = 1, jpim1
         DO jj = 1, jpjm1
-          vortrd(ji, jj, jpvor_bev) = (zvbet(ji + 1, jj) - zvbet(ji, jj) - (zubet(ji, jj + 1) - zubet(ji, jj))) / (e1f(ji, jj) * e2f(ji, jj))
+          vortrd(ji, jj, jpvor_bev) = (zvbet(ji + 1, jj) - zvbet(ji, jj) - (zubet(ji, jj + 1) - zubet(ji, jj))) / (e1f(ji, jj) * &
+&e2f(ji, jj))
         END DO
       END DO
       vortrd(:, :, jpvor_bev) = vortrd(:, :, jpvor_bev) * r1_hu_n(:, :) * fmask(:, :, 1)
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     zudpvor(:, :) = zudpvor(:, :) * r1_hu_n(:, :)
     zvdpvor(:, :) = zvdpvor(:, :) * r1_hv_n(:, :)
     DO ji = 1, jpim1
       DO jj = 1, jpjm1
-        vortrd(ji, jj, ktrd) = (zvdpvor(ji + 1, jj) - zvdpvor(ji, jj) - (zudpvor(ji, jj + 1) - zudpvor(ji, jj))) / (e1f(ji, jj) * e2f(ji, jj))
+        vortrd(ji, jj, ktrd) = (zvdpvor(ji + 1, jj) - zvdpvor(ji, jj) - (zudpvor(ji, jj + 1) - zudpvor(ji, jj))) / (e1f(ji, jj) * &
+&e2f(ji, jj))
       END DO
     END DO
     vortrd(:, :, ktrd) = vortrd(:, :, ktrd) * fmask(:, :, 1)
     !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('trd_vor_zint_3d', 'r0', 0, 0)
     IF (ndebug /= 0) THEN
       IF (lwp) WRITE(numout, FMT = *) ' debuging trd_vor_zint: I done'
       CALL FLUSH(numout)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE trd_vor_zint_3d
   SUBROUTINE trd_vor_iom(kt)
-    INTEGER, INTENT(IN   ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jl
     INTEGER :: it, itmod
     REAL(KIND = wp) :: zmean
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zun, zvn
-    IF (kt > nit000) vor_avrb(:, :) = vor_avr(:, :)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     !$ACC KERNELS
+    IF (kt > nit000) vor_avrb(:, :) = vor_avr(:, :)
     vor_avr(:, :) = 0._wp
     zun(:, :) = 0._wp
     zvn(:, :) = 0._wp
     vor_avrtot(:, :) = 0._wp
     vor_avrres(:, :) = 0._wp
+    !$ACC END KERNELS
     DO jk = 1, jpk - 1
+      !$ACC KERNELS
       zun(:, :) = zun(:, :) + e1u(:, :) * un(:, :, jk) * e3u_n(:, :, jk)
       zvn(:, :) = zvn(:, :) + e2v(:, :) * vn(:, :, jk) * e3v_n(:, :, jk)
+      !$ACC END KERNELS
     END DO
+    !$ACC KERNELS
     zun(:, :) = zun(:, :) * r1_hu_n(:, :)
     zvn(:, :) = zvn(:, :) * r1_hv_n(:, :)
     DO ji = 1, jpim1
       DO jj = 1, jpjm1
-        vor_avr(ji, jj) = ((zvn(ji + 1, jj) - zvn(ji, jj)) - (zun(ji, jj + 1) - zun(ji, jj))) / (e1f(ji, jj) * e2f(ji, jj)) * fmask(ji, jj, 1)
+        vor_avr(ji, jj) = ((zvn(ji + 1, jj) - zvn(ji, jj)) - (zun(ji, jj + 1) - zun(ji, jj))) / (e1f(ji, jj) * e2f(ji, jj)) * &
+&fmask(ji, jj, 1)
       END DO
     END DO
-    !$ACC END KERNELS
     IF (kt == nit000 + 1) THEN
-      !$ACC KERNELS
       vor_avrbb(:, :) = vor_avrb(:, :)
       vor_avrbn(:, :) = vor_avr(:, :)
-      !$ACC END KERNELS
     END IF
     IF (kt >= nit000 + 2) THEN
       nmoydpvor = nmoydpvor + 1
       DO jl = 1, jpltot_vor
         IF (jl /= 9) THEN
-          !$ACC KERNELS
           rotot(:, :) = rotot(:, :) + vortrd(:, :, jl)
-          !$ACC END KERNELS
         END IF
       END DO
     END IF
     it = kt
     itmod = kt - nit000 + 1
+    !$ACC END KERNELS
     IF (MOD(it, nn_trd) == 0) THEN
+      CALL profile_psy_data0 % PreStart('trd_vor_iom', 'r0', 0, 0)
       zmean = 1._wp / (REAL(nmoydpvor, wp) * 2._wp * rdt)
+      CALL profile_psy_data0 % PostEnd
       !$ACC KERNELS
       vor_avrtot(:, :) = (vor_avr(:, :) - vor_avrbn(:, :) + vor_avrb(:, :) - vor_avrbb(:, :)) * zmean
       !$ACC END KERNELS
+      CALL profile_psy_data1 % PreStart('trd_vor_iom', 'r1', 0, 0)
       zmean = 1._wp / REAL(nmoydpvor, wp)
+      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       vor_avrres(:, :) = vor_avrtot(:, :) - rotot(:, :) / zmean
       !$ACC END KERNELS
-      CALL lbc_lnk_multi(vor_avrtot, 'F', 1., vor_avrres, 'F', 1.)
+      CALL lbc_lnk_multi('trdvor', vor_avrtot, 'F', 1., vor_avrres, 'F', 1.)
       !$ACC KERNELS
       vor_avrbb(:, :) = vor_avrb(:, :)
       vor_avrbn(:, :) = vor_avr(:, :)
       nmoydpvor = 0
       !$ACC END KERNELS
     END IF
+    CALL profile_psy_data2 % PreStart('trd_vor_iom', 'r2', 0, 0)
     IF (kt >= nit000 + 1) THEN
       IF (lwp .AND. MOD(itmod, nn_trd) == 0) THEN
         WRITE(numout, FMT = *) ''
@@ -253,7 +278,10 @@ MODULE trdvor
         CALL FLUSH(numout)
       END IF
     END IF
+    CALL profile_psy_data2 % PostEnd
+    !$ACC KERNELS
     IF (MOD(it, nn_trd) == 0) rotot(:, :) = 0
+    !$ACC END KERNELS
     IF (kt == nitend) CALL histclo(nidvor)
   END SUBROUTINE trd_vor_iom
   SUBROUTINE trd_vor_init
@@ -296,10 +324,12 @@ MODULE trdvor
     CALL ymds2ju(nyear, nmonth, nday, rdt, zjulian)
     zjulian = zjulian - adatrj
     IF (lwp) WRITE(numout, FMT = *) ' '
-    IF (lwp) WRITE(numout, FMT = *) '               Date 0 used :', nit000, ' YEAR ', nyear, ' MONTH ', nmonth, ' DAY ', nday, 'Julian day : ', zjulian
+    IF (lwp) WRITE(numout, FMT = *) '               Date 0 used :', nit000, ' YEAR ', nyear, ' MONTH ', nmonth, ' DAY ', nday, &
+&'Julian day : ', zjulian
     CALL dia_nam(clhstnam, nn_trd, 'vort')
     IF (lwp) WRITE(numout, FMT = *) ' Name of NETCDF file ', clhstnam
-    CALL histbeg(clhstnam, jpi, glamf, jpj, gphif, 1, jpi, 1, jpj, nit000 - 1, zjulian, rdt, nh_t, nidvor, domain_id = nidom, snc4chunks = snc4set)
+    CALL histbeg(clhstnam, jpi, glamf, jpj, gphif, 1, jpi, 1, jpj, nit000 - 1, zjulian, rdt, nh_t, nidvor, domain_id = nidom, &
+&snc4chunks = snc4set)
     CALL wheneq(jpi * jpj, fmask, 1, 1., ndexvor1, ndimvor1)
     CALL histdef(nidvor, "sovortPh", cvort // "grad Ph", "s-2", jpi, jpj, nh_t, 1, 1, 1, - 99, 32, clop, zsto, zout)
     CALL histdef(nidvor, "sovortEk", cvort // "Energy", "s-2", jpi, jpj, nh_t, 1, 1, 1, - 99, 32, clop, zsto, zout)

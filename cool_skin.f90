@@ -39,6 +39,7 @@ MODULE cool_skin
     INTEGER :: ji, jj
     IF (.NOT. ln_blk) CALL ctl_stop("cool_skin.f90: diurnal flux processing only implemented for bulk forcing")
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (tmask(ji, jj, 1) == 1. .AND. pstauflux(ji, jj) /= 0 .AND. psrho(ji, jj) /= 0) THEN

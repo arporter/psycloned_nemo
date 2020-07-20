@@ -3,6 +3,7 @@ MODULE diatmb
   USE dom_oce
   USE in_out_manager
   USE iom
+  USE wet_dry
   IMPLICIT NONE
   PRIVATE
   LOGICAL, PUBLIC :: ln_diatmb
@@ -28,12 +29,13 @@ MODULE diatmb
     END IF
   END SUBROUTINE dia_tmb_init
   SUBROUTINE dia_calctmb(pfield, ptmb)
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ) :: pfield
-    REAL(KIND = wp), DIMENSION(jpi, jpj, 3), INTENT(  OUT) :: ptmb
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: pfield
+    REAL(KIND = wp), DIMENSION(jpi, jpj, 3), INTENT(OUT) :: ptmb
     INTEGER :: ji, jj
     INTEGER :: itop, imid, ibot
     REAL(KIND = wp) :: zmdi = 1.E+20_wp
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         itop = mikt(ji, jj)
@@ -47,10 +49,17 @@ MODULE diatmb
     !$ACC END KERNELS
   END SUBROUTINE dia_calctmb
   SUBROUTINE dia_tmb
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp) :: zmdi = 1.E+20
     REAL(KIND = wp), DIMENSION(jpi, jpj, 3) :: zwtmb
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dia_tmb', 'r0', 0, 0)
     CALL dia_calctmb(tsn(:, :, :, jp_tem), zwtmb)
-    CALL iom_put("sshnmasked", sshn(:, :) * tmask(:, :, 1) + zmdi * (1.0 - tmask(:, :, 1)))
+    IF (ll_wd) THEN
+      CALL iom_put("sshnmasked", (sshn(:, :) + ssh_ref) * tmask(:, :, 1) + zmdi * (1.0 - tmask(:, :, 1)))
+    ELSE
+      CALL iom_put("sshnmasked", sshn(:, :) * tmask(:, :, 1) + zmdi * (1.0 - tmask(:, :, 1)))
+    END IF
     CALL iom_put("top_temp", zwtmb(:, :, 1))
     CALL iom_put("mid_temp", zwtmb(:, :, 2))
     CALL iom_put("bot_temp", zwtmb(:, :, 3))
@@ -66,5 +75,6 @@ MODULE diatmb
     CALL iom_put("top_v", zwtmb(:, :, 1))
     CALL iom_put("mid_v", zwtmb(:, :, 2))
     CALL iom_put("bot_v", zwtmb(:, :, 3))
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dia_tmb
 END MODULE diatmb

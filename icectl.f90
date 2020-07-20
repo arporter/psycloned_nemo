@@ -20,34 +20,50 @@ MODULE icectl
   PUBLIC :: ice_prt3D
   CONTAINS
   SUBROUTINE ice_cons_hsm(icount, cd_routine, pdiag_v, pdiag_s, pdiag_t, pdiag_fv, pdiag_fs, pdiag_ft)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: icount
     CHARACTER(LEN = *), INTENT(IN) :: cd_routine
     REAL(KIND = wp), INTENT(INOUT) :: pdiag_v, pdiag_s, pdiag_t, pdiag_fv, pdiag_fs, pdiag_ft
     REAL(KIND = wp) :: zv, zs, zt, zfs, zfv, zft
-    REAL(KIND = wp) :: zvmin, zamin, zamax
+    REAL(KIND = wp) :: zvmin, zamin, zamax, zeimin, zesmin, zsmin
     REAL(KIND = wp) :: zvtrp, zetrp
     REAL(KIND = wp) :: zarea, zv_sill, zs_sill, zt_sill
     REAL(KIND = wp), PARAMETER :: zconv = 1.E-9
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_cons_hsm', 'r0', 0, 0)
     IF (icount == 0) THEN
-      pdiag_fv = glob_sum(- (wfx_bog(:, :) + wfx_bom(:, :) + wfx_sum(:, :) + wfx_sni(:, :) + wfx_opw(:, :) + wfx_res(:, :) + wfx_dyn(:, :) + wfx_lam(:, :) + wfx_pnd(:, :) + wfx_snw_sni(:, :) + wfx_snw_sum(:, :) + wfx_snw_dyn(:, :) + wfx_snw_sub(:, :) + wfx_ice_sub(:, :) + wfx_spr(:, :)) * e1e2t(:, :)) * zconv
-      pdiag_fs = glob_sum((sfx_bri(:, :) + sfx_bog(:, :) + sfx_bom(:, :) + sfx_sum(:, :) + sfx_sni(:, :) + sfx_opw(:, :) + sfx_res(:, :) + sfx_dyn(:, :) + sfx_sub(:, :) + sfx_lam(:, :)) * e1e2t(:, :)) * zconv
-      pdiag_ft = glob_sum((hfx_sum(:, :) + hfx_bom(:, :) + hfx_bog(:, :) + hfx_dif(:, :) + hfx_opw(:, :) + hfx_snw(:, :) - hfx_thd(:, :) - hfx_dyn(:, :) - hfx_res(:, :) - hfx_sub(:, :) - hfx_spr(:, :)) * e1e2t(:, :)) * zconv
-      pdiag_v = glob_sum(SUM(v_i * rhoi + v_s * rhos, dim = 3) * e1e2t * zconv)
-      pdiag_s = glob_sum(SUM(sv_i * rhoi, dim = 3) * e1e2t * zconv)
-      pdiag_t = glob_sum((SUM(SUM(e_i(:, :, 1 : nlay_i, :), dim = 4), dim = 3) + SUM(SUM(e_s(:, :, 1 : nlay_s, :), dim = 4), dim = 3)) * e1e2t) * zconv
+      pdiag_fv = glob_sum('icectl', - (wfx_bog(:, :) + wfx_bom(:, :) + wfx_sum(:, :) + wfx_sni(:, :) + wfx_opw(:, :) + wfx_res(:, &
+&:) + wfx_dyn(:, :) + wfx_lam(:, :) + wfx_pnd(:, :) + wfx_snw_sni(:, :) + wfx_snw_sum(:, :) + wfx_snw_dyn(:, :) + wfx_snw_sub(:, &
+&:) + wfx_ice_sub(:, :) + wfx_spr(:, :)) * e1e2t(:, :)) * zconv
+      pdiag_fs = glob_sum('icectl', (sfx_bri(:, :) + sfx_bog(:, :) + sfx_bom(:, :) + sfx_sum(:, :) + sfx_sni(:, :) + sfx_opw(:, :) &
+&+ sfx_res(:, :) + sfx_dyn(:, :) + sfx_sub(:, :) + sfx_lam(:, :)) * e1e2t(:, :)) * zconv
+      pdiag_ft = glob_sum('icectl', (hfx_sum(:, :) + hfx_bom(:, :) + hfx_bog(:, :) + hfx_dif(:, :) + hfx_opw(:, :) + hfx_snw(:, :) &
+&- hfx_thd(:, :) - hfx_dyn(:, :) - hfx_res(:, :) - hfx_sub(:, :) - hfx_spr(:, :)) * e1e2t(:, :)) * zconv
+      pdiag_v = glob_sum('icectl', SUM(v_i * rhoi + v_s * rhos, dim = 3) * e1e2t * zconv)
+      pdiag_s = glob_sum('icectl', SUM(sv_i * rhoi, dim = 3) * e1e2t * zconv)
+      pdiag_t = glob_sum('icectl', (SUM(SUM(e_i(:, :, 1 : nlay_i, :), dim = 4), dim = 3) + SUM(SUM(e_s(:, :, 1 : nlay_s, :), dim = &
+&4), dim = 3)) * e1e2t) * zconv
     ELSE IF (icount == 1) THEN
-      zfv = glob_sum(- (wfx_bog(:, :) + wfx_bom(:, :) + wfx_sum(:, :) + wfx_sni(:, :) + wfx_opw(:, :) + wfx_res(:, :) + wfx_dyn(:, :) + wfx_lam(:, :) + wfx_pnd(:, :) + wfx_snw_sni(:, :) + wfx_snw_sum(:, :) + wfx_snw_dyn(:, :) + wfx_snw_sub(:, :) + wfx_ice_sub(:, :) + wfx_spr(:, :)) * e1e2t(:, :)) * zconv - pdiag_fv
-      zfs = glob_sum((sfx_bri(:, :) + sfx_bog(:, :) + sfx_bom(:, :) + sfx_sum(:, :) + sfx_sni(:, :) + sfx_opw(:, :) + sfx_res(:, :) + sfx_dyn(:, :) + sfx_sub(:, :) + sfx_lam(:, :)) * e1e2t(:, :)) * zconv - pdiag_fs
-      zft = glob_sum((hfx_sum(:, :) + hfx_bom(:, :) + hfx_bog(:, :) + hfx_dif(:, :) + hfx_opw(:, :) + hfx_snw(:, :) - hfx_thd(:, :) - hfx_dyn(:, :) - hfx_res(:, :) - hfx_sub(:, :) - hfx_spr(:, :)) * e1e2t(:, :)) * zconv - pdiag_ft
-      zv = ((glob_sum(SUM(v_i * rhoi + v_s * rhos, dim = 3) * e1e2t) * zconv - pdiag_v) * r1_rdtice - zfv) * rday
-      zs = ((glob_sum(SUM(sv_i * rhoi, dim = 3) * e1e2t) * zconv - pdiag_s) * r1_rdtice + zfs) * rday
-      zt = (glob_sum((SUM(SUM(e_i(:, :, 1 : nlay_i, :), dim = 4), dim = 3) + SUM(SUM(e_s(:, :, 1 : nlay_s, :), dim = 4), dim = 3)) * e1e2t) * zconv - pdiag_t) * r1_rdtice + zft
-      zvtrp = glob_sum((diag_trp_vi * rhoi + diag_trp_vs * rhos) * e1e2t) * zconv * rday
-      zetrp = glob_sum((diag_trp_ei + diag_trp_es) * e1e2t) * zconv
-      zvmin = glob_min(v_i)
-      zamax = glob_max(SUM(a_i, dim = 3))
-      zamin = glob_min(a_i)
-      zarea = glob_sum(SUM(a_i + epsi10, dim = 3) * e1e2t) * zconv
+      zfv = glob_sum('icectl', - (wfx_bog(:, :) + wfx_bom(:, :) + wfx_sum(:, :) + wfx_sni(:, :) + wfx_opw(:, :) + wfx_res(:, :) + &
+&wfx_dyn(:, :) + wfx_lam(:, :) + wfx_pnd(:, :) + wfx_snw_sni(:, :) + wfx_snw_sum(:, :) + wfx_snw_dyn(:, :) + wfx_snw_sub(:, :) + &
+&wfx_ice_sub(:, :) + wfx_spr(:, :)) * e1e2t(:, :)) * zconv - pdiag_fv
+      zfs = glob_sum('icectl', (sfx_bri(:, :) + sfx_bog(:, :) + sfx_bom(:, :) + sfx_sum(:, :) + sfx_sni(:, :) + sfx_opw(:, :) + &
+&sfx_res(:, :) + sfx_dyn(:, :) + sfx_sub(:, :) + sfx_lam(:, :)) * e1e2t(:, :)) * zconv - pdiag_fs
+      zft = glob_sum('icectl', (hfx_sum(:, :) + hfx_bom(:, :) + hfx_bog(:, :) + hfx_dif(:, :) + hfx_opw(:, :) + hfx_snw(:, :) - &
+&hfx_thd(:, :) - hfx_dyn(:, :) - hfx_res(:, :) - hfx_sub(:, :) - hfx_spr(:, :)) * e1e2t(:, :)) * zconv - pdiag_ft
+      zv = ((glob_sum('icectl', SUM(v_i * rhoi + v_s * rhos, dim = 3) * e1e2t) * zconv - pdiag_v) * r1_rdtice - zfv) * rday
+      zs = ((glob_sum('icectl', SUM(sv_i * rhoi, dim = 3) * e1e2t) * zconv - pdiag_s) * r1_rdtice + zfs) * rday
+      zt = (glob_sum('icectl', (SUM(SUM(e_i(:, :, 1 : nlay_i, :), dim = 4), dim = 3) + SUM(SUM(e_s(:, :, 1 : nlay_s, :), dim = 4), &
+&dim = 3)) * e1e2t) * zconv - pdiag_t) * r1_rdtice + zft
+      zvtrp = glob_sum('icectl', (diag_trp_vi * rhoi + diag_trp_vs * rhos) * e1e2t) * zconv * rday
+      zetrp = glob_sum('icectl', (diag_trp_ei + diag_trp_es) * e1e2t) * zconv
+      zamax = glob_max('icectl', SUM(a_i, dim = 3))
+      zvmin = glob_min('icectl', v_i)
+      zamin = glob_min('icectl', a_i)
+      zsmin = glob_min('icectl', sv_i)
+      zeimin = glob_min('icectl', SUM(e_i, dim = 3))
+      zesmin = glob_min('icectl', SUM(e_s, dim = 3))
+      zarea = glob_sum('icectl', SUM(a_i + epsi10, dim = 3) * e1e2t) * zconv
       zv_sill = zarea * 2.5E-5
       zs_sill = zarea * 25.E-5
       zt_sill = zarea * 10.E-5
@@ -55,31 +71,39 @@ MODULE icectl
         IF (ABS(zv) > zv_sill) WRITE(numout, FMT = *) 'violation volume [Mt/day]     (', cd_routine, ') = ', zv
         IF (ABS(zs) > zs_sill) WRITE(numout, FMT = *) 'violation saline [psu*Mt/day] (', cd_routine, ') = ', zs
         IF (ABS(zt) > zt_sill) WRITE(numout, FMT = *) 'violation enthalpy [GW]       (', cd_routine, ') = ', zt
-        IF (zvmin < - epsi10) WRITE(numout, FMT = *) 'violation v_i<0  [m]          (', cd_routine, ') = ', zvmin
-        IF (zamax > MAX(rn_amax_n, rn_amax_s) + epsi10 .AND. cd_routine /= 'icedyn_adv' .AND. cd_routine /= 'icedyn_rdgrft') WRITE(numout, FMT = *) 'violation a_i>amax            (', cd_routine, ') = ', zamax
-        IF (zamin < - epsi10) WRITE(numout, FMT = *) 'violation a_i<0               (', cd_routine, ') = ', zamin
+        IF (zamax > MAX(rn_amax_n, rn_amax_s) + epsi10 .AND. cd_routine /= 'icedyn_adv' .AND. cd_routine /= 'icedyn_rdgrft') &
+&WRITE(numout, FMT = *) 'violation a_i>amax            (', cd_routine, ') = ', zamax
+        IF (zvmin < 0.) WRITE(numout, FMT = *) 'violation v_i<0  [m]          (', cd_routine, ') = ', zvmin
+        IF (zamin < 0.) WRITE(numout, FMT = *) 'violation a_i<0               (', cd_routine, ') = ', zamin
+        IF (zsmin < 0.) WRITE(numout, FMT = *) 'violation s_i<0               (', cd_routine, ') = ', zsmin
+        IF (zeimin < 0.) WRITE(numout, FMT = *) 'violation e_i<0               (', cd_routine, ') = ', zeimin
+        IF (zesmin < 0.) WRITE(numout, FMT = *) 'violation e_s<0               (', cd_routine, ') = ', zesmin
       END IF
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_cons_hsm
   SUBROUTINE ice_cons_final(cd_routine)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *), INTENT(IN) :: cd_routine
-    REAL(KIND = wp) :: zhfx, zsfx, zvfx
+    REAL(KIND = wp) :: zqmass, zhfx, zsfx, zvfx
     REAL(KIND = wp) :: zarea, zv_sill, zs_sill, zt_sill
     REAL(KIND = wp), PARAMETER :: zconv = 1.E-9
-    zvfx = glob_sum((wfx_ice + wfx_snw + wfx_spr + wfx_sub + diag_vice + diag_vsnw) * e1e2t) * zconv * rday
-    zsfx = glob_sum((sfx + diag_sice) * e1e2t) * zconv * rday
-    zhfx = glob_sum((qt_atm_oi - qt_oce_ai - diag_heat - diag_trp_ei - diag_trp_es) * e1e2t) * zconv
-    zarea = glob_sum(SUM(a_i + epsi10, dim = 3) * e1e2t) * zconv
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_cons_final', 'r0', 0, 0)
+    zvfx = glob_sum('icectl', (wfx_ice + wfx_snw + wfx_spr + wfx_sub + diag_vice + diag_vsnw) * e1e2t) * zconv * rday
+    zsfx = glob_sum('icectl', (sfx + diag_sice) * e1e2t) * zconv * rday
+    zarea = glob_sum('icectl', SUM(a_i + epsi10, dim = 3) * e1e2t) * zconv
     zv_sill = zarea * 2.5E-5
     zs_sill = zarea * 25.E-5
     zt_sill = zarea * 10.E-5
     IF (lwp) THEN
       IF (ABS(zvfx) > zv_sill) WRITE(numout, FMT = *) 'violation vfx  [Mt/day]       (', cd_routine, ') = ', zvfx
       IF (ABS(zsfx) > zs_sill) WRITE(numout, FMT = *) 'violation sfx  [psu*Mt/day]   (', cd_routine, ') = ', zsfx
-      IF (ABS(zhfx) > zt_sill) WRITE(numout, FMT = *) 'violation hfx  [GW]           (', cd_routine, ') = ', zhfx
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_cons_final
   SUBROUTINE ice_ctl(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jl
     INTEGER :: inb_altests
@@ -87,12 +111,14 @@ MODULE icectl
     REAL(KIND = wp) :: ztmelts
     CHARACTER(LEN = 30), DIMENSION(20) :: cl_alname
     INTEGER, DIMENSION(20) :: inb_alp
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    !$ACC KERNELS
     inb_altests = 10
     inb_alp(:) = 0
     ialert_id = 2
     cl_alname(ialert_id) = ' Incompat vol and con         '
-    !$ACC KERNELS
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (v_i(ji, jj, jl) /= 0._wp .AND. a_i(ji, jj, jl) == 0._wp) THEN
@@ -102,10 +128,9 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 3
-    !$ACC END KERNELS
     cl_alname(ialert_id) = ' Very thick ice               '
-    !$ACC KERNELS
     jl = jpl
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (h_i(ji, jj, jl) > 50._wp) THEN
@@ -114,9 +139,8 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 4
-    !$ACC END KERNELS
     cl_alname(ialert_id) = ' Very fast ice               '
-    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (MAX(ABS(u_ice(ji, jj)), ABS(v_ice(ji, jj))) > 1.5 .AND. at_i(ji, jj) > 0._wp) THEN
@@ -125,9 +149,8 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 6
-    !$ACC END KERNELS
     cl_alname(ialert_id) = ' Ice on continents           '
-    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (tmask(ji, jj, 1) <= 0._wp .AND. at_i(ji, jj) > 0._wp) THEN
@@ -136,10 +159,9 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 7
-    !$ACC END KERNELS
     cl_alname(ialert_id) = ' Very fresh ice               '
-    !$ACC KERNELS
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (s_i(ji, jj, jl) < 0.1 .AND. a_i(ji, jj, jl) > 0._wp) THEN
@@ -149,10 +171,9 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 9
-    !$ACC END KERNELS
     cl_alname(ialert_id) = ' Very old   ice               '
-    !$ACC KERNELS
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (((ABS(o_i(ji, jj, jl)) > rdt_ice) .OR. (ABS(o_i(ji, jj, jl)) < 0._wp)) .AND. (a_i(ji, jj, jl) > 0._wp)) THEN
@@ -162,9 +183,8 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 5
-    !$ACC END KERNELS
     cl_alname(ialert_id) = ' High salt flux               '
-    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (ABS(sfx(ji, jj)) > 1.0E-2) THEN
@@ -173,9 +193,8 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 8
-    !$ACC END KERNELS
     cl_alname(ialert_id) = ' fnsolar very big             '
-    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (ABS(qns(ji, jj)) > 1500._wp .AND. at_i(ji, jj) > 0._wp) THEN
@@ -184,12 +203,13 @@ MODULE icectl
       END DO
     END DO
     ialert_id = 10
-    !$ACC END KERNELS
     cl_alname(ialert_id) = ' Very warm ice                '
-    !$ACC KERNELS
     inb_alp(ialert_id) = 0
+    !$ACC END KERNELS
     DO jl = 1, jpl
+      !$ACC KERNELS
       DO jk = 1, nlay_i
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             ztmelts = - rTmlt * sz_i(ji, jj, jk, jl) + rt0
@@ -199,11 +219,12 @@ MODULE icectl
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
     END DO
-    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('ice_ctl', 'r0', 0, 0)
     IF (lk_mpp) THEN
       DO ialert_id = 1, inb_altests
-        CALL mpp_sum(inb_alp(ialert_id))
+        CALL mpp_sum('icectl', inb_alp(ialert_id))
       END DO
     END IF
     IF (lwp) THEN
@@ -215,12 +236,16 @@ MODULE icectl
         WRITE(numout, FMT = *) ialert_id, cl_alname(ialert_id) // ' : ', inb_alp(ialert_id), ' times ! '
       END DO
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_ctl
   SUBROUTINE ice_prt(kt, ki, kj, kn, cd1)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN) :: ki, kj, kn
     CHARACTER(LEN = *), INTENT(IN) :: cd1
     INTEGER :: jl, ji, jj
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_prt', 'r0', 0, 0)
     DO ji = mi0(ki), mi1(ki)
       DO jj = mj0(kj), mj1(kj)
         WRITE(numout, FMT = *) ' time step ', kt, ' ', cd1
@@ -308,8 +333,10 @@ MODULE icectl
           WRITE(numout, FMT = *) ' - Heat / FW fluxes '
           WRITE(numout, FMT = *) '   ~~~~~~~~~~~~~~~~ '
           WRITE(numout, FMT = *) ' - Heat fluxes in and out the ice ***'
-          WRITE(numout, FMT = *) ' qsr_ini       : ', (1._wp - at_i_b(ji, jj)) * qsr(ji, jj) + SUM(a_i_b(ji, jj, :) * qsr_ice(ji, jj, :))
-          WRITE(numout, FMT = *) ' qns_ini       : ', (1._wp - at_i_b(ji, jj)) * qns(ji, jj) + SUM(a_i_b(ji, jj, :) * qns_ice(ji, jj, :))
+          WRITE(numout, FMT = *) ' qsr_ini       : ', (1._wp - at_i_b(ji, jj)) * qsr(ji, jj) + SUM(a_i_b(ji, jj, :) * qsr_ice(ji, &
+&jj, :))
+          WRITE(numout, FMT = *) ' qns_ini       : ', (1._wp - at_i_b(ji, jj)) * qns(ji, jj) + SUM(a_i_b(ji, jj, :) * qns_ice(ji, &
+&jj, :))
           WRITE(numout, FMT = *)
           WRITE(numout, FMT = *)
           WRITE(numout, FMT = *) ' sst        : ', sst_m(ji, jj)
@@ -358,10 +385,14 @@ MODULE icectl
         WRITE(numout, FMT = *) ' '
       END DO
     END DO
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_prt
   SUBROUTINE ice_prt3D(cd_routine)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *), INTENT(IN) :: cd_routine
     INTEGER :: jk, jl
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_prt3d', 'r0', 0, 0)
     CALL prt_ctl_info(' ========== ')
     CALL prt_ctl_info(cd_routine)
     CALL prt_ctl_info(' ========== ')
@@ -413,5 +444,6 @@ MODULE icectl
     CALL prt_ctl_info('   ~~~~~~~~~~ ')
     CALL prt_ctl(tab2d_1 = utau, clinfo1 = ' utau      : ', tab2d_2 = vtau, clinfo2 = ' vtau      : ')
     CALL prt_ctl(tab2d_1 = utau_ice, clinfo1 = ' utau_ice  : ', tab2d_2 = vtau_ice, clinfo2 = ' vtau_ice  : ')
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_prt3D
 END MODULE icectl

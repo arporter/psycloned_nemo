@@ -6,6 +6,7 @@ MODULE bdydyn3d
   USE bdylib
   USE lbclnk
   USE in_out_manager
+  USE lib_mpp, ONLY: ctl_stop
   USE phycst
   IMPLICIT NONE
   PRIVATE
@@ -13,8 +14,11 @@ MODULE bdydyn3d
   PUBLIC :: bdy_dyn3d_dmp
   CONTAINS
   SUBROUTINE bdy_dyn3d(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ib_bdy
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('bdy_dyn3d', 'r0', 0, 0)
     DO ib_bdy = 1, nb_bdy
       SELECT CASE (cn_dyn3d(ib_bdy))
       CASE ('none')
@@ -37,8 +41,10 @@ MODULE bdydyn3d
         CALL ctl_stop('bdy_dyn3d : unrecognised option for open boundaries for baroclinic velocities')
       END SELECT
     END DO
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE bdy_dyn3d
   SUBROUTINE bdy_dyn3d_spe(idx, dta, kt, ib_bdy)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(OBC_DATA), INTENT(IN) :: dta
@@ -46,6 +52,8 @@ MODULE bdydyn3d
     INTEGER :: jb, jk
     INTEGER :: ii, ij, igrd
     REAL(KIND = wp) :: zwgt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('bdy_dyn3d_spe', 'r0', 0, 0)
     igrd = 2
     DO jb = 1, idx % nblenrim(igrd)
       DO jk = 1, jpkm1
@@ -62,11 +70,13 @@ MODULE bdydyn3d
         va(ii, ij, jk) = dta % v3d(jb, jk) * vmask(ii, ij, jk)
       END DO
     END DO
-    CALL lbc_bdy_lnk(ua, 'U', - 1., ib_bdy)
-    CALL lbc_bdy_lnk(va, 'V', - 1., ib_bdy)
+    CALL lbc_bdy_lnk('bdydyn3d', ua, 'U', - 1., ib_bdy)
+    CALL lbc_bdy_lnk('bdydyn3d', va, 'V', - 1., ib_bdy)
     IF (kt == nit000) CLOSE(UNIT = 102)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE bdy_dyn3d_spe
   SUBROUTINE bdy_dyn3d_zgrad(idx, dta, kt, ib_bdy)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: kt
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(OBC_DATA), INTENT(IN) :: dta
@@ -75,13 +85,16 @@ MODULE bdydyn3d
     INTEGER :: ii, ij, igrd
     REAL(KIND = wp) :: zwgt
     INTEGER :: fu, fv
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('bdy_dyn3d_zgrad', 'r0', 0, 0)
     igrd = 2
     DO jb = 1, idx % nblenrim(igrd)
       DO jk = 1, jpkm1
         ii = idx % nbi(jb, igrd)
         ij = idx % nbj(jb, igrd)
         fu = ABS(ABS(NINT(idx % flagu(jb, igrd))) - 1)
-        ua(ii, ij, jk) = ua(ii, ij, jk) * REAL(1 - fu) + (ua(ii, ij + fu, jk) * umask(ii, ij + fu, jk) + ua(ii, ij - fu, jk) * umask(ii, ij - fu, jk)) * umask(ii, ij, jk) * REAL(fu)
+        ua(ii, ij, jk) = ua(ii, ij, jk) * REAL(1 - fu) + (ua(ii, ij + fu, jk) * umask(ii, ij + fu, jk) + ua(ii, ij - fu, jk) * &
+&umask(ii, ij - fu, jk)) * umask(ii, ij, jk) * REAL(fu)
       END DO
     END DO
     igrd = 3
@@ -90,14 +103,17 @@ MODULE bdydyn3d
         ii = idx % nbi(jb, igrd)
         ij = idx % nbj(jb, igrd)
         fv = ABS(ABS(NINT(idx % flagv(jb, igrd))) - 1)
-        va(ii, ij, jk) = va(ii, ij, jk) * REAL(1 - fv) + (va(ii + fv, ij, jk) * vmask(ii + fv, ij, jk) + va(ii - fv, ij, jk) * vmask(ii - fv, ij, jk)) * vmask(ii, ij, jk) * REAL(fv)
+        va(ii, ij, jk) = va(ii, ij, jk) * REAL(1 - fv) + (va(ii + fv, ij, jk) * vmask(ii + fv, ij, jk) + va(ii - fv, ij, jk) * &
+&vmask(ii - fv, ij, jk)) * vmask(ii, ij, jk) * REAL(fv)
       END DO
     END DO
-    CALL lbc_bdy_lnk(ua, 'U', - 1., ib_bdy)
-    CALL lbc_bdy_lnk(va, 'V', - 1., ib_bdy)
+    CALL lbc_bdy_lnk('bdydyn3d', ua, 'U', - 1., ib_bdy)
+    CALL lbc_bdy_lnk('bdydyn3d', va, 'V', - 1., ib_bdy)
     IF (kt == nit000) CLOSE(UNIT = 102)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE bdy_dyn3d_zgrad
   SUBROUTINE bdy_dyn3d_zro(idx, dta, kt, ib_bdy)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(OBC_DATA), INTENT(IN) :: dta
@@ -105,31 +121,47 @@ MODULE bdydyn3d
     INTEGER :: ib, ik
     INTEGER :: ii, ij, igrd
     REAL(KIND = wp) :: zwgt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    CALL profile_psy_data0 % PreStart('bdy_dyn3d_zro', 'r0', 0, 0)
     igrd = 2
+    CALL profile_psy_data0 % PostEnd
     DO ib = 1, idx % nblenrim(igrd)
+      CALL profile_psy_data1 % PreStart('bdy_dyn3d_zro', 'r1', 0, 0)
       ii = idx % nbi(ib, igrd)
       ij = idx % nbj(ib, igrd)
+      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       DO ik = 1, jpkm1
         ua(ii, ij, ik) = 0._wp
       END DO
       !$ACC END KERNELS
     END DO
+    CALL profile_psy_data2 % PreStart('bdy_dyn3d_zro', 'r2', 0, 0)
     igrd = 3
+    CALL profile_psy_data2 % PostEnd
     DO ib = 1, idx % nblenrim(igrd)
+      CALL profile_psy_data3 % PreStart('bdy_dyn3d_zro', 'r3', 0, 0)
       ii = idx % nbi(ib, igrd)
       ij = idx % nbj(ib, igrd)
+      CALL profile_psy_data3 % PostEnd
       !$ACC KERNELS
       DO ik = 1, jpkm1
         va(ii, ij, ik) = 0._wp
       END DO
       !$ACC END KERNELS
     END DO
-    CALL lbc_bdy_lnk(ua, 'U', - 1., ib_bdy)
-    CALL lbc_bdy_lnk(va, 'V', - 1., ib_bdy)
+    CALL profile_psy_data4 % PreStart('bdy_dyn3d_zro', 'r4', 0, 0)
+    CALL lbc_bdy_lnk('bdydyn3d', ua, 'U', - 1., ib_bdy)
+    CALL lbc_bdy_lnk('bdydyn3d', va, 'V', - 1., ib_bdy)
     IF (kt == nit000) CLOSE(UNIT = 102)
+    CALL profile_psy_data4 % PostEnd
   END SUBROUTINE bdy_dyn3d_zro
   SUBROUTINE bdy_dyn3d_frs(idx, dta, kt, ib_bdy)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(OBC_DATA), INTENT(IN) :: dta
@@ -137,6 +169,8 @@ MODULE bdydyn3d
     INTEGER :: jb, jk
     INTEGER :: ii, ij, igrd
     REAL(KIND = wp) :: zwgt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('bdy_dyn3d_frs', 'r0', 0, 0)
     igrd = 2
     DO jb = 1, idx % nblen(igrd)
       DO jk = 1, jpkm1
@@ -155,29 +189,37 @@ MODULE bdydyn3d
         va(ii, ij, jk) = (va(ii, ij, jk) + zwgt * (dta % v3d(jb, jk) - va(ii, ij, jk))) * vmask(ii, ij, jk)
       END DO
     END DO
-    CALL lbc_bdy_lnk(ua, 'U', - 1., ib_bdy)
-    CALL lbc_bdy_lnk(va, 'V', - 1., ib_bdy)
+    CALL lbc_bdy_lnk('bdydyn3d', ua, 'U', - 1., ib_bdy)
+    CALL lbc_bdy_lnk('bdydyn3d', va, 'V', - 1., ib_bdy)
     IF (kt == nit000) CLOSE(UNIT = 102)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE bdy_dyn3d_frs
   SUBROUTINE bdy_dyn3d_orlanski(idx, dta, ib_bdy, ll_npo)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(OBC_DATA), INTENT(IN) :: dta
     INTEGER, INTENT(IN) :: ib_bdy
     LOGICAL, INTENT(IN) :: ll_npo
     INTEGER :: jb, igrd
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('bdy_dyn3d_orlanski', 'r0', 0, 0)
     igrd = 2
     CALL bdy_orlanski_3d(idx, igrd, ub, ua, dta % u3d, ll_npo)
     igrd = 3
     CALL bdy_orlanski_3d(idx, igrd, vb, va, dta % v3d, ll_npo)
-    CALL lbc_bdy_lnk(ua, 'U', - 1., ib_bdy)
-    CALL lbc_bdy_lnk(va, 'V', - 1., ib_bdy)
+    CALL lbc_bdy_lnk('bdydyn3d', ua, 'U', - 1., ib_bdy)
+    CALL lbc_bdy_lnk('bdydyn3d', va, 'V', - 1., ib_bdy)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE bdy_dyn3d_orlanski
   SUBROUTINE bdy_dyn3d_dmp(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: jb, jk
     INTEGER :: ib_bdy
     INTEGER :: ii, ij, igrd
     REAL(KIND = wp) :: zwgt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('bdy_dyn3d_dmp', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('bdy_dyn3d_dmp')
     DO ib_bdy = 1, nb_bdy
       IF (ln_dyn3d_dmp(ib_bdy) .AND. cn_dyn3d(ib_bdy) /= 'none') THEN
@@ -187,7 +229,8 @@ MODULE bdydyn3d
           ij = idx_bdy(ib_bdy) % nbj(jb, igrd)
           zwgt = idx_bdy(ib_bdy) % nbd(jb, igrd)
           DO jk = 1, jpkm1
-            ua(ii, ij, jk) = (ua(ii, ij, jk) + zwgt * (dta_bdy(ib_bdy) % u3d(jb, jk) - ub(ii, ij, jk) + ub_b(ii, ij))) * umask(ii, ij, jk)
+            ua(ii, ij, jk) = (ua(ii, ij, jk) + zwgt * (dta_bdy(ib_bdy) % u3d(jb, jk) - ub(ii, ij, jk) + ub_b(ii, ij))) * umask(ii, &
+&ij, jk)
           END DO
         END DO
         igrd = 3
@@ -196,23 +239,29 @@ MODULE bdydyn3d
           ij = idx_bdy(ib_bdy) % nbj(jb, igrd)
           zwgt = idx_bdy(ib_bdy) % nbd(jb, igrd)
           DO jk = 1, jpkm1
-            va(ii, ij, jk) = (va(ii, ij, jk) + zwgt * (dta_bdy(ib_bdy) % v3d(jb, jk) - vb(ii, ij, jk) + vb_b(ii, ij))) * vmask(ii, ij, jk)
+            va(ii, ij, jk) = (va(ii, ij, jk) + zwgt * (dta_bdy(ib_bdy) % v3d(jb, jk) - vb(ii, ij, jk) + vb_b(ii, ij))) * vmask(ii, &
+&ij, jk)
           END DO
         END DO
       END IF
     END DO
-    CALL lbc_lnk_multi(ua, 'U', - 1., va, 'V', - 1.)
+    CALL lbc_lnk_multi('bdydyn3d', ua, 'U', - 1., va, 'V', - 1.)
     IF (ln_timing) CALL timing_stop('bdy_dyn3d_dmp')
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE bdy_dyn3d_dmp
   SUBROUTINE bdy_dyn3d_nmn(idx, ib_bdy)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     INTEGER, INTENT(IN) :: ib_bdy
     INTEGER :: jb, igrd
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('bdy_dyn3d_nmn', 'r0', 0, 0)
     igrd = 2
     CALL bdy_nmn(idx, igrd, ua)
     igrd = 3
     CALL bdy_nmn(idx, igrd, va)
-    CALL lbc_bdy_lnk(ua, 'U', - 1., ib_bdy)
-    CALL lbc_bdy_lnk(va, 'V', - 1., ib_bdy)
+    CALL lbc_bdy_lnk('bdydyn3d', ua, 'U', - 1., ib_bdy)
+    CALL lbc_bdy_lnk('bdydyn3d', va, 'V', - 1., ib_bdy)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE bdy_dyn3d_nmn
 END MODULE bdydyn3d

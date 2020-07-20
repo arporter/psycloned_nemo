@@ -9,7 +9,9 @@ MODULE usrdef_hgr
   PRIVATE
   PUBLIC :: usr_def_hgr
   CONTAINS
-  SUBROUTINE usr_def_hgr(plamt, plamu, plamv, plamf, pphit, pphiu, pphiv, pphif, kff, pff_f, pff_t, pe1t, pe1u, pe1v, pe1f, pe2t, pe2u, pe2v, pe2f, ke1e2u_v, pe1e2u, pe1e2v)
+  SUBROUTINE usr_def_hgr(plamt, plamu, plamv, plamf, pphit, pphiu, pphiv, pphif, kff, pff_f, pff_t, pe1t, pe1u, pe1v, pe1f, pe2t, &
+&pe2u, pe2v, pe2f, ke1e2u_v, pe1e2u, pe1e2v)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: plamt, plamu, plamv, plamf
     REAL(KIND = wp), DIMENSION(:, :), INTENT(OUT) :: pphit, pphiu, pphiv, pphif
     INTEGER, INTENT(OUT) :: kff
@@ -21,6 +23,8 @@ MODULE usrdef_hgr
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zlam1, zlam0, zcos_alpha, zim1, zjm1, ze1, ze1deg, zf0
     REAL(KIND = wp) :: zphi1, zphi0, zsin_alpha, zim05, zjm05, zbeta, znorme
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('usr_def_hgr', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'usr_def_hgr : GYRE configuration (beta-plane with rotated regular grid-spacing)'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~'
@@ -40,7 +44,9 @@ MODULE usrdef_hgr
       WRITE(numout, FMT = *) 'ze1', ze1, 'cosalpha', zcos_alpha, 'sinalpha', zsin_alpha
       WRITE(numout, FMT = *) 'ze1deg', ze1deg, 'zlam0', zlam0, 'zphi0', zphi0
     END IF
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zim1 = REAL(ji + nimpp - 1) - 1.

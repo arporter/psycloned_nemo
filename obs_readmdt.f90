@@ -21,6 +21,7 @@ MODULE obs_readmdt
   REAL(KIND = wp), PUBLIC :: rn_mdtcutoff = 65.0_wp
   CONTAINS
   SUBROUTINE obs_rea_mdt(sladata, k2dint)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE iom
     TYPE(obs_surf), INTENT(INOUT) :: sladata
     INTEGER, INTENT(IN) :: k2dint
@@ -37,6 +38,9 @@ MODULE obs_readmdt
     INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: igrdi, igrdj
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z_mdt, mdtmask
     REAL(KIND = wp) :: zlam, zphi, zfill, zinfill
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('obs_rea_mdt', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) ' obs_rea_mdt : Read MDT for referencing altimeter anomalies'
     IF (lwp) WRITE(numout, FMT = *) ' ------------- '
@@ -44,6 +48,8 @@ MODULE obs_readmdt
     CALL iom_open(mdtname, nummdt)
     CALL iom_get(nummdt, jpdom_data, 'sossheig', z_mdt(:, :), 1)
     CALL iom_close(nummdt)
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     zinfill = 0.0
     i_stat = nf90_open(mdtname, nf90_nowrite, nummdt)
     i_stat = nf90_inq_varid(nummdt, 'sossheig', i_var_id)
@@ -55,8 +61,11 @@ MODULE obs_readmdt
     ELSEWHERE
       mdtmask(:, :) = 0
     END WHERE
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('obs_rea_mdt', 'r1', 0, 0)
     IF (nn_msshc == 1 .OR. nn_msshc == 2) CALL obs_offset_mdt(jpi, jpj, z_mdt, zfill)
-    ALLOCATE(igrdi(2, 2, sladata % nsurf), igrdj(2, 2, sladata % nsurf), zglam(2, 2, sladata % nsurf), zgphi(2, 2, sladata % nsurf), zmask(2, 2, sladata % nsurf), zmdtl(2, 2, sladata % nsurf))
+    ALLOCATE(igrdi(2, 2, sladata % nsurf), igrdj(2, 2, sladata % nsurf), zglam(2, 2, sladata % nsurf), zgphi(2, 2, sladata % &
+&nsurf), zmask(2, 2, sladata % nsurf), zmdtl(2, 2, sladata % nsurf))
     DO jobs = 1, sladata % nsurf
       igrdi(1, 1, jobs) = sladata % mi(jobs) - 1
       igrdj(1, 1, jobs) = sladata % mj(jobs) - 1
@@ -81,25 +90,31 @@ MODULE obs_readmdt
     END DO
     DEALLOCATE(igrdi, igrdj, zglam, zgphi, zmask, zmdtl)
     IF (lwp) WRITE(numout, FMT = *) ' ------------- '
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE obs_rea_mdt
   SUBROUTINE obs_offset_mdt(kpi, kpj, mdt, zfill)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kpi, kpj
     REAL(KIND = wp), DIMENSION(kpi, kpj), INTENT(INOUT) :: mdt
-    REAL(KIND = wp), INTENT(IN   ) :: zfill
+    REAL(KIND = wp), INTENT(IN) :: zfill
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zdxdy, zarea, zeta1, zeta2, zcorr_mdt, zcorr_bcketa, zcorr
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zpromsk
     CHARACTER(LEN = 14), PARAMETER :: cpname = 'obs_offset_mdt'
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     !$ACC KERNELS
     DO ji = 1, jpi
       DO jj = 1, jpj
         zpromsk(ji, jj) = tmask_i(ji, jj)
-        IF ((gphit(ji, jj) .GT. rn_mdtcutoff) .OR. (gphit(ji, jj) .LT. - rn_mdtcutoff) .OR. (mdt(ji, jj) .EQ. zfill)) zpromsk(ji, jj) = 0.0
+        IF ((gphit(ji, jj) .GT. rn_mdtcutoff) .OR. (gphit(ji, jj) .LT. - rn_mdtcutoff) .OR. (mdt(ji, jj) .EQ. zfill)) zpromsk(ji, &
+&jj) = 0.0
       END DO
     END DO
     zarea = 0.0
     zeta1 = 0.0
     zeta2 = 0.0
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zdxdy = e1e2t(ji, jj) * zpromsk(ji, jj)
@@ -109,14 +124,19 @@ MODULE obs_readmdt
       END DO
     END DO
     !$ACC END KERNELS
-    IF (lk_mpp) CALL mpp_sum(zeta1)
-    IF (lk_mpp) CALL mpp_sum(zeta2)
-    IF (lk_mpp) CALL mpp_sum(zarea)
+    CALL profile_psy_data0 % PreStart('obs_offset_mdt', 'r0', 0, 0)
+    CALL mpp_sum('obs_readmdt', zeta1)
+    CALL mpp_sum('obs_readmdt', zeta2)
+    CALL mpp_sum('obs_readmdt', zarea)
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     zcorr_mdt = zeta1 / zarea
     zcorr_bcketa = zeta2 / zarea
     zcorr = zcorr_mdt - zcorr_bcketa
     IF (nn_msshc == 1) mdt(:, :) = mdt(:, :) - zcorr
     IF (nn_msshc == 2) mdt(:, :) = mdt(:, :) - rn_mdtcorr
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('obs_offset_mdt', 'r1', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) ' obs_readmdt : rn_mdtcutoff     = ', rn_mdtcutoff
@@ -128,5 +148,6 @@ MODULE obs_readmdt
     IF (nn_msshc == 0) WRITE(numout, FMT = *) '           MSSH correction is not applied'
     IF (nn_msshc == 1) WRITE(numout, FMT = *) '           MSSH correction is applied'
     IF (nn_msshc == 2) WRITE(numout, FMT = *) '           User defined MSSH correction'
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE obs_offset_mdt
 END MODULE obs_readmdt

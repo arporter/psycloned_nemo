@@ -30,6 +30,7 @@ MODULE diahsb
   REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: hc_loc_ini, sc_loc_ini, e3t_ini
   CONTAINS
   SUBROUTINE dia_hsb(kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zdiff_hc, zdiff_sc
@@ -43,6 +44,14 @@ MODULE diahsb
     REAL(KIND = wp) :: z_ssh_hc, z_ssh_sc
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z2d0, z2d1
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpkm1) :: zwrk
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
     IF (ln_timing) CALL timing_start('dia_hsb')
     !$ACC KERNELS
     tsn(:, :, :, 1) = tsn(:, :, :, 1) * tmask(:, :, :)
@@ -50,14 +59,16 @@ MODULE diahsb
     tsn(:, :, :, 2) = tsn(:, :, :, 2) * tmask(:, :, :)
     tsb(:, :, :, 2) = tsb(:, :, :, 2) * tmask(:, :, :)
     !$ACC END KERNELS
-    z_frc_trd_v = r1_rau0 * glob_sum(- (emp(:, :) - rnf(:, :) + fwfisf(:, :)) * surf(:, :))
-    z_frc_trd_t = glob_sum(sbc_tsc(:, :, jp_tem) * surf(:, :))
-    z_frc_trd_s = glob_sum(sbc_tsc(:, :, jp_sal) * surf(:, :))
-    IF (ln_rnf) z_frc_trd_t = z_frc_trd_t + glob_sum(rnf_tsc(:, :, jp_tem) * surf(:, :))
-    IF (ln_rnf_sal) z_frc_trd_s = z_frc_trd_s + glob_sum(rnf_tsc(:, :, jp_sal) * surf(:, :))
-    IF (ln_isf) z_frc_trd_t = z_frc_trd_t + glob_sum(risf_tsc(:, :, jp_tem) * surf(:, :))
-    IF (ln_traqsr) z_frc_trd_t = z_frc_trd_t + r1_rau0_rcp * glob_sum(qsr(:, :) * surf(:, :))
-    IF (ln_trabbc) z_frc_trd_t = z_frc_trd_t + glob_sum(qgh_trd0(:, :) * surf(:, :))
+    CALL profile_psy_data0 % PreStart('dia_hsb', 'r0', 0, 0)
+    z_frc_trd_v = r1_rau0 * glob_sum('diahsb', - (emp(:, :) - rnf(:, :) + fwfisf(:, :)) * surf(:, :))
+    z_frc_trd_t = glob_sum('diahsb', sbc_tsc(:, :, jp_tem) * surf(:, :))
+    z_frc_trd_s = glob_sum('diahsb', sbc_tsc(:, :, jp_sal) * surf(:, :))
+    IF (ln_rnf) z_frc_trd_t = z_frc_trd_t + glob_sum('diahsb', rnf_tsc(:, :, jp_tem) * surf(:, :))
+    IF (ln_rnf_sal) z_frc_trd_s = z_frc_trd_s + glob_sum('diahsb', rnf_tsc(:, :, jp_sal) * surf(:, :))
+    IF (ln_isf) z_frc_trd_t = z_frc_trd_t + glob_sum('diahsb', risf_tsc(:, :, jp_tem) * surf(:, :))
+    IF (ln_traqsr) z_frc_trd_t = z_frc_trd_t + r1_rau0_rcp * glob_sum('diahsb', qsr(:, :) * surf(:, :))
+    IF (ln_trabbc) z_frc_trd_t = z_frc_trd_t + glob_sum('diahsb', qgh_trd0(:, :) * surf(:, :))
+    CALL profile_psy_data0 % PostEnd
     IF (ln_linssh) THEN
       IF (ln_isfcav) THEN
         !$ACC KERNELS
@@ -74,9 +85,12 @@ MODULE diahsb
         z2d1(:, :) = surf(:, :) * wn(:, :, 1) * tsb(:, :, 1, jp_sal)
         !$ACC END KERNELS
       END IF
-      z_wn_trd_t = - glob_sum(z2d0)
-      z_wn_trd_s = - glob_sum(z2d1)
+      CALL profile_psy_data1 % PreStart('dia_hsb', 'r1', 0, 0)
+      z_wn_trd_t = - glob_sum('diahsb', z2d0)
+      z_wn_trd_s = - glob_sum('diahsb', z2d1)
+      CALL profile_psy_data1 % PostEnd
     END IF
+    CALL profile_psy_data2 % PreStart('dia_hsb', 'r2', 0, 0)
     frc_v = frc_v + z_frc_trd_v * rdt
     frc_t = frc_t + z_frc_trd_t * rdt
     frc_s = frc_s + z_frc_trd_s * rdt
@@ -84,7 +98,8 @@ MODULE diahsb
       frc_wn_t = frc_wn_t + z_wn_trd_t * rdt
       frc_wn_s = frc_wn_s + z_wn_trd_s * rdt
     END IF
-    zdiff_v1 = glob_sum_full(surf(:, :) * sshn(:, :) - surf_ini(:, :) * ssh_ini(:, :))
+    zdiff_v1 = glob_sum_full('diahsb', surf(:, :) * sshn(:, :) - surf_ini(:, :) * ssh_ini(:, :))
+    CALL profile_psy_data2 % PostEnd
     IF (ln_linssh) THEN
       IF (ln_isfcav) THEN
         !$ACC KERNELS
@@ -101,27 +116,36 @@ MODULE diahsb
         z2d1(:, :) = surf(:, :) * (tsn(:, :, 1, jp_sal) * sshn(:, :) - ssh_sc_loc_ini(:, :))
         !$ACC END KERNELS
       END IF
-      z_ssh_hc = glob_sum_full(z2d0)
-      z_ssh_sc = glob_sum_full(z2d1)
+      CALL profile_psy_data3 % PreStart('dia_hsb', 'r3', 0, 0)
+      z_ssh_hc = glob_sum_full('diahsb', z2d0)
+      z_ssh_sc = glob_sum_full('diahsb', z2d1)
+      CALL profile_psy_data3 % PostEnd
     END IF
     !$ACC KERNELS
     DO jk = 1, jpkm1
       zwrk(:, :, jk) = (surf(:, :) * e3t_n(:, :, jk) - surf_ini(:, :) * e3t_ini(:, :, jk)) * tmask(:, :, jk)
     END DO
     !$ACC END KERNELS
-    zdiff_v2 = glob_sum_full(zwrk(:, :, :))
+    CALL profile_psy_data4 % PreStart('dia_hsb', 'r4', 0, 0)
+    zdiff_v2 = glob_sum_full('diahsb', zwrk(:, :, :))
+    CALL profile_psy_data4 % PostEnd
     !$ACC KERNELS
     DO jk = 1, jpkm1
-      zwrk(:, :, jk) = (surf(:, :) * e3t_n(:, :, jk) * tsn(:, :, jk, jp_tem) - surf_ini(:, :) * hc_loc_ini(:, :, jk)) * tmask(:, :, jk)
+      zwrk(:, :, jk) = (surf(:, :) * e3t_n(:, :, jk) * tsn(:, :, jk, jp_tem) - surf_ini(:, :) * hc_loc_ini(:, :, jk)) * tmask(:, &
+&:, jk)
     END DO
     !$ACC END KERNELS
-    zdiff_hc = glob_sum_full(zwrk(:, :, :))
+    CALL profile_psy_data5 % PreStart('dia_hsb', 'r5', 0, 0)
+    zdiff_hc = glob_sum_full('diahsb', zwrk(:, :, :))
+    CALL profile_psy_data5 % PostEnd
     !$ACC KERNELS
     DO jk = 1, jpkm1
-      zwrk(:, :, jk) = (surf(:, :) * e3t_n(:, :, jk) * tsn(:, :, jk, jp_sal) - surf_ini(:, :) * sc_loc_ini(:, :, jk)) * tmask(:, :, jk)
+      zwrk(:, :, jk) = (surf(:, :) * e3t_n(:, :, jk) * tsn(:, :, jk, jp_sal) - surf_ini(:, :) * sc_loc_ini(:, :, jk)) * tmask(:, &
+&:, jk)
     END DO
     !$ACC END KERNELS
-    zdiff_sc = glob_sum_full(zwrk(:, :, :))
+    CALL profile_psy_data6 % PreStart('dia_hsb', 'r6', 0, 0)
+    zdiff_sc = glob_sum_full('diahsb', zwrk(:, :, :))
     zdiff_v1 = zdiff_v1 - frc_v
     IF (.NOT. ln_linssh) zdiff_v2 = zdiff_v2 - frc_v
     zdiff_hc = zdiff_hc - frc_t
@@ -132,12 +156,14 @@ MODULE diahsb
       zerr_hc1 = z_ssh_hc - frc_wn_t
       zerr_sc1 = z_ssh_sc - frc_wn_s
     END IF
+    CALL profile_psy_data6 % PostEnd
     !$ACC KERNELS
     DO jk = 1, jpkm1
       zwrk(:, :, jk) = surf(:, :) * e3t_n(:, :, jk) * tmask(:, :, jk)
     END DO
     !$ACC END KERNELS
-    zvol_tot = glob_sum_full(zwrk(:, :, :))
+    CALL profile_psy_data7 % PreStart('dia_hsb', 'r7', 0, 0)
+    zvol_tot = glob_sum_full('diahsb', zwrk(:, :, :))
     CALL iom_put('bgfrcvol', frc_v * 1.E-9)
     CALL iom_put('bgfrctem', frc_t * rau0 * rcp * 1.E-20)
     CALL iom_put('bgfrchfx', frc_t * rau0 * rcp / (surf_tot * kt * rdt))
@@ -171,6 +197,7 @@ MODULE diahsb
     END IF
     IF (lrst_oce) CALL dia_hsb_rst(kt, 'WRITE')
     IF (ln_timing) CALL timing_stop('dia_hsb')
+    CALL profile_psy_data7 % PostEnd
   END SUBROUTINE dia_hsb
   SUBROUTINE dia_hsb_rst(kt, cdrw)
     INTEGER, INTENT(IN) :: kt
@@ -204,15 +231,17 @@ MODULE diahsb
         !$ACC KERNELS
         surf_ini(:, :) = e1e2t(:, :) * tmask_i(:, :)
         ssh_ini(:, :) = sshn(:, :)
+        !$ACC END KERNELS
         DO jk = 1, jpk
+          !$ACC KERNELS
           e3t_ini(:, :, jk) = e3t_n(:, :, jk) * tmask(:, :, jk)
           hc_loc_ini(:, :, jk) = tsn(:, :, jk, jp_tem) * e3t_n(:, :, jk) * tmask(:, :, jk)
           sc_loc_ini(:, :, jk) = tsn(:, :, jk, jp_sal) * e3t_n(:, :, jk) * tmask(:, :, jk)
+          !$ACC END KERNELS
         END DO
         frc_v = 0._wp
         frc_t = 0._wp
         frc_s = 0._wp
-        !$ACC END KERNELS
         IF (ln_linssh) THEN
           IF (ln_isfcav) THEN
             !$ACC KERNELS
@@ -293,7 +322,8 @@ MODULE diahsb
         CALL iom_set_rstw_var_active('frc_wn_s')
       END IF
     END IF
-    ALLOCATE(hc_loc_ini(jpi, jpj, jpk), sc_loc_ini(jpi, jpj, jpk), surf_ini(jpi, jpj), e3t_ini(jpi, jpj, jpk), surf(jpi, jpj), ssh_ini(jpi, jpj), STAT = ierror)
+    ALLOCATE(hc_loc_ini(jpi, jpj, jpk), sc_loc_ini(jpi, jpj, jpk), surf_ini(jpi, jpj), e3t_ini(jpi, jpj, jpk), surf(jpi, jpj), &
+&ssh_ini(jpi, jpj), STAT = ierror)
     IF (ierror > 0) THEN
       CALL ctl_stop('dia_hsb_init: unable to allocate hc_loc_ini')
       RETURN
@@ -306,7 +336,7 @@ MODULE diahsb
     !$ACC KERNELS
     surf(:, :) = e1e2t(:, :) * tmask_i(:, :)
     !$ACC END KERNELS
-    surf_tot = glob_sum(surf(:, :))
+    surf_tot = glob_sum('diahsb', surf(:, :))
     IF (ln_bdy) CALL ctl_warn('dia_hsb_init: heat/salt budget does not consider open boundary fluxes')
     CALL dia_hsb_rst(nit000, 'READ')
   END SUBROUTINE dia_hsb_init

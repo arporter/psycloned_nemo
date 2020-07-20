@@ -19,20 +19,21 @@ MODULE sbcblk_algo_coare3p5
   REAL(KIND = wp), PARAMETER :: rctv0 = 0.608
   CONTAINS
   SUBROUTINE turb_coare3p5(zt, zu, sst, t_zt, ssq, q_zt, U_zu, Cd, Ch, Ce, t_zu, q_zu, U_blk, Cdn, Chn, Cen)
-    REAL(KIND = wp), INTENT(IN   ) :: zt
-    REAL(KIND = wp), INTENT(IN   ) :: zu
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: sst
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: t_zt
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: ssq
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: q_zt
-    REAL(KIND = wp), INTENT(IN   ), DIMENSION(jpi, jpj) :: U_zu
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Cd
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Ch
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Ce
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: t_zu
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: q_zu
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: U_blk
-    REAL(KIND = wp), INTENT(  OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), INTENT(IN) :: zt
+    REAL(KIND = wp), INTENT(IN) :: zu
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: sst
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: t_zt
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: ssq
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: q_zt
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: U_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Cd
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Ch
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Ce
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: t_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: q_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: U_blk
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
     INTEGER :: j_itt
     LOGICAL :: l_zt_equal_zu = .FALSE.
     INTEGER, PARAMETER :: nb_itt = 4
@@ -40,6 +41,8 @@ MODULE sbcblk_algo_coare3p5
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zeta_u
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztmp0, ztmp1, ztmp2
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zeta_t
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('turb_coare3p5', 'r0', 0, 0)
     l_zt_equal_zu = .FALSE.
     IF (ABS(zu - zt) < 0.01) l_zt_equal_zu = .TRUE.
     IF (.NOT. l_zt_equal_zu) ALLOCATE(zeta_t(jpi, jpj))
@@ -66,7 +69,8 @@ MODULE sbcblk_algo_coare3p5
     ztmp2 = grav * zu * (dt_zu + rctv0 * t_zu * dq_zu) / (t_zu * U_blk * U_blk)
     ztmp1 = 0.5 + SIGN(0.5, ztmp2)
     ztmp0 = ztmp0 * ztmp2
-    zeta_u = (1. - ztmp1) * (ztmp0 / (1. + ztmp2 / (- zu / (zi0 * 0.004 * Beta0 ** 3)))) + ztmp1 * (ztmp0 * (1. + 27. / 9. * ztmp2 / ztmp0))
+    zeta_u = (1. - ztmp1) * (ztmp0 / (1. + ztmp2 / (- zu / (zi0 * 0.004 * Beta0 ** 3)))) + ztmp1 * (ztmp0 * (1. + 27. / 9. * ztmp2 &
+&/ ztmp0))
     ztmp0 = vkarmn / (LOG(zu * z0t) - psi_h_coare(zeta_u))
     u_star = U_blk * vkarmn / (LOG(zu) - LOG(z0) - psi_m_coare(zeta_u))
     t_star = dt_zu * ztmp0
@@ -125,6 +129,7 @@ MODULE sbcblk_algo_coare3p5
     Chn = vkarmn * vkarmn / (LOG(ztmp1 / z0t) * LOG(ztmp1 / z0t))
     Cen = Chn
     IF (.NOT. l_zt_equal_zu) DEALLOCATE(zeta_t)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE turb_coare3p5
   FUNCTION One_on_L(ptha, pqa, pus, pts, pqs)
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: One_on_L
@@ -132,10 +137,12 @@ MODULE sbcblk_algo_coare3p5
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zqa
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zqa = (1. + rctv0 * pqa(ji, jj))
-        One_on_L(ji, jj) = grav * vkarmn * (pts(ji, jj) * zqa + rctv0 * ptha(ji, jj) * pqs(ji, jj)) / (pus(ji, jj) * pus(ji, jj) * ptha(ji, jj) * zqa)
+        One_on_L(ji, jj) = grav * vkarmn * (pts(ji, jj) * zqa + rctv0 * ptha(ji, jj) * pqs(ji, jj)) / (pus(ji, jj) * pus(ji, jj) * &
+&ptha(ji, jj) * zqa)
       END DO
     END DO
     !$ACC END KERNELS
@@ -146,6 +153,7 @@ MODULE sbcblk_algo_coare3p5
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zta, zphi_m, zphi_c, zpsi_k, zpsi_c, zf, zc, zstab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zta = pzeta(ji, jj)
@@ -157,7 +165,8 @@ MODULE sbcblk_algo_coare3p5
         zf = zf / (1. + zf)
         zc = MIN(50., 0.35 * zta)
         zstab = 0.5 + SIGN(0.5, zta)
-        psi_m_coare(ji, jj) = (1. - zstab) * ((1. - zf) * zpsi_k + zf * zpsi_c) - zstab * (1. + 1. * zta + 0.6667 * (zta - 14.28) / EXP(zc) + 8.525)
+        psi_m_coare(ji, jj) = (1. - zstab) * ((1. - zf) * zpsi_k + zf * zpsi_c) - zstab * (1. + 1. * zta + 0.6667 * (zta - 14.28) &
+&/ EXP(zc) + 8.525)
       END DO
     END DO
     !$ACC END KERNELS
@@ -168,6 +177,7 @@ MODULE sbcblk_algo_coare3p5
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zta, zphi_h, zphi_c, zpsi_k, zpsi_c, zf, zc, zstab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zta = pzeta(ji, jj)
@@ -179,7 +189,8 @@ MODULE sbcblk_algo_coare3p5
         zf = zf / (1. + zf)
         zc = MIN(50., 0.35 * zta)
         zstab = 0.5 + SIGN(0.5, zta)
-        psi_h_coare(ji, jj) = (1. - zstab) * ((1. - zf) * zpsi_k + zf * zpsi_c) - zstab * ((ABS(1. + 2. * zta / 3.)) ** 1.5 + .6667 * (zta - 14.28) / EXP(zc) + 8.525)
+        psi_h_coare(ji, jj) = (1. - zstab) * ((1. - zf) * zpsi_k + zf * zpsi_c) - zstab * ((ABS(1. + 2. * zta / 3.)) ** 1.5 + &
+&.6667 * (zta - 14.28) / EXP(zc) + 8.525)
       END DO
     END DO
     !$ACC END KERNELS
@@ -190,6 +201,7 @@ MODULE sbcblk_algo_coare3p5
     INTEGER :: ji, jj
     REAL(KIND = wp) :: ztc, ztc2
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ztc = ptak(ji, jj) - rt0

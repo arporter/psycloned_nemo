@@ -13,17 +13,19 @@ MODULE zpshde
   PUBLIC :: zps_hde_isf
   CONTAINS
   SUBROUTINE zps_hde(kt, kjpt, pta, pgtu, pgtv, prd, pgru, pgrv)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: pta
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(  OUT) :: pgtu, pgtv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ), OPTIONAL :: prd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT), OPTIONAL :: pgru, pgrv
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    INTEGER, INTENT(IN) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN) :: pta
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(OUT) :: pgtu, pgtv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN), OPTIONAL :: prd
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT), OPTIONAL :: pgru, pgrv
     INTEGER :: ji, jj, jn
     INTEGER :: iku, ikv, ikum1, ikvm1
     REAL(KIND = wp) :: ze3wu, ze3wv, zmaxu, zmaxv
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zri, zrj, zhi, zhj
     REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt) :: zti, ztj
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     IF (ln_timing) CALL timing_start('zps_hde')
     !$ACC KERNELS
     pgtu(:, :, :) = 0._wp
@@ -32,9 +34,8 @@ MODULE zpshde
     pgtv(:, :, :) = 0._wp
     ztj(:, :, :) = 0._wp
     zhj(:, :) = 0._wp
-    !$ACC END KERNELS
     DO jn = 1, kjpt
-      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -63,13 +64,14 @@ MODULE zpshde
           END IF
         END DO
       END DO
-      !$ACC END KERNELS
-      CALL lbc_lnk_multi(pgtu(:, :, jn), 'U', - 1., pgtv(:, :, jn), 'V', - 1.)
     END DO
+    !$ACC END KERNELS
+    CALL lbc_lnk_multi('zpshde', pgtu(:, :, :), 'U', - 1., pgtv(:, :, :), 'V', - 1.)
     IF (PRESENT(prd)) THEN
       !$ACC KERNELS
       pgru(:, :) = 0._wp
       pgrv(:, :) = 0._wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -89,9 +91,12 @@ MODULE zpshde
         END DO
       END DO
       !$ACC END KERNELS
+      CALL profile_psy_data0 % PreStart('zps_hde', 'r0', 0, 0)
       CALL eos(zti, zhi, zri)
       CALL eos(ztj, zhj, zrj)
+      CALL profile_psy_data0 % PostEnd
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -111,24 +116,27 @@ MODULE zpshde
         END DO
       END DO
       !$ACC END KERNELS
-      CALL lbc_lnk_multi(pgru, 'U', - 1., pgrv, 'V', - 1.)
+      CALL lbc_lnk_multi('zpshde', pgru, 'U', - 1., pgrv, 'V', - 1.)
     END IF
     IF (ln_timing) CALL timing_stop('zps_hde')
   END SUBROUTINE zps_hde
   SUBROUTINE zps_hde_isf(kt, kjpt, pta, pgtu, pgtv, pgtui, pgtvi, prd, pgru, pgrv, pgrui, pgrvi)
-    INTEGER, INTENT(IN   ) :: kt
-    INTEGER, INTENT(IN   ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN   ) :: pta
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(  OUT) :: pgtu, pgtv
-    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(  OUT) :: pgtui, pgtvi
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN   ), OPTIONAL :: prd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT), OPTIONAL :: pgru, pgrv
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(  OUT), OPTIONAL :: pgrui, pgrvi
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    INTEGER, INTENT(IN) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN) :: pta
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(OUT) :: pgtu, pgtv
+    REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt), INTENT(OUT) :: pgtui, pgtvi
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN), OPTIONAL :: prd
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT), OPTIONAL :: pgru, pgrv
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT), OPTIONAL :: pgrui, pgrvi
     INTEGER :: ji, jj, jn
     INTEGER :: iku, ikv, ikum1, ikvm1, ikup1, ikvp1
     REAL(KIND = wp) :: ze3wu, ze3wv, zmaxu, zmaxv
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zri, zrj, zhi, zhj
     REAL(KIND = wp), DIMENSION(jpi, jpj, kjpt) :: zti, ztj
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_timing) CALL timing_start('zps_hde_isf')
     !$ACC KERNELS
     pgtu(:, :, :) = 0._wp
@@ -139,9 +147,8 @@ MODULE zpshde
     ztj(:, :, :) = 0._wp
     zhi(:, :) = 0._wp
     zhj(:, :) = 0._wp
-    !$ACC END KERNELS
     DO jn = 1, kjpt
-      !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -170,13 +177,14 @@ MODULE zpshde
           END IF
         END DO
       END DO
-      !$ACC END KERNELS
-      CALL lbc_lnk_multi(pgtu(:, :, jn), 'U', - 1., pgtv(:, :, jn), 'V', - 1.)
     END DO
+    !$ACC END KERNELS
+    CALL lbc_lnk_multi('zpshde', pgtu(:, :, :), 'U', - 1., pgtv(:, :, :), 'V', - 1.)
     IF (PRESENT(prd)) THEN
       !$ACC KERNELS
       pgru(:, :) = 0.0_wp
       pgrv(:, :) = 0.0_wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -196,9 +204,12 @@ MODULE zpshde
         END DO
       END DO
       !$ACC END KERNELS
+      CALL profile_psy_data0 % PreStart('zps_hde_isf', 'r0', 0, 0)
       CALL eos(zti, zhi, zri)
       CALL eos(ztj, zhj, zrj)
+      CALL profile_psy_data0 % PostEnd
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = mbku(ji, jj)
@@ -218,10 +229,11 @@ MODULE zpshde
         END DO
       END DO
       !$ACC END KERNELS
-      CALL lbc_lnk_multi(pgru, 'U', - 1., pgrv, 'V', - 1.)
+      CALL lbc_lnk_multi('zpshde', pgru, 'U', - 1., pgrv, 'V', - 1.)
     END IF
     !$ACC KERNELS
     DO jn = 1, kjpt
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = miku(ji, jj)
@@ -252,11 +264,12 @@ MODULE zpshde
       END DO
     END DO
     !$ACC END KERNELS
-    CALL lbc_lnk_multi(pgtui(:, :, :), 'U', - 1., pgtvi(:, :, :), 'V', - 1.)
+    CALL lbc_lnk_multi('zpshde', pgtui(:, :, :), 'U', - 1., pgtvi(:, :, :), 'V', - 1.)
     IF (PRESENT(prd)) THEN
       !$ACC KERNELS
       pgrui(:, :) = 0.0_wp
       pgrvi(:, :) = 0.0_wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = miku(ji, jj)
@@ -276,9 +289,12 @@ MODULE zpshde
         END DO
       END DO
       !$ACC END KERNELS
+      CALL profile_psy_data1 % PreStart('zps_hde_isf', 'r1', 0, 0)
       CALL eos(zti, zhi, zri)
       CALL eos(ztj, zhj, zrj)
+      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           iku = miku(ji, jj)
@@ -298,7 +314,7 @@ MODULE zpshde
         END DO
       END DO
       !$ACC END KERNELS
-      CALL lbc_lnk_multi(pgrui, 'U', - 1., pgrvi, 'V', - 1.)
+      CALL lbc_lnk_multi('zpshde', pgrui, 'U', - 1., pgrvi, 'V', - 1.)
     END IF
     IF (ln_timing) CALL timing_stop('zps_hde_isf')
   END SUBROUTINE zps_hde_isf

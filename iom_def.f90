@@ -12,8 +12,6 @@ MODULE iom_def
   INTEGER, PARAMETER, PUBLIC :: jpdom_autoglo = 8
   INTEGER, PARAMETER, PUBLIC :: jpdom_autoglo_xy = 9
   INTEGER, PARAMETER, PUBLIC :: jpdom_autodta = 10
-  INTEGER, PARAMETER, PUBLIC :: jpnf90 = 101
-  INTEGER, PARAMETER, PUBLIC :: jprstlib = jpnf90
   INTEGER, PARAMETER, PUBLIC :: jp_r8 = 200
   INTEGER, PARAMETER, PUBLIC :: jp_r4 = 201
   INTEGER, PARAMETER, PUBLIC :: jp_i4 = 202
@@ -32,7 +30,6 @@ MODULE iom_def
   TYPE, PUBLIC :: file_descriptor
     CHARACTER(LEN = 240) :: name
     INTEGER :: nfid
-    INTEGER :: iolib
     INTEGER :: nvars
     INTEGER :: iduld
     INTEGER :: lenuld
