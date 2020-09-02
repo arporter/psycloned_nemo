@@ -267,7 +267,6 @@ MODULE crsdom
     END IF
     !$ACC KERNELS
     DO jk = 1, jpk
-      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = njstr, njend, nn_facty
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -373,7 +372,6 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
-          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -462,7 +460,6 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
-          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -496,7 +493,6 @@ MODULE crsdom
           END DO
         END DO
         DO jk = 1, jpk
-          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -540,7 +536,6 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
-          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -614,7 +609,6 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
-          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -652,7 +646,6 @@ MODULE crsdom
           END DO
         END DO
         DO jk = 1, jpk
-          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -698,7 +691,6 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
-          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -768,7 +760,6 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
-          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -806,7 +797,6 @@ MODULE crsdom
           END DO
         END DO
         DO jk = 1, jpk
-          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -852,7 +842,6 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
-          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -933,7 +922,6 @@ MODULE crsdom
         !$ACC END KERNELS
       END IF
       !$ACC KERNELS
-      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = njstr, njend, nn_facty
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -989,7 +977,6 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
-        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1019,7 +1006,6 @@ MODULE crsdom
 &zsurfmsk(ji + 2, ijje)
           p_fld_crs(ii, 2) = zflcrs
         END DO
-        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1057,7 +1043,6 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
-        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1106,7 +1091,6 @@ MODULE crsdom
           CALL profile_psy_data2 % PostEnd
         END IF
         !$ACC KERNELS
-        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1140,7 +1124,6 @@ MODULE crsdom
 &r_inf)
           p_fld_crs(ii, 2) = zflcrs
         END DO
-        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1180,7 +1163,6 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
-        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1224,7 +1206,6 @@ MODULE crsdom
           CALL profile_psy_data4 % PostEnd
         END IF
         !$ACC KERNELS
-        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1258,7 +1239,6 @@ MODULE crsdom
 &r_inf)
           p_fld_crs(ii, 2) = zflcrs
         END DO
-        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1298,7 +1278,6 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
-        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = njstr, njend, nn_facty
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1386,7 +1365,6 @@ MODULE crsdom
     END IF
     !$ACC KERNELS
     DO jk = 1, jpk
-      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = njstr, njend, nn_facty
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -1487,7 +1465,6 @@ MODULE crsdom
     END IF
     !$ACC KERNELS
     DO jk = 1, jpk
-      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = njstr, njend, nn_facty
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2

@@ -165,9 +165,11 @@ MODULE sbcdcy
     END DO
     !$ACC END KERNELS
     IF (PRESENT(l_mask)) THEN
-      !$ACC KERNELS
-      IF (l_mask) zqsrout(:, :) = FLOAT(imask_night(:, :))
-      !$ACC END KERNELS
+      IF (l_mask) THEN
+        !$ACC KERNELS
+        zqsrout(:, :) = FLOAT(imask_night(:, :))
+        !$ACC END KERNELS
+      END IF
     END IF
   END FUNCTION sbc_dcy
 END MODULE sbcdcy

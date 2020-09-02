@@ -153,7 +153,6 @@ MODULE ldfslp
     CALL lbc_lnk_multi('ldfslp', zwz, 'U', - 1., zww, 'V', - 1.)
     DO jk = 2, jpkm1
       !$ACC KERNELS
-      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1, MAX(1, jpj - 3)
         DO ji = 2, jpim1
           uslp(ji, jj, jk) = z1_16 * (zwz(ji - 1, jj - 1, jk) + zwz(ji + 1, jj - 1, jk) + zwz(ji - 1, jj + 1, jk) + zwz(ji + 1, jj &
@@ -209,7 +208,6 @@ MODULE ldfslp
     CALL lbc_lnk_multi('ldfslp', zwz, 'T', - 1., zww, 'T', - 1.)
     DO jk = 2, jpkm1
       !$ACC KERNELS
-      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1, MAX(1, jpj - 3)
         DO ji = 2, jpim1
           zcofw = wmask(ji, jj, jk) * z1_16

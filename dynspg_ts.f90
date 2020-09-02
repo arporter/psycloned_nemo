@@ -220,12 +220,18 @@ MODULE dynspg_ts
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
-          zhf(:, jj) = zhf(:, jj) * (1._wp - umask(:, jj, 1) * umask(:, jj + 1, 1))
+          DO ji = 1, jpi
+            zhf(ji, jj) = zhf(ji, jj) * (1._wp - umask(ji, jj, 1) * umask(ji, jj + 1, 1))
+          END DO
         END DO
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 1, jpjm1
-            zhf(:, jj) = zhf(:, jj) + e3f_n(:, jj, jk) * umask(:, jj, jk) * umask(:, jj + 1, jk)
+            DO ji = 1, jpi
+              zhf(ji, jj) = zhf(ji, jj) + e3f_n(ji, jj, jk) * umask(ji, jj, jk) * umask(ji, jj + 1, jk)
+            END DO
           END DO
         END DO
         !$ACC END KERNELS
