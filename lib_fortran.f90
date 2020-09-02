@@ -406,7 +406,7 @@ MODULE lib_fortran
   END SUBROUTINE DDPDD
   FUNCTION SIGN_SCALAR(pa, pb)
     REAL(KIND = wp), intent(in), value :: pa, pb
-    REAL(KIND = wp) :: SIGN_SCALAR
+    REAL(KIND = wp), intent(in)        :: SIGN_SCALAR
     !$ACC ROUTINE
     IF (pb >= 0.E0) THEN
       sign_scalar = ABS(pa)

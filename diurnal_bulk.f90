@@ -37,7 +37,8 @@ MODULE diurnal_bulk
       END IF
     END IF
   END SUBROUTINE diurnal_sst_bulk_init
-  SUBROUTINE diurnal_sst_takaya_step(kt, psolflux, pqflux, ptauflux, prho, p_rdt, pla, pthick, pcoolthick, pmu, p_fvel_bkginc, p_hflux_bkginc)
+  SUBROUTINE diurnal_sst_takaya_step(kt, psolflux, pqflux, ptauflux, prho, p_rdt, pla, pthick, pcoolthick, pmu, p_fvel_bkginc, &
+&p_hflux_bkginc)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: psolflux
@@ -60,7 +61,6 @@ MODULE diurnal_bulk
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
-    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
     IF (.NOT. PRESENT(pthick)) THEN
       !$ACC KERNELS
       zthick(:, :) = 3._wp
@@ -101,7 +101,8 @@ MODULE diurnal_bulk
     IF (kt == nit000) THEN
       DO jj = 1, jpj
         DO ji = 1, jpi
-          IF ((x_solfrac(ji, jj) == 0._wp) .AND. (tmask(ji, jj, 1) == 1._wp)) x_solfrac(ji, jj) = solfrac(zcoolthick(ji, jj), zthick(ji, jj))
+          IF ((x_solfrac(ji, jj) == 0._wp) .AND. (tmask(ji, jj, 1) == 1._wp)) x_solfrac(ji, jj) = solfrac(zcoolthick(ji, jj), &
+&zthick(ji, jj))
         END DO
       END DO
     END IF
@@ -136,9 +137,8 @@ MODULE diurnal_bulk
       z_fla(:, :) = 0._wp
     END WHERE
     !$ACC END KERNELS
-    !CALL profile_psy_data3 % PreStart('diurnal_sst_takaya_step', 'r3', 0, 0)
+    !ARPDBG putting t_imp inside kernels region is difficult
     x_dsst(:, :) = t_imp(x_dsst(:, :), p_rdt, z_abflux(:, :), z_fvel(:, :), z_fla(:, :), zmu(:, :), zthick(:, :), prho(:, :))
-    !CALL profile_psy_data3 % PostEnd
   END SUBROUTINE diurnal_sst_takaya_step
   FUNCTION t_imp(p_dsst, p_rdt, p_abflux, p_fvel, p_fla, pmu, pthick, prho)
     USE profile_psy_data_mod, ONLY: profile_PSyDataType
@@ -158,14 +158,7 @@ MODULE diurnal_bulk
     REAL(KIND = wp) :: z_stabfunc
     REAL(KIND = wp) :: z_fvel
     CHARACTER(LEN = 200) :: warn_string
-    LOGICAL :: lwarn
     INTEGER :: ji, jj
-    !TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
-    !CALL profile_psy_data0 % PreStart('t_imp', 'r0', 0, 0)
-    lwarn = .FALSE.
-    !ARPDBG - not done by PSyclone because of CYCLE?
-    !$ACC KERNELS
-    !$ACC LOOP COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (tmask(ji, jj, 1) /= 1._wp) THEN
@@ -174,7 +167,9 @@ MODULE diurnal_bulk
         END IF
         IF (p_fvel(ji, jj) < pp_min_fvel) THEN
           z_fvel = pp_min_fvel
-          lwarn = .TRUE.
+          WRITE(warn_string, FMT = *) "diurnal_sst_takaya step: " // "friction velocity < minimum\n" // "Setting friction velocity &
+&=", pp_min_fvel
+          CALL ctl_warn(warn_string)
         ELSE
           z_fvel = p_fvel(ji, jj)
         END IF
@@ -195,11 +190,5 @@ MODULE diurnal_bulk
         t_imp(ji, jj) = (p_dsst(ji, jj) + p_rdt * z_term1) / (1._wp - p_rdt * z_term2)
       END DO
     END DO
-    !$ACC END KERNELS
-    IF (lwarn) THEN
-      WRITE(warn_string, FMT = *) "diurnal_sst_takaya step: " // "friction velocity < minimum\n" // "Setting friction velocity =", pp_min_fvel
-      CALL ctl_warn(warn_string)
-    END IF
-    !CALL profile_psy_data0 % PostEnd
   END FUNCTION t_imp
 END MODULE diurnal_bulk

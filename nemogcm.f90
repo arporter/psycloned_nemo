@@ -43,7 +43,6 @@ MODULE nemogcm
   PUBLIC :: nemo_init
   PUBLIC :: nemo_alloc
   CHARACTER(LEN = lc) :: cform_aaa = "( /, 'AAAAAAAA', / ) "
-  INCLUDE 'mpif.h'
   CONTAINS
   SUBROUTINE nemo_gcm
     INTEGER :: istp
@@ -53,9 +52,6 @@ MODULE nemogcm
     istp = nit000
     IF (.NOT. ln_diurnal_only) THEN
       DO WHILE (istp <= nitend .AND. nstop == 0)
-        ncom_stp = istp
-        IF (istp == (nit000 + 1)) elapsed_time = MPI_Wtime()
-        IF (istp == nitend) elapsed_time = MPI_Wtime() - elapsed_time
         CALL stp(istp)
         istp = istp + 1
       END DO
