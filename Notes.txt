@@ -8,3 +8,7 @@ cd cfgs/ORCA1_SI3_GO8/EXP00/
 vi ocean.output
 cat run.stat
 
+git checkout oce_si3_4_0_2_mpi
+git checkout oce_si3_mpi_4_0_2
+git checkout wayne_optimisation_branch
+
