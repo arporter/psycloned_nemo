@@ -16,13 +16,13 @@ MODULE iscplhsb
   PUBLIC :: iscpl_cons
   CONTAINS
   SUBROUTINE iscpl_cons(ptmask_b, psmask_b, pe3t_b, pts_flx, pvol_flx, prdt_iscpl)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: ptmask_b
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: pe3t_b
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: psmask_b
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: ptmask_b
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: pe3t_b
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: psmask_b
     REAL(KIND = wp), DIMENSION(:, :, :, :), INTENT(OUT) :: pts_flx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(OUT) :: pvol_flx
-    REAL(KIND = wp), INTENT(IN ) :: prdt_iscpl
+    REAL(KIND = wp), INTENT(IN) :: prdt_iscpl
     INTEGER :: ji, jj, jk
     INTEGER :: jip1, jim1, jjp1, jjm1
     REAL(KIND = wp) :: summsk, zsum, zsumn, zjip1_ratio, zjim1_ratio, zdtem, zde3t, z1_rdtiscpl
@@ -32,7 +32,9 @@ MODULE iscplhsb
     REAL(KIND = wp), DIMENSION(:), ALLOCATABLE :: zcorr_vol, zcorr_tem, zcorr_sal
     INTEGER, DIMENSION(:), ALLOCATABLE :: ixpts, iypts, izpts, inpts
     INTEGER :: jpts, npts
-    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     !$ACC KERNELS
     zde3t = 0._wp
     zdsal = 0._wp
@@ -46,7 +48,7 @@ MODULE iscplhsb
     tsn(:, :, :, jp_sal) = tsn(:, :, :, jp_sal) * tmask(:, :, :)
     zdssh(:, :) = sshn(:, :) * ssmask(:, :) - sshb(:, :) * psmask_b(:, :)
     !$ACC END KERNELS
-    CALL ProfileStart('iscpl_cons', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('iscpl_cons', 'r0', 0, 0)
     IF (.NOT. ln_linssh) zdssh = 0.0_wp
     DO jk = 1, jpk - 1
       DO jj = 2, jpj - 1
@@ -112,7 +114,11 @@ MODULE iscplhsb
     END DO
     STOP ' iscpl_cons:   please modify this module !'
     ALLOCATE(inpts(jpnij))
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     inpts(:) = 0
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('iscpl_cons', 'r1', 0, 0)
     DO jk = 1, jpk - 1
       DO jj = 2, jpj - 1
         DO ji = 2, jpim1
@@ -125,6 +131,8 @@ MODULE iscplhsb
     CALL mpp_max(inpts, jpnij)
     npts = SUM(inpts)
     ALLOCATE(ixpts(npts), iypts(npts), izpts(npts), zcorr_vol(npts), zcorr_sal(npts), zcorr_tem(npts), zlon(npts), zlat(npts))
+    CALL profile_psy_data1 % PostEnd
+    !$ACC KERNELS
     ixpts(:) = - 9999
     iypts(:) = - 9999
     izpts(:) = - 9999
@@ -133,6 +141,8 @@ MODULE iscplhsb
     zcorr_vol(:) = - 1.0E20_wp
     zcorr_sal(:) = - 1.0E20_wp
     zcorr_tem(:) = - 1.0E20_wp
+    !$ACC END KERNELS
+    CALL profile_psy_data2 % PreStart('iscpl_cons', 'r2', 0, 0)
     jpts = SUM(inpts(1 : narea - 1))
     DO jk = 1, jpk - 1
       DO jj = 2, jpj - 1
@@ -178,7 +188,7 @@ MODULE iscplhsb
     END DO
     DEALLOCATE(inpts)
     DEALLOCATE(ixpts, iypts, izpts, zcorr_vol, zcorr_sal, zcorr_tem, zlon, zlat)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data2 % PostEnd
     !$ACC KERNELS
     pvol_flx(:, :, :) = pvol_flx(:, :, :) * tmask(:, :, :)
     pts_flx(:, :, :, jp_sal) = pts_flx(:, :, :, jp_sal) * tmask(:, :, :)
@@ -190,6 +200,7 @@ MODULE iscplhsb
     INTEGER :: ji, jj, jk
     !$ACC KERNELS
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           phdivn(ji, jj, jk) = phdivn(ji, jj, jk) + hdiv_iscpl(ji, jj, jk) / e3t_n(ji, jj, jk)

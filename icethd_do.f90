@@ -25,7 +25,7 @@ MODULE icethd_do
   REAL(KIND = wp) :: rn_Cfraz
   CONTAINS
   SUBROUTINE ice_thd_do
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk, jl
     INTEGER :: iter
     REAL(KIND = wp) :: ztmelts, zfrazb, zweight, zde
@@ -53,21 +53,17 @@ MODULE icethd_do
     REAL(KIND = wp), DIMENSION(jpij, nlay_i, jpl) :: ze_i_2d
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zvrel
     REAL(KIND = wp) :: zcai = 1.4E-3_wp
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
-    TYPE(ProfileData), SAVE :: psy_profile7
-    TYPE(ProfileData), SAVE :: psy_profile8
-    TYPE(ProfileData), SAVE :: psy_profile9
-    CALL ProfileStart('ice_thd_do', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    CALL profile_psy_data0 % PreStart('ice_thd_do', 'r0', 0, 0)
     IF (ln_icediachk) CALL ice_cons_hsm(0, 'icethd_do', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     CALL ice_var_agg(1)
     CALL ice_var_glo2eqv
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zvrel(:, :) = 0._wp
     WHERE (qlead(:, :) < 0._wp)
@@ -84,7 +80,7 @@ MODULE icethd_do
       zsqcd = 1.0 / SQRT(1.3 * zcai)
       zgamafr = 0.03
       !$ACC END KERNELS
-      CALL ProfileStart('ice_thd_do', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('ice_thd_do', 'r1', 0, 0)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           IF (qlead(ji, jj) < 0._wp .AND. tau_icebfr(ji, jj) == 0._wp) THEN
@@ -111,13 +107,12 @@ MODULE icethd_do
         END DO
       END DO
       CALL lbc_lnk_multi(zvrel, 'T', 1., ht_i_new, 'T', 1.)
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
     END IF
-    CALL ProfileStart('ice_thd_do', 'r2', psy_profile2)
+    !$ACC KERNELS
     npti = 0
     nptidx(:) = 0
-    CALL ProfileEnd(psy_profile2)
-    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (qlead(ji, jj) < 0._wp .AND. tau_icebfr(ji, jj) == 0._wp) THEN
@@ -128,7 +123,7 @@ MODULE icethd_do
     END DO
     !$ACC END KERNELS
     IF (npti > 0) THEN
-      CALL ProfileStart('ice_thd_do', 'r3', psy_profile3)
+      CALL profile_psy_data2 % PreStart('ice_thd_do', 'r2', 0, 0)
       CALL tab_2d_1d(npti, nptidx(1 : npti), at_i_1d(1 : npti), at_i)
       CALL tab_3d_2d(npti, nptidx(1 : npti), a_i_2d(1 : npti, 1 : jpl), a_i(:, :, :))
       CALL tab_3d_2d(npti, nptidx(1 : npti), v_i_2d(1 : npti, 1 : jpl), v_i(:, :, :))
@@ -157,37 +152,25 @@ MODULE icethd_do
           END WHERE
         END DO
       END DO
-      CALL ProfileEnd(psy_profile3)
+      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       zv_b(1 : npti, :) = v_i_2d(1 : npti, :)
       za_b(1 : npti, :) = a_i_2d(1 : npti, :)
-      !$ACC END KERNELS
       SELECT CASE (nn_icesal)
       CASE (1)
-        CALL ProfileStart('ice_thd_do', 'r4', psy_profile4)
         zs_newice(1 : npti) = rn_icesal
-        CALL ProfileEnd(psy_profile4)
       CASE (2)
-        !$ACC KERNELS
         DO ji = 1, npti
           zs_newice(ji) = MIN(4.606 + 0.91 / zh_newice(ji), rn_simax, 0.5 * sss_1d(ji))
         END DO
-        !$ACC END KERNELS
       CASE (3)
-        CALL ProfileStart('ice_thd_do', 'r5', psy_profile5)
         zs_newice(1 : npti) = 2.3
-        CALL ProfileEnd(psy_profile5)
       END SELECT
-      !$ACC KERNELS
       DO ji = 1, npti
         ztmelts = - rTmlt * zs_newice(ji)
         ze_newice(ji) = rhoi * (rcpi * (ztmelts - (t_bo_1d(ji) - rt0)) + rLfus * (1.0 - ztmelts / MIN(t_bo_1d(ji) - rt0, - epsi10)) - rcp * ztmelts)
       END DO
-      !$ACC END KERNELS
-      CALL ProfileStart('ice_thd_do', 'r6', psy_profile6)
       zo_newice(1 : npti) = 0._wp
-      CALL ProfileEnd(psy_profile6)
-      !$ACC KERNELS
       DO ji = 1, npti
         zEi = - ze_newice(ji) * r1_rhoi
         zEw = rcp * (t_bo_1d(ji) - rt0)
@@ -200,9 +183,9 @@ MODULE icethd_do
         wfx_opw_1d(ji) = wfx_opw_1d(ji) - zv_newice(ji) * rhoi * r1_rdtice
         sfx_opw_1d(ji) = sfx_opw_1d(ji) - zv_newice(ji) * rhoi * zs_newice(ji) * r1_rdtice
       END DO
-      !$ACC END KERNELS
-      CALL ProfileStart('ice_thd_do', 'r7', psy_profile7)
       zv_frazb(1 : npti) = 0._wp
+      !$ACC END KERNELS
+      CALL profile_psy_data3 % PreStart('ice_thd_do', 'r3', 0, 0)
       IF (ln_frazil) THEN
         DO ji = 1, npti
           rswitch = 1._wp - MAX(0._wp, SIGN(1._wp, - at_i_1d(ji)))
@@ -211,13 +194,13 @@ MODULE icethd_do
           zv_newice(ji) = (1.0 - zfrazb) * zv_newice(ji)
         END DO
       END IF
-      CALL ProfileEnd(psy_profile7)
+      CALL profile_psy_data3 % PostEnd
       !$ACC KERNELS
       DO ji = 1, npti
         za_newice(ji) = zv_newice(ji) / zh_newice(ji)
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('ice_thd_do', 'r8', psy_profile8)
+      CALL profile_psy_data4 % PreStart('ice_thd_do', 'r4', 0, 0)
       DO ji = 1, npti
         IF (za_newice(ji) > (rn_amax_1d(ji) - at_i_1d(ji))) THEN
           zda_res(ji) = za_newice(ji) - (rn_amax_1d(ji) - at_i_1d(ji))
@@ -238,9 +221,9 @@ MODULE icethd_do
           END IF
         END DO
       END DO
-      at_i_1d(1 : npti) = SUM(a_i_2d(1 : npti, :), dim = 2)
-      CALL ProfileEnd(psy_profile8)
+      CALL profile_psy_data4 % PostEnd
       !$ACC KERNELS
+      at_i_1d(1 : npti) = SUM(a_i_2d(1 : npti, :), dim = 2)
       DO ji = 1, npti
         jl = jcat(ji)
         zswinew(ji) = MAX(0._wp, SIGN(1._wp, - za_b(ji, jl)))
@@ -288,7 +271,7 @@ MODULE icethd_do
         END DO
         !$ACC END KERNELS
       END DO
-      CALL ProfileStart('ice_thd_do', 'r9', psy_profile9)
+      CALL profile_psy_data5 % PreStart('ice_thd_do', 'r5', 0, 0)
       CALL tab_2d_3d(npti, nptidx(1 : npti), a_i_2d(1 : npti, 1 : jpl), a_i(:, :, :))
       CALL tab_2d_3d(npti, nptidx(1 : npti), v_i_2d(1 : npti, 1 : jpl), v_i(:, :, :))
       CALL tab_2d_3d(npti, nptidx(1 : npti), sv_i_2d(1 : npti, 1 : jpl), sv_i(:, :, :))
@@ -301,13 +284,16 @@ MODULE icethd_do
       CALL tab_1d_2d(npti, nptidx(1 : npti), wfx_opw_1d(1 : npti), wfx_opw)
       CALL tab_1d_2d(npti, nptidx(1 : npti), hfx_thd_1d(1 : npti), hfx_thd)
       CALL tab_1d_2d(npti, nptidx(1 : npti), hfx_opw_1d(1 : npti), hfx_opw)
-      CALL ProfileEnd(psy_profile9)
+      CALL profile_psy_data5 % PostEnd
     END IF
     IF (ln_icediachk) CALL ice_cons_hsm(1, 'icethd_do', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
   END SUBROUTINE ice_thd_do
   SUBROUTINE ice_thd_do_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     NAMELIST /namthd_do/ rn_hinew, ln_frazil, rn_maxfraz, rn_vfraz, rn_Cfraz
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_thd_do_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ice_ref)
     READ(numnam_ice_ref, namthd_do, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namthd_do in reference namelist', lwp)
@@ -327,5 +313,6 @@ MODULE icethd_do
       WRITE(numout, FMT = *) '      Squeezing coefficient for collection of frazil            rn_Cfraz   = ', rn_Cfraz
     END IF
     IF (rn_hinew < rn_himin) CALL ctl_stop('ice_thd_do_init : rn_hinew should be >= rn_himin')
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_thd_do_init
 END MODULE icethd_do

@@ -22,27 +22,28 @@ MODULE dynldf_iso
     IF (dyn_ldf_iso_alloc /= 0) CALL ctl_warn('dyn_ldf_iso_alloc: array allocate failed.')
   END FUNCTION dyn_ldf_iso_alloc
   SUBROUTINE dyn_ldf_iso(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT( IN ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zabe1, zmskt, zmkt, zuav, zuwslpi, zuwslpj
     REAL(KIND = wp) :: zabe2, zmskf, zmkf, zvav, zvwslpi, zvwslpj
     REAL(KIND = wp) :: zcof0, zcof1, zcof2, zcof3, zcof4, zaht_0
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ziut, zivf, zdku, zdk1u
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zjuf, zjvt, zdkv, zdk1v
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('dyn_ldf_iso', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('dyn_ldf_iso', 'r0', 0, 0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn_ldf_iso : iso-neutral laplacian diffusive operator or '
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~   s-coordinate horizontal diffusive operator'
       IF (dyn_ldf_iso_alloc() /= 0) CALL ctl_stop('STOP', 'dyn_ldf_iso: failed to allocate arrays')
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (ln_dynldf_hor .AND. ln_traldf_iso) THEN
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             uslp(ji, jj, jk) = - (gdept_b(ji + 1, jj, jk) - gdept_b(ji, jj, jk)) * r1_e1u(ji, jj) * umask(ji, jj, jk)
@@ -55,9 +56,9 @@ MODULE dynldf_iso
       !$ACC END KERNELS
       CALL lbc_lnk_multi(uslp, 'U', - 1., vslp, 'V', - 1., wslpi, 'W', - 1., wslpj, 'W', - 1.)
     END IF
-    CALL ProfileStart('dyn_ldf_iso', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('dyn_ldf_iso', 'r1', 0, 0)
     zaht_0 = 0.5_wp * rn_Ud * rn_Ld
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     DO jk = 1, jpkm1
       !$ACC KERNELS
       zdk1u(:, :) = (ub(:, :, jk) - ub(:, :, jk + 1)) * umask(:, :, jk + 1)
@@ -72,6 +73,7 @@ MODULE dynldf_iso
       !$ACC END KERNELS
       IF (ln_zps) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpi
             zabe1 = (ahmt(ji, jj, jk) + rn_ahm_b) * e2t(ji, jj) * MIN(e3u_n(ji, jj, jk), e3u_n(ji - 1, jj, jk)) * r1_e1t(ji, jj)
@@ -83,6 +85,7 @@ MODULE dynldf_iso
         !$ACC END KERNELS
       ELSE
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpi
             zabe1 = (ahmt(ji, jj, jk) + rn_ahm_b) * e2t(ji, jj) * e3t_n(ji, jj, jk) * r1_e1t(ji, jj)
@@ -94,6 +97,7 @@ MODULE dynldf_iso
         !$ACC END KERNELS
       END IF
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           zabe2 = (ahmf(ji, jj, jk) + rn_ahm_b) * e1f(ji, jj) * e3f_n(ji, jj, jk) * r1_e2f(ji, jj)
@@ -102,6 +106,7 @@ MODULE dynldf_iso
           zjuf(ji, jj) = (zabe2 * (ub(ji, jj + 1, jk) - ub(ji, jj, jk)) + zcof2 * (zdku(ji, jj + 1) + zdk1u(ji, jj) + zdk1u(ji, jj + 1) + zdku(ji, jj))) * fmask(ji, jj, jk)
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 1, jpim1
           zabe1 = (ahmf(ji, jj, jk) + rn_ahm_b) * e2f(ji, jj) * e3f_n(ji, jj, jk) * r1_e1f(ji, jj)
@@ -113,6 +118,7 @@ MODULE dynldf_iso
       !$ACC END KERNELS
       IF (ln_zps) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpj
           DO ji = 1, jpim1
             zabe2 = (ahmt(ji, jj, jk) + rn_ahm_b) * e1t(ji, jj) * MIN(e3v_n(ji, jj, jk), e3v_n(ji, jj - 1, jk)) * r1_e2t(ji, jj)
@@ -124,6 +130,7 @@ MODULE dynldf_iso
         !$ACC END KERNELS
       ELSE
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpj
           DO ji = 1, jpim1
             zabe2 = (ahmt(ji, jj, jk) + rn_ahm_b) * e1t(ji, jj) * e3t_n(ji, jj, jk) * r1_e2t(ji, jj)
@@ -135,6 +142,7 @@ MODULE dynldf_iso
         !$ACC END KERNELS
       END IF
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ua(ji, jj, jk) = ua(ji, jj, jk) + (ziut(ji + 1, jj) - ziut(ji, jj) + zjuf(ji, jj) - zjuf(ji, jj - 1)) * r1_e1e2u(ji, jj) / e3u_n(ji, jj, jk)

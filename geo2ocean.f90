@@ -19,13 +19,13 @@ MODULE geo2ocean
   LOGICAL :: lmust_init = .TRUE.
   CONTAINS
   SUBROUTINE rot_rep(pxin, pyin, cd_type, cdtodo, prot)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pxin, pyin
-    CHARACTER(LEN = 1), INTENT(IN ) :: cd_type
-    CHARACTER(LEN = 5), INTENT(IN ) :: cdtodo
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: prot
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('rot_rep', 'r0', psy_profile0)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pxin, pyin
+    CHARACTER(LEN = 1), INTENT(IN) :: cd_type
+    CHARACTER(LEN = 5), INTENT(IN) :: cdtodo
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT) :: prot
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('rot_rep', 'r0', 0, 0)
     IF (lmust_init) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) ' rot_rep: coordinate transformation : geographic <==> model (i,j)-components'
@@ -33,7 +33,7 @@ MODULE geo2ocean
       CALL angle
       lmust_init = .FALSE.
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     SELECT CASE (cdtodo)
     CASE ('en->i')
       SELECT CASE (cd_type)
@@ -124,7 +124,7 @@ MODULE geo2ocean
     END SELECT
   END SUBROUTINE rot_rep
   SUBROUTINE angle
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj
     INTEGER :: ierr
     REAL(KIND = wp) :: zlam, zphi
@@ -137,13 +137,14 @@ MODULE geo2ocean
     REAL(KIND = wp) :: zxffu, zyffu, znffu
     REAL(KIND = wp) :: zxffv, zyffv, znffv
     REAL(KIND = wp) :: zxuuf, zyuuf, znuuf
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('angle', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('angle', 'r0', 0, 0)
     ALLOCATE(gsint(jpi, jpj), gcost(jpi, jpj), gsinu(jpi, jpj), gcosu(jpi, jpj), gsinv(jpi, jpj), gcosv(jpi, jpj), gsinf(jpi, jpj), gcosf(jpi, jpj), STAT = ierr)
     IF (lk_mpp) CALL mpp_sum(ierr)
     IF (ierr /= 0) CALL ctl_stop('angle: unable to allocate arrays')
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpi
         zlam = glamt(ji, jj)
@@ -208,6 +209,7 @@ MODULE geo2ocean
         gcosv(ji, jj) = - (zxnpv * zyffv - zynpv * zxffv) / znffv
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpi
         IF (MOD(ABS(glamv(ji, jj) - glamv(ji, jj - 1)), 360.) < 1.E-8) THEN
@@ -232,33 +234,33 @@ MODULE geo2ocean
     CALL lbc_lnk_multi(gcost, 'T', - 1., gsint, 'T', - 1., gcosu, 'U', - 1., gsinu, 'U', - 1., gcosv, 'V', - 1., gsinv, 'V', - 1., gcosf, 'F', - 1., gsinf, 'F', - 1.)
   END SUBROUTINE angle
   SUBROUTINE geo2oce(pxx, pyy, pzz, cgrid, pte, ptn)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: pxx, pyy, pzz
-    CHARACTER(LEN = 1), INTENT(IN ) :: cgrid
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: pte, ptn
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pxx, pyy, pzz
+    CHARACTER(LEN = 1), INTENT(IN) :: cgrid
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT) :: pte, ptn
     REAL(KIND = wp), PARAMETER :: rpi = 3.141592653E0
     REAL(KIND = wp), PARAMETER :: rad = rpi / 180.E0
     INTEGER :: ig
     INTEGER :: ierr
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
-    CALL ProfileStart('geo2oce', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    CALL profile_psy_data0 % PreStart('geo2oce', 'r0', 0, 0)
     IF (.NOT. ALLOCATED(gsinlon)) THEN
       ALLOCATE(gsinlon(jpi, jpj, 4), gcoslon(jpi, jpj, 4), gsinlat(jpi, jpj, 4), gcoslat(jpi, jpj, 4), STAT = ierr)
       IF (lk_mpp) CALL mpp_sum(ierr)
       IF (ierr /= 0) CALL ctl_stop('geo2oce: unable to allocate arrays')
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     SELECT CASE (cgrid)
     CASE ('T')
-      CALL ProfileStart('geo2oce', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('geo2oce', 'r1', 0, 0)
       ig = 1
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
       IF (.NOT. linit(ig)) THEN
         !$ACC KERNELS
         gsinlon(:, :, ig) = SIN(rad * glamt(:, :))
@@ -269,9 +271,9 @@ MODULE geo2ocean
         !$ACC END KERNELS
       END IF
     CASE ('U')
-      CALL ProfileStart('geo2oce', 'r2', psy_profile2)
+      CALL profile_psy_data2 % PreStart('geo2oce', 'r2', 0, 0)
       ig = 2
-      CALL ProfileEnd(psy_profile2)
+      CALL profile_psy_data2 % PostEnd
       IF (.NOT. linit(ig)) THEN
         !$ACC KERNELS
         gsinlon(:, :, ig) = SIN(rad * glamu(:, :))
@@ -282,9 +284,9 @@ MODULE geo2ocean
         !$ACC END KERNELS
       END IF
     CASE ('V')
-      CALL ProfileStart('geo2oce', 'r3', psy_profile3)
+      CALL profile_psy_data3 % PreStart('geo2oce', 'r3', 0, 0)
       ig = 3
-      CALL ProfileEnd(psy_profile3)
+      CALL profile_psy_data3 % PostEnd
       IF (.NOT. linit(ig)) THEN
         !$ACC KERNELS
         gsinlon(:, :, ig) = SIN(rad * glamv(:, :))
@@ -295,9 +297,9 @@ MODULE geo2ocean
         !$ACC END KERNELS
       END IF
     CASE ('F')
-      CALL ProfileStart('geo2oce', 'r4', psy_profile4)
+      CALL profile_psy_data4 % PreStart('geo2oce', 'r4', 0, 0)
       ig = 4
-      CALL ProfileEnd(psy_profile4)
+      CALL profile_psy_data4 % PostEnd
       IF (.NOT. linit(ig)) THEN
         !$ACC KERNELS
         gsinlon(:, :, ig) = SIN(rad * glamf(:, :))
@@ -308,44 +310,44 @@ MODULE geo2ocean
         !$ACC END KERNELS
       END IF
     CASE DEFAULT
-      CALL ProfileStart('geo2oce', 'r5', psy_profile5)
+      CALL profile_psy_data5 % PreStart('geo2oce', 'r5', 0, 0)
       WRITE(ctmp1, FMT = *) 'geo2oce : bad grid argument : ', cgrid
       CALL ctl_stop(ctmp1)
-      CALL ProfileEnd(psy_profile5)
+      CALL profile_psy_data5 % PostEnd
     END SELECT
-    CALL ProfileStart('geo2oce', 'r6', psy_profile6)
+    CALL profile_psy_data6 % PreStart('geo2oce', 'r6', 0, 0)
     pte = - gsinlon(:, :, ig) * pxx + gcoslon(:, :, ig) * pyy
     ptn = - gcoslon(:, :, ig) * gsinlat(:, :, ig) * pxx - gsinlon(:, :, ig) * gsinlat(:, :, ig) * pyy + gcoslat(:, :, ig) * pzz
-    CALL ProfileEnd(psy_profile6)
+    CALL profile_psy_data6 % PostEnd
   END SUBROUTINE geo2oce
   SUBROUTINE oce2geo(pte, ptn, cgrid, pxx, pyy, pzz)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( IN ) :: pte, ptn
-    CHARACTER(LEN = 1), INTENT( IN ) :: cgrid
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT ) :: pxx, pyy, pzz
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pte, ptn
+    CHARACTER(LEN = 1), INTENT(IN) :: cgrid
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT) :: pxx, pyy, pzz
     REAL(KIND = wp), PARAMETER :: rpi = 3.141592653E0
     REAL(KIND = wp), PARAMETER :: rad = rpi / 180.E0
     INTEGER :: ig
     INTEGER :: ierr
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
-    CALL ProfileStart('oce2geo', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    CALL profile_psy_data0 % PreStart('oce2geo', 'r0', 0, 0)
     IF (.NOT. ALLOCATED(gsinlon)) THEN
       ALLOCATE(gsinlon(jpi, jpj, 4), gcoslon(jpi, jpj, 4), gsinlat(jpi, jpj, 4), gcoslat(jpi, jpj, 4), STAT = ierr)
       IF (lk_mpp) CALL mpp_sum(ierr)
       IF (ierr /= 0) CALL ctl_stop('oce2geo: unable to allocate arrays')
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     SELECT CASE (cgrid)
     CASE ('T')
-      CALL ProfileStart('oce2geo', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('oce2geo', 'r1', 0, 0)
       ig = 1
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
       IF (.NOT. linit(ig)) THEN
         !$ACC KERNELS
         gsinlon(:, :, ig) = SIN(rad * glamt(:, :))
@@ -356,9 +358,9 @@ MODULE geo2ocean
         !$ACC END KERNELS
       END IF
     CASE ('U')
-      CALL ProfileStart('oce2geo', 'r2', psy_profile2)
+      CALL profile_psy_data2 % PreStart('oce2geo', 'r2', 0, 0)
       ig = 2
-      CALL ProfileEnd(psy_profile2)
+      CALL profile_psy_data2 % PostEnd
       IF (.NOT. linit(ig)) THEN
         !$ACC KERNELS
         gsinlon(:, :, ig) = SIN(rad * glamu(:, :))
@@ -369,9 +371,9 @@ MODULE geo2ocean
         !$ACC END KERNELS
       END IF
     CASE ('V')
-      CALL ProfileStart('oce2geo', 'r3', psy_profile3)
+      CALL profile_psy_data3 % PreStart('oce2geo', 'r3', 0, 0)
       ig = 3
-      CALL ProfileEnd(psy_profile3)
+      CALL profile_psy_data3 % PostEnd
       IF (.NOT. linit(ig)) THEN
         !$ACC KERNELS
         gsinlon(:, :, ig) = SIN(rad * glamv(:, :))
@@ -382,9 +384,9 @@ MODULE geo2ocean
         !$ACC END KERNELS
       END IF
     CASE ('F')
-      CALL ProfileStart('oce2geo', 'r4', psy_profile4)
+      CALL profile_psy_data4 % PreStart('oce2geo', 'r4', 0, 0)
       ig = 4
-      CALL ProfileEnd(psy_profile4)
+      CALL profile_psy_data4 % PostEnd
       IF (.NOT. linit(ig)) THEN
         !$ACC KERNELS
         gsinlon(:, :, ig) = SIN(rad * glamf(:, :))
@@ -395,22 +397,22 @@ MODULE geo2ocean
         !$ACC END KERNELS
       END IF
     CASE DEFAULT
-      CALL ProfileStart('oce2geo', 'r5', psy_profile5)
+      CALL profile_psy_data5 % PreStart('oce2geo', 'r5', 0, 0)
       WRITE(ctmp1, FMT = *) 'geo2oce : bad grid argument : ', cgrid
       CALL ctl_stop(ctmp1)
-      CALL ProfileEnd(psy_profile5)
+      CALL profile_psy_data5 % PostEnd
     END SELECT
-    CALL ProfileStart('oce2geo', 'r6', psy_profile6)
+    CALL profile_psy_data6 % PreStart('oce2geo', 'r6', 0, 0)
     pxx = - gsinlon(:, :, ig) * pte - gcoslon(:, :, ig) * gsinlat(:, :, ig) * ptn
     pyy = gcoslon(:, :, ig) * pte - gsinlon(:, :, ig) * gsinlat(:, :, ig) * ptn
     pzz = gcoslat(:, :, ig) * ptn
-    CALL ProfileEnd(psy_profile6)
+    CALL profile_psy_data6 % PostEnd
   END SUBROUTINE oce2geo
   SUBROUTINE obs_rot(psinu, pcosu, psinv, pcosv)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT ) :: psinu, pcosu, psinv, pcosv
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('obs_rot', 'r0', psy_profile0)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT) :: psinu, pcosu, psinv, pcosv
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_rot', 'r0', 0, 0)
     IF (lmust_init) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) ' obs_rot : geographic <--> stretched'
@@ -418,7 +420,7 @@ MODULE geo2ocean
       CALL angle
       lmust_init = .FALSE.
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     psinu(:, :) = gsinu(:, :)
     pcosu(:, :) = gcosu(:, :)

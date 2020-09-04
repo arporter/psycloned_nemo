@@ -20,12 +20,12 @@ MODULE traldf
   PUBLIC :: tra_ldf_init
   CONTAINS
   SUBROUTINE tra_ldf(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT( IN ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ztrdt, ztrds
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     IF (ln_timing) CALL timing_start('tra_ldf')
     IF (l_trdtra) THEN
       ALLOCATE(ztrdt(jpi, jpj, jpk), ztrds(jpi, jpj, jpk))
@@ -34,7 +34,7 @@ MODULE traldf
       ztrds(:, :, :) = tsa(:, :, :, jp_sal)
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('tra_ldf', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('tra_ldf', 'r0', 0, 0)
     SELECT CASE (nldf_tra)
     CASE (np_lap)
       CALL tra_ldf_lap(kt, nit000, 'TRA', ahtu, ahtv, gtsu, gtsv, gtui, gtvi, tsb, tsa, jpts, 1)
@@ -45,25 +45,28 @@ MODULE traldf
     CASE (np_blp, np_blp_i, np_blp_it)
       CALL tra_ldf_blp(kt, nit000, 'TRA', ahtu, ahtv, gtsu, gtsv, gtui, gtvi, tsb, tsa, jpts, nldf_tra)
     END SELECT
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (l_trdtra) THEN
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem) - ztrdt(:, :, :)
       ztrds(:, :, :) = tsa(:, :, :, jp_sal) - ztrds(:, :, :)
       !$ACC END KERNELS
-      CALL ProfileStart('tra_ldf', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('tra_ldf', 'r1', 0, 0)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_ldf, ztrdt)
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_ldf, ztrds)
       DEALLOCATE(ztrdt, ztrds)
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
     END IF
-    CALL ProfileStart('tra_ldf', 'r2', psy_profile2)
+    CALL profile_psy_data2 % PreStart('tra_ldf', 'r2', 0, 0)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' ldf  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_ldf')
-    CALL ProfileEnd(psy_profile2)
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE tra_ldf
   SUBROUTINE tra_ldf_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ioptio, ierr
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('tra_ldf_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'tra_ldf_init : lateral tracer diffusive operator'
@@ -88,5 +91,6 @@ MODULE traldf
         WRITE(numout, FMT = *) '   ==>>>   Rotated bilaplacian operator (triad)'
       END SELECT
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tra_ldf_init
 END MODULE traldf

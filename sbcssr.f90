@@ -27,8 +27,8 @@ MODULE sbcssr
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_sss
   CONTAINS
   SUBROUTINE sbc_ssr(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zerp
     REAL(KIND = wp) :: zqrp
@@ -37,8 +37,8 @@ MODULE sbcssr
     INTEGER :: ierror
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N) :: sn_sst, sn_sss
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('sbc_ssr', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('sbc_ssr', 'r0', 0, 0)
     IF (nn_sstr + nn_sssr /= 0) THEN
       IF (nn_sstr == 1) CALL fld_read(kt, nn_fsbc, sf_sst)
       IF (nn_sssr >= 1) CALL fld_read(kt, nn_fsbc, sf_sss)
@@ -79,9 +79,10 @@ MODULE sbcssr
         END IF
       END IF
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE sbc_ssr
   SUBROUTINE sbc_ssr_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zerp
     REAL(KIND = wp) :: zqrp
@@ -92,6 +93,8 @@ MODULE sbcssr
     TYPE(FLD_N) :: sn_sst, sn_sss
     NAMELIST /namsbc_ssr/ cn_dir, nn_sstr, nn_sssr, rn_dqdt, rn_deds, sn_sst, sn_sss, ln_sssr_bnd, rn_sssr_bnd
     INTEGER :: ios
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('sbc_ssr_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'sbc_ssr : SST and/or SSS damping term '
@@ -134,6 +137,7 @@ MODULE sbcssr
       IF (sf_sss(1) % ln_tint) ALLOCATE(sf_sss(1) % fdta(jpi, jpj, 1, 2), STAT = ierror)
       IF (ierror > 0) CALL ctl_stop('STOP', 'sbc_ssr: unable to allocate sf_sss data array')
     END IF
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     IF (nn_sstr /= 1) qrp(:, :) = 0._wp
     IF (nn_sssr /= 1 .OR. nn_sssr /= 2) erp(:, :) = 0._wp

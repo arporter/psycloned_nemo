@@ -11,7 +11,7 @@ MODULE obs_inter_sup
   PUBLIC :: obs_int_comm_3d, obs_int_comm_2d
   CONTAINS
   SUBROUTINE obs_int_comm_3d(kptsi, kptsj, kobs, kpi, kpj, kpk, kgrdi, kgrdj, pval, pgval, kproc)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kptsi
     INTEGER, INTENT(IN) :: kptsj
     INTEGER, INTENT(IN) :: kobs
@@ -22,8 +22,8 @@ MODULE obs_inter_sup
     INTEGER, OPTIONAL, DIMENSION(kptsi, kptsj, kobs), INTENT(IN) :: kproc
     REAL(KIND = wp), DIMENSION(kpi, kpj, kpk), INTENT(IN) :: pval
     REAL(KIND = wp), DIMENSION(kptsi, kptsj, kpk, kobs), INTENT(OUT) :: pgval
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('obs_int_comm_3d', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_int_comm_3d', 'r0', 0, 0)
     IF (ln_grid_global) THEN
       IF (PRESENT(kproc)) THEN
         CALL obs_int_comm_3d_global(kptsi, kptsj, kobs, kpi, kpj, kpk, kgrdi, kgrdj, pval, pgval, kproc = kproc)
@@ -33,10 +33,10 @@ MODULE obs_inter_sup
     ELSE
       CALL obs_int_comm_3d_local(kptsi, kptsj, kobs, kpi, kpj, kpk, kgrdi, kgrdj, pval, pgval)
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_int_comm_3d
   SUBROUTINE obs_int_comm_2d(kptsi, kptsj, kobs, kpi, kpj, kgrdi, kgrdj, pval, pgval, kproc)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kptsi
     INTEGER, INTENT(IN) :: kptsj
     INTEGER, INTENT(IN) :: kobs
@@ -48,23 +48,23 @@ MODULE obs_inter_sup
     REAL(KIND = wp), DIMENSION(kptsi, kptsj, kobs), INTENT(OUT) :: pgval
     REAL(KIND = wp), DIMENSION(jpi, jpj, 1) :: zval
     REAL(KIND = wp), DIMENSION(kptsi, kptsj, 1, kobs) :: zgval
-    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     zval(:, :, 1) = pval(:, :)
     !$ACC END KERNELS
-    CALL ProfileStart('obs_int_comm_2d', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('obs_int_comm_2d', 'r0', 0, 0)
     IF (PRESENT(kproc)) THEN
       CALL obs_int_comm_3d(kptsi, kptsj, kobs, kpi, kpj, 1, kgrdi, kgrdj, zval, zgval, kproc = kproc)
     ELSE
       CALL obs_int_comm_3d(kptsi, kptsj, kobs, kpi, kpj, 1, kgrdi, kgrdj, zval, zgval)
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     pgval(:, :, :) = zgval(:, :, 1, :)
     !$ACC END KERNELS
   END SUBROUTINE obs_int_comm_2d
   SUBROUTINE obs_int_comm_3d_global(kptsi, kptsj, kobs, kpi, kpj, kpk, kgrdi, kgrdj, pval, pgval, kproc)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kptsi
     INTEGER, INTENT(IN) :: kptsj
     INTEGER, INTENT(IN) :: kobs
@@ -89,19 +89,21 @@ MODULE obs_inter_sup
     INTEGER :: itot
     INTEGER :: ii
     INTEGER :: ij
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    CALL ProfileStart('obs_int_comm_3d_global', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('obs_int_comm_3d_global', 'r0', 0, 0)
     IF ((MAXVAL(kgrdi) > jpiglo) .OR. (MINVAL(kgrdi) < 1) .OR. (MAXVAL(kgrdj) > jpjglo) .OR. (MINVAL(kgrdj) < 1)) THEN
       CALL ctl_stop('Error in obs_int_comm_3d_global', 'Point outside global domain')
     END IF
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     nplocal(:) = 0
-    CALL ProfileEnd(psy_profile0)
+    !$ACC END KERNELS
     IF (PRESENT(kproc)) THEN
       !$ACC KERNELS
       iproc(:, :, :) = kproc(:, :, :)
       DO jobs = 1, kobs
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, kptsj
           DO ji = 1, kptsi
             nplocal(iproc(ji, jj, jobs)) = nplocal(iproc(ji, jj, jobs)) + 1
@@ -112,6 +114,7 @@ MODULE obs_inter_sup
     ELSE
       !$ACC KERNELS
       DO jobs = 1, kobs
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, kptsj
           DO ji = 1, kptsi
             iproc(ji, jj, jobs) = mppmap(kgrdi(ji, jj, jobs), kgrdj(ji, jj, jobs))
@@ -121,15 +124,16 @@ MODULE obs_inter_sup
       END DO
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('obs_int_comm_3d_global', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('obs_int_comm_3d_global', 'r1', 0, 0)
     CALL mpp_alltoall_int(1, nplocal, npglobal)
     itot = SUM(npglobal)
     ALLOCATE(igrdij_send(kptsi * kptsj * kobs * 2), igrdij_recv(itot * 2), zsend(kpk, itot), zrecv(kpk, kptsi * kptsj * kobs))
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     it = 0
     DO jp = 1, jpnij
       DO jobs = 1, kobs
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, kptsj
           DO ji = 1, kptsi
             IF (iproc(ji, jj, jobs) == jp) THEN
@@ -152,14 +156,13 @@ MODULE obs_inter_sup
         zsend(jk, ji) = pval(ii, ij, jk)
       END DO
     END DO
-    !$ACC END KERNELS
-    CALL ProfileStart('obs_int_comm_3d_global', 'r2', psy_profile2)
     nplocal(:) = kpk * nplocal(:)
     npglobal(:) = kpk * npglobal(:)
+    !$ACC END KERNELS
     CALL mpp_alltoallv_real(zsend, kpk * itot, npglobal, zrecv, kpk * kptsi * kptsj * kobs, nplocal)
-    CALL ProfileEnd(psy_profile2)
     !$ACC KERNELS
     DO jobs = 1, kobs
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, kptsj
         DO ji = 1, kptsi
           it = iorder(ji, jj, jobs)
@@ -173,7 +176,7 @@ MODULE obs_inter_sup
     DEALLOCATE(igrdij_send, igrdij_recv, zsend, zrecv)
   END SUBROUTINE obs_int_comm_3d_global
   SUBROUTINE obs_int_comm_3d_local(kptsi, kptsj, kobs, kpi, kpj, kpk, kgrdi, kgrdj, pval, pgval)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kptsi
     INTEGER, INTENT(IN) :: kptsj
     INTEGER, INTENT(IN) :: kobs
@@ -187,12 +190,12 @@ MODULE obs_inter_sup
     INTEGER :: jj
     INTEGER :: jk
     INTEGER :: jobs
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('obs_int_comm_3d_local', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_int_comm_3d_local', 'r0', 0, 0)
     IF ((MAXVAL(kgrdi) > jpi) .OR. (MINVAL(kgrdi) < 1) .OR. (MAXVAL(kgrdj) > jpj) .OR. (MINVAL(kgrdj) < 1)) THEN
       CALL ctl_stop('Error in obs_int_comm_3d_local', 'Point outside local domain')
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     DO jobs = 1, kobs
       DO jj = 1, kptsj
         DO ji = 1, kptsi

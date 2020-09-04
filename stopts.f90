@@ -10,20 +10,20 @@ MODULE stopts
   REAL(KIND = wp), PUBLIC, DIMENSION(:, :, :, :, :), ALLOCATABLE :: pts_ran
   CONTAINS
   SUBROUTINE sto_pts(pts)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(INOUT) :: pts
     INTEGER :: ji, jj, jk, jts, jdof
     INTEGER :: jim1, jjm1, jkm1
     INTEGER :: jip1, jjp1, jkp1
     REAL(KIND = wp) :: zdtsim, zdtsjm, zdtskm
     REAL(KIND = wp) :: zdtsip, zdtsjp, zdtskp, zdts
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('sto_pts', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('sto_pts', 'r0', 0, 0)
     DO jts = 1, jpts
       CALL lbc_lnk(pts(:, :, :, jts), 'T', 1._wp)
     END DO
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     DO jdof = 1, nn_sto_eos
       DO jts = 1, jpts
         !$ACC KERNELS
@@ -54,6 +54,7 @@ MODULE stopts
     DO jdof = 1, nn_sto_eos
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             pts_ran(ji, jj, jk, jp_sal, jdof) = MIN(ABS(pts_ran(ji, jj, jk, jp_sal, jdof)), MAX(pts(ji, jj, jk, jp_sal), 0._wp)) * SIGN(1._wp, pts_ran(ji, jj, jk, jp_sal, jdof))
@@ -62,13 +63,13 @@ MODULE stopts
       END DO
       !$ACC END KERNELS
     END DO
-    CALL ProfileStart('sto_pts', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('sto_pts', 'r1', 0, 0)
     DO jdof = 1, nn_sto_eos
       DO jts = 1, jpts
         CALL lbc_lnk(pts_ran(:, :, :, jts, jdof), 'T', 1._wp)
       END DO
     END DO
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE sto_pts
   SUBROUTINE sto_pts_init
     ALLOCATE(pts_ran(jpi, jpj, jpk, jpts, nn_sto_eos))

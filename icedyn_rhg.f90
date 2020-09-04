@@ -17,10 +17,10 @@ MODULE icedyn_rhg
   LOGICAL :: ln_rhg_EVP
   CONTAINS
   SUBROUTINE ice_dyn_rhg(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('ice_dyn_rhg', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_dyn_rhg', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('icedyn_rhg')
     IF (ln_icediachk) CALL ice_cons_hsm(0, 'icedyn_rhg', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (kt == nit000 .AND. lwp) THEN
@@ -38,11 +38,14 @@ MODULE icedyn_rhg
     IF (ln_icediachk) CALL ice_cons_hsm(1, 'icedyn_rhg', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (ln_ctl) CALL ice_prt3D('icedyn_rhg')
     IF (ln_timing) CALL timing_stop('icedyn_rhg')
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_dyn_rhg
   SUBROUTINE ice_dyn_rhg_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios, ioptio
     NAMELIST /namdyn_rhg/ ln_rhg_EVP, ln_aEVP, rn_creepl, rn_ecc, nn_nevp, rn_relast
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_dyn_rhg_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ice_ref)
     READ(numnam_ice_ref, namdyn_rhg, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namdyn_rhg in reference namelist', lwp)
@@ -69,5 +72,6 @@ MODULE icedyn_rhg
     END IF
     IF (ioptio /= 1) CALL ctl_stop('ice_dyn_rhg_init: choose one and only one ice rheology')
     IF (ln_rhg_EVP) CALL rhg_evp_rst('READ')
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_dyn_rhg_init
 END MODULE icedyn_rhg

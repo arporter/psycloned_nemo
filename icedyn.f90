@@ -28,22 +28,22 @@ MODULE icedyn
   REAL(KIND = wp) :: rn_vice
   CONTAINS
   SUBROUTINE ice_dyn(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jl
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpl) :: zhmax
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    CALL ProfileStart('ice_dyn', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    CALL profile_psy_data0 % PreStart('ice_dyn', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('icedyn')
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'ice_dyn: sea-ice dynamics'
       WRITE(numout, FMT = *) '~~~~~~~'
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (ln_landfast) THEN
       !$ACC KERNELS
       tau_icebfr(:, :) = 0._wp
@@ -56,7 +56,7 @@ MODULE icedyn
     !$ACC KERNELS
     zhmax(:, :, :) = h_i_b(:, :, :)
     !$ACC END KERNELS
-    CALL ProfileStart('ice_dyn', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('ice_dyn', 'r1', 0, 0)
     DO jl = 1, jpl
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -65,22 +65,22 @@ MODULE icedyn
       END DO
     END DO
     CALL lbc_lnk(zhmax(:, :, :), 'T', 1.)
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     SELECT CASE (nice_dyn)
     CASE (np_dynFULL)
-      CALL ProfileStart('ice_dyn', 'r2', psy_profile2)
+      CALL profile_psy_data2 % PreStart('ice_dyn', 'r2', 0, 0)
       CALL ice_dyn_rhg(kt)
       CALL ice_dyn_adv(kt)
       CALL hbig(zhmax)
       CALL ice_dyn_rdgrft(kt)
       CALL ice_cor(kt, 1)
-      CALL ProfileEnd(psy_profile2)
+      CALL profile_psy_data2 % PostEnd
     CASE (np_dynRHGADV)
-      CALL ProfileStart('ice_dyn', 'r3', psy_profile3)
+      CALL profile_psy_data3 % PreStart('ice_dyn', 'r3', 0, 0)
       CALL ice_dyn_rhg(kt)
       CALL ice_dyn_adv(kt)
       CALL Hpiling
-      CALL ProfileEnd(psy_profile3)
+      CALL profile_psy_data3 % PostEnd
     CASE (np_dynADV)
       !$ACC KERNELS
       u_ice(:, :) = rn_uice * umask(:, :, 1)
@@ -97,6 +97,7 @@ MODULE icedyn
     CALL ice_var_zapsmall
     !$ACC KERNELS
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (v_i(ji, jj, jl) > 0._wp) THEN
@@ -125,8 +126,12 @@ MODULE icedyn
     !$ACC END KERNELS
   END SUBROUTINE Hpiling
   SUBROUTINE ice_dyn_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios, ioptio
     NAMELIST /namdyn/ ln_dynFULL, ln_dynRHGADV, ln_dynADV, rn_uice, rn_vice, rn_ishlat, ln_landfast, rn_gamma, rn_icebfr, rn_lfrelax
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('ice_dyn_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ice_ref)
     READ(numnam_ice_ref, namdyn, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namdyn in reference namelist', lwp)
@@ -173,11 +178,14 @@ MODULE icedyn
     ELSE IF (2. < rn_ishlat) THEN
       IF (lwp) WRITE(numout, FMT = *) '   ===>>>   ice lateral  strong-slip'
     END IF
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     IF (.NOT. ln_landfast) tau_icebfr(:, :) = 0._wp
     !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('ice_dyn_init', 'r1', 0, 0)
     CALL ice_dyn_rdgrft_init
     CALL ice_dyn_rhg_init
     CALL ice_dyn_adv_init
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE ice_dyn_init
 END MODULE icedyn

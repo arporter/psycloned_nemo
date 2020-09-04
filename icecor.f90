@@ -17,19 +17,19 @@ MODULE icecor
   PUBLIC :: ice_cor
   CONTAINS
   SUBROUTINE ice_cor(kt, kn)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN) :: kn
     INTEGER :: ji, jj, jk, jl
     REAL(KIND = wp) :: zsal, zzc
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zafx
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    CALL ProfileStart('ice_cor', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    CALL profile_psy_data0 % PreStart('ice_cor', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('icecor')
     IF (ln_icediachk) CALL ice_cons_hsm(0, 'icecor', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (kt == nit000 .AND. lwp .AND. kn == 2) THEN
@@ -37,7 +37,7 @@ MODULE icecor
       WRITE(numout, FMT = *) 'ice_cor:  correct sea ice variables if out of bounds '
       WRITE(numout, FMT = *) '~~~~~~~'
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     WHERE (a_i(:, :, :) >= epsi20)
       h_i(:, :, :) = v_i(:, :, :) / a_i(:, :, :)
@@ -49,11 +49,10 @@ MODULE icecor
     DO jl = 1, jpl
       WHERE (at_i(:, :) > rn_amax_2d(:, :)) a_i(:, :, jl) = a_i(:, :, jl) * rn_amax_2d(:, :) / at_i(:, :)
     END DO
-    !$ACC END KERNELS
     IF (nn_icesal == 2) THEN
-      !$ACC KERNELS
       zzc = rhoi * r1_rdtice
       DO jl = 1, jpl
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             zsal = sv_i(ji, jj, jl)
@@ -62,9 +61,9 @@ MODULE icecor
           END DO
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
-    CALL ProfileStart('ice_cor', 'r1', psy_profile1)
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('ice_cor', 'r1', 0, 0)
     IF (jpl > 1) CALL ice_itd_reb(kt)
     CALL ice_var_zapsmall
     IF (kn == 2) THEN
@@ -80,12 +79,10 @@ MODULE icecor
       END DO
       CALL lbc_lnk_multi(u_ice, 'U', - 1., v_ice, 'V', - 1.)
     END IF
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     SELECT CASE (kn)
     CASE (1)
-       ! TODO Psyclone #278
-       !CALL ProfileStart('ice_cor', 'r2', psy_profile2)
-       !$ACC KERNELS
+      CALL profile_psy_data2 % PreStart('ice_cor', 'r2', 0, 0)
       DO jj = 1, jpj
         DO ji = 1, jpi
           diag_heat(ji, jj) = - (SUM(e_i(ji, jj, 1 : nlay_i, :) - e_i_b(ji, jj, 1 : nlay_i, :)) + SUM(e_s(ji, jj, 1 : nlay_s, :) - e_s_b(ji, jj, 1 : nlay_s, :))) * r1_rdtice
@@ -94,8 +91,8 @@ MODULE icecor
           diag_vsnw(ji, jj) = SUM(v_s(ji, jj, :) - v_s_b(ji, jj, :)) * rhos * r1_rdtice
         END DO
       END DO
-      !CALL ProfileEnd(psy_profile2)
-      !CC KERNELS
+      CALL profile_psy_data2 % PostEnd
+      !$ACC KERNELS
       zafx(:, :) = SUM(a_i(:, :, :) - a_i_b(:, :, :), dim = 3) * r1_rdtice
       afx_tot(:, :) = zafx(:, :)
       !$ACC END KERNELS
@@ -103,9 +100,8 @@ MODULE icecor
     CASE (2)
       !$ACC KERNELS
       oa_i(:, :, :) = oa_i(:, :, :) + a_i(:, :, :) * rdt_ice
-      !CC END KERNELS
-      ! TODO Psyclone #278
-      !CALL ProfileStart('ice_cor', 'r3', psy_profile3)
+      !$ACC END KERNELS
+      CALL profile_psy_data3 % PreStart('ice_cor', 'r3', 0, 0)
       DO jj = 1, jpj
         DO ji = 1, jpi
           diag_heat(ji, jj) = diag_heat(ji, jj) - (SUM(e_i(ji, jj, 1 : nlay_i, :) - e_i_b(ji, jj, 1 : nlay_i, :)) + SUM(e_s(ji, jj, 1 : nlay_s, :) - e_s_b(ji, jj, 1 : nlay_s, :))) * r1_rdtice
@@ -114,21 +110,21 @@ MODULE icecor
           diag_vsnw(ji, jj) = diag_vsnw(ji, jj) + SUM(v_s(ji, jj, :) - v_s_b(ji, jj, :)) * rhos * r1_rdtice
         END DO
       END DO
-      !CALL ProfileEnd(psy_profile3)
-      !CC KERNELS
+      CALL profile_psy_data3 % PostEnd
+      !$ACC KERNELS
       zafx(:, :) = SUM(a_i(:, :, :) - a_i_b(:, :, :), dim = 3) * r1_rdtice
       afx_tot(:, :) = afx_tot(:, :) + zafx(:, :)
       !$ACC END KERNELS
-      CALL ProfileStart('ice_cor', 'r4', psy_profile4)
+      CALL profile_psy_data4 % PreStart('ice_cor', 'r4', 0, 0)
       IF (iom_use('afxthd')) CALL iom_put('afxthd', zafx(:, :))
       IF (iom_use('afxtot')) CALL iom_put('afxtot', afx_tot(:, :))
-      CALL ProfileEnd(psy_profile4)
+      CALL profile_psy_data4 % PostEnd
     END SELECT
-    CALL ProfileStart('ice_cor', 'r5', psy_profile5)
+    CALL profile_psy_data5 % PreStart('ice_cor', 'r5', 0, 0)
     IF (ln_icediachk) CALL ice_cons_hsm(1, 'icecor', rdiag_v, rdiag_s, rdiag_t, rdiag_fv, rdiag_fs, rdiag_ft)
     IF (ln_ctl) CALL ice_prt3D('icecor')
     IF (ln_icectl .AND. kn == 2) CALL ice_prt(kt, iiceprt, jiceprt, 2, ' - Final state - ')
     IF (ln_timing) CALL timing_stop('icecor')
-    CALL ProfileEnd(psy_profile5)
+    CALL profile_psy_data5 % PostEnd
   END SUBROUTINE ice_cor
 END MODULE icecor

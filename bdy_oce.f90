@@ -82,15 +82,19 @@ MODULE bdy_oce
   TYPE(OBC_DATA), DIMENSION(jp_bdy), TARGET :: dta_bdy
   CONTAINS
   FUNCTION bdy_oce_alloc()
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     USE lib_mpp, ONLY: ctl_warn, mpp_sum
     INTEGER :: bdy_oce_alloc
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     ALLOCATE(bdytmask(jpi, jpj), bdyumask(jpi, jpj), bdyvmask(jpi, jpj), STAT = bdy_oce_alloc)
     !$ACC KERNELS
     bdytmask(:, :) = 1._wp
     bdyumask(:, :) = 1._wp
     bdyvmask(:, :) = 1._wp
     !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('bdy_oce_alloc', 'r0', 0, 0)
     IF (lk_mpp) CALL mpp_sum(bdy_oce_alloc)
     IF (bdy_oce_alloc /= 0) CALL ctl_warn('bdy_oce_alloc: failed to allocate arrays.')
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION bdy_oce_alloc
 END MODULE bdy_oce

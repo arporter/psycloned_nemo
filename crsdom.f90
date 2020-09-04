@@ -16,18 +16,18 @@ MODULE crsdom
   REAL(KIND = wp) :: r_inf = 1E+36
   CONTAINS
   SUBROUTINE crs_dom_msk
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: ijie, ijis, ijje, ijjs, ij, je_2
     REAL(KIND = wp) :: zmask
-    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     tmask_crs(:, :, :) = 0.0
     vmask_crs(:, :, :) = 0.0
     umask_crs(:, :, :) = 0.0
     fmask_crs(:, :, :) = 0.0
     !$ACC END KERNELS
-    CALL ProfileStart('crs_dom_msk', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('crs_dom_msk', 'r0', 0, 0)
     IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
       IF (mje_crs(2) - mjs_crs(2) == 1) THEN
         je_2 = mje_crs(2)
@@ -77,10 +77,10 @@ MODULE crsdom
     CALL crs_lbc_lnk(vmask_crs, 'V', 1.0)
     CALL crs_lbc_lnk(umask_crs, 'U', 1.0)
     CALL crs_lbc_lnk(fmask_crs, 'F', 1.0)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE crs_dom_msk
   SUBROUTINE crs_dom_coordinates(p_gphi, p_glam, cd_type, p_gphi_crs, p_glam_crs)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: p_gphi
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: p_glam
     CHARACTER(LEN = 1), INTENT(IN) :: cd_type
@@ -88,10 +88,10 @@ MODULE crsdom
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs), INTENT(OUT) :: p_glam_crs
     INTEGER :: ji, jj, jk
     INTEGER :: ijis, ijjs
-    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    !$ACC KERNELS
     SELECT CASE (cd_type)
     CASE ('T')
-      !$ACC KERNELS
       DO jj = nldj_crs, nlej_crs
         ijjs = mjs_crs(jj) + mybinctr
         DO ji = 2, nlei_crs
@@ -100,9 +100,7 @@ MODULE crsdom
           p_glam_crs(ji, jj) = p_glam(ijis, ijjs)
         END DO
       END DO
-      !$ACC END KERNELS
     CASE ('U')
-      !$ACC KERNELS
       DO jj = nldj_crs, nlej_crs
         ijjs = mjs_crs(jj) + mybinctr
         DO ji = 2, nlei_crs
@@ -111,9 +109,7 @@ MODULE crsdom
           p_glam_crs(ji, jj) = p_glam(ijis, ijjs)
         END DO
       END DO
-      !$ACC END KERNELS
     CASE ('V')
-      !$ACC KERNELS
       DO jj = nldj_crs, nlej_crs
         ijjs = mjs_crs(jj)
         DO ji = 2, nlei_crs
@@ -122,9 +118,7 @@ MODULE crsdom
           p_glam_crs(ji, jj) = p_glam(ijis, ijjs)
         END DO
       END DO
-      !$ACC END KERNELS
     CASE ('F')
-      !$ACC KERNELS
       DO jj = nldj_crs, nlej_crs
         ijjs = mjs_crs(jj)
         DO ji = 2, nlei_crs
@@ -133,33 +127,31 @@ MODULE crsdom
           p_glam_crs(ji, jj) = p_glam(ijis, ijjs)
         END DO
       END DO
-      !$ACC END KERNELS
     END SELECT
-    CALL ProfileStart('crs_dom_coordinates', 'r0', psy_profile0)
+    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('crs_dom_coordinates', 'r0', 0, 0)
     CALL crs_lbc_lnk(p_gphi_crs, cd_type, 1.0)
     CALL crs_lbc_lnk(p_glam_crs, cd_type, 1.0)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     SELECT CASE (cd_type)
     CASE ('T', 'V')
-      !$ACC KERNELS
       DO ji = 2, nlei_crs
         ijis = mis_crs(ji) + mxbinctr
         p_gphi_crs(ji, 1) = p_gphi(ijis, 1)
         p_glam_crs(ji, 1) = p_glam(ijis, 1)
       END DO
-      !$ACC END KERNELS
     CASE ('U', 'F')
-      !$ACC KERNELS
       DO ji = 2, nlei_crs
         ijis = mis_crs(ji)
         p_gphi_crs(ji, 1) = p_gphi(ijis, 1)
         p_glam_crs(ji, 1) = p_glam(ijis, 1)
       END DO
-      !$ACC END KERNELS
     END SELECT
+    !$ACC END KERNELS
   END SUBROUTINE crs_dom_coordinates
   SUBROUTINE crs_dom_hgr(p_e1, p_e2, cd_type, p_e1_crs, p_e2_crs)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: p_e1
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: p_e2
     CHARACTER(LEN = 1), INTENT(IN) :: cd_type
@@ -167,8 +159,8 @@ MODULE crsdom
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs), INTENT(OUT) :: p_e2_crs
     INTEGER :: ji, jj, jk
     INTEGER :: ijie, ijje, ijrs
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('crs_dom_hgr', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    !$ACC KERNELS
     DO jk = 1, jpk
       DO ji = 2, nlei_crs
         ijie = mie_crs(ji)
@@ -202,23 +194,25 @@ MODULE crsdom
         END DO
       END DO
     END DO
+    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('crs_dom_hgr', 'r0', 0, 0)
     CALL crs_lbc_lnk(p_e1_crs, cd_type, 1.0, pval = 1.0)
     CALL crs_lbc_lnk(p_e2_crs, cd_type, 1.0, pval = 1.0)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE crs_dom_hgr
   SUBROUTINE crs_dom_facvol(p_mask, cd_type, p_e1, p_e2, p_e3, p_fld1_crs, p_fld2_crs)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    CHARACTER(LEN = 1), INTENT(IN ) :: cd_type
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: p_mask
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: p_e1
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: p_e2
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: p_e3
-    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT( OUT) :: p_fld1_crs
-    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT( OUT) :: p_fld2_crs
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    CHARACTER(LEN = 1), INTENT(IN) :: cd_type
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: p_mask
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: p_e1
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: p_e2
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: p_e3
+    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(OUT) :: p_fld1_crs
+    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(OUT) :: p_fld2_crs
     INTEGER :: ji, jj, jk, ii, ij, je_2
     REAL(KIND = wp) :: zdAm
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zvol, zmask
-    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     p_fld1_crs(:, :, :) = 0._wp
     p_fld2_crs(:, :, :) = 0._wp
@@ -226,21 +220,17 @@ MODULE crsdom
       zvol(:, :, jk) = p_e1(:, :) * p_e2(:, :) * p_e3(:, :, jk)
     END DO
     zmask(:, :, :) = 0._wp
-    !$ACC END KERNELS
     IF (cd_type == 'W') THEN
-      !$ACC KERNELS
       zmask(:, :, 1) = p_mask(:, :, 1)
       DO jk = 2, jpk
         zmask(:, :, jk) = p_mask(:, :, jk - 1)
       END DO
-      !$ACC END KERNELS
     ELSE
-      !$ACC KERNELS
       DO jk = 1, jpk
         zmask(:, :, jk) = p_mask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     END IF
+    !$ACC END KERNELS
     IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
       IF (mje_crs(2) - mjs_crs(2) == 1) THEN
         !$ACC KERNELS
@@ -270,6 +260,7 @@ MODULE crsdom
     END IF
     !$ACC KERNELS
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = njstr, njend, nn_facty
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -281,13 +272,13 @@ MODULE crsdom
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('crs_dom_facvol', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('crs_dom_facvol', 'r0', 0, 0)
     CALL crs_lbc_lnk(p_fld1_crs, cd_type, 1.0)
     CALL crs_lbc_lnk(p_fld2_crs, cd_type, 1.0)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE crs_dom_facvol
   SUBROUTINE crs_dom_ope_3d(p_fld, cd_op, cd_type, p_mask, p_fld_crs, p_e12, p_e3, p_surf_crs, p_mask_crs, psgn)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: p_fld
     CHARACTER(LEN = 3), INTENT(IN) :: cd_op
     CHARACTER(LEN = 1), INTENT(IN) :: cd_type
@@ -297,15 +288,15 @@ MODULE crsdom
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(IN), OPTIONAL :: p_surf_crs
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(IN), OPTIONAL :: p_mask_crs
     REAL(KIND = wp), INTENT(IN) :: psgn
-    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT( OUT) :: p_fld_crs
+    REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk), INTENT(OUT) :: p_fld_crs
     INTEGER :: ji, jj, jk
     INTEGER :: ii, ij, ijie, ijje, je_2
     REAL(KIND = wp) :: zflcrs, zsfcrs
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: zsurf, zsurfmsk, zmask
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
     !$ACC KERNELS
     p_fld_crs(:, :, :) = 0._wp
     !$ACC END KERNELS
@@ -364,6 +355,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -443,6 +435,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -454,7 +447,7 @@ MODULE crsdom
         END DO
         !$ACC END KERNELS
       CASE ('V')
-        CALL ProfileStart('crs_dom_ope_3d', 'r0', psy_profile0)
+        CALL profile_psy_data0 % PreStart('crs_dom_ope_3d', 'r0', 0, 0)
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
             ijje = mje_crs(2)
@@ -462,7 +455,7 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
-        CALL ProfileEnd(psy_profile0)
+        CALL profile_psy_data0 % PostEnd
         !$ACC KERNELS
         DO jk = 1, jpk
           DO ji = nistr, niend, nn_factx
@@ -472,6 +465,7 @@ MODULE crsdom
           END DO
         END DO
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -513,6 +507,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -525,12 +520,12 @@ MODULE crsdom
         END DO
         !$ACC END KERNELS
       END SELECT
-      CALL ProfileStart('crs_dom_ope_3d', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('crs_dom_ope_3d', 'r1', 0, 0)
       IF (PRESENT(p_surf_crs)) THEN
         WHERE (p_surf_crs /= 0.0) p_fld_crs(:, :, :) = p_fld_crs(:, :, :) / p_surf_crs(:, :, :)
       END IF
       DEALLOCATE(zsurfmsk)
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
     CASE ('MAX')
       ALLOCATE(zmask(jpi, jpj, jpk))
       SELECT CASE (cd_type)
@@ -577,6 +572,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -588,7 +584,7 @@ MODULE crsdom
         END DO
         !$ACC END KERNELS
       CASE ('V')
-        CALL ProfileStart('crs_dom_ope_3d', 'r2', psy_profile2)
+        CALL profile_psy_data2 % PreStart('crs_dom_ope_3d', 'r2', 0, 0)
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
             ijje = mje_crs(2)
@@ -596,7 +592,7 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
-        CALL ProfileEnd(psy_profile2)
+        CALL profile_psy_data2 % PostEnd
         !$ACC KERNELS
         DO jk = 1, jpk
           DO ji = nistr, niend, nn_factx
@@ -606,6 +602,7 @@ MODULE crsdom
           END DO
         END DO
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -647,6 +644,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -706,6 +704,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -717,7 +716,7 @@ MODULE crsdom
         END DO
         !$ACC END KERNELS
       CASE ('V')
-        CALL ProfileStart('crs_dom_ope_3d', 'r3', psy_profile3)
+        CALL profile_psy_data3 % PreStart('crs_dom_ope_3d', 'r3', 0, 0)
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
             ijje = mje_crs(2)
@@ -725,7 +724,7 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
-        CALL ProfileEnd(psy_profile3)
+        CALL profile_psy_data3 % PostEnd
         !$ACC KERNELS
         DO jk = 1, jpk
           DO ji = nistr, niend, nn_factx
@@ -735,6 +734,7 @@ MODULE crsdom
           END DO
         END DO
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -776,6 +776,7 @@ MODULE crsdom
         END IF
         !$ACC KERNELS
         DO jk = 1, jpk
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = njstr, njend, nn_facty
             DO ji = nistr, niend, nn_factx
               ii = (ji - mis_crs(2)) * rfactx_r + 2
@@ -793,7 +794,7 @@ MODULE crsdom
     CALL crs_lbc_lnk(p_fld_crs, cd_type, psgn)
   END SUBROUTINE crs_dom_ope_3d
   SUBROUTINE crs_dom_ope_2d(p_fld, cd_op, cd_type, p_mask, p_fld_crs, p_e12, p_e3, p_surf_crs, p_mask_crs, psgn)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: p_fld
     CHARACTER(LEN = 3), INTENT(IN) :: cd_op
     CHARACTER(LEN = 1), INTENT(IN) :: cd_type
@@ -808,12 +809,12 @@ MODULE crsdom
     INTEGER :: ijie, ijje, ii, ij, je_2
     REAL(KIND = wp) :: zflcrs, zsfcrs
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zsurfmsk
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
     !$ACC KERNELS
     p_fld_crs(:, :) = 0._wp
     !$ACC END KERNELS
@@ -849,7 +850,9 @@ MODULE crsdom
         !$ACC END KERNELS
       END IF
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT
       DO jj = njstr, njend, nn_facty
+        !$ACC LOOP INDEPENDENT
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
           ij = (jj - njstr) * rfacty_r + 3
@@ -896,7 +899,9 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT
         DO jj = njstr, njend, nn_facty
+          !$ACC LOOP INDEPENDENT
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
             ij = (jj - njstr) * rfacty_r + 3
@@ -906,7 +911,7 @@ MODULE crsdom
         END DO
         !$ACC END KERNELS
       CASE ('V')
-        CALL ProfileStart('crs_dom_ope_2d', 'r0', psy_profile0)
+        CALL profile_psy_data0 % PreStart('crs_dom_ope_2d', 'r0', 0, 0)
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
             ijje = mje_crs(2)
@@ -914,14 +919,16 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
-        CALL ProfileEnd(psy_profile0)
+        CALL profile_psy_data0 % PostEnd
         !$ACC KERNELS
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
           zflcrs = p_fld(ji, ijje) * zsurfmsk(ji, ijje) + p_fld(ji + 1, ijje) * zsurfmsk(ji + 1, ijje) + p_fld(ji + 2, ijje) * zsurfmsk(ji + 2, ijje)
           p_fld_crs(ii, 2) = zflcrs
         END DO
+        !$ACC LOOP INDEPENDENT
         DO jj = njstr, njend, nn_facty
+          !$ACC LOOP INDEPENDENT
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
             ij = (jj - njstr) * rfacty_r + 3
@@ -956,7 +963,9 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT
         DO jj = njstr, njend, nn_facty
+          !$ACC LOOP INDEPENDENT
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
             ij = (jj - njstr) * rfacty_r + 3
@@ -967,12 +976,12 @@ MODULE crsdom
         END DO
         !$ACC END KERNELS
       END SELECT
-      CALL ProfileStart('crs_dom_ope_2d', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('crs_dom_ope_2d', 'r1', 0, 0)
       IF (PRESENT(p_surf_crs)) THEN
         WHERE (p_surf_crs /= 0.0) p_fld_crs(:, :) = p_fld_crs(:, :) / p_surf_crs(:, :)
       END IF
       DEALLOCATE(zsurfmsk)
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
     CASE ('MAX')
       SELECT CASE (cd_type)
       CASE ('T', 'W')
@@ -988,14 +997,16 @@ MODULE crsdom
             !$ACC END KERNELS
           END IF
         ELSE
-          CALL ProfileStart('crs_dom_ope_2d', 'r2', psy_profile2)
+          CALL profile_psy_data2 % PreStart('crs_dom_ope_2d', 'r2', 0, 0)
           je_2 = mjs_crs(2)
           zflcrs = MAX(p_fld(ji, je_2) * p_mask(ji, je_2, 1) - (1. - p_mask(ji, je_2, 1)) * r_inf, p_fld(ji + 1, je_2) * p_mask(ji + 1, je_2, 1) - (1. - p_mask(ji + 1, je_2, 1)) * r_inf, p_fld(ji + 2, je_2) * p_mask(ji + 2, je_2, 1) - (1. - p_mask(ji + 2, je_2, 1)) * r_inf, p_fld(ji, je_2 + 1) * p_mask(ji, je_2 + 1, 1) - (1. - p_mask(ji, je_2 + 1, 1)) * r_inf, p_fld(ji + 1, je_2 + 1) * p_mask(ji + 1, je_2 + 1, 1) - (1. - p_mask(ji + 1, je_2 + 1, 1)) * r_inf, p_fld(ji + 2, je_2 + 1) * p_mask(ji + 2, je_2 + 1, 1) - (1. - p_mask(ji + 2, je_2 + 1, 1)) * r_inf, p_fld(ji, je_2 + 2) * p_mask(ji, je_2 + 2, 1) - (1. - p_mask(ji, je_2 + 2, 1)) * r_inf, p_fld(ji + 1, je_2 + 2) * p_mask(ji + 1, je_2 + 2, 1) - (1. - p_mask(ji + 1, je_2 + 2, 1)) * r_inf, p_fld(ji + 2, je_2 + 2) * p_mask(ji + 2, je_2 + 2, 1) - (1. - p_mask(ji + 2, je_2 + 2, 1)) * r_inf)
           p_fld_crs(ii, 2) = zflcrs
-          CALL ProfileEnd(psy_profile2)
+          CALL profile_psy_data2 % PostEnd
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT
         DO jj = njstr, njend, nn_facty
+          !$ACC LOOP INDEPENDENT
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
             ij = (jj - njstr) * rfacty_r + 3
@@ -1005,7 +1016,7 @@ MODULE crsdom
         END DO
         !$ACC END KERNELS
       CASE ('V')
-        CALL ProfileStart('crs_dom_ope_2d', 'r3', psy_profile3)
+        CALL profile_psy_data3 % PreStart('crs_dom_ope_2d', 'r3', 0, 0)
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
             ijje = mje_crs(2)
@@ -1013,14 +1024,16 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
-        CALL ProfileEnd(psy_profile3)
+        CALL profile_psy_data3 % PostEnd
         !$ACC KERNELS
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
           zflcrs = MAX(p_fld(ji, ijje) * p_mask(ji, ijje, 1) - (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 1, ijje) * p_mask(ji + 1, ijje, 1) - (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 2, ijje) * p_mask(ji + 2, ijje, 1) - (1. - p_mask(ji, ijje, 1)) * r_inf)
           p_fld_crs(ii, 2) = zflcrs
         END DO
+        !$ACC LOOP INDEPENDENT
         DO jj = njstr, njend, nn_facty
+          !$ACC LOOP INDEPENDENT
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
             ij = (jj - njstr) * rfacty_r + 3
@@ -1055,7 +1068,9 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT
         DO jj = njstr, njend, nn_facty
+          !$ACC LOOP INDEPENDENT
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
             ij = (jj - njstr) * rfacty_r + 3
@@ -1081,14 +1096,16 @@ MODULE crsdom
             !$ACC END KERNELS
           END IF
         ELSE
-          CALL ProfileStart('crs_dom_ope_2d', 'r4', psy_profile4)
+          CALL profile_psy_data4 % PreStart('crs_dom_ope_2d', 'r4', 0, 0)
           je_2 = mjs_crs(2)
           zflcrs = MIN(p_fld(ji, je_2) * p_mask(ji, je_2, 1) + (1. - p_mask(ji, je_2, 1)) * r_inf, p_fld(ji + 1, je_2) * p_mask(ji + 1, je_2, 1) + (1. - p_mask(ji + 1, je_2, 1)) * r_inf, p_fld(ji + 2, je_2) * p_mask(ji + 2, je_2, 1) + (1. - p_mask(ji + 2, je_2, 1)) * r_inf, p_fld(ji, je_2 + 1) * p_mask(ji, je_2 + 1, 1) + (1. - p_mask(ji, je_2 + 1, 1)) * r_inf, p_fld(ji + 1, je_2 + 1) * p_mask(ji + 1, je_2 + 1, 1) + (1. - p_mask(ji + 1, je_2 + 1, 1)) * r_inf, p_fld(ji + 2, je_2 + 1) * p_mask(ji + 2, je_2 + 1, 1) + (1. - p_mask(ji + 2, je_2 + 1, 1)) * r_inf, p_fld(ji, je_2 + 2) * p_mask(ji, je_2 + 2, 1) + (1. - p_mask(ji, je_2 + 2, 1)) * r_inf, p_fld(ji + 1, je_2 + 2) * p_mask(ji + 1, je_2 + 2, 1) + (1. - p_mask(ji + 1, je_2 + 2, 1)) * r_inf, p_fld(ji + 2, je_2 + 2) * p_mask(ji + 2, je_2 + 2, 1) + (1. - p_mask(ji + 2, je_2 + 2, 1)) * r_inf)
           p_fld_crs(ii, 2) = zflcrs
-          CALL ProfileEnd(psy_profile4)
+          CALL profile_psy_data4 % PostEnd
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT
         DO jj = njstr, njend, nn_facty
+          !$ACC LOOP INDEPENDENT
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
             ij = (jj - njstr) * rfacty_r + 3
@@ -1098,7 +1115,7 @@ MODULE crsdom
         END DO
         !$ACC END KERNELS
       CASE ('V')
-        CALL ProfileStart('crs_dom_ope_2d', 'r5', psy_profile5)
+        CALL profile_psy_data5 % PreStart('crs_dom_ope_2d', 'r5', 0, 0)
         IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
           IF (mje_crs(2) - mjs_crs(2) == 1) THEN
             ijje = mje_crs(2)
@@ -1106,14 +1123,16 @@ MODULE crsdom
         ELSE
           ijje = mjs_crs(2)
         END IF
-        CALL ProfileEnd(psy_profile5)
+        CALL profile_psy_data5 % PostEnd
         !$ACC KERNELS
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
           zflcrs = MIN(p_fld(ji, ijje) * p_mask(ji, ijje, 1) + (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 1, ijje) * p_mask(ji + 1, ijje, 1) + (1. - p_mask(ji, ijje, 1)) * r_inf, p_fld(ji + 2, ijje) * p_mask(ji + 2, ijje, 1) + (1. - p_mask(ji, ijje, 1)) * r_inf)
           p_fld_crs(ii, 2) = zflcrs
         END DO
+        !$ACC LOOP INDEPENDENT
         DO jj = njstr, njend, nn_facty
+          !$ACC LOOP INDEPENDENT
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
             ij = (jj - njstr) * rfacty_r + 3
@@ -1148,7 +1167,9 @@ MODULE crsdom
           !$ACC END KERNELS
         END IF
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT
         DO jj = njstr, njend, nn_facty
+          !$ACC LOOP INDEPENDENT
           DO ji = nistr, niend, nn_factx
             ii = (ji - mis_crs(2)) * rfactx_r + 2
             ij = (jj - njstr) * rfacty_r + 3
@@ -1163,7 +1184,7 @@ MODULE crsdom
     CALL crs_lbc_lnk(p_fld_crs, cd_type, psgn)
   END SUBROUTINE crs_dom_ope_2d
   SUBROUTINE crs_dom_e3(p_e1, p_e2, p_e3, p_sfc_crs, cd_type, p_mask, p_e3_crs, p_e3_max_crs)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = 1), INTENT(IN) :: cd_type
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: p_mask
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: p_e1, p_e2
@@ -1175,27 +1196,21 @@ MODULE crsdom
     INTEGER :: ijie, ijje, ii, ij, je_2
     REAL(KIND = wp) :: ze3crs
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zmask, zsurf
-    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     !$ACC KERNELS
     p_e3_crs(:, :, :) = 0.
     p_e3_max_crs(:, :, :) = 1.
-    !$ACC END KERNELS
     SELECT CASE (cd_type)
     CASE ('W')
-      !$ACC KERNELS
       zmask(:, :, 1) = p_mask(:, :, 1)
       DO jk = 2, jpk
         zmask(:, :, jk) = p_mask(:, :, jk - 1)
       END DO
-      !$ACC END KERNELS
     CASE DEFAULT
-      !$ACC KERNELS
       DO jk = 1, jpk
         zmask(:, :, jk) = p_mask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     END SELECT
-    !$ACC KERNELS
     DO jk = 1, jpk
       zsurf(:, :, jk) = p_e1(:, :) * p_e2(:, :) * p_e3(:, :, jk)
     END DO
@@ -1231,7 +1246,9 @@ MODULE crsdom
     END IF
     !$ACC KERNELS
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT
       DO jj = njstr, njend, nn_facty
+        !$ACC LOOP INDEPENDENT
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
           ij = (jj - njstr) * rfacty_r + 3
@@ -1243,13 +1260,13 @@ MODULE crsdom
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('crs_dom_e3', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('crs_dom_e3', 'r0', 0, 0)
     CALL crs_lbc_lnk(p_e3_crs, cd_type, 1.0, pval = 1.0)
     CALL crs_lbc_lnk(p_e3_max_crs, cd_type, 1.0, pval = 1.0)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE crs_dom_e3
   SUBROUTINE crs_dom_sfc(p_mask, cd_type, p_surf_crs, p_surf_crs_msk, p_e1, p_e2, p_e3)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = 1), INTENT(IN) :: cd_type
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: p_mask
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN), OPTIONAL :: p_e1, p_e2
@@ -1259,10 +1276,10 @@ MODULE crsdom
     INTEGER :: ji, jj, jk
     INTEGER :: ii, ij, je_2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zsurf, zsurfmsk
-    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    !$ACC KERNELS
     SELECT CASE (cd_type)
     CASE ('W')
-      !$ACC KERNELS
       DO jk = 1, jpk
         zsurf(:, :, jk) = p_e1(:, :) * p_e2(:, :)
       END DO
@@ -1270,35 +1287,29 @@ MODULE crsdom
       DO jk = 2, jpk
         zsurfmsk(:, :, jk) = zsurf(:, :, jk) * p_mask(:, :, jk - 1)
       END DO
-      !$ACC END KERNELS
     CASE ('V')
-      !$ACC KERNELS
       DO jk = 1, jpk
         zsurf(:, :, jk) = p_e1(:, :) * p_e3(:, :, jk)
       END DO
       DO jk = 1, jpk
         zsurfmsk(:, :, jk) = zsurf(:, :, jk) * p_mask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     CASE ('U')
-      !$ACC KERNELS
       DO jk = 1, jpk
         zsurf(:, :, jk) = p_e2(:, :) * p_e3(:, :, jk)
       END DO
       DO jk = 1, jpk
         zsurfmsk(:, :, jk) = zsurf(:, :, jk) * p_mask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     CASE DEFAULT
-      !$ACC KERNELS
       DO jk = 1, jpk
         zsurf(:, :, jk) = p_e1(:, :) * p_e2(:, :)
       END DO
       DO jk = 1, jpk
         zsurfmsk(:, :, jk) = zsurf(:, :, jk) * p_mask(:, :, jk)
       END DO
-      !$ACC END KERNELS
     END SELECT
+    !$ACC END KERNELS
     IF (nldj_crs == 1 .AND. ((mje_crs(2) - mjs_crs(2)) < 2)) THEN
       IF (mje_crs(2) - mjs_crs(2) == 1) THEN
         !$ACC KERNELS
@@ -1326,7 +1337,9 @@ MODULE crsdom
     END IF
     !$ACC KERNELS
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT
       DO jj = njstr, njend, nn_facty
+        !$ACC LOOP INDEPENDENT
         DO ji = nistr, niend, nn_factx
           ii = (ji - mis_crs(2)) * rfactx_r + 2
           ij = (jj - njstr) * rfacty_r + 3
@@ -1336,29 +1349,28 @@ MODULE crsdom
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('crs_dom_sfc', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('crs_dom_sfc', 'r0', 0, 0)
     CALL crs_lbc_lnk(p_surf_crs, cd_type, 1.0, pval = 1.0)
     CALL crs_lbc_lnk(p_surf_crs_msk, cd_type, 1.0, pval = 1.0)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE crs_dom_sfc
   SUBROUTINE crs_dom_def
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk, ijjgloT, ijis, ijie, ijjs, ijje, jn
     INTEGER :: ierr
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
-    TYPE(ProfileData), SAVE :: psy_profile7
-    TYPE(ProfileData), SAVE :: psy_profile8
-    TYPE(ProfileData), SAVE :: psy_profile9
-    TYPE(ProfileData), SAVE :: psy_profile10
-    TYPE(ProfileData), SAVE :: psy_profile11
-    TYPE(ProfileData), SAVE :: psy_profile12
-    CALL ProfileStart('crs_dom_def', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data8
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data9
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data10
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data11
+    CALL profile_psy_data0 % PreStart('crs_dom_def', 'r0', 0, 0)
     jpiglo_crs = INT((jpiglo - 2) / nn_factx) + 2
     jpjglo_crs = INT((jpjglo - MOD(jpjglo, nn_facty)) / nn_facty) + 3
     jpiglo_crsm1 = jpiglo_crs - 1
@@ -1371,9 +1383,9 @@ MODULE crsdom
     nperio_crs = jperio
     npolj_crs = npolj
     ierr = crs_dom_alloc()
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (.NOT. lk_mpp) THEN
-      CALL ProfileStart('crs_dom_def', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('crs_dom_def', 'r1', 0, 0)
       nimpp_crs = 1
       njmpp_crs = 1
       nlci_crs = jpi_crs
@@ -1382,9 +1394,9 @@ MODULE crsdom
       nldj_crs = 1
       nlei_crs = jpi_crs
       nlej_crs = jpj_crs
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
     ELSE
-      CALL ProfileStart('crs_dom_def', 'r2', psy_profile2)
+      CALL profile_psy_data2 % PreStart('crs_dom_def', 'r2', 0, 0)
       nimpp_crs = 1
       njmpp_crs = 1
       nlci_crs = jpi_crs
@@ -1393,9 +1405,9 @@ MODULE crsdom
       nldj_crs = 1
       nlei_crs = jpi_crs
       nlej_crs = jpj_crs
-      CALL ProfileEnd(psy_profile2)
+      CALL profile_psy_data2 % PostEnd
       DO jn = 1, jpnij, jpni
-        CALL ProfileStart('crs_dom_def', 'r3', psy_profile3)
+        CALL profile_psy_data3 % PreStart('crs_dom_def', 'r3', 0, 0)
         IF (jn < (jpnij - jpni + 1)) THEN
           nlejt_crs(jn) = AINT(REAL((jpjglo - (njmppt(jn) - 1)) / nn_facty, wp)) - AINT(REAL((jpjglo - (njmppt(jn + jpni) - 1)) / nn_facty, wp))
         ELSE
@@ -1425,7 +1437,7 @@ MODULE crsdom
         ELSE
           njmppt_crs(jn) = 2 + ANINT(REAL((njmppt(jn) + 1 - MOD(jpjglo, nn_facty)) / nn_facty, wp))
         END IF
-        CALL ProfileEnd(psy_profile3)
+        CALL profile_psy_data3 % PostEnd
         !$ACC KERNELS
         DO jj = jn + 1, jn + jpni - 1
           nlejt_crs(jj) = nlejt_crs(jn)
@@ -1435,14 +1447,14 @@ MODULE crsdom
         END DO
         !$ACC END KERNELS
       END DO
-      CALL ProfileStart('crs_dom_def', 'r4', psy_profile4)
+      CALL profile_psy_data4 % PreStart('crs_dom_def', 'r4', 0, 0)
       nlej_crs = nlejt_crs(nproc + 1)
       nlcj_crs = nlcjt_crs(nproc + 1)
       nldj_crs = nldjt_crs(nproc + 1)
       njmpp_crs = njmppt_crs(nproc + 1)
-      CALL ProfileEnd(psy_profile4)
+      CALL profile_psy_data4 % PostEnd
       DO jn = 1, jpni
-        CALL ProfileStart('crs_dom_def', 'r5', psy_profile5)
+        CALL profile_psy_data5 % PreStart('crs_dom_def', 'r5', 0, 0)
         IF (jn == 1) THEN
           nleit_crs(jn) = AINT(REAL((nimppt(jn) - 1 + nlcit(jn)) / nn_factx, wp))
         ELSE
@@ -1466,7 +1478,7 @@ MODULE crsdom
           STOP
         END SELECT
         nimppt_crs(jn) = ANINT(REAL((nimppt(jn) + 1) / nn_factx, wp)) + 1
-        CALL ProfileEnd(psy_profile5)
+        CALL profile_psy_data5 % PostEnd
         !$ACC KERNELS
         DO jj = jn + jpni, jpnij, jpni
           nleit_crs(jj) = nleit_crs(jn)
@@ -1497,7 +1509,7 @@ MODULE crsdom
       END DO
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('crs_dom_def', 'r6', psy_profile6)
+    !$ACC KERNELS
     jpi_full = jpi
     jpj_full = jpj
     jpim1_full = jpim1
@@ -1522,6 +1534,8 @@ MODULE crsdom
     nldjt_full(:) = nldjt(:)
     nlejt_full(:) = nlejt(:)
     njmppt_full(:) = njmppt(:)
+    !$ACC END KERNELS
+    CALL profile_psy_data6 % PreStart('crs_dom_def', 'r6', 0, 0)
     CALL dom_grid_crs
     IF (lwp) THEN
       WRITE(numout, FMT = *)
@@ -1562,11 +1576,13 @@ MODULE crsdom
     END IF
     rfactxy = nn_factx * nn_facty
     ierr = crs_dom_alloc2()
+    CALL profile_psy_data6 % PostEnd
+    !$ACC KERNELS
     mis2_crs(:) = 0
     mie2_crs(:) = 0
     mjs2_crs(:) = 0
     mje2_crs(:) = 0
-    CALL ProfileEnd(psy_profile6)
+    !$ACC END KERNELS
     SELECT CASE (nn_binref)
     CASE (0)
       SELECT CASE (jperio)
@@ -1579,9 +1595,9 @@ MODULE crsdom
           mie2_crs(ji) = ijie
         END DO
         !$ACC END KERNELS
-        CALL ProfileStart('crs_dom_def', 'r7', psy_profile7)
+        CALL profile_psy_data7 % PreStart('crs_dom_def', 'r7', 0, 0)
         IF (jpiglo - 1 - mie2_crs(jpiglo_crsm1) <= nn_factx) mie2_crs(jpiglo_crsm1) = jpiglo - 2
-        CALL ProfileEnd(psy_profile7)
+        CALL profile_psy_data7 % PostEnd
         !$ACC KERNELS
         IF (nn_facty == 2) THEN
           ijjglot = jpjglo - 1
@@ -1606,9 +1622,9 @@ MODULE crsdom
           mie2_crs(ji) = ijie
         END DO
         !$ACC END KERNELS
-        CALL ProfileStart('crs_dom_def', 'r8', psy_profile8)
+        CALL profile_psy_data8 % PreStart('crs_dom_def', 'r8', 0, 0)
         IF (jpiglo - 1 - mie2_crs(jpiglo_crsm1) <= nn_factx) mie_crs(jpiglo_crsm1) = jpiglo - 2
-        CALL ProfileEnd(psy_profile8)
+        CALL profile_psy_data8 % PostEnd
         !$ACC KERNELS
         jj = 2
         ijje = jpj - nn_facty * (jj - 2)
@@ -1631,11 +1647,11 @@ MODULE crsdom
         WRITE(numout, FMT = *) 'crs_init. Only jperio = 0, 1, 3, 4, 5, 6 supported'
       END SELECT
     CASE (1)
-      CALL ProfileStart('crs_dom_def', 'r9', psy_profile9)
+      CALL profile_psy_data9 % PreStart('crs_dom_def', 'r9', 0, 0)
       WRITE(numout, FMT = *) 'crs_init.  Equator-centered bins option not yet available'
-      CALL ProfileEnd(psy_profile9)
+      CALL profile_psy_data9 % PostEnd
     END SELECT
-    CALL ProfileStart('crs_dom_def', 'r10', psy_profile10)
+    CALL profile_psy_data10 % PreStart('crs_dom_def', 'r10', 0, 0)
     mis2_crs(2) = 1
     mis2_crs(jpiglo_crs) = mie2_crs(jpiglo_crs - 1) + 1
     mie2_crs(2) = nn_factx
@@ -1646,14 +1662,14 @@ MODULE crsdom
     mje2_crs(jpjglo_crs) = jpjglo
     mjs2_crs(2) = 1
     mjs2_crs(jpjglo_crs) = mje2_crs(jpjglo_crs) - nn_facty + 1
-    CALL ProfileEnd(psy_profile10)
+    CALL profile_psy_data10 % PostEnd
     IF (.NOT. lk_mpp) THEN
-      CALL ProfileStart('crs_dom_def', 'r11', psy_profile11)
+      !$ACC KERNELS
       mis_crs(:) = mis2_crs(:)
       mie_crs(:) = mie2_crs(:)
       mjs_crs(:) = mjs2_crs(:)
       mje_crs(:) = mje2_crs(:)
-      CALL ProfileEnd(psy_profile11)
+      !$ACC END KERNELS
     ELSE
       !$ACC KERNELS
       DO jj = 1, nlej_crs
@@ -1666,26 +1682,26 @@ MODULE crsdom
       END DO
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('crs_dom_def', 'r12', psy_profile12)
+    CALL profile_psy_data11 % PreStart('crs_dom_def', 'r11', 0, 0)
     nistr = mis_crs(2)
     niend = mis_crs(nlci_crs - 1)
     njstr = mjs_crs(3)
     njend = mjs_crs(nlcj_crs - 1)
-    CALL ProfileEnd(psy_profile12)
+    CALL profile_psy_data11 % PostEnd
   END SUBROUTINE crs_dom_def
   SUBROUTINE crs_dom_bat
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs) :: zmbk
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     !$ACC KERNELS
     mbathy_crs(:, :) = jpkm1
     mbkt_crs(:, :) = 1
     mbku_crs(:, :) = 1
     mbkv_crs(:, :) = 1
     !$ACC END KERNELS
-    CALL ProfileStart('crs_dom_bat', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('crs_dom_bat', 'r0', 0, 0)
     DO jj = 1, jpj_crs
       DO ji = 1, jpi_crs
         jk = 0
@@ -1695,7 +1711,7 @@ MODULE crsdom
         mbathy_crs(ji, jj) = FLOAT(jk)
       END DO
     END DO
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zmbk(:, :) = 0.0
     zmbk(:, :) = REAL(mbathy_crs(:, :), wp)
@@ -1704,13 +1720,14 @@ MODULE crsdom
     !$ACC KERNELS
     mbathy_crs(:, :) = NINT(zmbk(:, :))
     !$ACC END KERNELS
-    CALL ProfileStart('crs_dom_bat', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('crs_dom_bat', 'r1', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) '    crsini : mbkt is ocean bottom k-index of T-, U-, V- and W-levels '
     IF (lwp) WRITE(numout, FMT = *) '    ~~~~~~~~~~~~~'
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     mbkt_crs(:, :) = MAX(mbathy_crs(:, :), 1)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj_crsm1
       DO ji = 1, jpi_crsm1
         mbku_crs(ji, jj) = MIN(mbkt_crs(ji + 1, jj), mbkt_crs(ji, jj))

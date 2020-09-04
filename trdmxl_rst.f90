@@ -11,7 +11,7 @@ MODULE trdmxl_rst
   INTEGER :: nummxlw
   CONTAINS
   SUBROUTINE trd_mxl_rst_write(kt)
-    INTEGER, INTENT( IN ) :: kt
+    INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = 35) :: charout
     INTEGER :: jk
     CHARACTER(LEN = 20) :: clkt

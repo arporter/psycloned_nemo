@@ -14,12 +14,15 @@ MODULE dtatsd
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_tsd
   CONTAINS
   SUBROUTINE dta_tsd_init(ld_tradmp)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     LOGICAL, INTENT(IN), OPTIONAL :: ld_tradmp
     INTEGER :: ios, ierr0, ierr1, ierr2, ierr3
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N), DIMENSION(jpts) :: slf_i
     TYPE(FLD_N) :: sn_tem, sn_sal
     NAMELIST /namtsd/ ln_tsd_init, ln_tsd_dmp, cn_dir, sn_tem, sn_sal
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dta_tsd_init', 'r0', 0, 0)
     ierr0 = 0
     ierr1 = 0
     ierr2 = 0
@@ -67,20 +70,21 @@ MODULE dtatsd
       slf_i(jp_sal) = sn_sal
       CALL fld_fill(sf_tsd, slf_i, cn_dir, 'dta_tsd', 'Temperature & Salinity data', 'namtsd', no_print)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dta_tsd_init
   SUBROUTINE dta_tsd(kt, ptsd)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT( OUT) :: ptsd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(OUT) :: ptsd
     INTEGER :: ji, jj, jk, jl, jkk
     INTEGER :: ik, il0, il1, ii0, ii1, ij0, ij1
     REAL(KIND = wp) :: zl, zi
     REAL(KIND = wp), DIMENSION(jpk) :: ztp, zsp
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    CALL ProfileStart('dta_tsd', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    CALL profile_psy_data0 % PreStart('dta_tsd', 'r0', 0, 0)
     CALL fld_read(kt, 1, sf_tsd)
     IF (cn_cfg == "orca" .OR. cn_cfg == "ORCA") THEN
       IF (nn_cfg == 2 .AND. ln_tsd_dmp) THEN
@@ -110,17 +114,17 @@ MODULE dtatsd
     END IF
     ptsd(:, :, :, jp_tem) = sf_tsd(jp_tem) % fnow(:, :, :)
     ptsd(:, :, :, jp_sal) = sf_tsd(jp_sal) % fnow(:, :, :)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (ln_sco) THEN
-      CALL ProfileStart('dta_tsd', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('dta_tsd', 'r1', 0, 0)
       IF (kt == nit000 .AND. lwp) THEN
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) 'dta_tsd: interpolates T & S data onto the s- or mixed s-z-coordinate mesh'
       END IF
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
       DO jj = 1, jpj
         DO ji = 1, jpi
-          CALL ProfileStart('dta_tsd', 'r2', psy_profile2)
+          CALL profile_psy_data2 % PreStart('dta_tsd', 'r2', 0, 0)
           DO jk = 1, jpk
             zl = gdept_0(ji, jj, jk)
             IF (zl < gdept_1d(1)) THEN
@@ -139,7 +143,7 @@ MODULE dtatsd
               END DO
             END IF
           END DO
-          CALL ProfileEnd(psy_profile2)
+          CALL profile_psy_data2 % PostEnd
           !$ACC KERNELS
           DO jk = 1, jpkm1
             ptsd(ji, jj, jk, jp_tem) = ztp(jk) * tmask(ji, jj, jk)
@@ -157,6 +161,7 @@ MODULE dtatsd
       !$ACC END KERNELS
       IF (ln_zps) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             ik = mbkt(ji, jj)
@@ -176,7 +181,7 @@ MODULE dtatsd
         !$ACC END KERNELS
       END IF
     END IF
-    CALL ProfileStart('dta_tsd', 'r3', psy_profile3)
+    CALL profile_psy_data3 % PreStart('dta_tsd', 'r3', 0, 0)
     IF (.NOT. ln_tsd_dmp) THEN
       IF (lwp) WRITE(numout, FMT = *) 'dta_tsd: deallocte T & S arrays as they are only use to initialize the run'
       DEALLOCATE(sf_tsd(jp_tem) % fnow)
@@ -185,6 +190,6 @@ MODULE dtatsd
       IF (sf_tsd(jp_sal) % ln_tint) DEALLOCATE(sf_tsd(jp_sal) % fdta)
       DEALLOCATE(sf_tsd)
     END IF
-    CALL ProfileEnd(psy_profile3)
+    CALL profile_psy_data3 % PostEnd
   END SUBROUTINE dta_tsd
 END MODULE dtatsd

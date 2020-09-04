@@ -37,15 +37,15 @@ MODULE trdmxl
     IF (trd_mxl_alloc /= 0) CALL ctl_warn('trd_mxl_alloc: failed to allocate array ndextrd1')
   END FUNCTION trd_mxl_alloc
   SUBROUTINE trd_tra_mxl(ptrdx, ptrdy, ktrd, kt, p2dt, kmxln)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdx
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdy
-    INTEGER, INTENT(IN ) :: ktrd
-    INTEGER, INTENT(IN ) :: kt
-    REAL(KIND = wp), INTENT(IN ) :: p2dt
-    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN ) :: kmxln
+    INTEGER, INTENT(IN) :: ktrd
+    INTEGER, INTENT(IN) :: kt
+    REAL(KIND = wp), INTENT(IN) :: p2dt
+    REAL(KIND = wp), DIMENSION(:, :), INTENT(IN) :: kmxln
     INTEGER :: ji, jj, jk
-    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     IF (kt /= nkstp) THEN
       !$ACC KERNELS
       nkstp = kt
@@ -53,6 +53,7 @@ MODULE trdmxl
       smltrd(:, :, :) = 0._wp
       wkx(:, :, :) = 0._wp
       DO jk = 1, jpktrd
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (jk - kmxln(ji, jj) < 0) wkx(ji, jj, jk) = e3t_n(ji, jj, jk) * tmask(ji, jj, jk)
@@ -96,14 +97,14 @@ MODULE trdmxl
         !$ACC END KERNELS
       END IF
     CASE (jptra_atf)
-      CALL ProfileStart('trd_tra_mxl', 'r0', psy_profile0)
-      CALL ProfileEnd(psy_profile0)
+      CALL profile_psy_data0 % PreStart('trd_tra_mxl', 'r0', 0, 0)
+      CALL profile_psy_data0 % PostEnd
     END SELECT
   END SUBROUTINE trd_tra_mxl
   SUBROUTINE trd_mean(kt, ptrd, ptrdm)
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: ptrd
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: ptrd
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: ptrdm
-    INTEGER, INTENT(IN ) :: kt
+    INTEGER, INTENT(IN) :: kt
     !$ACC KERNELS
     IF (kt == nn_it000) ptrdm(:, :, :) = 0._wp
     ptrdm(:, :, :) = ptrdm(:, :, :) + ptrd(:, :, :)
@@ -112,10 +113,10 @@ MODULE trdmxl
     !$ACC END KERNELS
   END SUBROUTINE trd_mean
   SUBROUTINE trd_mxl_zint(pttrdmxl, pstrdmxl, ktrd, ctype)
-    INTEGER, INTENT( IN ) :: ktrd
-    CHARACTER(LEN = 2), INTENT( IN ) :: ctype
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( IN ) :: pttrdmxl
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( IN ) :: pstrdmxl
+    INTEGER, INTENT(IN) :: ktrd
+    CHARACTER(LEN = 2), INTENT(IN) :: ctype
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: pttrdmxl
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: pstrdmxl
     INTEGER :: ji, jj, jk, isum
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zvlmsk
     !$ACC KERNELS
@@ -132,22 +133,22 @@ MODULE trdmxl
     !$ACC END KERNELS
   END SUBROUTINE trd_mxl_zint
   SUBROUTINE trd_mxl(kt, p2dt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    REAL(KIND = wp), INTENT(IN ) :: p2dt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    REAL(KIND = wp), INTENT(IN) :: p2dt
     INTEGER :: ji, jj, jk, jl, ik, it, itmod
     LOGICAL :: lldebug = .TRUE.
     REAL(KIND = wp) :: zavt, zfn, zfn2
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztmltot, zsmltot, ztmlres, zsmlres, ztmlatf, zsmlatf
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztmltot2, zsmltot2, ztmlres2, zsmlres2, ztmlatf2, zsmlatf2, ztmltrdm2, zsmltrdm2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ztmltrd2, zsmltrd2
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
     !$ACC KERNELS
     ztmltrd2(:, :, :) = 0.E0
     zsmltrd2(:, :, :) = 0.E0
@@ -178,16 +179,16 @@ MODULE trdmxl
       smltrd_atf_sumb(:, :) = 0.E0
       hmxlbn(:, :) = hmxl(:, :)
       !$ACC END KERNELS
-      CALL ProfileStart('trd_mxl', 'r0', psy_profile0)
+      CALL profile_psy_data0 % PreStart('trd_mxl', 'r0', 0, 0)
       IF (ln_ctl) THEN
         WRITE(numout, FMT = *) '             we reach kt == nit000 + 1 = ', nit000 + 1
         CALL prt_ctl(tab2d_1 = tmlbb, clinfo1 = ' tmlbb   -   : ', mask1 = tmask)
         CALL prt_ctl(tab2d_1 = tmlbn, clinfo1 = ' tmlbn   -   : ', mask1 = tmask)
         CALL prt_ctl(tab2d_1 = tmlatfb, clinfo1 = ' tmlatfb -   : ', mask1 = tmask)
       END IF
-      CALL ProfileEnd(psy_profile0)
+      CALL profile_psy_data0 % PostEnd
     END IF
-    CALL ProfileStart('trd_mxl', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('trd_mxl', 'r1', 0, 0)
     IF ((ln_rstart) .AND. (kt == nit000) .AND. (ln_ctl)) THEN
       IF (ln_trdmxl_instant) THEN
         WRITE(numout, FMT = *) '             restart from kt == nit000 = ', nit000
@@ -203,7 +204,7 @@ MODULE trdmxl
         CALL prt_ctl(tab3d_1 = tmltrd_csum_ub, clinfo1 = ' tmltrd_csum_ub  -  : ', mask1 = tmask, kdim = 1)
       END IF
     END IF
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     IF ((kt >= 2) .OR. (ln_rstart)) THEN
       nmoymltrd = nmoymltrd + 1
@@ -237,9 +238,9 @@ MODULE trdmxl
       ztmlres2(:, :) = 0.E0
       zsmlres2(:, :) = 0.E0
       !$ACC END KERNELS
-      CALL ProfileStart('trd_mxl', 'r2', psy_profile2)
+      CALL profile_psy_data2 % PreStart('trd_mxl', 'r2', 0, 0)
       zfn = REAL(nmoymltrd, wp)
-      CALL ProfileEnd(psy_profile2)
+      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       zfn2 = zfn * zfn
       ztmltot(:, :) = (tml(:, :) - tmlbn(:, :) + tmlb(:, :) - tmlbb(:, :)) / p2dt
@@ -275,10 +276,10 @@ MODULE trdmxl
       ztmlatf2(:, :) = ztmltrd2(:, :, jpmxl_atf) - tmltrd_sum(:, :, jpmxl_atf) + tmltrd_atf_sumb(:, :)
       zsmlatf2(:, :) = zsmltrd2(:, :, jpmxl_atf) - smltrd_sum(:, :, jpmxl_atf) + smltrd_atf_sumb(:, :)
       !$ACC END KERNELS
-      CALL ProfileStart('trd_mxl', 'r3', psy_profile3)
+      CALL profile_psy_data3 % PreStart('trd_mxl', 'r3', 0, 0)
       CALL lbc_lnk_multi(ztmltot2, 'T', 1., zsmltot2, 'T', 1., ztmlres2, 'T', 1., zsmlres2, 'T', 1.)
       CALL lbc_lnk_multi(ztmltrd2(:, :, :), 'T', 1., zsmltrd2(:, :, :), 'T', 1.)
-      CALL ProfileEnd(psy_profile3)
+      CALL profile_psy_data3 % PostEnd
       !$ACC KERNELS
       tmlbb(:, :) = tmlb(:, :)
       smlbb(:, :) = smlb(:, :)
@@ -294,7 +295,7 @@ MODULE trdmxl
       smltrd_atf_sumb(:, :) = smltrd_sum(:, :, jpmxl_atf)
       hmxlbn(:, :) = hmxl(:, :)
       !$ACC END KERNELS
-      CALL ProfileStart('trd_mxl', 'r4', psy_profile4)
+      CALL profile_psy_data4 % PreStart('trd_mxl', 'r4', 0, 0)
       IF (ln_ctl) THEN
         IF (ln_trdmxl_instant) THEN
           CALL prt_ctl(tab2d_1 = tmlbb, clinfo1 = ' tmlbb   -   : ', mask1 = tmask)
@@ -308,7 +309,7 @@ MODULE trdmxl
           CALL prt_ctl(tab3d_1 = tmltrd_csum_ub, clinfo1 = ' tmltrd_csum_ub  -  : ', mask1 = tmask, kdim = 1)
         END IF
       END IF
-      CALL ProfileEnd(psy_profile4)
+      CALL profile_psy_data4 % PostEnd
       !$ACC KERNELS
       ztmltot(:, :) = ztmltot(:, :) * rn_ucf / zfn
       zsmltot(:, :) = zsmltot(:, :) * rn_ucf / zfn
@@ -328,7 +329,7 @@ MODULE trdmxl
       zsmlres2(:, :) = zsmlres2(:, :) * rn_ucf / zfn2
       hmxl_sum(:, :) = hmxl_sum(:, :) / (2 * zfn)
       !$ACC END KERNELS
-      CALL ProfileStart('trd_mxl', 'r5', psy_profile5)
+      CALL profile_psy_data5 % PreStart('trd_mxl', 'r5', 0, 0)
       IF (lldebug) THEN
         WRITE(numout, FMT = *)
         WRITE(numout, FMT = *) 'trd_mxl : write trends in the Mixed Layer for debugging process:'
@@ -359,9 +360,9 @@ MODULE trdmxl
         WRITE(numout, FMT = *) '          TRA zsmlres (jpi/2,jpj/2) : ', zsmlres(jpi / 2, jpj / 2)
         WRITE(numout, FMT = *) '          TRA zsmlres2(jpi/2,jpj/2) : ', zsmlres2(jpi / 2, jpj / 2)
       END IF
-      CALL ProfileEnd(psy_profile5)
+      CALL profile_psy_data5 % PostEnd
     END IF MODULO_NTRD
-    CALL ProfileStart('trd_mxl', 'r6', psy_profile6)
+    CALL profile_psy_data6 % PreStart('trd_mxl', 'r6', 0, 0)
     IF (ln_trdmxl_instant) THEN
       CALL iom_put("mxl_depth", hmxl(:, :))
       CALL iom_put("tml", tml(:, :))
@@ -395,7 +396,7 @@ MODULE trdmxl
       END DO
       CALL iom_put(TRIM("sml" // ctrd(jpmxl_atf, 2)), zsmlatf2(:, :))
     END IF
-    CALL ProfileEnd(psy_profile6)
+    CALL profile_psy_data6 % PostEnd
     !$ACC KERNELS
     IF (MOD(itmod, nn_trd) == 0) THEN
       nmoymltrd = 0
@@ -415,6 +416,7 @@ MODULE trdmxl
     IF (lrst_oce) CALL trd_mxl_rst_write(kt)
   END SUBROUTINE trd_mxl
   SUBROUTINE trd_mxl_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jl
     INTEGER :: inum
     INTEGER :: ios
@@ -422,6 +424,9 @@ MODULE trdmxl
     CHARACTER(LEN = 40) :: clop
     CHARACTER(LEN = 12) :: clmxl, cltu, clsu
     NAMELIST /namtrd_mxl/ nn_trd, cn_trdrst_in, ln_trdmxl_restart, nn_ctls, cn_trdrst_out, ln_trdmxl_instant, rn_ucf, rn_rho_c
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('trd_mxl_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namtrd_mxl, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namtrd_mxl in reference namelist', lwp)
@@ -457,6 +462,7 @@ MODULE trdmxl
     END IF
     IF (trd_mxl_alloc() /= 0) CALL ctl_stop('STOP', 'trd_mxl_init : unable to allocate trdmxl     arrays')
     IF (trdmxl_oce_alloc() /= 0) CALL ctl_stop('STOP', 'trd_mxl_init : unable to allocate trdmxl_oce arrays')
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     nkstp = nit000 - 1
     nmoymltrd = 0
@@ -493,6 +499,7 @@ MODULE trdmxl
       smltrd_atf_sumb(:, :) = 0.E0
       !$ACC END KERNELS
     END IF
+    CALL profile_psy_data1 % PreStart('trd_mxl_init', 'r1', 0, 0)
     icount = 1
     ionce = 1
     IF (nn_ctls == 1) THEN
@@ -539,5 +546,6 @@ MODULE trdmxl
       cltu = "unknown?"
       clsu = "unknown?"
     END IF
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE trd_mxl_init
 END MODULE trdmxl

@@ -17,7 +17,7 @@ MODULE crsfld
   PUBLIC :: crs_fld
   CONTAINS
   SUBROUTINE crs_fld(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: z2dcrsu, z2dcrsv
@@ -25,13 +25,13 @@ MODULE crsfld
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ze3t, ze3u, ze3v, ze3w
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zt, zs, z3d
     REAL(KIND = wp), DIMENSION(jpi_crs, jpj_crs, jpk) :: zt_crs, zs_crs
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
     IF (ln_timing) CALL timing_start('crs_fld')
     !$ACC KERNELS
     ze3t(:, :, :) = e3t_n(:, :, :)
@@ -65,10 +65,10 @@ MODULE crsfld
     !$ACC KERNELS
     tsn_crs(:, :, :, jp_tem) = zt_crs(:, :, :)
     !$ACC END KERNELS
-    CALL ProfileStart('crs_fld', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('crs_fld', 'r0', 0, 0)
     CALL iom_put("toce", tsn_crs(:, :, :, jp_tem))
     CALL iom_put("sst", tsn_crs(:, :, 1, jp_tem))
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zs(:, :, :) = tsn(:, :, :, jp_sal)
     zs_crs(:, :, :) = 0._wp
@@ -77,17 +77,18 @@ MODULE crsfld
     !$ACC KERNELS
     tsn_crs(:, :, :, jp_sal) = zt_crs(:, :, :)
     !$ACC END KERNELS
-    CALL ProfileStart('crs_fld', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('crs_fld', 'r1', 0, 0)
     CALL iom_put("soce", tsn_crs(:, :, :, jp_sal))
     CALL iom_put("sss", tsn_crs(:, :, 1, jp_sal))
     CALL crs_dom_ope(un, 'SUM', 'U', umask, un_crs, p_e12 = e2u, p_e3 = ze3u, p_surf_crs = e2e3u_msk, psgn = - 1.0)
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     zt(:, :, :) = 0._wp
     zs(:, :, :) = 0._wp
     zt_crs(:, :, :) = 0._wp
     zs_crs(:, :, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zt(ji, jj, jk) = un(ji, jj, jk) * 0.5 * (tsn(ji, jj, jk, jp_tem) + tsn(ji + 1, jj, jk, jp_tem))
@@ -96,20 +97,21 @@ MODULE crsfld
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('crs_fld', 'r2', psy_profile2)
+    CALL profile_psy_data2 % PreStart('crs_fld', 'r2', 0, 0)
     CALL crs_dom_ope(zt, 'SUM', 'U', umask, zt_crs, p_e12 = e2u, p_e3 = ze3u, p_surf_crs = e2e3u_msk, psgn = - 1.0)
     CALL crs_dom_ope(zs, 'SUM', 'U', umask, zs_crs, p_e12 = e2u, p_e3 = ze3u, p_surf_crs = e2e3u_msk, psgn = - 1.0)
     CALL iom_put("uoce", un_crs)
     CALL iom_put("uocet", zt_crs)
     CALL iom_put("uoces", zs_crs)
     CALL crs_dom_ope(vn, 'SUM', 'V', vmask, vn_crs, p_e12 = e1v, p_e3 = ze3v, p_surf_crs = e1e3v_msk, psgn = - 1.0)
-    CALL ProfileEnd(psy_profile2)
+    CALL profile_psy_data2 % PostEnd
     !$ACC KERNELS
     zt(:, :, :) = 0._wp
     zs(:, :, :) = 0._wp
     zt_crs(:, :, :) = 0._wp
     zs_crs(:, :, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zt(ji, jj, jk) = vn(ji, jj, jk) * 0.5 * (tsn(ji, jj, jk, jp_tem) + tsn(ji, jj + 1, jk, jp_tem))
@@ -118,17 +120,18 @@ MODULE crsfld
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('crs_fld', 'r3', psy_profile3)
+    CALL profile_psy_data3 % PreStart('crs_fld', 'r3', 0, 0)
     CALL crs_dom_ope(zt, 'SUM', 'V', vmask, zt_crs, p_e12 = e1v, p_e3 = ze3v, p_surf_crs = e1e3v_msk, psgn = - 1.0)
     CALL crs_dom_ope(zs, 'SUM', 'V', vmask, zs_crs, p_e12 = e1v, p_e3 = ze3v, p_surf_crs = e1e3v_msk, psgn = - 1.0)
     CALL iom_put("voce", vn_crs)
     CALL iom_put("vocet", zt_crs)
     CALL iom_put("voces", zs_crs)
-    CALL ProfileEnd(psy_profile3)
+    CALL profile_psy_data3 % PostEnd
     IF (iom_use("eken")) THEN
       !$ACC KERNELS
       z3d(:, :, jk) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zztmp = r1_e1e2t(ji, jj) / e3t_n(ji, jj, jk)
@@ -137,11 +140,11 @@ MODULE crsfld
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('crs_fld', 'r4', psy_profile4)
+      CALL profile_psy_data4 % PreStart('crs_fld', 'r4', 0, 0)
       CALL lbc_lnk(z3d, 'T', 1.)
       CALL crs_dom_ope(z3d, 'VOL', 'T', tmask, zt_crs, p_e12 = e1e2t, p_e3 = ze3t, psgn = 1.0)
       CALL iom_put("eken", zt_crs)
-      CALL ProfileEnd(psy_profile4)
+      CALL profile_psy_data4 % PostEnd
     END IF
     !$ACC KERNELS
     DO jk = 1, jpkm1
@@ -156,10 +159,10 @@ MODULE crsfld
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('crs_fld', 'r5', psy_profile5)
+    CALL profile_psy_data5 % PreStart('crs_fld', 'r5', 0, 0)
     CALL crs_lbc_lnk(hdivn_crs, 'T', 1.0)
     CALL iom_put("hdiv", hdivn_crs)
-    CALL ProfileEnd(psy_profile5)
+    CALL profile_psy_data5 % PostEnd
     IF (ln_crs_wn) THEN
       CALL crs_dom_ope(wn, 'SUM', 'W', tmask, wn_crs, p_e12 = e1e2t, p_surf_crs = e1e2w_msk, psgn = 1.0)
     ELSE
@@ -170,7 +173,7 @@ MODULE crsfld
       END DO
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('crs_fld', 'r6', psy_profile6)
+    CALL profile_psy_data6 % PreStart('crs_fld', 'r6', 0, 0)
     CALL iom_put("woce", wn_crs)
     SELECT CASE (nn_crs_kz)
     CASE (0)
@@ -206,6 +209,6 @@ MODULE crsfld
     CALL iom_put("ice_cover", fr_i_crs)
     CALL iom_swap("nemo")
     IF (ln_timing) CALL timing_stop('crs_fld')
-    CALL ProfileEnd(psy_profile6)
+    CALL profile_psy_data6 % PostEnd
   END SUBROUTINE crs_fld
 END MODULE crsfld

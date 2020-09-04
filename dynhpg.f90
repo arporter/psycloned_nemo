@@ -33,12 +33,12 @@ MODULE dynhpg
   INTEGER, PUBLIC :: nhpg
   CONTAINS
   SUBROUTINE dyn_hpg(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ztrdu, ztrdv
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     IF (ln_timing) CALL timing_start('dyn_hpg')
     IF (l_trddyn) THEN
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
@@ -47,7 +47,7 @@ MODULE dynhpg
       ztrdv(:, :, :) = va(:, :, :)
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('dyn_hpg', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('dyn_hpg', 'r0', 0, 0)
     SELECT CASE (nhpg)
     CASE (np_zco)
       CALL hpg_zco(kt)
@@ -62,23 +62,24 @@ MODULE dynhpg
     CASE (np_isf)
       CALL hpg_isf(kt)
     END SELECT
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (l_trddyn) THEN
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :) - ztrdu(:, :, :)
       ztrdv(:, :, :) = va(:, :, :) - ztrdv(:, :, :)
       !$ACC END KERNELS
-      CALL ProfileStart('dyn_hpg', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('dyn_hpg', 'r1', 0, 0)
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_hpg, kt)
       DEALLOCATE(ztrdu, ztrdv)
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
     END IF
-    CALL ProfileStart('dyn_hpg', 'r2', psy_profile2)
+    CALL profile_psy_data2 % PreStart('dyn_hpg', 'r2', 0, 0)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' hpg  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_hpg')
-    CALL ProfileEnd(psy_profile2)
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE dyn_hpg
   SUBROUTINE dyn_hpg_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ioptio = 0
     INTEGER :: ios
     INTEGER :: ji, jj, jk, ikt
@@ -87,6 +88,10 @@ MODULE dynhpg
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zrhdtop_isf
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: ziceload
     NAMELIST /namdyn_hpg/ ln_hpg_zco, ln_hpg_zps, ln_hpg_sco, ln_hpg_djc, ln_hpg_prj, ln_hpg_isf
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('dyn_hpg_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namdyn_hpg, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namdyn_hpg in reference namelist', lwp)
@@ -158,25 +163,31 @@ MODULE dynhpg
       END SELECT
       WRITE(numout, FMT = *)
     END IF
+    CALL profile_psy_data0 % PostEnd
     IF (.NOT. ln_isfcav) THEN
       !$ACC KERNELS
       riceload(:, :) = 0._wp
       !$ACC END KERNELS
     ELSE
+      CALL profile_psy_data1 % PreStart('dyn_hpg_init', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) '   ice shelf case: set the ice-shelf load'
       ALLOCATE(zts_top(jpi, jpj, jpts), zrhd(jpi, jpj, jpk), zrhdtop_isf(jpi, jpj), ziceload(jpi, jpj))
+      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       znad = 1._wp
       zts_top(:, :, jp_tem) = - 1.9_wp
       zts_top(:, :, jp_sal) = 34.4_wp
       !$ACC END KERNELS
+      CALL profile_psy_data2 % PreStart('dyn_hpg_init', 'r2', 0, 0)
       DO jk = 1, jpk
         CALL eos(zts_top(:, :, :), gdept_n(:, :, jk), zrhd(:, :, jk))
       END DO
       CALL eos(zts_top, risfdep, zrhdtop_isf)
+      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       ziceload = 0._wp
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           ikt = mikt(ji, jj)
@@ -193,21 +204,22 @@ MODULE dynhpg
     END IF
   END SUBROUTINE dyn_hpg_init
   SUBROUTINE hpg_zco(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcoef0, zcoef1
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zhpi, zhpj
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('hpg_zco', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('hpg_zco', 'r0', 0, 0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn:hpg_zco : hydrostatic pressure gradient trend'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~   z-coordinate case '
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zcoef0 = - grav * 0.5_wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zcoef1 = zcoef0 * e3w_n(ji, jj, 1)
@@ -218,6 +230,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zcoef1 = zcoef0 * e3w_n(ji, jj, jk)
@@ -231,22 +244,23 @@ MODULE dynhpg
     !$ACC END KERNELS
   END SUBROUTINE hpg_zco
   SUBROUTINE hpg_zps(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: iku, ikv
     REAL(KIND = wp) :: zcoef0, zcoef1, zcoef2, zcoef3
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zhpi, zhpj
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('hpg_zps', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('hpg_zps', 'r0', 0, 0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn:hpg_zps : hydrostatic pressure gradient trend'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~   z-coordinate with partial steps - vector optimization'
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zcoef0 = - grav * 0.5_wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zcoef1 = zcoef0 * e3w_n(ji, jj, 1)
@@ -257,6 +271,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zcoef1 = zcoef0 * e3w_n(ji, jj, jk)
@@ -267,6 +282,7 @@ MODULE dynhpg
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         iku = mbku(ji, jj)
@@ -288,15 +304,15 @@ MODULE dynhpg
     !$ACC END KERNELS
   END SUBROUTINE hpg_zps
   SUBROUTINE hpg_sco(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jii, jjj
     REAL(KIND = wp) :: zcoef0, zuap, zvap, znad, ztmp
     LOGICAL :: ll_tmp1, ll_tmp2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zhpi, zhpj
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zcpx, zcpy
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('hpg_sco', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('hpg_sco', 'r0', 0, 0)
     IF (ln_wd_il) ALLOCATE(zcpx(jpi, jpj), zcpy(jpi, jpj))
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -309,9 +325,10 @@ MODULE dynhpg
     ELSE
       znad = 1._wp
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (ln_wd_il) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ll_tmp1 = MIN(sshn(ji, jj), sshn(ji + 1, jj)) > MAX(- ht_0(ji, jj), - ht_0(ji + 1, jj)) .AND. MAX(sshn(ji, jj) + ht_0(ji, jj), sshn(ji + 1, jj) + ht_0(ji + 1, jj)) > rn_wdmin1 + rn_wdmin2
@@ -338,6 +355,7 @@ MODULE dynhpg
       CALL lbc_lnk_multi(zcpx, 'U', 1., zcpy, 'V', 1.)
     END IF
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zhpi(ji, jj, 1) = zcoef0 * (e3w_n(ji + 1, jj, 1) * (znad + rhd(ji + 1, jj, 1)) - e3w_n(ji, jj, 1) * (znad + rhd(ji, jj, 1))) * r1_e1u(ji, jj)
@@ -355,6 +373,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zhpi(ji, jj, jk) = zhpi(ji, jj, jk - 1) + zcoef0 * r1_e1u(ji, jj) * (e3w_n(ji + 1, jj, jk) * (rhd(ji + 1, jj, jk) + rhd(ji + 1, jj, jk - 1) + 2 * znad) - e3w_n(ji, jj, jk) * (rhd(ji, jj, jk) + rhd(ji, jj, jk - 1) + 2 * znad))
@@ -397,6 +416,7 @@ MODULE dynhpg
     !$ACC END KERNELS
     CALL eos(zts_top, risfdep, zrhdtop_oce)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ikt = mikt(ji, jj)
@@ -411,6 +431,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zhpi(ji, jj, jk) = zhpi(ji, jj, jk - 1) + zcoef0 / e1u(ji, jj) * (e3w_n(ji + 1, jj, jk) * (rhd(ji + 1, jj, jk) + rhd(ji + 1, jj, jk - 1) + 2 * znad) * wmask(ji + 1, jj, jk) - e3w_n(ji, jj, jk) * (rhd(ji, jj, jk) + rhd(ji, jj, jk - 1) + 2 * znad) * wmask(ji, jj, jk))
@@ -425,7 +446,7 @@ MODULE dynhpg
     !$ACC END KERNELS
   END SUBROUTINE hpg_isf
   SUBROUTINE hpg_djc(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcoef0, zep, cffw
@@ -437,9 +458,9 @@ MODULE dynhpg
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: drhox, drhoy, drhoz, drhou, drhov, drhow
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: rho_i, rho_j, rho_k
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zcpx, zcpy
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('hpg_djc', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('hpg_djc', 'r0', 0, 0)
     IF (ln_wd_il) THEN
       ALLOCATE(zcpx(jpi, jpj), zcpy(jpi, jpj))
       DO jj = 2, jpjm1
@@ -471,12 +492,13 @@ MODULE dynhpg
       IF (lwp) WRITE(numout, FMT = *) 'dyn:hpg_djc : hydrostatic pressure gradient trend'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~   s-coordinate case, density Jacobian with cubic polynomial scheme'
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zcoef0 = - grav * 0.5_wp
     z1_10 = 1._wp / 10._wp
     z1_12 = 1._wp / 12._wp
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           drhoz(ji, jj, jk) = rhd(ji, jj, jk) - rhd(ji, jj, jk - 1)
@@ -490,6 +512,7 @@ MODULE dynhpg
     END DO
     zep = 1.E-15
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           cffw = 2._wp * drhoz(ji, jj, jk) * drhoz(ji, jj, jk - 1)
@@ -532,12 +555,14 @@ MODULE dynhpg
     drhow(:, :, jpk) = 1.5_wp * (drhoz(:, :, jpk) - drhoz(:, :, jpkm1)) - 0.5_wp * drhow(:, :, jpkm1)
     drhou(:, :, jpk) = 1.5_wp * (drhox(:, :, jpk) - drhox(:, :, jpkm1)) - 0.5_wp * drhou(:, :, jpkm1)
     drhov(:, :, jpk) = 1.5_wp * (drhoy(:, :, jpk) - drhoy(:, :, jpkm1)) - 0.5_wp * drhov(:, :, jpkm1)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         rho_k(ji, jj, 1) = - grav * (e3w_n(ji, jj, 1) - gde3w_n(ji, jj, 1)) * (rhd(ji, jj, 1) + 0.5_wp * (rhd(ji, jj, 2) - rhd(ji, jj, 1)) * (e3w_n(ji, jj, 1) - gde3w_n(ji, jj, 1)) / (gde3w_n(ji, jj, 2) - gde3w_n(ji, jj, 1)))
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           rho_k(ji, jj, jk) = zcoef0 * (rhd(ji, jj, jk) + rhd(ji, jj, jk - 1)) * (gde3w_n(ji, jj, jk) - gde3w_n(ji, jj, jk - 1)) - grav * z1_10 * ((drhow(ji, jj, jk) - drhow(ji, jj, jk - 1)) * (gde3w_n(ji, jj, jk) - gde3w_n(ji, jj, jk - 1) - z1_12 * (dzw(ji, jj, jk) + dzw(ji, jj, jk - 1))) - (dzw(ji, jj, jk) - dzw(ji, jj, jk - 1)) * (rhd(ji, jj, jk) - rhd(ji, jj, jk - 1) - z1_12 * (drhow(ji, jj, jk) + drhow(ji, jj, jk - 1))))
@@ -547,7 +572,7 @@ MODULE dynhpg
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('hpg_djc', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('hpg_djc', 'r1', 0, 0)
     CALL lbc_lnk_multi(rho_k, 'W', 1., rho_i, 'U', 1., rho_j, 'V', 1.)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
@@ -576,10 +601,10 @@ MODULE dynhpg
       END DO
     END DO
     IF (ln_wd_il) DEALLOCATE(zcpx, zcpy)
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE hpg_djc
   SUBROUTINE hpg_prj(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, PARAMETER :: polynomial_type = 1
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jkk
@@ -593,9 +618,12 @@ MODULE dynhpg
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zhpi, zu, zv, fsp, xsp, asp, bsp, csp, dsp
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zsshu_n, zsshv_n
     REAL(KIND = wp), DIMENSION(:, :), ALLOCATABLE :: zcpx, zcpy
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('hpg_prj', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    CALL profile_psy_data0 % PreStart('hpg_prj', 'r0', 0, 0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn:hpg_prj : hydrostatic pressure gradient trend'
@@ -632,30 +660,42 @@ MODULE dynhpg
       END DO
       CALL lbc_lnk_multi(zcpx, 'U', 1., zcpy, 'V', 1.)
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zhpi(:, :, :) = 0._wp
     zrhh(:, :, :) = rhd(:, :, :)
+    !$ACC END KERNELS
     DO jj = 1, jpj
       DO ji = 1, jpi
+        CALL profile_psy_data1 % PreStart('hpg_prj', 'r1', 0, 0)
         jk = mbkt(ji, jj) + 1
+        CALL profile_psy_data1 % PostEnd
         IF (jk <= 0) THEN
+          !$ACC KERNELS
           zrhh(ji, jj, :) = 0._wp
+          !$ACC END KERNELS
         ELSE IF (jk == 1) THEN
+          !$ACC KERNELS
           zrhh(ji, jj, jk + 1 : jpk) = rhd(ji, jj, jk)
+          !$ACC END KERNELS
         ELSE IF (jk < jpkm1) THEN
+          CALL profile_psy_data2 % PreStart('hpg_prj', 'r2', 0, 0)
           DO jkk = jk + 1, jpk
             zrhh(ji, jj, jkk) = interp1(gde3w_n(ji, jj, jkk), gde3w_n(ji, jj, jkk - 1), gde3w_n(ji, jj, jkk - 2), rhd(ji, jj, jkk - 1), rhd(ji, jj, jkk - 2))
           END DO
+          CALL profile_psy_data2 % PostEnd
         END IF
       END DO
     END DO
+    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zdept(ji, jj, 1) = 0.5_wp * e3w_n(ji, jj, 1) - sshn(ji, jj) * znad
       END DO
     END DO
     DO jk = 2, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zdept(ji, jj, jk) = zdept(ji, jj, jk - 1) + e3w_n(ji, jj, jk)
@@ -665,8 +705,8 @@ MODULE dynhpg
     fsp(:, :, :) = zrhh(:, :, :)
     xsp(:, :, :) = zdept(:, :, :)
     !$ACC END KERNELS
+    CALL profile_psy_data3 % PreStart('hpg_prj', 'r3', 0, 0)
     CALL cspline(fsp, xsp, asp, bsp, csp, dsp, polynomial_type)
-    !$ACC KERNELS
     DO jj = 2, jpj
       DO ji = 2, jpi
         zrhdt1 = zrhh(ji, jj, 1) - interp3(zdept(ji, jj, 1), asp(ji, jj, 1), bsp(ji, jj, 1), csp(ji, jj, 1), dsp(ji, jj, 1)) * 0.25_wp * e3w_n(ji, jj, 1)
@@ -680,6 +720,9 @@ MODULE dynhpg
         END DO
       END DO
     END DO
+    CALL profile_psy_data3 % PostEnd
+    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zsshu_n(ji, jj) = (e1e2u(ji, jj) * sshn(ji, jj) + e1e2u(ji + 1, jj) * sshn(ji + 1, jj)) * r1_e1e2u(ji, jj) * umask(ji, jj, 1) * 0.5_wp
@@ -689,6 +732,7 @@ MODULE dynhpg
     !$ACC END KERNELS
     CALL lbc_lnk_multi(zsshu_n, 'U', 1., zsshv_n, 'V', 1.)
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zu(ji, jj, 1) = - (e3u_n(ji, jj, 1) - zsshu_n(ji, jj) * znad)
@@ -696,6 +740,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zu(ji, jj, jk) = zu(ji, jj, jk - 1) - e3u_n(ji, jj, jk)
@@ -704,6 +749,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zu(ji, jj, jk) = zu(ji, jj, jk) + 0.5_wp * e3u_n(ji, jj, jk)
@@ -712,6 +758,7 @@ MODULE dynhpg
       END DO
     END DO
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zu(ji, jj, jk) = MIN(zu(ji, jj, jk), MAX(- zdept(ji, jj, jk), - zdept(ji + 1, jj, jk)))
@@ -722,7 +769,7 @@ MODULE dynhpg
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('hpg_prj', 'r1', psy_profile1)
+    CALL profile_psy_data4 % PreStart('hpg_prj', 'r4', 0, 0)
     DO jk = 1, jpkm1
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -820,24 +867,24 @@ MODULE dynhpg
       END DO
     END DO
     IF (ln_wd_il) DEALLOCATE(zcpx, zcpy)
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data4 % PostEnd
   END SUBROUTINE hpg_prj
   SUBROUTINE cspline(fsp, xsp, asp, bsp, csp, dsp, polynomial_type)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN ) :: fsp, xsp
-    REAL(KIND = wp), DIMENSION(:, :, :), INTENT( OUT) :: asp, bsp, csp, dsp
-    INTEGER, INTENT(IN ) :: polynomial_type
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN) :: fsp, xsp
+    REAL(KIND = wp), DIMENSION(:, :, :), INTENT(OUT) :: asp, bsp, csp, dsp
+    INTEGER, INTENT(IN) :: polynomial_type
     INTEGER :: ji, jj, jk
     INTEGER :: jpi, jpj, jpkm1
     REAL(KIND = wp) :: zdf1, zdf2, zddf1, zddf2, ztmp1, ztmp2, zdxtmp
     REAL(KIND = wp) :: zdxtmp1, zdxtmp2, zalpha
     REAL(KIND = wp) :: zdf(SIZE(fsp, 3))
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('cspline', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('cspline', 'r0', 0, 0)
     jpi = SIZE(fsp, 1)
     jpj = SIZE(fsp, 2)
     jpkm1 = MAX(1, SIZE(fsp, 3) - 1)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (polynomial_type == 1) THEN
       DO ji = 1, jpi
         DO jj = 1, jpj
@@ -888,37 +935,49 @@ MODULE dynhpg
     END IF
   END SUBROUTINE cspline
   FUNCTION interp1(x, xl, xr, fl, fr) RESULT(f)
-!$ACC ROUTINE SEQ
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), INTENT(IN) :: x, xl, xr, fl, fr
     REAL(KIND = wp) :: f
     REAL(KIND = wp) :: zdeltx
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('interp1', 'r0', 0, 0)
     zdeltx = xr - xl
     IF (ABS(zdeltx) <= 10._wp * EPSILON(x)) THEN
       f = 0.5_wp * (fl + fr)
     ELSE
       f = ((x - xl) * fr - (x - xr) * fl) / zdeltx
     END IF
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION interp1
   FUNCTION interp2(x, a, b, c, d) RESULT(f)
-!$ACC ROUTINE SEQ
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), INTENT(IN) :: x, a, b, c, d
     REAL(KIND = wp) :: f
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('interp2', 'r0', 0, 0)
     f = a + x * (b + x * (c + d * x))
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION interp2
   FUNCTION interp3(x, a, b, c, d) RESULT(f)
-!$ACC ROUTINE SEQ
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), INTENT(IN) :: x, a, b, c, d
     REAL(KIND = wp) :: f
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('interp3', 'r0', 0, 0)
     f = b + x * (2._wp * c + 3._wp * d * x)
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION interp3
   FUNCTION integ_spline(xl, xr, a, b, c, d) RESULT(f)
-!$ACC ROUTINE SEQ
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), INTENT(IN) :: xl, xr, a, b, c, d
     REAL(KIND = wp) :: za1, za2, za3
     REAL(KIND = wp) :: f
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('integ_spline', 'r0', 0, 0)
     za1 = 0.5_wp * b
     za2 = c / 3.0_wp
     za3 = 0.25_wp * d
     f = xr * (a + xr * (za1 + xr * (za2 + za3 * xr))) - xl * (a + xl * (za1 + xl * (za2 + za3 * xl)))
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION integ_spline
 END MODULE dynhpg

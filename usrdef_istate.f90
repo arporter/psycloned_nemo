@@ -8,27 +8,27 @@ MODULE usrdef_istate
   PUBLIC :: usr_def_istate
   CONTAINS
   SUBROUTINE usr_def_istate(pdept, ptmask, pts, pu, pv, pssh)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pdept
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: ptmask
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT( OUT) :: pts
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: pu
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT( OUT) :: pv
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: pssh
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: pdept
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: ptmask
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts), INTENT(OUT) :: pts
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(OUT) :: pu
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(OUT) :: pv
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT) :: pssh
     INTEGER :: ji, jj, jk
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('usr_def_istate', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('usr_def_istate', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'usr_def_istate : analytical definition of initial state '
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~~   Ocean at rest, with an horizontally uniform T and S profiles'
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     pu(:, :, :) = 0._wp
     pv(:, :, :) = 0._wp
     pssh(:, :) = 0._wp
     !$ACC END KERNELS
-    CALL ProfileStart('usr_def_istate', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('usr_def_istate', 'r1', 0, 0)
     DO jk = 1, jpk
       DO jj = 1, jpj
         DO ji = 1, jpi
@@ -37,6 +37,6 @@ MODULE usrdef_istate
         END DO
       END DO
     END DO
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE usr_def_istate
 END MODULE usrdef_istate

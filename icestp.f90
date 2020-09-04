@@ -35,12 +35,12 @@ MODULE icestp
   PUBLIC :: ice_init
   CONTAINS
   SUBROUTINE ice_stp(kt, ksbc)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN) :: ksbc
     INTEGER :: jl
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_timing) CALL timing_start('ice_stp')
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
       !$ACC KERNELS
@@ -52,7 +52,7 @@ MODULE icestp
       !$ACC KERNELS
       t_bo(:, :) = (t_bo(:, :) + rt0) * tmask(:, :, 1) + rt0 * (1._wp - tmask(:, :, 1))
       !$ACC END KERNELS
-      CALL ProfileStart('ice_stp', 'r0', psy_profile0)
+      CALL profile_psy_data0 % PreStart('ice_stp', 'r0', 0, 0)
       CALL store_fields
       CALL ice_forcing_tau(kt, ksbc, utau_ice, vtau_ice)
       CALL diag_set0
@@ -72,15 +72,18 @@ MODULE icestp
       CALL ice_wri(kt)
       IF (lrst_ice) CALL ice_rst_write(kt)
       IF (ln_icectl) CALL ice_ctl(kt)
-      CALL ProfileEnd(psy_profile0)
+      CALL profile_psy_data0 % PostEnd
     END IF
-    CALL ProfileStart('ice_stp', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('ice_stp', 'r1', 0, 0)
     IF (ln_icedyn) CALL ice_update_tau(kt, ub(:, :, 1), vb(:, :, 1))
     IF (ln_timing) CALL timing_stop('ice_stp')
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE ice_stp
   SUBROUTINE ice_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, ierr
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_init', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'ice_init: Arrays allocation & Initialization off all routines & init state'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~'
@@ -108,6 +111,7 @@ MODULE icestp
     CALL ice_update_init
     CALL ice_alb_init
     CALL ice_dia_init
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     fr_i(:, :) = at_i(:, :)
     tn_ice(:, :, :) = t_su(:, :, :)
@@ -120,8 +124,11 @@ MODULE icestp
     IF (ln_rstart) CALL iom_close(numrir)
   END SUBROUTINE ice_init
   SUBROUTINE par_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     NAMELIST /nampar/ jpl, nlay_i, nlay_s, nn_virtual_itd, ln_icedyn, ln_icethd, rn_amax_n, rn_amax_s, cn_icerst_in, cn_icerst_indir, cn_icerst_out, cn_icerst_outdir
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('par_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ice_ref)
     READ(numnam_ice_ref, nampar, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'nampar in reference namelist', lwp)
@@ -158,6 +165,7 @@ MODULE icestp
     IF (lwp) WRITE(numout, FMT = *) '      ice timestep rdt_ice = nn_fsbc*rdt = ', rdt_ice
     r1_nlay_i = 1._wp / REAL(nlay_i, wp)
     r1_nlay_s = 1._wp / REAL(nlay_s, wp)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE par_init
   SUBROUTINE store_fields
     INTEGER :: ji, jj, jl

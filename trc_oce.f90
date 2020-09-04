@@ -22,21 +22,21 @@ MODULE trc_oce
     IF (trc_oce_alloc /= 0) CALL ctl_warn('trc_oce_alloc: failed to allocate etot3 array')
   END FUNCTION trc_oce_alloc
   SUBROUTINE trc_oce_rgb(prgb)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(3, 61), INTENT(OUT) :: prgb
     INTEGER :: jc
     INTEGER :: irgb
     REAL(KIND = wp) :: zchl
     REAL(KIND = wp), DIMENSION(4, 61) :: zrgb
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('trc_oce_rgb', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('trc_oce_rgb', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) '   trc_oce_rgb : Initialisation of the optical look-up table'
       WRITE(numout, FMT = *) '   ~~~~~~~~~~~ '
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zrgb(1, 1) = 0.010
     zrgb(2, 1) = 0.01618
@@ -285,7 +285,7 @@ MODULE trc_oce
     prgb(:, :) = zrgb(2 : 4, :)
     r_si2 = 1.E0 / zrgb(2, 1)
     !$ACC END KERNELS
-    CALL ProfileStart('trc_oce_rgb', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('trc_oce_rgb', 'r1', 0, 0)
     IF (lwp) WRITE(numout, FMT = *) '      RGB longest depth of extinction    r_si2 = ', r_si2
     DO jc = 1, 61
       zchl = zrgb(1, jc)
@@ -296,17 +296,17 @@ MODULE trc_oce
         CALL ctl_stop('trc_oce_rgb : inconsistency in Chl tabulated attenuation coeff.')
       END IF
     END DO
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE trc_oce_rgb
   SUBROUTINE trc_oce_rgb_read(prgb)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(3, 61), INTENT(OUT) :: prgb
     INTEGER :: jc, jb
     INTEGER :: irgb
     REAL(KIND = wp) :: zchl
     INTEGER :: numlight
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('trc_oce_rgb_read', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('trc_oce_rgb_read', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) ' trc_oce_rgb_read : optical look-up table read in kRGB61.txt file'
@@ -326,18 +326,18 @@ MODULE trc_oce
     CLOSE(UNIT = numlight)
     r_si2 = 1.E0 / prgb(1, 1)
     IF (lwp) WRITE(numout, FMT = *) '      RGB longest depth of extinction    r_si2 = ', r_si2
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE trc_oce_rgb_read
   FUNCTION trc_oce_ext_lev(prldex, pqsr_frc) RESULT(pjl)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), INTENT(IN) :: prldex
     REAL(KIND = wp), INTENT(IN) :: pqsr_frc
     INTEGER :: jk, pjl
     REAL(KIND = wp) :: zhext
     REAL(KIND = wp) :: zprec = 15._wp
     REAL(KIND = wp) :: zem
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('trc_oce_ext_lev', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('trc_oce_ext_lev', 'r0', 0, 0)
     zhext = prldex * (LOG(10._wp) * zprec + LOG(pqsr_frc))
     pjl = jpkm1
     DO jk = jpkm1, 1, - 1
@@ -348,6 +348,6 @@ MODULE trc_oce
         pjl = jk
       END IF
     END DO
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION trc_oce_ext_lev
 END MODULE trc_oce

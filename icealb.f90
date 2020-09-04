@@ -18,14 +18,14 @@ MODULE icealb
   REAL(KIND = wp) :: rn_alb_dpnd
   CONTAINS
   SUBROUTINE ice_alb(pt_su, ph_ice, ph_snw, ld_pnd_alb, pafrac_pnd, ph_pnd, palb_cs, palb_os)
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: pt_su
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: ph_ice
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: ph_snw
-    LOGICAL, INTENT(IN ) :: ld_pnd_alb
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: pafrac_pnd
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(:, :, :) :: ph_pnd
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(:, :, :) :: palb_cs
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(:, :, :) :: palb_os
+    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: pt_su
+    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: ph_ice
+    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: ph_snw
+    LOGICAL, INTENT(IN) :: ld_pnd_alb
+    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: pafrac_pnd
+    REAL(KIND = wp), INTENT(IN), DIMENSION(:, :, :) :: ph_pnd
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(:, :, :) :: palb_cs
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(:, :, :) :: palb_os
     INTEGER :: ji, jj, jl
     REAL(KIND = wp) :: z1_c1, z1_c2, z1_c3, z1_c4
     REAL(KIND = wp) :: z1_href_pnd
@@ -40,6 +40,7 @@ MODULE icealb
     z1_c3 = 1. / 0.02
     z1_c4 = 1. / 0.03
     DO jl = 1, jpl
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           IF (ph_snw(ji, jj, jl) == 0._wp) THEN
@@ -88,8 +89,11 @@ MODULE icealb
     IF (ln_timing) CALL timing_stop('icealb')
   END SUBROUTINE ice_alb
   SUBROUTINE ice_alb_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     NAMELIST /namalb/ rn_alb_sdry, rn_alb_smlt, rn_alb_idry, rn_alb_imlt, rn_alb_dpnd
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_alb_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ice_ref)
     READ(numnam_ice_ref, namalb, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namalb in reference namelist', lwp)
@@ -108,5 +112,6 @@ MODULE icealb
       WRITE(numout, FMT = *) '      albedo of bare puddled ice           rn_alb_imlt = ', rn_alb_imlt
       WRITE(numout, FMT = *) '      albedo of ponded ice                 rn_alb_dpnd = ', rn_alb_dpnd
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_alb_init
 END MODULE icealb

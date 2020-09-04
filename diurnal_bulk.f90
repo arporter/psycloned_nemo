@@ -17,8 +17,11 @@ MODULE diurnal_bulk
   PUBLIC :: diurnal_sst_bulk_init, diurnal_sst_takaya_step
   CONTAINS
   SUBROUTINE diurnal_sst_bulk_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     NAMELIST /namdiu/ ln_diurnal, ln_diurnal_only
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('diurnal_sst_bulk_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namdiu, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namdiu in reference namelist', lwp)
@@ -36,9 +39,10 @@ MODULE diurnal_bulk
         CALL ctl_warn("ln_diurnal_only set; only the diurnal component of SST will be calculated")
       END IF
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE diurnal_sst_bulk_init
   SUBROUTINE diurnal_sst_takaya_step(kt, psolflux, pqflux, ptauflux, prho, p_rdt, pla, pthick, pcoolthick, pmu, p_fvel_bkginc, p_hflux_bkginc)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: psolflux
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqflux
@@ -57,10 +61,9 @@ MODULE diurnal_bulk
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zthick, zcoolthick, zmu, zla
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z_abflux
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z_fla
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     IF (.NOT. PRESENT(pthick)) THEN
       !$ACC KERNELS
       zthick(:, :) = 3._wp
@@ -97,7 +100,7 @@ MODULE diurnal_bulk
       zla(:, :) = pla(:, :)
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('diurnal_sst_takaya_step', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('diurnal_sst_takaya_step', 'r0', 0, 0)
     IF (kt == nit000) THEN
       DO jj = 1, jpj
         DO ji = 1, jpi
@@ -105,7 +108,7 @@ MODULE diurnal_bulk
         END DO
       END DO
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     WHERE (tmask(:, :, 1) == 1._wp)
       z_abflux(:, :) = (x_solfrac(:, :) * psolflux(:, :)) + pqflux(:, :)
@@ -113,9 +116,9 @@ MODULE diurnal_bulk
       z_abflux(:, :) = 0._wp
     END WHERE
     !$ACC END KERNELS
-    CALL ProfileStart('diurnal_sst_takaya_step', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('diurnal_sst_takaya_step', 'r1', 0, 0)
     IF (PRESENT(p_hflux_bkginc)) z_abflux(:, :) = z_abflux(:, :) + p_hflux_bkginc
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     WHERE (ABS(z_abflux(:, :)) < rsmall)
       z_abflux(:, :) = rsmall
@@ -126,22 +129,18 @@ MODULE diurnal_bulk
       z_fvel(:, :) = 0._wp
     END WHERE
     !$ACC END KERNELS
-    CALL ProfileStart('diurnal_sst_takaya_step', 'r2', psy_profile2)
+    CALL profile_psy_data2 % PreStart('diurnal_sst_takaya_step', 'r2', 0, 0)
     IF (PRESENT(p_fvel_bkginc)) z_fvel(:, :) = z_fvel(:, :) + p_fvel_bkginc
-    CALL ProfileEnd(psy_profile2)
-    !$ACC KERNELS
     WHERE (tmask(:, :, 1) == 1.)
       z_fla(:, :) = MAX(1._wp, zla(:, :) ** (- 2._wp / 3._wp))
     ELSEWHERE
       z_fla(:, :) = 0._wp
     END WHERE
-    !$ACC END KERNELS
-    CALL ProfileStart('diurnal_sst_takaya_step', 'r3', psy_profile3)
     x_dsst(:, :) = t_imp(x_dsst(:, :), p_rdt, z_abflux(:, :), z_fvel(:, :), z_fla(:, :), zmu(:, :), zthick(:, :), prho(:, :))
-    CALL ProfileEnd(psy_profile3)
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE diurnal_sst_takaya_step
   FUNCTION t_imp(p_dsst, p_rdt, p_abflux, p_fvel, p_fla, pmu, pthick, prho)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     IMPLICIT NONE
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: t_imp
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: p_dsst
@@ -159,8 +158,8 @@ MODULE diurnal_bulk
     REAL(KIND = wp) :: z_fvel
     CHARACTER(LEN = 200) :: warn_string
     INTEGER :: ji, jj
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('t_imp', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('t_imp', 'r0', 0, 0)
     DO jj = 1, jpj
       DO ji = 1, jpi
         IF (tmask(ji, jj, 1) /= 1._wp) THEN
@@ -191,6 +190,6 @@ MODULE diurnal_bulk
         t_imp(ji, jj) = (p_dsst(ji, jj) + p_rdt * z_term1) / (1._wp - p_rdt * z_term2)
       END DO
     END DO
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION t_imp
 END MODULE diurnal_bulk

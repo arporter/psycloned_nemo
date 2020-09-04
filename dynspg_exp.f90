@@ -13,16 +13,16 @@ MODULE dynspg_exp
   PUBLIC :: dyn_spg_exp
   CONTAINS
   SUBROUTINE dyn_spg_exp(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
-    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
     IF (kt == nit000) THEN
-      CALL ProfileStart('dyn_spg_exp', 'r0', psy_profile0)
+      CALL profile_psy_data0 % PreStart('dyn_spg_exp', 'r0', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn_spg_exp : surface pressure gradient trend'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~   (explicit free surface)'
-      CALL ProfileEnd(psy_profile0)
+      CALL profile_psy_data0 % PostEnd
       !$ACC KERNELS
       spgu(:, :) = 0._wp
       spgv(:, :) = 0._wp
@@ -31,6 +31,7 @@ MODULE dynspg_exp
     END IF
     IF (ln_linssh) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           spgu(ji, jj) = - grav * (sshn(ji + 1, jj) - sshn(ji, jj)) * r1_e1u(ji, jj)
@@ -38,6 +39,7 @@ MODULE dynspg_exp
         END DO
       END DO
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ua(ji, jj, jk) = ua(ji, jj, jk) + spgu(ji, jj)

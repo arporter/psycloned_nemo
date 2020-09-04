@@ -26,10 +26,10 @@ MODULE icethd_pnd
     END SELECT
   END SUBROUTINE ice_thd_pnd
   SUBROUTINE pnd_CST
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('pnd_cst', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('pnd_cst', 'r0', 0, 0)
     DO ji = 1, npti
       IF (a_i_1d(ji) > 0._wp .AND. t_su_1d(ji) >= rt0) THEN
         a_ip_frac_1d(ji) = rn_apnd
@@ -41,10 +41,10 @@ MODULE icethd_pnd
         a_ip_1d(ji) = 0._wp
       END IF
     END DO
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE pnd_CST
   SUBROUTINE pnd_H12
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), PARAMETER :: zrmin = 0.15_wp
     REAL(KIND = wp), PARAMETER :: zrmax = 0.70_wp
     REAL(KIND = wp), PARAMETER :: zpnd_aspect = 0.8_wp
@@ -56,8 +56,8 @@ MODULE icethd_pnd
     REAL(KIND = wp) :: z1_zpnd_aspect
     REAL(KIND = wp) :: zfac, zdum
     INTEGER :: ji
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('pnd_h12', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('pnd_h12', 'r0', 0, 0)
     z1_rhow = 1._wp / rhow
     z1_zpnd_aspect = 1._wp / zpnd_aspect
     z1_Tp = 1._wp / zTp
@@ -84,11 +84,14 @@ MODULE icethd_pnd
         h_ip_1d(ji) = zpnd_aspect * a_ip_frac_1d(ji)
       END IF
     END DO
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE pnd_H12
   SUBROUTINE ice_thd_pnd_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios, ioptio
     NAMELIST /namthd_pnd/ ln_pnd_H12, ln_pnd_fwb, ln_pnd_CST, rn_apnd, rn_hpnd, ln_pnd_alb
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_thd_pnd_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ice_ref)
     READ(numnam_ice_ref, namthd_pnd, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namthd_pnd  in reference namelist', lwp)
@@ -135,5 +138,6 @@ MODULE icethd_pnd
         CALL ctl_warn('ln_pnd_fwb=false when ln_pnd_CST=true')
       END IF
     END SELECT
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_thd_pnd_init
 END MODULE icethd_pnd

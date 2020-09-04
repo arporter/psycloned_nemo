@@ -14,7 +14,7 @@ MODULE usrdef_sbc
   PUBLIC :: usrdef_sbc_ice_flx
   CONTAINS
   SUBROUTINE usrdef_sbc_oce(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj
     INTEGER :: zyear0
@@ -34,13 +34,13 @@ MODULE usrdef_sbc
     REAL(KIND = wp) :: zcdrag = 1.5E-3
     REAL(KIND = wp) :: ztx, zty, zmod, zcoef
     REAL(KIND = wp) :: zyydd
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    CALL ProfileStart('usrdef_sbc_oce', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    CALL profile_psy_data0 % PreStart('usrdef_sbc_oce', 'r0', 0, 0)
     zyydd = REAL(nyear_len(1), wp)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zyear0 = ndate0 / 10000
     zmonth0 = (ndate0 - zyear0 * 10000) / 100
@@ -59,6 +59,7 @@ MODULE usrdef_sbc
     zcos_sais2 = COS((ztime - ztimemax2) / (ztimemax2 - ztimemin2) * rpi)
     ztrp = - 40.E0
     zconv = 3.16E-5
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         t_star = zTstar * (1. + 1. / 50. * zcos_sais2) * COS(rpi * (gphit(ji, jj) - 5.) / (53.5 * (1 + 11 / 53.5 * zcos_sais2) * 2.))
@@ -72,10 +73,10 @@ MODULE usrdef_sbc
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('usrdef_sbc_oce', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('usrdef_sbc_oce', 'r1', 0, 0)
     zsumemp = GLOB_SUM(emp(:, :))
     zsurf = GLOB_SUM(tmask(:, :, 1))
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     zsumemp = zsumemp / zsurf
     emp(:, :) = emp(:, :) - zsumemp * tmask(:, :, 1)
@@ -86,15 +87,16 @@ MODULE usrdef_sbc
     zday0 = ndate0 - zyear0 * 10000 - zmonth0 * 100
     zday_year0 = (zmonth0 - 1) * 30. + zday0
     !$ACC END KERNELS
-    CALL ProfileStart('usrdef_sbc_oce', 'r2', psy_profile2)
+    CALL profile_psy_data2 % PreStart('usrdef_sbc_oce', 'r2', 0, 0)
     ztime = FLOAT(kt) * rdt / (rmmss * rhhmm) - (nyear - 1) * rjjhh * zyydd
-    CALL ProfileEnd(psy_profile2)
+    CALL profile_psy_data2 % PostEnd
     !$ACC KERNELS
     ztimemax = ((5. * 30.) + 21.) * 24.
     ztimemin = ztimemax + rjjhh * zyydd / 2
     ztau = 0.105 / SQRT(2.)
     ztau_sais = 0.015
     ztaun = ztau - ztau_sais * COS((ztime - ztimemax) / (ztimemin - ztimemax) * rpi)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         utau(ji, jj) = - ztaun * SIN(rpi * (gphiu(ji, jj) - 15.) / (29. - 15.))
@@ -102,6 +104,7 @@ MODULE usrdef_sbc
       END DO
     END DO
     zcoef = 1. / (zrhoa * zcdrag)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ztx = utau(ji - 1, jj) + utau(ji, jj)
@@ -112,7 +115,7 @@ MODULE usrdef_sbc
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('usrdef_sbc_oce', 'r3', psy_profile3)
+    CALL profile_psy_data3 % PreStart('usrdef_sbc_oce', 'r3', 0, 0)
     CALL lbc_lnk_multi(taum(:, :), 'T', 1., wndm(:, :), 'T', 1.)
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
@@ -145,7 +148,7 @@ MODULE usrdef_sbc
       WRITE(numout, FMT = *) '           ndastp     = ', ndastp
       WRITE(numout, FMT = *) '           adatrj     = ', adatrj
     END IF
-    CALL ProfileEnd(psy_profile3)
+    CALL profile_psy_data3 % PostEnd
   END SUBROUTINE usrdef_sbc_oce
   SUBROUTINE usrdef_sbc_ice_tau(kt)
     INTEGER, INTENT(IN) :: kt

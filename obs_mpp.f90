@@ -7,58 +7,76 @@ MODULE obs_mpp
   PUBLIC :: obs_mpp_bcast_integer, obs_mpp_max_integer, obs_mpp_find_obs_proc, obs_mpp_sum_integers, obs_mpp_sum_integer, mpp_alltoall_int, mpp_alltoallv_int, mpp_alltoallv_real, mpp_global_max
   CONTAINS
   SUBROUTINE obs_mpp_bcast_integer(kvals, kno, kroot)
-    INTEGER, INTENT(IN ) :: kno
-    INTEGER, INTENT(IN ) :: kroot
+    INTEGER, INTENT(IN) :: kno
+    INTEGER, INTENT(IN) :: kroot
     INTEGER, DIMENSION(kno), INTENT(INOUT) :: kvals
   END SUBROUTINE obs_mpp_bcast_integer
   SUBROUTINE obs_mpp_max_integer(kvals, kno)
-    INTEGER, INTENT(IN ) :: kno
+    INTEGER, INTENT(IN) :: kno
     INTEGER, DIMENSION(kno), INTENT(INOUT) :: kvals
   END SUBROUTINE obs_mpp_max_integer
   SUBROUTINE obs_mpp_find_obs_proc(kobsp, kno)
-    INTEGER, INTENT(IN ) :: kno
+    INTEGER, INTENT(IN) :: kno
     INTEGER, DIMENSION(kno), INTENT(INOUT) :: kobsp
   END SUBROUTINE obs_mpp_find_obs_proc
   SUBROUTINE obs_mpp_sum_integers(kvalsin, kvalsout, kno)
-    INTEGER, INTENT(IN ) :: kno
-    INTEGER, DIMENSION(kno), INTENT(IN ) :: kvalsin
-    INTEGER, DIMENSION(kno), INTENT( OUT) :: kvalsout
+    INTEGER, INTENT(IN) :: kno
+    INTEGER, DIMENSION(kno), INTENT(IN) :: kvalsin
+    INTEGER, DIMENSION(kno), INTENT(OUT) :: kvalsout
+    !$ACC KERNELS
     kvalsout(:) = kvalsin(:)
+    !$ACC END KERNELS
   END SUBROUTINE obs_mpp_sum_integers
   SUBROUTINE obs_mpp_sum_integer(kvalin, kvalout)
-    INTEGER, INTENT(IN ) :: kvalin
-    INTEGER, INTENT( OUT) :: kvalout
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kvalin
+    INTEGER, INTENT(OUT) :: kvalout
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('obs_mpp_sum_integer', 'r0', 0, 0)
     kvalout = kvalin
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE obs_mpp_sum_integer
   SUBROUTINE mpp_global_max(pval)
     REAL(KIND = wp), DIMENSION(jpiglo, jpjglo), INTENT(INOUT) :: pval
     INTEGER :: ierr
   END SUBROUTINE mpp_global_max
   SUBROUTINE mpp_alltoall_int(kno, kvalsin, kvalsout)
-    INTEGER, INTENT(IN ) :: kno
-    INTEGER, DIMENSION(kno * jpnij), INTENT(IN ) :: kvalsin
-    INTEGER, DIMENSION(kno * jpnij), INTENT( OUT) :: kvalsout
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kno
+    INTEGER, DIMENSION(kno * jpnij), INTENT(IN) :: kvalsin
+    INTEGER, DIMENSION(kno * jpnij), INTENT(OUT) :: kvalsout
     INTEGER :: ierr
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('mpp_alltoall_int', 'r0', 0, 0)
     kvalsout = kvalsin
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE mpp_alltoall_int
   SUBROUTINE mpp_alltoallv_int(kvalsin, knoin, kinv, kvalsout, knoout, koutv)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: knoin
     INTEGER, INTENT(IN) :: knoout
     INTEGER, DIMENSION(jpnij) :: kinv, koutv
-    INTEGER, DIMENSION(knoin), INTENT(IN ) :: kvalsin
-    INTEGER, DIMENSION(knoout), INTENT( OUT) :: kvalsout
+    INTEGER, DIMENSION(knoin), INTENT(IN) :: kvalsin
+    INTEGER, DIMENSION(knoout), INTENT(OUT) :: kvalsout
     INTEGER :: ierr
     INTEGER :: jproc
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('mpp_alltoallv_int', 'r0', 0, 0)
     kvalsout = kvalsin
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE mpp_alltoallv_int
   SUBROUTINE mpp_alltoallv_real(pvalsin, knoin, kinv, pvalsout, knoout, koutv)
-    INTEGER, INTENT(IN ) :: knoin
-    INTEGER, INTENT(IN ) :: knoout
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: knoin
+    INTEGER, INTENT(IN) :: knoout
     INTEGER, DIMENSION(jpnij) :: kinv, koutv
-    REAL(KIND = wp), DIMENSION(knoin), INTENT(IN ) :: pvalsin
-    REAL(KIND = wp), DIMENSION(knoout), INTENT( OUT) :: pvalsout
+    REAL(KIND = wp), DIMENSION(knoin), INTENT(IN) :: pvalsin
+    REAL(KIND = wp), DIMENSION(knoout), INTENT(OUT) :: pvalsout
     INTEGER :: ierr
     INTEGER :: jproc
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('mpp_alltoallv_real', 'r0', 0, 0)
     pvalsout = pvalsin
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE mpp_alltoallv_real
 END MODULE obs_mpp

@@ -17,12 +17,13 @@ MODULE diacfl
   PUBLIC :: dia_cfl_init
   CONTAINS
   SUBROUTINE dia_cfl(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: z2dt, zCu_max, zCv_max, zCw_max
     INTEGER, DIMENSION(3) :: iloc_u, iloc_v, iloc_w, iloc
-    TYPE(ProfileData), SAVE :: psy_profile0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_timing) CALL timing_start('dia_cfl')
     !$ACC KERNELS
     IF (neuler == 0 .AND. kt == nit000) THEN
@@ -31,6 +32,7 @@ MODULE diacfl
       z2dt = rdt * 2._wp
     END IF
     DO jk = 1, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpim1
           zCu_cfl(ji, jj, jk) = ABS(un(ji, jj, jk)) * z2dt / e1u(ji, jj)
@@ -40,7 +42,7 @@ MODULE diacfl
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('dia_cfl', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('dia_cfl', 'r0', 0, 0)
     IF (lk_mpp) THEN
       CALL mpp_maxloc(zCu_cfl, umask, zCu_max, iloc_u(1), iloc_u(2), iloc_u(3))
       CALL mpp_maxloc(zCv_cfl, vmask, zCv_max, iloc_v(1), iloc_v(2), iloc_v(3))
@@ -67,6 +69,8 @@ MODULE diacfl
       WRITE(numcfl, FMT = '(11x,     a6,4x,f7.4,1x,i4,1x,i4,1x,i4)') 'Max Cv', zCv_max, iloc_v(1), iloc_v(2), iloc_v(3)
       WRITE(numcfl, FMT = '(11x,     a6,4x,f7.4,1x,i4,1x,i4,1x,i4)') 'Max Cw', zCw_max, iloc_w(1), iloc_w(2), iloc_w(3)
     END IF
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     IF (zcu_max > rcu_max) THEN
       rcu_max = zcu_max
       ncu_loc(:) = iloc_u(:)
@@ -79,6 +83,8 @@ MODULE diacfl
       rcw_max = zcw_max
       ncw_loc(:) = iloc_w(:)
     END IF
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('dia_cfl', 'r1', 0, 0)
     IF (kt == nitend .AND. lwp) THEN
       WRITE(numcfl, FMT = *) '******************************************'
       WRITE(numcfl, FMT = '(3x,a12,6x,f7.4,1x,i4,1x,i4,1x,i4)') 'Run Max Cu', rCu_max, nCu_loc(1), nCu_loc(2), nCu_loc(3)
@@ -98,7 +104,7 @@ MODULE diacfl
       WRITE(numout, FMT = *) '   Max Cw = ', rCw_max, ' at (i,j,k) = (', nCw_loc(1), nCw_loc(2), nCw_loc(3), ') => dt/C = ', z2dt / rCw_max
     END IF
     IF (ln_timing) CALL timing_stop('dia_cfl')
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE dia_cfl
   SUBROUTINE dia_cfl_init
     IF (lwp) THEN

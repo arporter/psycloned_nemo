@@ -37,11 +37,11 @@ MODULE trabbl
     IF (tra_bbl_alloc > 0) CALL ctl_warn('tra_bbl_alloc: allocation of arrays failed.')
   END FUNCTION tra_bbl_alloc
   SUBROUTINE tra_bbl(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT( IN ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ztrdt, ztrds
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_timing) CALL timing_start('tra_bbl')
     IF (l_trdtra) THEN
       ALLOCATE(ztrdt(jpi, jpj, jpk), ztrds(jpi, jpj, jpk))
@@ -50,7 +50,7 @@ MODULE trabbl
       ztrds(:, :, :) = tsa(:, :, :, jp_sal)
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('tra_bbl', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('tra_bbl', 'r0', 0, 0)
     IF (l_bbl) CALL bbl(kt, nit000, 'TRA')
     IF (nn_bbl_ldf == 1) THEN
       CALL tra_bbl_dif(tsb, tsa, jpts)
@@ -66,23 +66,23 @@ MODULE trabbl
       CALL iom_put("uoce_bbl", utr_bbl)
       CALL iom_put("voce_bbl", vtr_bbl)
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (l_trdtra) THEN
       !$ACC KERNELS
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem) - ztrdt(:, :, :)
       ztrds(:, :, :) = tsa(:, :, :, jp_sal) - ztrds(:, :, :)
       !$ACC END KERNELS
-      CALL ProfileStart('tra_bbl', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('tra_bbl', 'r1', 0, 0)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_bbl, ztrdt)
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_bbl, ztrds)
       DEALLOCATE(ztrdt, ztrds)
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
     END IF
     IF (ln_timing) CALL timing_stop('tra_bbl')
   END SUBROUTINE tra_bbl
   SUBROUTINE tra_bbl_dif(ptb, pta, kjpt)
-    INTEGER, INTENT(IN ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb
+    INTEGER, INTENT(IN) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN) :: ptb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jn
     INTEGER :: ik
@@ -90,12 +90,14 @@ MODULE trabbl
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zptb
     !$ACC KERNELS
     DO jn = 1, kjpt
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           ik = mbkt(ji, jj)
           zptb(ji, jj) = ptb(ji, jj, ik, jn)
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ik = mbkt(ji, jj)
@@ -106,8 +108,8 @@ MODULE trabbl
     !$ACC END KERNELS
   END SUBROUTINE tra_bbl_dif
   SUBROUTINE tra_bbl_adv(ptb, pta, kjpt)
-    INTEGER, INTENT(IN ) :: kjpt
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN ) :: ptb
+    INTEGER, INTENT(IN) :: kjpt
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(IN) :: ptb
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, kjpt), INTENT(INOUT) :: pta
     INTEGER :: ji, jj, jk, jn
     INTEGER :: iis, iid, ijs, ijd
@@ -116,6 +118,7 @@ MODULE trabbl
     REAL(KIND = wp) :: zu_bbl, zv_bbl
     !$ACC KERNELS
     DO jn = 1, kjpt
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           IF (utr_bbl(ji, jj) /= 0.E0) THEN
@@ -160,10 +163,10 @@ MODULE trabbl
     !$ACC END KERNELS
   END SUBROUTINE tra_bbl_adv
   SUBROUTINE bbl(kt, kit000, cdtype)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
-    INTEGER, INTENT(IN ) :: kit000
-    CHARACTER(LEN = 3), INTENT(IN ) :: cdtype
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    INTEGER, INTENT(IN) :: kit000
+    CHARACTER(LEN = 3), INTENT(IN) :: cdtype
     INTEGER :: ji, jj
     INTEGER :: ik
     INTEGER :: iis, iid, ikus, ikud
@@ -172,15 +175,16 @@ MODULE trabbl
     REAL(KIND = wp) :: zsign, zsigna, zgbbl
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpts) :: zts, zab
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zub, zvb, zdep
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('bbl', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('bbl', 'r0', 0, 0)
     IF (kt == kit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'trabbl:bbl : Compute bbl velocities and diffusive coefficients in ', cdtype
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~'
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ik = mbkt(ji, jj)
@@ -195,6 +199,7 @@ MODULE trabbl
     CALL eos_rab(zts, zdep, zab)
     !$ACC KERNELS
     IF (nn_bbl_ldf == 1) THEN
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpjm1
         DO ji = 1, jpim1
           za = zab(ji + 1, jj, jp_tem) + zab(ji, jj, jp_tem)
@@ -213,6 +218,7 @@ MODULE trabbl
     IF (nn_bbl_adv /= 0) THEN
       SELECT CASE (nn_bbl_adv)
       CASE (1)
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             za = zab(ji + 1, jj, jp_tem) + zab(ji, jj, jp_tem)
@@ -231,6 +237,7 @@ MODULE trabbl
         END DO
       CASE (2)
         zgbbl = grav * rn_gambbl
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             iid = ji + MAX(0, mgrhu(ji, jj))
@@ -258,10 +265,13 @@ MODULE trabbl
     !$ACC END KERNELS
   END SUBROUTINE bbl
   SUBROUTINE tra_bbl_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj
     INTEGER :: ii0, ii1, ij0, ij1, ios
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zmbku, zmbkv
     NAMELIST /nambbl/ ln_trabbl, nn_bbl_ldf, nn_bbl_adv, rn_ahtbbl, rn_gambbl
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('tra_bbl_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, nambbl, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'nambbl in reference namelist', lwp)
@@ -289,7 +299,9 @@ MODULE trabbl
       IF (nn_bbl_adv == 1) WRITE(numout, FMT = *) '       * Advective BBL using upper velocity'
       IF (nn_bbl_adv == 2) WRITE(numout, FMT = *) '       * Advective BBL using velocity = F( delta rho)'
     END IF
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         mbku_d(ji, jj) = MAX(mbkt(ji + 1, jj), mbkt(ji, jj))
@@ -305,6 +317,7 @@ MODULE trabbl
     mbkv_d(:, :) = MAX(NINT(zmbkv(:, :)), 1)
     mgrhu(:, :) = 0
     mgrhv(:, :) = 0
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         IF (gdept_0(ji + 1, jj, mbkt(ji + 1, jj)) - gdept_0(ji, jj, mbkt(ji, jj)) /= 0._wp) THEN
@@ -315,6 +328,7 @@ MODULE trabbl
         END IF
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         e3u_bbl_0(ji, jj) = MIN(e3u_0(ji, jj, mbkt(ji + 1, jj)), e3u_0(ji, jj, mbkt(ji, jj)))

@@ -14,14 +14,14 @@ MODULE domzgr
   PUBLIC :: dom_zgr
   CONTAINS
   SUBROUTINE dom_zgr(k_top, k_bot)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, DIMENSION(:, :), INTENT(OUT) :: k_top, k_bot
     INTEGER :: jk
     INTEGER :: ioptio, ibat, ios
     REAL(KIND = wp) :: zrefdep
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('dom_zgr', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('dom_zgr', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dom_zgr : vertical coordinate'
@@ -37,14 +37,14 @@ MODULE domzgr
       IF (lwp) WRITE(numout, FMT = *) '          User defined vertical mesh (usr_def_zgr)'
       CALL usr_def_zgr(ln_zco, ln_zps, ln_sco, ln_isfcav, gdept_1d, gdepw_1d, e3t_1d, e3w_1d, gdept_0, gdepw_0, e3t_0, e3u_0, e3v_0, e3f_0, e3w_0, e3uw_0, e3vw_0, k_top, k_bot)
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     gde3w_0(:, :, 1) = 0.5_wp * e3w_0(:, :, 1)
     DO jk = 2, jpk
       gde3w_0(:, :, jk) = gde3w_0(:, :, jk - 1) + e3w_0(:, :, jk)
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('dom_zgr', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('dom_zgr', 'r1', 0, 0)
     IF (.NOT. ln_closea) CALL clo_bat(k_top, k_bot)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
@@ -71,10 +71,10 @@ MODULE domzgr
       WRITE(numout, FMT = *) ' MAX val depth t ', MAXVAL(gdept_0(:, :, :)), ' w ', MAXVAL(gdepw_0(:, :, :)), '3w ', MAXVAL(gde3w_0(:, :, :))
       WRITE(numout, FMT = *) ' MAX val e3    t ', MAXVAL(e3t_0(:, :, :)), ' f ', MAXVAL(e3f_0(:, :, :)), ' u ', MAXVAL(e3u_0(:, :, :)), ' u ', MAXVAL(e3v_0(:, :, :)), ' uw', MAXVAL(e3uw_0(:, :, :)), ' vw', MAXVAL(e3vw_0(:, :, :)), ' w ', MAXVAL(e3w_0(:, :, :))
     END IF
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE dom_zgr
   SUBROUTINE zgr_read(ld_zco, ld_zps, ld_sco, ld_isfcav, pdept_1d, pdepw_1d, pe3t_1d, pe3w_1d, pdept, pdepw, pe3t, pe3u, pe3v, pe3f, pe3w, pe3uw, pe3vw, k_top, k_bot)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     LOGICAL, INTENT(OUT) :: ld_zco, ld_zps, ld_sco
     LOGICAL, INTENT(OUT) :: ld_isfcav
     REAL(KIND = wp), DIMENSION(:), INTENT(OUT) :: pdept_1d, pdepw_1d
@@ -87,9 +87,9 @@ MODULE domzgr
     INTEGER :: inum
     REAL(KIND = WP) :: z_zco, z_zps, z_sco, z_cav
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: z2d
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('zgr_read', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('zgr_read', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) '   zgr_read : read the vertical coordinates in ', TRIM(cn_domcfg), ' file'
@@ -146,7 +146,7 @@ MODULE domzgr
       END IF
     END IF
     CALL iom_get(inum, jpdom_data, 'top_level', z2d, lrowattr = ln_use_jattr)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     k_top(:, :) = NINT(z2d(:, :))
     !$ACC END KERNELS
@@ -154,25 +154,26 @@ MODULE domzgr
     !$ACC KERNELS
     k_bot(:, :) = NINT(z2d(:, :))
     !$ACC END KERNELS
-    CALL ProfileStart('zgr_read', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('zgr_read', 'r1', 0, 0)
     IF (ll_wd) CALL iom_get(inum, 'rn_wd_ref_depth', ssh_ref)
     CALL iom_close(inum)
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE zgr_read
   SUBROUTINE zgr_top_bot(k_top, k_bot)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, DIMENSION(:, :), INTENT(IN) :: k_top, k_bot
     INTEGER :: ji, jj
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zk
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('zgr_top_bot', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('zgr_top_bot', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) '    zgr_top_bot : ocean top and bottom k-index of T-, U-, V- and W-levels '
     IF (lwp) WRITE(numout, FMT = *) '    ~~~~~~~~~~~'
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     mikt(:, :) = MAX(k_top(:, :), 1)
     mbkt(:, :) = MAX(k_bot(:, :), 1)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpjm1
       DO ji = 1, jpim1
         miku(ji, jj) = MAX(mikt(ji + 1, jj), mikt(ji, jj))

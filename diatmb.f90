@@ -10,8 +10,11 @@ MODULE diatmb
   PUBLIC :: dia_tmb
   CONTAINS
   SUBROUTINE dia_tmb_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     NAMELIST /nam_diatmb/ ln_diatmb
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dia_tmb_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, nam_diatmb, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'nam_diatmb in reference namelist', lwp)
@@ -26,14 +29,16 @@ MODULE diatmb
       WRITE(numout, FMT = *) '   Namelist nam_diatmb : set tmb outputs '
       WRITE(numout, FMT = *) '      Switch for TMB diagnostics (T) or not (F)  ln_diatmb  = ', ln_diatmb
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dia_tmb_init
   SUBROUTINE dia_calctmb(pfield, ptmb)
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pfield
-    REAL(KIND = wp), DIMENSION(jpi, jpj, 3), INTENT( OUT) :: ptmb
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: pfield
+    REAL(KIND = wp), DIMENSION(jpi, jpj, 3), INTENT(OUT) :: ptmb
     INTEGER :: ji, jj
     INTEGER :: itop, imid, ibot
     REAL(KIND = wp) :: zmdi = 1.E+20_wp
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         itop = mikt(ji, jj)
@@ -47,11 +52,11 @@ MODULE diatmb
     !$ACC END KERNELS
   END SUBROUTINE dia_calctmb
   SUBROUTINE dia_tmb
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp) :: zmdi = 1.E+20
     REAL(KIND = wp), DIMENSION(jpi, jpj, 3) :: zwtmb
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('dia_tmb', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dia_tmb', 'r0', 0, 0)
     CALL dia_calctmb(tsn(:, :, :, jp_tem), zwtmb)
     CALL iom_put("sshnmasked", sshn(:, :) * tmask(:, :, 1) + zmdi * (1.0 - tmask(:, :, 1)))
     CALL iom_put("top_temp", zwtmb(:, :, 1))
@@ -69,6 +74,6 @@ MODULE diatmb
     CALL iom_put("top_v", zwtmb(:, :, 1))
     CALL iom_put("mid_v", zwtmb(:, :, 2))
     CALL iom_put("bot_v", zwtmb(:, :, 3))
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dia_tmb
 END MODULE diatmb

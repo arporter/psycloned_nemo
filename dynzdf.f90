@@ -20,7 +20,7 @@ MODULE dynzdf
   REAL(KIND = wp) :: r_vvl
   CONTAINS
   SUBROUTINE dyn_zdf(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     INTEGER :: iku, ikv
@@ -28,10 +28,10 @@ MODULE dynzdf
     REAL(KIND = wp) :: zzws, ze3va
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zwi, zwd, zws
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: ztrdu, ztrdv
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    CALL ProfileStart('dyn_zdf', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('dyn_zdf', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('dyn_zdf')
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -49,7 +49,7 @@ MODULE dynzdf
       r2dt = 2. * rdt
     END IF
     IF (.NOT. ln_drgimp) CALL zdf_drg_exp(kt, ub, vb, ua, va)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (l_trddyn) THEN
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
       !$ACC KERNELS
@@ -80,6 +80,7 @@ MODULE dynzdf
         !$ACC END KERNELS
       END DO
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           iku = mbku(ji, jj)
@@ -93,6 +94,7 @@ MODULE dynzdf
       !$ACC END KERNELS
       IF (ln_isfcav) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             iku = miku(ji, jj)
@@ -111,6 +113,7 @@ MODULE dynzdf
     SELECT CASE (nldf_dyn)
     CASE (np_lap_i)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ze3ua = (1._wp - r_vvl) * e3u_n(ji, jj, jk) + r_vvl * e3u_a(ji, jj, jk)
@@ -124,6 +127,7 @@ MODULE dynzdf
       END DO
     CASE DEFAULT
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ze3ua = (1._wp - r_vvl) * e3u_n(ji, jj, jk) + r_vvl * e3u_a(ji, jj, jk)
@@ -136,6 +140,7 @@ MODULE dynzdf
         END DO
       END DO
     END SELECT
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zwi(ji, jj, 1) = 0._wp
@@ -145,6 +150,7 @@ MODULE dynzdf
     !$ACC END KERNELS
     IF (ln_drgimp) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           iku = mbku(ji, jj)
@@ -155,6 +161,7 @@ MODULE dynzdf
       !$ACC END KERNELS
       IF (ln_isfcav) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             iku = miku(ji, jj)
@@ -167,12 +174,14 @@ MODULE dynzdf
     END IF
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zwd(ji, jj, jk) = zwd(ji, jj, jk) - zwi(ji, jj, jk) * zws(ji, jj, jk - 1) / zwd(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ze3ua = (1._wp - r_vvl) * e3u_n(ji, jj, 1) + r_vvl * e3u_a(ji, jj, 1)
@@ -180,18 +189,21 @@ MODULE dynzdf
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ua(ji, jj, jk) = ua(ji, jj, jk) - zwi(ji, jj, jk) / zwd(ji, jj, jk - 1) * ua(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ua(ji, jj, jpkm1) = ua(ji, jj, jpkm1) / zwd(ji, jj, jpkm1)
       END DO
     END DO
     DO jk = jpk - 2, 1, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ua(ji, jj, jk) = (ua(ji, jj, jk) - zws(ji, jj, jk) * ua(ji, jj, jk + 1)) / zwd(ji, jj, jk)
@@ -202,6 +214,7 @@ MODULE dynzdf
     SELECT CASE (nldf_dyn)
     CASE (np_lap_i)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ze3va = (1._wp - r_vvl) * e3v_n(ji, jj, jk) + r_vvl * e3v_a(ji, jj, jk)
@@ -215,6 +228,7 @@ MODULE dynzdf
       END DO
     CASE DEFAULT
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ze3va = (1._wp - r_vvl) * e3v_n(ji, jj, jk) + r_vvl * e3v_a(ji, jj, jk)
@@ -227,6 +241,7 @@ MODULE dynzdf
         END DO
       END DO
     END SELECT
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zwi(ji, jj, 1) = 0._wp
@@ -236,6 +251,7 @@ MODULE dynzdf
     !$ACC END KERNELS
     IF (ln_drgimp) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ikv = mbkv(ji, jj)
@@ -246,6 +262,7 @@ MODULE dynzdf
       !$ACC END KERNELS
       IF (ln_isfcav) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ikv = mikv(ji, jj)
@@ -258,12 +275,14 @@ MODULE dynzdf
     END IF
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           zwd(ji, jj, jk) = zwd(ji, jj, jk) - zwi(ji, jj, jk) * zws(ji, jj, jk - 1) / zwd(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ze3va = (1._wp - r_vvl) * e3v_n(ji, jj, 1) + r_vvl * e3v_a(ji, jj, 1)
@@ -271,18 +290,21 @@ MODULE dynzdf
       END DO
     END DO
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           va(ji, jj, jk) = va(ji, jj, jk) - zwi(ji, jj, jk) / zwd(ji, jj, jk - 1) * va(ji, jj, jk - 1)
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         va(ji, jj, jpkm1) = va(ji, jj, jpkm1) / zwd(ji, jj, jpkm1)
       END DO
     END DO
     DO jk = jpk - 2, 1, - 1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           va(ji, jj, jk) = (va(ji, jj, jk) - zws(ji, jj, jk) * va(ji, jj, jk + 1)) / zwd(ji, jj, jk)
@@ -295,14 +317,14 @@ MODULE dynzdf
       ztrdu(:, :, :) = (ua(:, :, :) - ub(:, :, :)) / r2dt - ztrdu(:, :, :)
       ztrdv(:, :, :) = (va(:, :, :) - vb(:, :, :)) / r2dt - ztrdv(:, :, :)
       !$ACC END KERNELS
-      CALL ProfileStart('dyn_zdf', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('dyn_zdf', 'r1', 0, 0)
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_zdf, kt)
       DEALLOCATE(ztrdu, ztrdv)
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
     END IF
-    CALL ProfileStart('dyn_zdf', 'r2', psy_profile2)
+    CALL profile_psy_data2 % PreStart('dyn_zdf', 'r2', 0, 0)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' zdf  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_zdf')
-    CALL ProfileEnd(psy_profile2)
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE dyn_zdf
 END MODULE dynzdf

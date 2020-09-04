@@ -22,8 +22,11 @@ MODULE iscplini
     IF (iscpl_alloc > 0) CALL ctl_warn('iscpl_alloc: allocation of arrays failed')
   END FUNCTION iscpl_alloc
   SUBROUTINE iscpl_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     NAMELIST /namsbc_iscpl/ nn_fiscpl, ln_hsb, nn_drown
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('iscpl_init', 'r0', 0, 0)
     nn_fiscpl = 0
     ln_hsb = .FALSE.
     REWIND(UNIT = numnam_ref)
@@ -45,5 +48,6 @@ MODULE iscplini
       WRITE(numout, FMT = *) ' coupling time step                       = ', rdt_iscpl
       WRITE(numout, FMT = *) ' number of call of the extrapolation loop = ', nn_drown
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE iscpl_init
 END MODULE iscplini

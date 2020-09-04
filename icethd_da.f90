@@ -14,7 +14,7 @@ MODULE icethd_da
   REAL(KIND = wp) :: rn_dmin
   CONTAINS
   SUBROUTINE ice_thd_da
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji
     REAL(KIND = wp) :: zastar, zdfloe, zperi, zwlat, zda
     REAL(KIND = wp), PARAMETER :: zdmax = 300._wp
@@ -22,8 +22,8 @@ MODULE icethd_da
     REAL(KIND = wp), PARAMETER :: zm1 = 3.E-6_wp
     REAL(KIND = wp), PARAMETER :: zm2 = 1.36_wp
     REAL(KIND = wp), DIMENSION(jpij) :: zda_tot
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('ice_thd_da', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_thd_da', 'r0', 0, 0)
     zastar = 1._wp / (1._wp - (rn_dmin / zdmax) ** (1._wp / rn_beta))
     DO ji = 1, npti
       zdfloe = rn_dmin * (zastar / (zastar - at_i_1d(ji))) ** rn_beta
@@ -42,11 +42,14 @@ MODULE icethd_da
         END IF
       END IF
     END DO
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_thd_da
   SUBROUTINE ice_thd_da_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     NAMELIST /namthd_da/ rn_beta, rn_dmin
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_thd_da_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ice_ref)
     READ(numnam_ice_ref, namthd_da, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namthd_da in reference namelist', lwp)
@@ -62,5 +65,6 @@ MODULE icethd_da
       WRITE(numout, FMT = *) '      Coef. beta for lateral melting param.               rn_beta = ', rn_beta
       WRITE(numout, FMT = *) '      Minimum floe diameter for lateral melting param.    rn_dmin = ', rn_dmin
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_thd_da_init
 END MODULE icethd_da

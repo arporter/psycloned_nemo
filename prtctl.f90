@@ -19,7 +19,7 @@ MODULE prtctl
   PUBLIC :: sub_dom
   CONTAINS
   SUBROUTINE prt_ctl(tab2d_1, tab3d_1, mask1, clinfo1, tab2d_2, tab3d_2, mask2, clinfo2, kdim, clinfo3)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(:, :), INTENT(IN), OPTIONAL :: tab2d_1
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN), OPTIONAL :: tab3d_1
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(IN), OPTIONAL :: mask1
@@ -35,13 +35,10 @@ MODULE prtctl
     REAL(KIND = wp) :: zsum1, zsum2, zvctl1, zvctl2
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztab2d_1, ztab2d_2
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zmask1, zmask2, ztab3d_1, ztab3d_2
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('prt_ctl', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    !$ACC KERNELS
     kdir = jpkm1
     cl2 = ''
-    CALL ProfileEnd(psy_profile0)
-    !$ACC KERNELS
     zsum1 = 0.E0
     zsum2 = 0.E0
     zvctl1 = 0.E0
@@ -53,7 +50,7 @@ MODULE prtctl
     zmask1(:, :, :) = 1.E0
     zmask2(:, :, :) = 1.E0
     !$ACC END KERNELS
-    CALL ProfileStart('prt_ctl', 'r1', psy_profile1)
+    CALL profile_psy_data0 % PreStart('prt_ctl', 'r0', 0, 0)
     IF (PRESENT(clinfo2)) cl2 = clinfo2
     IF (PRESENT(kdim)) kdir = kdim
     IF (PRESENT(tab2d_1)) ztab2d_1(:, :) = tab2d_1(:, :)
@@ -127,18 +124,19 @@ MODULE prtctl
         WRITE(j_id, FMT = '(a,D23.16)') clinfo1, zsum1
       END IF
     END DO
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE prt_ctl
   SUBROUTINE prt_ctl_info(clinfo1, ivar1, clinfo2, ivar2, itime)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *), INTENT(IN) :: clinfo1
     INTEGER, INTENT(IN), OPTIONAL :: ivar1
     CHARACTER(LEN = *), INTENT(IN), OPTIONAL :: clinfo2
     INTEGER, INTENT(IN), OPTIONAL :: ivar2
     INTEGER, INTENT(IN), OPTIONAL :: itime
     INTEGER :: jn, sind, eind, iltime, j_id
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('prt_ctl_info', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('prt_ctl_info', 'r0', 0, 0)
     IF (lk_mpp .AND. jpnij > 1) THEN
       sind = narea
       eind = narea
@@ -146,7 +144,9 @@ MODULE prtctl
       sind = 1
       eind = ijsplt
     END IF
+    CALL profile_psy_data0 % PostEnd
     IF (PRESENT(itime)) THEN
+      !$ACC KERNELS
       iltime = itime
       IF (iltime > ktime) THEN
         t_ctll(:) = 0.E0
@@ -155,7 +155,9 @@ MODULE prtctl
         v_ctll(:) = 0.E0
         ktime = iltime
       END IF
+      !$ACC END KERNELS
     END IF
+    CALL profile_psy_data1 % PreStart('prt_ctl_info', 'r1', 0, 0)
     DO jn = sind, eind
       j_id = numid(jn - narea + 1)
       IF (PRESENT(ivar1) .AND. PRESENT(clinfo2) .AND. PRESENT(ivar2)) THEN
@@ -170,20 +172,26 @@ MODULE prtctl
         WRITE(j_id, FMT = *) clinfo1
       END IF
     END DO
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE prt_ctl_info
   SUBROUTINE prt_ctl_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jn, sind, eind, j_id
     CHARACTER(LEN = 28) :: clfile_out
     CHARACTER(LEN = 23) :: clb_name
     CHARACTER(LEN = 19) :: cl_run
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     ALLOCATE(nlditl(ijsplt), nleitl(ijsplt), nimpptl(ijsplt), ibonitl(ijsplt), nldjtl(ijsplt), nlejtl(ijsplt), njmpptl(ijsplt), ibonjtl(ijsplt), nlcitl(ijsplt), t_ctll(ijsplt), u_ctll(ijsplt), nlcjtl(ijsplt), s_ctll(ijsplt), v_ctll(ijsplt))
+    !$ACC KERNELS
     t_ctll(:) = 0.E0
     s_ctll(:) = 0.E0
     u_ctll(:) = 0.E0
     v_ctll(:) = 0.E0
     ktime = 1
+    !$ACC END KERNELS
     IF (lk_mpp .AND. jpnij > 1) THEN
+      !$ACC KERNELS
       sind = narea
       eind = narea
       clb_name = "('mpp.output_',I4.4)"
@@ -198,13 +206,17 @@ MODULE prtctl
       nlcjtl(1 : jpnij) = nlcjt(:)
       ibonitl(1 : jpnij) = ibonit(:)
       ibonjtl(1 : jpnij) = ibonjt(:)
+      !$ACC END KERNELS
     ELSE
+      CALL profile_psy_data0 % PreStart('prt_ctl_init', 'r0', 0, 0)
       sind = 1
       eind = ijsplt
       clb_name = "('mono.output_',I4.4)"
       cl_run = 'MONO processor run '
       CALL sub_dom
+      CALL profile_psy_data0 % PostEnd
     END IF
+    CALL profile_psy_data1 % PreStart('prt_ctl_init', 'r1', 0, 0)
     ALLOCATE(numid(eind - sind + 1))
     DO jn = sind, eind
       WRITE(clfile_out, FMT = clb_name) jn - 1
@@ -249,17 +261,18 @@ MODULE prtctl
 9003  FORMAT(A20, I4.4, A17, I4.4)
 9004  FORMAT(A11, I4.4, A26, I4.4, A14)
     END DO
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE prt_ctl_init
   SUBROUTINE sub_dom
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jn
     INTEGER :: ii, ij, irestil, irestjl, ijpi, ijpj, nlcil, nlcjl, nbondil, nbondjl, nrecil, nrecjl, nldil, nleil, nldjl, nlejl
     INTEGER, DIMENSION(jpi, jpj) :: iimpptl, ijmpptl, ilcitl, ilcjtl
     REAL(KIND = wp) :: zidom, zjdom
     INTEGER :: inum
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     !$ACC KERNELS
     ijpi = (jpiglo - 2 * nn_hls + (isplt - 1)) / isplt + 2 * nn_hls
     ijpj = (jpjglo - 2 * nn_hls + (jsplt - 1)) / jsplt + 2 * nn_hls
@@ -290,24 +303,25 @@ MODULE prtctl
       zidom = zidom + ilcitl(ji, 1) - nrecil
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('sub_dom', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('sub_dom', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) ' sum ilcitl(i,1) = ', zidom, ' jpiglo = ', jpiglo
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zjdom = nrecjl
     DO jj = 1, jsplt
       zjdom = zjdom + ilcjtl(1, jj) - nrecjl
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('sub_dom', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('sub_dom', 'r1', 0, 0)
     IF (lwp) WRITE(numout, FMT = *) ' sum ilcitl(1,j) = ', zjdom, ' jpjglo = ', jpjglo
     IF (lwp) WRITE(numout, FMT = *)
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     iimpptl(:, :) = 1
     ijmpptl(:, :) = 1
     IF (isplt > 1) THEN
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jsplt
         DO ji = 2, isplt
           iimpptl(ji, jj) = iimpptl(ji - 1, jj) + ilcitl(ji - 1, jj) - nrecil
@@ -315,6 +329,7 @@ MODULE prtctl
       END DO
     END IF
     IF (jsplt > 1) THEN
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jsplt
         DO ji = 1, isplt
           ijmpptl(ji, jj) = ijmpptl(ji, jj - 1) + ilcjtl(ji, jj - 1) - nrecjl
@@ -354,7 +369,7 @@ MODULE prtctl
       nlejtl(jn) = nlejl
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('sub_dom', 'r2', psy_profile2)
+    CALL profile_psy_data2 % PreStart('sub_dom', 'r2', 0, 0)
     IF (lwp) THEN
       CALL ctl_opn(inum, 'layout_prtctl.dat', 'REPLACE', 'FORMATTED', 'SEQUENTIAL', - 1, numout, .FALSE., narea)
       WRITE(inum, FMT = '(a)') 'nproc nlcil nlcjl nldil nldjl nleil nlejl nimpptl njmpptl ibonitl ibonjtl'
@@ -363,6 +378,6 @@ MODULE prtctl
       END DO
       CLOSE(UNIT = inum)
     END IF
-    CALL ProfileEnd(psy_profile2)
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE sub_dom
 END MODULE prtctl

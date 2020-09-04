@@ -123,8 +123,13 @@ MODULE dom_oce
     Agrif_CFixed = '0'
   END FUNCTION Agrif_CFixed
   INTEGER FUNCTION dom_oce_alloc()
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, DIMENSION(12) :: ierr
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    !$ACC KERNELS
     ierr(:) = 0
+    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('dom_oce_alloc', 'r0', 0, 0)
     ALLOCATE(mig(jpi), mjg(jpj), STAT = ierr(1))
     ALLOCATE(mi0(jpiglo), mi1(jpiglo), mj0(jpjglo), mj1(jpjglo), tpol(jpiglo), fpol(jpiglo), STAT = ierr(2))
     ALLOCATE(glamt(jpi, jpj), glamu(jpi, jpj), glamv(jpi, jpj), glamf(jpi, jpj), gphit(jpi, jpj), gphiu(jpi, jpj), gphiv(jpi, jpj), gphif(jpi, jpj), e1t(jpi, jpj), e2t(jpi, jpj), r1_e1t(jpi, jpj), r1_e2t(jpi, jpj), e1u(jpi, jpj), e2u(jpi, jpj), r1_e1u(jpi, jpj), r1_e2u(jpi, jpj), e1v(jpi, jpj), e2v(jpi, jpj), r1_e1v(jpi, jpj), r1_e2v(jpi, jpj), e1f(jpi, jpj), e2f(jpi, jpj), r1_e1f(jpi, jpj), r1_e2f(jpi, jpj), e1e2t(jpi, jpj), r1_e1e2t(jpi, jpj), e1e2u(jpi, jpj), r1_e1e2u(jpi, jpj), e2_e1u(jpi, jpj), e1e2v(jpi, jpj), r1_e1e2v(jpi, jpj), e1_e2v(jpi, jpj), e1e2f(jpi, jpj), r1_e1e2f(jpi, jpj), ff_f(jpi, jpj), ff_t(jpi, jpj), STAT = ierr(3))
@@ -137,5 +142,6 @@ MODULE dom_oce
     ALLOCATE(tmask(jpi, jpj, jpk), umask(jpi, jpj, jpk), vmask(jpi, jpj, jpk), fmask(jpi, jpj, jpk), STAT = ierr(11))
     ALLOCATE(wmask(jpi, jpj, jpk), wumask(jpi, jpj, jpk), wvmask(jpi, jpj, jpk), STAT = ierr(12))
     dom_oce_alloc = MAXVAL(ierr)
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION dom_oce_alloc
 END MODULE dom_oce

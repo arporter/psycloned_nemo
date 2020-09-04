@@ -27,8 +27,13 @@ MODULE dyndmp
     IF (dyn_dmp_alloc > 0) CALL ctl_warn('dyn_dmp_alloc: allocation of arrays failed')
   END FUNCTION dyn_dmp_alloc
   SUBROUTINE dyn_dmp_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios, imask
     NAMELIST /namc1d_dyndmp/ ln_dyndmp
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('dyn_dmp_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namc1d_dyndmp, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namc1d_dyndmp in reference namelist', lwp)
@@ -48,7 +53,9 @@ MODULE dyndmp
       WRITE(numout, FMT = *) '      Damping file name               cn_resto  = ', cn_resto
       WRITE(numout, FMT = *)
     END IF
+    CALL profile_psy_data0 % PostEnd
     IF (ln_dyndmp) THEN
+      CALL profile_psy_data1 % PreStart('dyn_dmp_init', 'r1', 0, 0)
       IF (dyn_dmp_alloc() /= 0) CALL ctl_stop('STOP', 'dyn_dmp_init: unable to allocate arrays')
       SELECT CASE (nn_zdmp)
       CASE (0)
@@ -65,31 +72,35 @@ MODULE dyndmp
         CALL ctl_warn('dyn_dmp_init: U & V current read data not initialized, we force ln_uvd_dyndmp=T')
         CALL dta_uvd_init(ld_dyndmp = ln_dyndmp)
       END IF
+      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       utrdmp(:, :, :) = 0._wp
       vtrdmp(:, :, :) = 0._wp
       !$ACC END KERNELS
+      CALL profile_psy_data2 % PreStart('dyn_dmp_init', 'r2', 0, 0)
       CALL iom_open(cn_resto, imask)
       CALL iom_get(imask, jpdom_autoglo, 'resto', resto)
       CALL iom_close(imask)
+      CALL profile_psy_data2 % PostEnd
     END IF
   END SUBROUTINE dyn_dmp_init
   SUBROUTINE dyn_dmp(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zua, zva
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, 2) :: zuv_dta
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('dyn_dmp', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('dyn_dmp', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('dyn_dmp')
     CALL dta_uvd(kt, zuv_dta)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     SELECT CASE (nn_zdmp)
     CASE (0)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zua = resto_uv(ji, jj, jk) * (zuv_dta(ji, jj, jk, 1) - ub(ji, jj, jk))
@@ -103,6 +114,7 @@ MODULE dyndmp
       END DO
     CASE (1)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (avt(ji, jj, jk) <= 5.E-4_wp) THEN
@@ -121,6 +133,7 @@ MODULE dyndmp
       END DO
     CASE (2)
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (gdept_n(ji, jj, jk) >= hmlp(ji, jj)) THEN
@@ -139,9 +152,9 @@ MODULE dyndmp
       END DO
     END SELECT
     !$ACC END KERNELS
-    CALL ProfileStart('dyn_dmp', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('dyn_dmp', 'r1', 0, 0)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua(:, :, :), clinfo1 = ' dmp  - Ua: ', mask1 = umask, tab3d_2 = va(:, :, :), clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_dmp')
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE dyn_dmp
 END MODULE dyndmp

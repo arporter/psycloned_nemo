@@ -9,12 +9,13 @@ MODULE icetab
   PUBLIC :: tab_1d_2d
   CONTAINS
   SUBROUTINE tab_3d_2d(ndim1d, tab_ind, tab1d, tab2d)
-    INTEGER, INTENT(IN ) :: ndim1d
-    INTEGER, DIMENSION(ndim1d), INTENT(IN ) :: tab_ind
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpl), INTENT(IN ) :: tab2d
-    REAL(KIND = wp), DIMENSION(ndim1d, jpl), INTENT( OUT) :: tab1d
+    INTEGER, INTENT(IN) :: ndim1d
+    INTEGER, DIMENSION(ndim1d), INTENT(IN) :: tab_ind
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpl), INTENT(IN) :: tab2d
+    REAL(KIND = wp), DIMENSION(ndim1d, jpl), INTENT(OUT) :: tab1d
     INTEGER :: jl, jn, jid, jjd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT
     DO jl = 1, jpl
       DO jn = 1, ndim1d
         jid = MOD(tab_ind(jn) - 1, jpi) + 1
@@ -25,12 +26,13 @@ MODULE icetab
     !$ACC END KERNELS
   END SUBROUTINE tab_3d_2d
   SUBROUTINE tab_2d_1d(ndim1d, tab_ind, tab1d, tab2d)
-    INTEGER, INTENT(IN ) :: ndim1d
-    INTEGER, DIMENSION(ndim1d), INTENT(IN ) :: tab_ind
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN ) :: tab2d
-    REAL(KIND = wp), DIMENSION(ndim1d), INTENT( OUT) :: tab1d
+    INTEGER, INTENT(IN) :: ndim1d
+    INTEGER, DIMENSION(ndim1d), INTENT(IN) :: tab_ind
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: tab2d
+    REAL(KIND = wp), DIMENSION(ndim1d), INTENT(OUT) :: tab1d
     INTEGER :: jn, jid, jjd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT
     DO jn = 1, ndim1d
       jid = MOD(tab_ind(jn) - 1, jpi) + 1
       jjd = (tab_ind(jn) - 1) / jpi + 1
@@ -39,12 +41,13 @@ MODULE icetab
     !$ACC END KERNELS
   END SUBROUTINE tab_2d_1d
   SUBROUTINE tab_2d_3d(ndim1d, tab_ind, tab1d, tab2d)
-    INTEGER, INTENT(IN ) :: ndim1d
-    INTEGER, DIMENSION(ndim1d), INTENT(IN ) :: tab_ind
-    REAL(KIND = wp), DIMENSION(ndim1d, jpl), INTENT(IN ) :: tab1d
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpl), INTENT( OUT) :: tab2d
+    INTEGER, INTENT(IN) :: ndim1d
+    INTEGER, DIMENSION(ndim1d), INTENT(IN) :: tab_ind
+    REAL(KIND = wp), DIMENSION(ndim1d, jpl), INTENT(IN) :: tab1d
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpl), INTENT(OUT) :: tab2d
     INTEGER :: jl, jn, jid, jjd
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT
     DO jl = 1, jpl
       DO jn = 1, ndim1d
         jid = MOD(tab_ind(jn) - 1, jpi) + 1
@@ -55,10 +58,10 @@ MODULE icetab
     !$ACC END KERNELS
   END SUBROUTINE tab_2d_3d
   SUBROUTINE tab_1d_2d(ndim1d, tab_ind, tab1d, tab2d)
-    INTEGER, INTENT(IN ) :: ndim1d
-    INTEGER, DIMENSION(ndim1d), INTENT(IN ) :: tab_ind
-    REAL(KIND = wp), DIMENSION(ndim1d), INTENT(IN ) :: tab1d
-    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT( OUT) :: tab2d
+    INTEGER, INTENT(IN) :: ndim1d
+    INTEGER, DIMENSION(ndim1d), INTENT(IN) :: tab_ind
+    REAL(KIND = wp), DIMENSION(ndim1d), INTENT(IN) :: tab1d
+    REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(OUT) :: tab2d
     INTEGER :: jn, jid, jjd
     !$ACC KERNELS
     !$ACC LOOP INDEPENDENT

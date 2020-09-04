@@ -24,29 +24,29 @@ MODULE sbcblk_algo_ecmwf
   REAL(KIND = wp), PARAMETER :: alpha_Q = 0.62
   CONTAINS
   SUBROUTINE TURB_ECMWF(zt, zu, sst, t_zt, ssq, q_zt, U_zu, Cd, Ch, Ce, t_zu, q_zu, U_blk, Cdn, Chn, Cen)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), INTENT(IN ) :: zt
-    REAL(KIND = wp), INTENT(IN ) :: zu
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: sst
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: t_zt
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: ssq
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: q_zt
-    REAL(KIND = wp), INTENT(IN ), DIMENSION(jpi, jpj) :: U_zu
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Cd
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Ch
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Ce
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: t_zu
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: q_zu
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: U_blk
-    REAL(KIND = wp), INTENT( OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), INTENT(IN) :: zt
+    REAL(KIND = wp), INTENT(IN) :: zu
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: sst
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: t_zt
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: ssq
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: q_zt
+    REAL(KIND = wp), INTENT(IN), DIMENSION(jpi, jpj) :: U_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Cd
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Ch
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Ce
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: t_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: q_zu
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: U_blk
+    REAL(KIND = wp), INTENT(OUT), DIMENSION(jpi, jpj) :: Cdn, Chn, Cen
     INTEGER :: j_itt
     LOGICAL :: l_zt_equal_zu = .FALSE.
     INTEGER, PARAMETER :: nb_itt = 4
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: u_star, t_star, q_star, dt_zu, dq_zu, znu_a, Linv, z0, z0t, z0q
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: func_m, func_h
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztmp0, ztmp1, ztmp2
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('turb_ecmwf', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('turb_ecmwf', 'r0', 0, 0)
     l_zt_equal_zu = .FALSE.
     IF (ABS(zu - zt) < 0.01) l_zt_equal_zu = .TRUE.
     t_zu = MAX(t_zt, 0.0)
@@ -139,7 +139,7 @@ MODULE sbcblk_algo_ecmwf
     Cdn = vkarmn * vkarmn / (LOG(ztmp1 / z0) * LOG(ztmp1 / z0))
     Chn = vkarmn * vkarmn / (LOG(ztmp1 / z0t) * LOG(ztmp1 / z0t))
     Cen = vkarmn * vkarmn / (LOG(ztmp1 / z0q) * LOG(ztmp1 / z0q))
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE TURB_ECMWF
   FUNCTION psi_m_ecmwf(pzeta)
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: psi_m_ecmwf
@@ -147,6 +147,7 @@ MODULE sbcblk_algo_ecmwf
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zzeta, zx, ztmp, psi_unst, psi_stab, stab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zzeta = MIN(pzeta(ji, jj), 5.)
@@ -167,6 +168,7 @@ MODULE sbcblk_algo_ecmwf
     INTEGER :: ji, jj
     REAL(KIND = wp) :: zzeta, zx, psi_unst, psi_stab, stab
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         zzeta = MIN(pzeta(ji, jj), 5.)
@@ -180,7 +182,7 @@ MODULE sbcblk_algo_ecmwf
     !$ACC END KERNELS
   END FUNCTION psi_h_ecmwf
   FUNCTION Ri_bulk(pz, ptz, pdt, pqz, pdq, pub)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: Ri_bulk
     REAL(KIND = wp), INTENT(IN) :: pz
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: ptz
@@ -188,10 +190,10 @@ MODULE sbcblk_algo_ecmwf
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pqz
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pdq
     REAL(KIND = wp), DIMENSION(jpi, jpj), INTENT(IN) :: pub
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('ri_bulk', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ri_bulk', 'r0', 0, 0)
     Ri_bulk = grav * pz / (pub * pub) * (pdt / (ptz - 0.5_wp * (pdt + grav * pz / (Cp_dry + Cp_vap * pqz))) + rctv0 * pdq)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION Ri_bulk
   FUNCTION visc_air(ptak)
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: visc_air
@@ -199,6 +201,7 @@ MODULE sbcblk_algo_ecmwf
     INTEGER :: ji, jj
     REAL(KIND = wp) :: ztc, ztc2
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         ztc = ptak(ji, jj) - rt0

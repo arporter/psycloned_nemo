@@ -20,15 +20,15 @@ MODULE asmbkg
   PUBLIC :: asm_bkg_wri
   CONTAINS
   SUBROUTINE asm_bkg_wri(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT( IN ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = 50) :: cl_asmbkg
     CHARACTER(LEN = 50) :: cl_asmdin
     LOGICAL :: llok
     INTEGER :: inum
     REAL(KIND = wp) :: zdate
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('asm_bkg_wri', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('asm_bkg_wri', 'r0', 0, 0)
     IF (kt == nitbkg_r) THEN
       WRITE(cl_asmbkg, FMT = '(A,".nc")') TRIM(c_asmbkg)
       cl_asmbkg = TRIM(cl_asmbkg)
@@ -83,6 +83,6 @@ MODULE asmbkg
         CALL iom_close(inum)
       END IF
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE asm_bkg_wri
 END MODULE asmbkg

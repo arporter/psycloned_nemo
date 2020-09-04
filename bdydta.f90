@@ -26,7 +26,7 @@ MODULE bdydta
   INTEGER, DIMENSION(jp_bdy) :: jfld_htit, jfld_htst, jfld_ait
   CONTAINS
   SUBROUTINE bdy_dta(kt, jit, time_offset)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(IN), OPTIONAL :: jit
     INTEGER, INTENT(IN), OPTIONAL :: time_offset
@@ -35,16 +35,28 @@ MODULE bdydta
     INTEGER, DIMENSION(jpbgrd) :: ilen1
     INTEGER, POINTER, DIMENSION(:) :: nblen, nblenrim
     TYPE(OBC_DATA), POINTER :: dta
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('bdy_dta', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data8
     IF (ln_timing) CALL timing_start('bdy_dta')
     IF (kt == nit000 .AND. .NOT. PRESENT(jit)) THEN
       DO jbdy = 1, nb_bdy
+        CALL profile_psy_data0 % PreStart('bdy_dta', 'r0', 0, 0)
         nblen => idx_bdy(jbdy) % nblen
         nblenrim => idx_bdy(jbdy) % nblenrim
         dta => dta_bdy(jbdy)
+        CALL profile_psy_data0 % PostEnd
         IF (nn_dyn2d_dta(jbdy) == 0) THEN
+          !$ACC KERNELS
           ilen1(:) = nblen(:)
+          !$ACC END KERNELS
+          CALL profile_psy_data1 % PreStart('bdy_dta', 'r1', 0, 0)
           IF (dta % ll_ssh) THEN
             igrd = 1
             DO ib = 1, ilen1(igrd)
@@ -69,9 +81,13 @@ MODULE bdydta
               dta_bdy(jbdy) % v2d(ib) = vn_b(ii, ij) * vmask(ii, ij, 1)
             END DO
           END IF
+          CALL profile_psy_data1 % PostEnd
         END IF
         IF (nn_dyn3d_dta(jbdy) == 0) THEN
+          !$ACC KERNELS
           ilen1(:) = nblen(:)
+          !$ACC END KERNELS
+          CALL profile_psy_data2 % PreStart('bdy_dta', 'r2', 0, 0)
           IF (dta % ll_u3d) THEN
             igrd = 2
             DO ib = 1, ilen1(igrd)
@@ -92,9 +108,13 @@ MODULE bdydta
               END DO
             END DO
           END IF
+          CALL profile_psy_data2 % PostEnd
         END IF
         IF (nn_tra_dta(jbdy) == 0) THEN
+          !$ACC KERNELS
           ilen1(:) = nblen(:)
+          !$ACC END KERNELS
+          CALL profile_psy_data3 % PreStart('bdy_dta', 'r3', 0, 0)
           IF (dta % ll_tem) THEN
             igrd = 1
             DO ib = 1, ilen1(igrd)
@@ -115,9 +135,13 @@ MODULE bdydta
               END DO
             END DO
           END IF
+          CALL profile_psy_data3 % PostEnd
         END IF
         IF (nn_ice_dta(jbdy) == 0) THEN
+          !$ACC KERNELS
           ilen1(:) = nblen(:)
+          !$ACC END KERNELS
+          CALL profile_psy_data4 % PreStart('bdy_dta', 'r4', 0, 0)
           IF (dta % ll_a_i) THEN
             igrd = 1
             DO jl = 1, jpl
@@ -148,9 +172,11 @@ MODULE bdydta
               END DO
             END DO
           END IF
+          CALL profile_psy_data4 % PostEnd
         END IF
       END DO
     END IF
+    CALL profile_psy_data5 % PreStart('bdy_dta', 'r5', 0, 0)
     jstart = 1
     DO jbdy = 1, nb_bdy
       dta => dta_bdy(jbdy)
@@ -267,26 +293,36 @@ MODULE bdydta
         jstart = jstart + dta % nread(1)
       END IF
     END DO
+    CALL profile_psy_data5 % PostEnd
     IF (ln_tide) THEN
       IF (ln_dynspg_ts) THEN
         DO jbdy = 1, nb_bdy
           IF (nn_dyn2d_dta(jbdy) .GE. 2) THEN
+            CALL profile_psy_data6 % PreStart('bdy_dta', 'r6', 0, 0)
             nblen => idx_bdy(jbdy) % nblen
             nblenrim => idx_bdy(jbdy) % nblenrim
+            CALL profile_psy_data6 % PostEnd
             IF (cn_dyn2d(jbdy) == 'frs') THEN
+              !$ACC KERNELS
               ilen1(:) = nblen(:)
+              !$ACC END KERNELS
             ELSE
+              !$ACC KERNELS
               ilen1(:) = nblenrim(:)
+              !$ACC END KERNELS
             END IF
+            CALL profile_psy_data7 % PreStart('bdy_dta', 'r7', 0, 0)
             IF (dta_bdy(jbdy) % ll_ssh) dta_bdy_s(jbdy) % ssh(1 : ilen1(1)) = dta_bdy(jbdy) % ssh(1 : ilen1(1))
             IF (dta_bdy(jbdy) % ll_u2d) dta_bdy_s(jbdy) % u2d(1 : ilen1(2)) = dta_bdy(jbdy) % u2d(1 : ilen1(2))
             IF (dta_bdy(jbdy) % ll_v2d) dta_bdy_s(jbdy) % v2d(1 : ilen1(3)) = dta_bdy(jbdy) % v2d(1 : ilen1(3))
+            CALL profile_psy_data7 % PostEnd
           END IF
         END DO
       ELSE
         CALL bdy_dta_tides(kt = kt, time_offset = time_offset)
       END IF
     END IF
+    CALL profile_psy_data8 % PreStart('bdy_dta', 'r8', 0, 0)
     IF (ln_apr_obc) THEN
       DO jbdy = 1, nb_bdy
         IF (cn_tra(jbdy) /= 'runoff') THEN
@@ -300,9 +336,10 @@ MODULE bdydta
       END DO
     END IF
     IF (ln_timing) CALL timing_stop('bdy_dta')
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data8 % PostEnd
   END SUBROUTINE bdy_dta
   SUBROUTINE bdy_dta_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: jbdy, jfld, jstart, jend, ierror, ios
     CHARACTER(LEN = 100) :: cn_dir
     CHARACTER(LEN = 100), DIMENSION(nb_bdy) :: cn_dir_array
@@ -324,6 +361,9 @@ MODULE bdydta
     NAMELIST /nambdy_dta/ cn_dir, bn_tem, bn_sal, bn_u3d, bn_v3d, bn_ssh, bn_u2d, bn_v2d
     NAMELIST /nambdy_dta/ bn_a_i, bn_h_i, bn_h_s
     NAMELIST /nambdy_dta/ ln_full_vel, nb_jpk_bdy
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('bdy_dta_init', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'bdy_dta_ini : initialization of data at the open boundaries'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~'
@@ -333,7 +373,11 @@ MODULE bdydta
       IF (nn_dta(jbdy) > 1) nn_dta(jbdy) = 1
     END DO
     ALLOCATE(nb_bdy_fld(nb_bdy))
+    CALL profile_psy_data0 % PostEnd
+    !$ACC KERNELS
     nb_bdy_fld(:) = 0
+    !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('bdy_dta_init', 'r1', 0, 0)
     DO jbdy = 1, nb_bdy
       IF (cn_dyn2d(jbdy) /= 'none' .AND. (nn_dyn2d_dta(jbdy) == 1 .OR. nn_dyn2d_dta(jbdy) == 3)) THEN
         nb_bdy_fld(jbdy) = nb_bdy_fld(jbdy) + 3
@@ -634,5 +678,6 @@ MODULE bdydta
         END IF
       END IF
     END DO
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE bdy_dta_init
 END MODULE bdydta

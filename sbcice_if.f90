@@ -16,7 +16,7 @@ MODULE sbcice_if
   TYPE(FLD), ALLOCATABLE, DIMENSION(:) :: sf_ice
   CONTAINS
   SUBROUTINE sbc_ice_if(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj
     INTEGER :: ierror
@@ -26,10 +26,10 @@ MODULE sbcice_if
     CHARACTER(LEN = 100) :: cn_dir
     TYPE(FLD_N) :: sn_ice
     NAMELIST /namsbc_iif/ cn_dir, sn_ice
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    CALL ProfileStart('sbc_ice_if', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('sbc_ice_if', 'r0', 0, 0)
     IF (kt == nit000) THEN
       REWIND(UNIT = numnam_ref)
       READ(numnam_ref, namsbc_iif, IOSTAT = ios, ERR = 901)
@@ -45,18 +45,18 @@ MODULE sbcice_if
       CALL fld_fill(sf_ice, (/sn_ice/), cn_dir, 'sbc_ice_if', 'ice-if sea-ice model', 'namsbc_iif')
     END IF
     CALL fld_read(kt, nn_fsbc, sf_ice)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (MOD(kt - 1, nn_fsbc) == 0) THEN
-      CALL ProfileStart('sbc_ice_if', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('sbc_ice_if', 'r1', 0, 0)
       ztrp = - 40.
       zsice = - 0.04 / 0.8
       CALL eos_fzp(sss_m(:, :), fr_i(:, :))
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       fr_i(:, :) = fr_i(:, :) * tmask(:, :, 1)
       IF (ln_cpl) a_i(:, :, 1) = fr_i(:, :)
       !$ACC END KERNELS
-      CALL ProfileStart('sbc_ice_if', 'r2', psy_profile2)
+      CALL profile_psy_data2 % PreStart('sbc_ice_if', 'r2', 0, 0)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zt_fzp = fr_i(ji, jj)
@@ -75,7 +75,7 @@ MODULE sbcice_if
           qns(ji, jj) = ((1. - zfr_obs) * qns(ji, jj) + zfr_obs * fr_i(ji, jj) * zqi) * tmask(ji, jj, 1) + zqrp
         END DO
       END DO
-      CALL ProfileEnd(psy_profile2)
+      CALL profile_psy_data2 % PostEnd
     END IF
   END SUBROUTINE sbc_ice_if
 END MODULE sbcice_if

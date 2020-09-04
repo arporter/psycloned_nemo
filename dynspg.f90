@@ -26,15 +26,15 @@ MODULE dynspg
   INTEGER, PARAMETER :: np_NO = - 1
   CONTAINS
   SUBROUTINE dyn_spg(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: z2dt, zg_2, zintp, zgrau0r, zld
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :) :: zpice
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: ztrdu, ztrdv
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     IF (ln_timing) CALL timing_start('dyn_spg')
     IF (l_trddyn) THEN
       ALLOCATE(ztrdu(jpi, jpj, jpk), ztrdv(jpi, jpj, jpk))
@@ -45,6 +45,7 @@ MODULE dynspg
     END IF
     IF (ln_apr_dyn .OR. (.NOT. ln_dynspg_ts .AND. (ln_tide_pot .AND. ln_tide)) .OR. ln_ice_embd) THEN
       !$ACC KERNELS
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           spgu(ji, jj) = 0._wp
@@ -53,6 +54,7 @@ MODULE dynspg
       END DO
       IF (ln_apr_dyn .AND. .NOT. ln_dynspg_ts) THEN
         zg_2 = grav * 0.5
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             spgu(ji, jj) = spgu(ji, jj) + zg_2 * (ssh_ib(ji + 1, jj) - ssh_ib(ji, jj) + ssh_ibb(ji + 1, jj) - ssh_ibb(ji, jj)) * r1_e1u(ji, jj)
@@ -64,6 +66,7 @@ MODULE dynspg
       IF (.NOT. ln_dynspg_ts .AND. (ln_tide_pot .AND. ln_tide)) THEN
         CALL upd_tide(kt)
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             spgu(ji, jj) = spgu(ji, jj) + grav * (pot_astro(ji + 1, jj) - pot_astro(ji, jj)) * r1_e1u(ji, jj)
@@ -74,6 +77,7 @@ MODULE dynspg
         IF (ln_scal_load) THEN
           !$ACC KERNELS
           zld = rn_scal_load * grav
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               spgu(ji, jj) = spgu(ji, jj) + zld * (sshn(ji + 1, jj) - sshn(ji, jj)) * r1_e1u(ji, jj)
@@ -89,6 +93,7 @@ MODULE dynspg
         zintp = REAL(MOD(kt - 1, nn_fsbc)) / REAL(nn_fsbc)
         zgrau0r = - grav * r1_rau0
         zpice(:, :) = (zintp * snwice_mass(:, :) + (1. - zintp) * snwice_mass_b(:, :)) * zgrau0r
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             spgu(ji, jj) = spgu(ji, jj) + (zpice(ji + 1, jj) - zpice(ji, jj)) * r1_e1u(ji, jj)
@@ -100,6 +105,7 @@ MODULE dynspg
       END IF
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             ua(ji, jj, jk) = ua(ji, jj, jk) + spgu(ji, jj)
@@ -109,32 +115,35 @@ MODULE dynspg
       END DO
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('dyn_spg', 'r0', psy_profile0)
+    CALL profile_psy_data0 % PreStart('dyn_spg', 'r0', 0, 0)
     SELECT CASE (nspg)
     CASE (np_exp)
       CALL dyn_spg_exp(kt)
     CASE (np_ts)
       CALL dyn_spg_ts(kt)
     END SELECT
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (l_trddyn) THEN
       !$ACC KERNELS
       ztrdu(:, :, :) = ua(:, :, :) - ztrdu(:, :, :)
       ztrdv(:, :, :) = va(:, :, :) - ztrdv(:, :, :)
       !$ACC END KERNELS
-      CALL ProfileStart('dyn_spg', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('dyn_spg', 'r1', 0, 0)
       CALL trd_dyn(ztrdu, ztrdv, jpdyn_spg, kt)
       DEALLOCATE(ztrdu, ztrdv)
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
     END IF
-    CALL ProfileStart('dyn_spg', 'r2', psy_profile2)
+    CALL profile_psy_data2 % PreStart('dyn_spg', 'r2', 0, 0)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = ua, clinfo1 = ' spg  - Ua: ', mask1 = umask, tab3d_2 = va, clinfo2 = ' Va: ', mask2 = vmask, clinfo3 = 'dyn')
     IF (ln_timing) CALL timing_stop('dyn_spg')
-    CALL ProfileEnd(psy_profile2)
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE dyn_spg
   SUBROUTINE dyn_spg_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ioptio, ios
     NAMELIST /namdyn_spg/ ln_dynspg_exp, ln_dynspg_ts, ln_bt_fw, ln_bt_av, ln_bt_auto, nn_baro, rn_bt_cmax, nn_bt_flt, rn_bt_alpha
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dyn_spg_init', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'dyn_spg_init : choice of the surface pressure gradient scheme'
@@ -174,5 +183,6 @@ MODULE dynspg
     IF (nspg == np_TS) THEN
       CALL dyn_spg_ts_init
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dyn_spg_init
 END MODULE dynspg

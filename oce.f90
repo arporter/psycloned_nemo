@@ -34,8 +34,13 @@ MODULE oce
   REAL(KIND = wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:, :) :: fraqsr_1lev
   CONTAINS
   INTEGER FUNCTION oce_alloc()
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ierr(6)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    !$ACC KERNELS
     ierr(:) = 0
+    !$ACC END KERNELS
+    CALL profile_psy_data0 % PreStart('oce_alloc', 'r0', 0, 0)
     ALLOCATE(ub(jpi, jpj, jpk), un(jpi, jpj, jpk), ua(jpi, jpj, jpk), vb(jpi, jpj, jpk), vn(jpi, jpj, jpk), va(jpi, jpj, jpk), wn(jpi, jpj, jpk), hdivn(jpi, jpj, jpk), tsb(jpi, jpj, jpk, jpts), tsn(jpi, jpj, jpk, jpts), tsa(jpi, jpj, jpk, jpts), rab_b(jpi, jpj, jpk, jpts), rab_n(jpi, jpj, jpk, jpts), rn2b(jpi, jpj, jpk), rn2(jpi, jpj, jpk), rhd(jpi, jpj, jpk), rhop(jpi, jpj, jpk), STAT = ierr(1))
     ALLOCATE(sshb(jpi, jpj), sshn(jpi, jpj), ssha(jpi, jpj), ub_b(jpi, jpj), un_b(jpi, jpj), ua_b(jpi, jpj), vb_b(jpi, jpj), vn_b(jpi, jpj), va_b(jpi, jpj), spgu(jpi, jpj), spgv(jpi, jpj), gtsu(jpi, jpj, jpts), gtsv(jpi, jpj, jpts), gru(jpi, jpj), grv(jpi, jpj), gtui(jpi, jpj, jpts), gtvi(jpi, jpj, jpts), grui(jpi, jpj), grvi(jpi, jpj), riceload(jpi, jpj), STAT = ierr(2))
     ALLOCATE(fraqsr_1lev(jpi, jpj), STAT = ierr(3))
@@ -43,5 +48,6 @@ MODULE oce
     ALLOCATE(ub2_b(jpi, jpj), vb2_b(jpi, jpj), un_bf(jpi, jpj), vn_bf(jpi, jpj), STAT = ierr(6))
     oce_alloc = MAXVAL(ierr)
     IF (oce_alloc /= 0) CALL ctl_warn('oce_alloc: failed to allocate arrays')
+    CALL profile_psy_data0 % PostEnd
   END FUNCTION oce_alloc
 END MODULE oce

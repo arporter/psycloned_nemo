@@ -56,8 +56,8 @@ MODULE zdfosm
     IF (lk_mpp) CALL mpp_sum(zdf_osm_alloc)
   END FUNCTION zdf_osm_alloc
   SUBROUTINE zdf_osm(kt, p_avm, p_avt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN   ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp), DIMENSION(:, :, :), INTENT(INOUT) :: p_avm, p_avt
     INTEGER :: ji, jj, jk
     INTEGER :: ikbot, jkmax, jkm1, jkp2
@@ -132,17 +132,17 @@ MODULE zdfosm
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zviscos
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: zdiffut
     INTEGER :: ikt
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
-    CALL ProfileStart('zdf_osm', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    CALL profile_psy_data0 % PreStart('zdf_osm', 'r0', 0, 0)
     ALLOCATE(lconv(jpi, jpj), STAT = i_lconv_alloc)
     IF (i_lconv_alloc /= 0) CALL ctl_warn('zdf_osm: failed to allocate lconv')
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     ibld(:, :) = 0
     imld(:, :) = 0
@@ -225,14 +225,20 @@ MODULE zdfosm
     ghamv(:, :, :) = 0._wp
     zz0 = rn_abs
     zz1 = 1. - rn_abs
+    !!$ACC LOOP INDEPENDENT COLLAPSE(2) ! FAILS
+    !$ACC LOOP INDEPENDENT
     DO jj = 2, jpjm1
+      !$ACC LOOP INDEPENDENT
       DO ji = 2, jpim1
         zrad0(ji, jj) = qsr(ji, jj) * r1_rau0_rcp
         zradh(ji, jj) = zrad0(ji, jj) * (zz0 * EXP(- hbl(ji, jj) / rn_si0) + zz1 * EXP(- hbl(ji, jj) / rn_si1))
         zradav(ji, jj) = zrad0(ji, jj) * (zz0 * (1.0 - EXP(- hbl(ji, jj) / rn_si0)) * rn_si0 + zz1 * (1.0 - EXP(- hbl(ji, jj) / rn_si1)) * rn_si1) / hbl(ji, jj)
       END DO
     END DO
+    !!$ACC LOOP INDEPENDENT COLLAPSE(2) ! FAILS
+    !$ACC LOOP INDEPENDENT
     DO jj = 2, jpjm1
+      !$ACC LOOP INDEPENDENT
       DO ji = 2, jpim1
         zthermal = rab_n(ji, jj, 1, jp_tem)
         zbeta = rab_n(ji, jj, 1, jp_sal)
@@ -251,7 +257,10 @@ MODULE zdfosm
     END DO
     SELECT CASE (nn_osm_wave)
     CASE (0)
+      !!$ACC LOOP INDEPENDENT COLLAPSE(2) ! FAILS
+      !$ACC LOOP INDEPENDENT
       DO jj = 2, jpjm1
+        !$ACC LOOP INDEPENDENT
         DO ji = 2, jpim1
           zus_x = zcos_wind(ji, jj) * zustar(ji, jj) / 0.3 ** 2
           zus_y = zsin_wind(ji, jj) * zustar(ji, jj) / 0.3 ** 2
@@ -259,7 +268,10 @@ MODULE zdfosm
         END DO
       END DO
     CASE (1)
+      !!$ACC LOOP INDEPENDENT COLLAPSE(2) ! FAILS
+      !$ACC LOOP INDEPENDENT
       DO jj = 2, jpjm1
+        !$ACC LOOP INDEPENDENT
         DO ji = 2, jpim1
           zustke(ji, jj) = MAX(0.016 * wndm(ji, jj), 1.0E-8)
           dstokes(ji, jj) = 0.12 * wndm(ji, jj) ** 2 / grav
@@ -267,14 +279,20 @@ MODULE zdfosm
       END DO
     CASE (2)
       zfac = 2.0_wp * rpi / 16.0_wp
+      !!$ACC LOOP INDEPENDENT COLLAPSE(2) ! FAILS
+      !$ACC LOOP INDEPENDENT
       DO jj = 2, jpjm1
+        !$ACC LOOP INDEPENDENT
         DO ji = 2, jpim1
           zustke(ji, jj) = MAX(1.0 * (zcos_wind(ji, jj) * ut0sd(ji, jj) + zsin_wind(ji, jj) * vt0sd(ji, jj)), zustar(ji, jj) / (0.45 * 0.45))
           dstokes(ji, jj) = MAX(zfac * hsw(ji, jj) * hsw(ji, jj) / (MAX(zustke(ji, jj) * wmp(ji, jj), 1.0E-7)), 5.0E-1)
         END DO
       END DO
     END SELECT
+    !!$ACC LOOP INDEPENDENT COLLAPSE(2) ! FAILS
+    !$ACC LOOP INDEPENDENT
     DO jj = 2, jpjm1
+      !$ACC LOOP INDEPENDENT
       DO ji = 2, jpim1
         zwstrl(ji, jj) = (zustar(ji, jj) * zustar(ji, jj) * zustke(ji, jj)) ** pthird
         zwstrl(ji, jj) = zwstrl(ji, jj) * (1.12 * (1.0 - (1.0 - EXP(- hbl(ji, jj) / dstokes(ji, jj))) * dstokes(ji, jj) / hbl(ji, jj))) ** pthird * (1.0 - EXP(- 15.0 * dstokes(ji, jj) / hbl(ji, jj)))
@@ -294,7 +312,10 @@ MODULE zdfosm
     hbl(:, :) = MAX(hbl(:, :), gdepw_n(:, :, 3))
     ibld(:, :) = 3
     DO jk = 4, jpkm1
+      !!$ACC LOOP INDEPENDENT COLLAPSE(2) ! FAILS
+      !$ACC LOOP INDEPENDENT
       DO jj = 2, jpjm1
+        !$ACC LOOP INDEPENDENT
         DO ji = 2, jpim1
           IF (hbl(ji, jj) >= gdepw_n(ji, jj, jk)) THEN
             ibld(ji, jj) = MIN(mbkt(ji, jj), jk)
@@ -302,7 +323,10 @@ MODULE zdfosm
         END DO
       END DO
     END DO
+    !!$ACC LOOP INDEPENDENT COLLAPSE(2) ! FAILS
+    !$ACC LOOP INDEPENDENT
     DO jj = 2, jpjm1
+      !$ACC LOOP INDEPENDENT
       DO ji = 2, jpim1
         zthermal = rab_n(ji, jj, 1, jp_tem)
         zbeta = rab_n(ji, jj, 1, jp_sal)
@@ -349,6 +373,7 @@ MODULE zdfosm
     zhbl_t(:, :) = hbl(:, :) + (zdhdt(:, :) - wn(ji, jj, ibld(ji, jj))) * rn_rdt
     zhbl_t(:, :) = MIN(zhbl_t(:, :), ht_n(:, :))
     zdhdt(:, :) = MIN(zdhdt(:, :), (zhbl_t(:, :) - hbl(:, :)) / rn_rdt + wn(ji, jj, ibld(ji, jj)))
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jk = 4, jpkm1
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
@@ -358,19 +383,18 @@ MODULE zdfosm
         END DO
       END DO
     END DO
-    !CC END KERNELS
-    ! PSyclone #537 FLOAT() not recognised by PSyIR FE.
+    !$ACC END KERNELS
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (ibld(ji, jj) - imld(ji, jj) > 1) THEN
-          !CALL ProfileStart('zdf_osm', 'r1', psy_profile1)
+          CALL profile_psy_data1 % PreStart('zdf_osm', 'r1', 0, 0)
           zhbl_s = hbl(ji, jj)
           jm = imld(ji, jj)
           zthermal = rab_n(ji, jj, 1, jp_tem)
           zbeta = rab_n(ji, jj, 1, jp_sal)
-          !CALL ProfileEnd(psy_profile1)
+          CALL profile_psy_data1 % PostEnd
           IF (lconv(ji, jj)) THEN
-            !CALL ProfileStart('zdf_osm', 'r2', psy_profile2)
+            CALL profile_psy_data2 % PreStart('zdf_osm', 'r2', 0, 0)
             zvel_max = - (1.0 + 1.0 * (zvstr(ji, jj) ** 3 + 0.5 * zwstrc(ji, jj) ** 3) ** pthird * rn_rdt / hbl(ji, jj)) * zwb_ent(ji, jj) / (zvstr(ji, jj) ** 3 + 0.5 * zwstrc(ji, jj) ** 3) ** pthird
             DO jk = imld(ji, jj), ibld(ji, jj)
               zdb = MAX(grav * (zthermal * (zt_bl(ji, jj) - tsn(ji, jj, jm, jp_tem)) - zbeta * (zs_bl(ji, jj) - tsn(ji, jj, jm, jp_sal))), 0.0) + zvel_max
@@ -381,9 +405,9 @@ MODULE zdfosm
             hbl(ji, jj) = zhbl_s
             ibld(ji, jj) = jm
             hbli(ji, jj) = hbl(ji, jj)
-            !CALL ProfileEnd(psy_profile2)
+            CALL profile_psy_data2 % PostEnd
           ELSE
-            !CC KERNELS
+            !$ACC KERNELS
             DO jk = imld(ji, jj), ibld(ji, jj)
               zdb = MAX(grav * (zthermal * (zt_bl(ji, jj) - tsn(ji, jj, jm, jp_tem)) - zbeta * (zs_bl(ji, jj) - tsn(ji, jj, jm, jp_sal))), 0.0) + 2.0 * zwstrl(ji, jj) ** 2 / zhbl_s
               zhbl_s = zhbl_s + (0.32 * (hbli(ji, jj) / zhbl_s - 1.0) * zwstrl(ji, jj) ** 3 / hbli(ji, jj) + ((0.32 / 3.0) * EXP(- 2.5 * (hbli(ji, jj) / zhbl_s - 1.0)) - (0.32 / 3.0 - 0.0485) * EXP(- 12.5 * (hbli(ji, jj) / zhbl_s))) * zwstrl(ji, jj) ** 3 / hbli(ji, jj)) / zdb * e3w_n(ji, jj, jk) / zdhdt(ji, jj)
@@ -393,10 +417,10 @@ MODULE zdfosm
             hbl(ji, jj) = MAX(zhbl_s, gdepw_n(ji, jj, 3))
             ibld(ji, jj) = MAX(jm, 3)
             IF (hbl(ji, jj) > hbli(ji, jj)) hbli(ji, jj) = hbl(ji, jj)
-            !CC END KERNELS
+            !$ACC END KERNELS
           END IF
         ELSE
-          !CALL ProfileStart('zdf_osm', 'r3', psy_profile3)
+          CALL profile_psy_data3 % PreStart('zdf_osm', 'r3', 0, 0)
           hbl(ji, jj) = zhbl_t(ji, jj)
           IF (lconv(ji, jj)) THEN
             hbli(ji, jj) = hbl(ji, jj)
@@ -404,15 +428,16 @@ MODULE zdfosm
             hbl(ji, jj) = MAX(hbl(ji, jj), gdepw_n(ji, jj, 3))
             IF (hbl(ji, jj) > hbli(ji, jj)) hbli(ji, jj) = hbl(ji, jj)
           END IF
-          !CALL ProfileEnd(psy_profile3)
+          CALL profile_psy_data3 % PostEnd
         END IF
-        !CALL ProfileStart('zdf_osm', 'r4', psy_profile4)
+        CALL profile_psy_data4 % PreStart('zdf_osm', 'r4', 0, 0)
         zhbl(ji, jj) = gdepw_n(ji, jj, ibld(ji, jj))
-        !CALL ProfileEnd(psy_profile4)
+        CALL profile_psy_data4 % PostEnd
       END DO
     END DO
-    !CC KERNELS
+    !$ACC KERNELS
     dstokes(:, :) = MIN(dstokes(:, :), hbl(:, :) / 3.)
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zthermal = rab_n(ji, jj, 1, jp_tem)
@@ -480,6 +505,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         zthermal = rab_n(ji, jj, 1, jp_tem)
@@ -533,6 +559,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         ztemp = zu_ml(ji, jj)
@@ -551,6 +578,7 @@ MODULE zdfosm
     END DO
     zuw_bse = 0._wp
     zvw_bse = 0._wp
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -564,6 +592,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -607,6 +636,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -632,6 +662,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -647,6 +678,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -681,6 +713,7 @@ MODULE zdfosm
       zsc_ws_1 = 2.0 * zwsav
     END WHERE
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -708,6 +741,7 @@ MODULE zdfosm
       zsc_vw_1 = ff_t * zhbl * zustke ** 3 * zla ** (8.0 / 3.0) / (zvstr ** 2 + epsln)
     END WHERE
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -734,6 +768,7 @@ MODULE zdfosm
       zsc_ws_1 = 0._wp
     END WHERE
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -763,7 +798,10 @@ MODULE zdfosm
       zsc_vw_1 = 0._wp
     END WHERE
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
+    !!$ACC LOOP INDEPENDENT
     DO jj = 2, jpjm1
+      !!$ACC LOOP INDEPENDENT
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
           DO jk = 2, imld(ji, jj)
@@ -788,6 +826,7 @@ MODULE zdfosm
       zsc_ws_1 = zws0
     END WHERE
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -817,6 +856,7 @@ MODULE zdfosm
       zsc_vw_2 = - 0.11 * SIN(3.14159 * (2.0 + 0.4)) * EXP(- (1.5 + 2.0) ** 2) * zsc_vw_1
     END WHERE
     !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -841,6 +881,7 @@ MODULE zdfosm
         END IF
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -869,8 +910,10 @@ MODULE zdfosm
       END DO
     END DO
     zsc_uw_1 = 0._wp
+    !$ACC END KERNELS
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
+        !$ACC KERNELS
         DO jk = 2, ibld(ji, jj)
           znd = gdepw_n(ji, jj, jk) / zhbl(ji, jj)
           ghamt(ji, jj, jk) = ghamt(ji, jj, jk) + zdiffut(ji, jj, jk) * zdtdz_pyc(ji, jj, jk)
@@ -879,8 +922,11 @@ MODULE zdfosm
           ghamu(ji, jj, jk) = ghamu(ji, jj, jk) + zsc_uw_1(ji, jj) * (1.0 - znd) ** (7.0 / 4.0) * zdbdz_pyc(ji, jj, jk)
           ghamv(ji, jj, jk) = ghamv(ji, jj, jk) + zviscos(ji, jj, jk) * zdvdz_pyc(ji, jj, jk)
         END DO
+        !$ACC END KERNELS
       END DO
     END DO
+    !$ACC KERNELS
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
         IF (lconv(ji, jj)) THEN
@@ -905,24 +951,27 @@ MODULE zdfosm
         ghamv(ji, jj, ibld(ji, jj)) = 0._wp
       END DO
     END DO
+    !$ACC END KERNELS
     DO jj = 2, jpjm1
       DO ji = 2, jpim1
+        !$ACC KERNELS
         DO jk = 2, ibld(ji, jj)
           ztemp = ghamu(ji, jj, jk)
           ghamu(ji, jj, jk) = ghamu(ji, jj, jk) * zcos_wind(ji, jj) - ghamv(ji, jj, jk) * zsin_wind(ji, jj)
           ghamv(ji, jj, jk) = ghamv(ji, jj, jk) * zcos_wind(ji, jj) + ztemp * zsin_wind(ji, jj)
         END DO
+        !$ACC END KERNELS
       END DO
     END DO
-    !$ACC END KERNELS
-    CALL ProfileStart('zdf_osm', 'r5', psy_profile5)
+    CALL profile_psy_data5 % PreStart('zdf_osm', 'r5', 0, 0)
     IF (ln_dia_osm) THEN
       IF (iom_use("zdtdz_pyc")) CALL iom_put("zdtdz_pyc", wmask * zdtdz_pyc)
     END IF
-    CALL ProfileEnd(psy_profile5)
+    CALL profile_psy_data5 % PostEnd
     IF (ln_kpprimix) THEN
       !$ACC KERNELS
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             z3du(ji, jj, jk) = 0.5 * (un(ji, jj, jk - 1) - un(ji, jj, jk)) * (ub(ji, jj, jk - 1) - ub(ji, jj, jk)) * wumask(ji, jj, jk) / (e3uw_n(ji, jj, jk) * e3uw_b(ji, jj, jk))
@@ -931,6 +980,7 @@ MODULE zdfosm
         END DO
       END DO
       DO jk = 2, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zesh2 = (z3du(ji - 1, jj, jk) + z3du(ji, jj, jk)) / MAX(1._wp, umask(ji - 1, jj, jk) + umask(ji, jj, jk)) + (z3dv(ji, jj - 1, jk) + z3dv(ji, jj, jk)) / MAX(1._wp, vmask(ji, jj - 1, jk) + vmask(ji, jj, jk))
@@ -941,30 +991,33 @@ MODULE zdfosm
           END DO
         END DO
       END DO
+      !$ACC END KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
+          !$ACC KERNELS
           DO jk = ibld(ji, jj) + 1, jpkm1
             zdiffut(ji, jj, jk) = zrimix(ji, jj, jk) * rn_difri
             zviscos(ji, jj, jk) = zrimix(ji, jj, jk) * rn_difri
           END DO
+          !$ACC END KERNELS
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
     IF (ln_convmix) THEN
-      !$ACC KERNELS
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
+          !$ACC KERNELS
           DO jk = ibld(ji, jj) + 1, jpkm1
             IF (MIN(rn2(ji, jj, jk), rn2b(ji, jj, jk)) <= - 1.E-12) zdiffut(ji, jj, jk) = rn_difconv
           END DO
+          !$ACC END KERNELS
         END DO
       END DO
-      !$ACC END KERNELS
     END IF
     CALL lbc_lnk(zviscos(:, :, :), 'W', 1.)
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           p_avt(ji, jj, jk) = MAX(zdiffut(ji, jj, jk), avtb(jk)) * tmask(ji, jj, jk)
@@ -976,6 +1029,7 @@ MODULE zdfosm
     CALL lbc_lnk_multi(p_avt, 'W', 1., p_avm, 'W', 1., ghamu, 'W', 1., ghamv, 'W', 1.)
     !$ACC KERNELS
     DO jk = 2, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ghamu(ji, jj, jk) = (ghamu(ji, jj, jk) + ghamu(ji + 1, jj, jk)) / MAX(1., tmask(ji, jj, jk) + tmask(ji + 1, jj, jk)) * umask(ji, jj, jk)
@@ -986,7 +1040,7 @@ MODULE zdfosm
       END DO
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('zdf_osm', 'r6', psy_profile6)
+    CALL profile_psy_data6 % PreStart('zdf_osm', 'r6', 0, 0)
     CALL lbc_lnk_multi(ghamt, 'W', 1., ghams, 'W', 1., ghamu, 'U', 1., ghamv, 'V', 1.)
     IF (ln_dia_osm) THEN
       SELECT CASE (nn_osm_wave)
@@ -1023,12 +1077,18 @@ MODULE zdfosm
       IF (iom_use("zt_ml")) CALL iom_put("zt_ml", tmask(:, :, 1) * zt_ml)
     END IF
     CALL lbc_lnk(p_avt(:, :, :), 'W', 1.)
-    CALL ProfileEnd(psy_profile6)
+    CALL profile_psy_data6 % PostEnd
   END SUBROUTINE zdf_osm
   SUBROUTINE zdf_osm_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios
     INTEGER :: ji, jj, jk
     NAMELIST /namzdf_osm/ ln_use_osm_la, rn_osm_la, rn_osm_dstokes, nn_ave, nn_osm_wave, ln_dia_osm, rn_osm_hbl0, ln_kpprimix, rn_riinfty, rn_difri, ln_convmix, rn_difconv
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    CALL profile_psy_data0 % PreStart('zdf_osm_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namzdf_osm, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namzdf_osm in reference namelist', lwp)
@@ -1074,6 +1134,7 @@ MODULE zdfosm
     IF (lwp) THEN
       WRITE(numout, FMT = *)
     END IF
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     IF (nn_osm_wave == 0) THEN
       dstokes(:, :) = rn_osm_dstokes
@@ -1081,11 +1142,14 @@ MODULE zdfosm
     !$ACC END KERNELS
     SELECT CASE (nn_ave)
     CASE (0)
+      CALL profile_psy_data1 % PreStart('zdf_osm_init', 'r1', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '          no horizontal average on avt'
       IF (lwp) WRITE(numout, FMT = *) '          only in very high horizontal resolution !'
+      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       etmean(:, :, :) = 0.E0
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             etmean(ji, jj, jk) = tmask(ji, jj, jk) / MAX(1., umask(ji - 1, jj, jk) + umask(ji, jj, jk) + vmask(ji, jj - 1, jk) + vmask(ji, jj, jk))
@@ -1098,6 +1162,7 @@ MODULE zdfosm
       !$ACC KERNELS
       etmean(:, :, :) = 0.E0
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             etmean(ji, jj, jk) = tmask(ji, jj, jk) / MAX(1., 2. * tmask(ji, jj, jk) + .5 * (tmask(ji - 1, jj + 1, jk) + tmask(ji - 1, jj - 1, jk) + tmask(ji + 1, jj + 1, jk) + tmask(ji + 1, jj - 1, jk)) + 1. * (tmask(ji - 1, jj, jk) + tmask(ji, jj + 1, jk) + tmask(ji, jj - 1, jk) + tmask(ji + 1, jj, jk)))
@@ -1106,8 +1171,10 @@ MODULE zdfosm
       END DO
       !$ACC END KERNELS
     CASE DEFAULT
+      CALL profile_psy_data2 % PreStart('zdf_osm_init', 'r2', 0, 0)
       WRITE(ctmp1, FMT = *) '          bad flag value for nn_ave = ', nn_ave
       CALL ctl_stop(ctmp1)
+      CALL profile_psy_data2 % PostEnd
     END SELECT
     !$ACC KERNELS
     DO jk = 1, jpk
@@ -1118,13 +1185,16 @@ MODULE zdfosm
     ghamu(:, :, :) = 0.
     ghamv(:, :, :) = 0.
     !$ACC END KERNELS
+    CALL profile_psy_data3 % PreStart('zdf_osm_init', 'r3', 0, 0)
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('wn')
       CALL iom_set_rstw_var_active('hbl')
       CALL iom_set_rstw_var_active('hbli')
     END IF
+    CALL profile_psy_data3 % PostEnd
   END SUBROUTINE zdf_osm_init
   SUBROUTINE osm_rst(kt, cdrw)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
     INTEGER :: id1, id2
@@ -1134,17 +1204,27 @@ MODULE zdfosm
     REAL(KIND = wp) :: zN2_c
     REAL(KIND = wp) :: rho_c = 0.01_wp
     INTEGER, DIMENSION(:, :), ALLOCATABLE :: imld_rst
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
     IF (TRIM(cdrw) == 'READ' .AND. ln_rstart) THEN
+      CALL profile_psy_data0 % PreStart('osm_rst', 'r0', 0, 0)
       id1 = iom_varid(numror, 'wn', ldstop = .FALSE.)
+      CALL profile_psy_data0 % PostEnd
       IF (id1 > 0) THEN
+        CALL profile_psy_data1 % PreStart('osm_rst', 'r1', 0, 0)
         CALL iom_get(numror, jpdom_autoglo, 'wn', wn, ldxios = lrxios)
         WRITE(numout, FMT = *) ' ===>>>> :  wn read from restart file'
+        CALL profile_psy_data1 % PostEnd
       ELSE
         !$ACC KERNELS
         wn(:, :, :) = 0._wp
         !$ACC END KERNELS
         WRITE(numout, FMT = *) ' ===>>>> :  wn not in restart file, set to zero initially'
       END IF
+      CALL profile_psy_data2 % PreStart('osm_rst', 'r2', 0, 0)
       id1 = iom_varid(numror, 'hbl', ldstop = .FALSE.)
       id2 = iom_varid(numror, 'hbli', ldstop = .FALSE.)
       IF (id1 > 0 .AND. id2 > 0) THEN
@@ -1155,7 +1235,9 @@ MODULE zdfosm
       ELSE
         WRITE(numout, FMT = *) ' ===>>>> : previous run without osmosis scheme, hbl computed from stratification'
       END IF
+      CALL profile_psy_data2 % PostEnd
     END IF
+    CALL profile_psy_data3 % PreStart('osm_rst', 'r3', 0, 0)
     IF (TRIM(cdrw) == 'WRITE') THEN
       IF (lwp) WRITE(numout, FMT = *) '---- osm-rst ----'
       CALL iom_rstput(kt, nitrst, numrow, 'wn', wn, ldxios = lwxios)
@@ -1167,12 +1249,14 @@ MODULE zdfosm
     ALLOCATE(imld_rst(jpi, jpj))
     CALL eos_rab(tsn, rab_n)
     CALL bn2(tsn, rab_n, rn2)
+    CALL profile_psy_data3 % PostEnd
     !$ACC KERNELS
     imld_rst(:, :) = nlb10
     hbl(:, :) = 0._wp
     zN2_c = grav * rho_c * r1_rau0
     hbl(:, :) = 0._wp
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           ikt = mbkt(ji, jj)
@@ -1181,6 +1265,7 @@ MODULE zdfosm
         END DO
       END DO
     END DO
+    !$ACC LOOP INDEPENDENT COLLAPSE(2)
     DO jj = 1, jpj
       DO ji = 1, jpi
         iiki = imld_rst(ji, jj)
@@ -1190,24 +1275,26 @@ MODULE zdfosm
     hbl = MAX(hbl, epsln)
     hbli(:, :) = hbl(:, :)
     !$ACC END KERNELS
+    CALL profile_psy_data4 % PreStart('osm_rst', 'r4', 0, 0)
     DEALLOCATE(imld_rst)
     WRITE(numout, FMT = *) ' ===>>>> : hbl computed from stratification'
+    CALL profile_psy_data4 % PostEnd
   END SUBROUTINE osm_rst
   SUBROUTINE tra_osm(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     REAL(KIND = wp), DIMENSION(:, :, :), ALLOCATABLE :: ztrdt, ztrds
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    CALL ProfileStart('tra_osm', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('tra_osm', 'r0', 0, 0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'tra_osm : OSM non-local tracer fluxes'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~   '
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (l_trdtra) THEN
       ALLOCATE(ztrdt(jpi, jpj, jpk))
       !$ACC KERNELS
@@ -1220,6 +1307,7 @@ MODULE zdfosm
     END IF
     !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           tsa(ji, jj, jk, jp_tem) = tsa(ji, jj, jk, jp_tem) - (ghamt(ji, jj, jk) - ghamt(ji, jj, jk + 1)) / e3t_n(ji, jj, jk)
@@ -1233,37 +1321,38 @@ MODULE zdfosm
       ztrdt(:, :, :) = tsa(:, :, :, jp_tem) - ztrdt(:, :, :)
       ztrds(:, :, :) = tsa(:, :, :, jp_sal) - ztrds(:, :, :)
       !$ACC END KERNELS
-      CALL ProfileStart('tra_osm', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('tra_osm', 'r1', 0, 0)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_zdf, ztrdt)
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_zdf, ztrds)
       DEALLOCATE(ztrdt)
       DEALLOCATE(ztrds)
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
     END IF
-    CALL ProfileStart('tra_osm', 'r2', psy_profile2)
+    CALL profile_psy_data2 % PreStart('tra_osm', 'r2', 0, 0)
     IF (ln_ctl) THEN
       CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' osm  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     END IF
-    CALL ProfileEnd(psy_profile2)
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE tra_osm
   SUBROUTINE trc_osm(kt)
     INTEGER, INTENT(IN) :: kt
     WRITE(*, FMT = *) 'trc_osm: Not written yet', kt
   END SUBROUTINE trc_osm
   SUBROUTINE dyn_osm(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('dyn_osm', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dyn_osm', 'r0', 0, 0)
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'dyn_osm : OSM non-local velocity'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~   '
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     DO jk = 1, jpkm1
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 2, jpjm1
         DO ji = 2, jpim1
           ua(ji, jj, jk) = ua(ji, jj, jk) - (ghamu(ji, jj, jk) - ghamu(ji, jj, jk + 1)) / e3u_n(ji, jj, jk)

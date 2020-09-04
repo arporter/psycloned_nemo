@@ -51,18 +51,25 @@ MODULE domvvl
     END IF
   END FUNCTION dom_vvl_alloc
   SUBROUTINE dom_vvl_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     INTEGER :: ii0, ii1, ij0, ij1
     REAL(KIND = wp) :: zcoef
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('dom_vvl_init', 'r0', 0, 0)
     IF (lwp) WRITE(numout, FMT = *)
     IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_init : Variable volume activated'
     IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~'
     CALL dom_vvl_ctl
     IF (dom_vvl_alloc() /= 0) CALL ctl_stop('STOP', 'dom_vvl_init : unable to allocate arrays')
     CALL dom_vvl_rst(nit000, 'READ')
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     e3t_a(:, :, jpk) = e3t_0(:, :, jpk)
     !$ACC END KERNELS
+    CALL profile_psy_data1 % PreStart('dom_vvl_init', 'r1', 0, 0)
     CALL dom_vvl_interpol(e3t_b(:, :, :), e3u_b(:, :, :), 'U')
     CALL dom_vvl_interpol(e3t_n(:, :, :), e3u_n(:, :, :), 'U')
     CALL dom_vvl_interpol(e3t_b(:, :, :), e3v_b(:, :, :), 'V')
@@ -74,6 +81,7 @@ MODULE domvvl
     CALL dom_vvl_interpol(e3u_b(:, :, :), e3uw_b(:, :, :), 'UW')
     CALL dom_vvl_interpol(e3v_n(:, :, :), e3vw_n(:, :, :), 'VW')
     CALL dom_vvl_interpol(e3v_b(:, :, :), e3vw_b(:, :, :), 'VW')
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     e3t_a(:, :, :) = e3t_n(:, :, :)
     e3u_a(:, :, :) = e3u_n(:, :, :)
@@ -84,6 +92,7 @@ MODULE domvvl
     gdept_b(:, :, 1) = 0.5_wp * e3w_b(:, :, 1)
     gdepw_b(:, :, 1) = 0.0_wp
     DO jk = 2, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zcoef = (tmask(ji, jj, jk) - wmask(ji, jj, jk))
@@ -129,6 +138,7 @@ MODULE domvvl
       END IF
       IF (ln_vvl_zstar_at_eqtor) THEN
         !$ACC KERNELS
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpj
           DO ji = 1, jpi
             IF (ABS(gphit(ji, jj)) >= 6.) THEN
@@ -143,9 +153,7 @@ MODULE domvvl
             END IF
           END DO
         END DO
-        !$ACC END KERNELS
         IF (cn_cfg == "orca" .OR. cn_cfg == "ORCA") THEN
-          !$ACC KERNELS
           IF (nn_cfg == 3) THEN
             ii0 = 103
             ii1 = 111
@@ -154,10 +162,11 @@ MODULE domvvl
             frq_rst_e3t(mi0(ii0) : mi1(ii1), mj0(ij0) : mj1(ij1)) = 0.0_wp
             frq_rst_hdv(mi0(ii0) : mi1(ii1), mj0(ij0) : mj1(ij1)) = 1.E0_wp / rdt
           END IF
-          !$ACC END KERNELS
         END IF
+        !$ACC END KERNELS
       END IF
     END IF
+    CALL profile_psy_data2 % PreStart('dom_vvl_init', 'r2', 0, 0)
     IF (lwxios) THEN
       CALL iom_set_rstw_var_active('e3t_b')
       CALL iom_set_rstw_var_active('e3t_n')
@@ -169,26 +178,27 @@ MODULE domvvl
         CALL iom_set_rstw_var_active('hdiv_lf')
       END IF
     END IF
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE dom_vvl_init
   SUBROUTINE dom_vvl_sf_nxt(kt, kcall)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT( IN ) :: kt
-    INTEGER, INTENT( IN ), OPTIONAL :: kcall
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
+    INTEGER, INTENT(IN), OPTIONAL :: kcall
     INTEGER :: ji, jj, jk
     INTEGER, DIMENSION(3) :: ijk_max, ijk_min
     REAL(KIND = wp) :: z2dt, z_tmin, z_tmax
     LOGICAL :: ll_do_bclinic
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zht, z_scale, zwu, zwv, zhdiv
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk) :: ze3t
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    TYPE(ProfileData), SAVE :: psy_profile3
-    TYPE(ProfileData), SAVE :: psy_profile4
-    TYPE(ProfileData), SAVE :: psy_profile5
-    TYPE(ProfileData), SAVE :: psy_profile6
-    TYPE(ProfileData), SAVE :: psy_profile7
-    CALL ProfileStart('dom_vvl_sf_nxt', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
+    CALL profile_psy_data0 % PreStart('dom_vvl_sf_nxt', 'r0', 0, 0)
     IF (ln_linssh) RETURN
     IF (ln_timing) CALL timing_start('dom_vvl_sf_nxt')
     IF (kt == nit000) THEN
@@ -200,7 +210,7 @@ MODULE domvvl
     IF (PRESENT(kcall)) THEN
       IF (kcall == 2 .AND. ln_vvl_ztilde) ll_do_bclinic = .FALSE.
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     z_scale(:, :) = (ssha(:, :) - sshb(:, :)) * ssmask(:, :) / (ht_0(:, :) + sshn(:, :) + 1. - ssmask(:, :))
     DO jk = 1, jpkm1
@@ -257,6 +267,7 @@ MODULE domvvl
       zwu(:, :) = 0._wp
       zwv(:, :) = 0._wp
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             un_td(ji, jj, jk) = rn_ahe3 * umask(ji, jj, jk) * e2_e1u(ji, jj) * (tilde_e3t_b(ji, jj, jk) - tilde_e3t_b(ji + 1, jj, jk))
@@ -266,6 +277,7 @@ MODULE domvvl
           END DO
         END DO
       END DO
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           un_td(ji, jj, mbku(ji, jj)) = un_td(ji, jj, mbku(ji, jj)) - zwu(ji, jj)
@@ -273,6 +285,7 @@ MODULE domvvl
         END DO
       END DO
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             tilde_e3t_a(ji, jj, jk) = tilde_e3t_a(ji, jj, jk) + (un_td(ji - 1, jj, jk) - un_td(ji, jj, jk) + vn_td(ji, jj - 1, jk) - vn_td(ji, jj, jk)) * r1_e1e2t(ji, jj)
@@ -280,7 +293,7 @@ MODULE domvvl
         END DO
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('dom_vvl_sf_nxt', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('dom_vvl_sf_nxt', 'r1', 0, 0)
       CALL lbc_lnk_multi(un_td, 'U', - 1._wp, vn_td, 'V', - 1._wp)
       IF (neuler == 0 .AND. kt == nit000) THEN
         z2dt = rdt
@@ -288,7 +301,7 @@ MODULE domvvl
         z2dt = 2.0_wp * rdt
       END IF
       CALL lbc_lnk(tilde_e3t_a(:, :, :), 'T', 1._wp)
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
       !$ACC KERNELS
       tilde_e3t_a(:, :, :) = tilde_e3t_b(:, :, :) + z2dt * tmask(:, :, :) * tilde_e3t_a(:, :, :)
       ze3t(:, :, jpk) = 0._wp
@@ -296,7 +309,7 @@ MODULE domvvl
         ze3t(:, :, jk) = tilde_e3t_a(:, :, jk) / e3t_0(:, :, jk) * tmask(:, :, jk) * tmask_i(:, :)
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('dom_vvl_sf_nxt', 'r2', psy_profile2)
+      CALL profile_psy_data2 % PreStart('dom_vvl_sf_nxt', 'r2', 0, 0)
       z_tmax = MAXVAL(ze3t(:, :, :))
       IF (lk_mpp) CALL mpp_max(z_tmax)
       z_tmin = MINVAL(ze3t(:, :, :))
@@ -321,7 +334,7 @@ MODULE domvvl
           CALL ctl_warn('MAX( ABS( tilde_e3t_a(:,:,:) ) / e3t_0(:,:,:) ) too high')
         END IF
       END IF
-      CALL ProfileEnd(psy_profile2)
+      CALL profile_psy_data2 % PostEnd
       !$ACC KERNELS
       tilde_e3t_a(:, :, :) = MIN(tilde_e3t_a(:, :, :), rn_zdef_max * e3t_0(:, :, :))
       tilde_e3t_a(:, :, :) = MAX(tilde_e3t_a(:, :, :), - rn_zdef_max * e3t_0(:, :, :))
@@ -346,43 +359,43 @@ MODULE domvvl
     END IF
     !$ACC END KERNELS
     IF (ln_vvl_dbg .AND. .NOT. ll_do_bclinic) THEN
-      CALL ProfileStart('dom_vvl_sf_nxt', 'r3', psy_profile3)
+      CALL profile_psy_data3 % PreStart('dom_vvl_sf_nxt', 'r3', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) 'kt =', kt
       IF (ln_vvl_ztilde .OR. ln_vvl_layer) THEN
         z_tmax = MAXVAL(tmask(:, :, 1) * tmask_i(:, :) * ABS(zht(:, :)))
         IF (lk_mpp) CALL mpp_max(z_tmax)
         IF (lwp) WRITE(numout, FMT = *) kt, ' MAXVAL(abs(SUM(tilde_e3t_a))) =', z_tmax
       END IF
-      CALL ProfileEnd(psy_profile3)
+      CALL profile_psy_data3 % PostEnd
       !$ACC KERNELS
       zht(:, :) = 0.0_wp
       DO jk = 1, jpkm1
         zht(:, :) = zht(:, :) + e3t_n(:, :, jk) * tmask(:, :, jk)
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('dom_vvl_sf_nxt', 'r4', psy_profile4)
+      CALL profile_psy_data4 % PreStart('dom_vvl_sf_nxt', 'r4', 0, 0)
       z_tmax = MAXVAL(tmask(:, :, 1) * tmask_i(:, :) * ABS(ht_0(:, :) + sshn(:, :) - zht(:, :)))
       IF (lk_mpp) CALL mpp_max(z_tmax)
       IF (lwp) WRITE(numout, FMT = *) kt, ' MAXVAL(abs(ht_0+sshn-SUM(e3t_n))) =', z_tmax
-      CALL ProfileEnd(psy_profile4)
+      CALL profile_psy_data4 % PostEnd
       !$ACC KERNELS
       zht(:, :) = 0.0_wp
       DO jk = 1, jpkm1
         zht(:, :) = zht(:, :) + e3t_a(:, :, jk) * tmask(:, :, jk)
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('dom_vvl_sf_nxt', 'r5', psy_profile5)
+      CALL profile_psy_data5 % PreStart('dom_vvl_sf_nxt', 'r5', 0, 0)
       z_tmax = MAXVAL(tmask(:, :, 1) * tmask_i(:, :) * ABS(ht_0(:, :) + ssha(:, :) - zht(:, :)))
       IF (lk_mpp) CALL mpp_max(z_tmax)
       IF (lwp) WRITE(numout, FMT = *) kt, ' MAXVAL(abs(ht_0+ssha-SUM(e3t_a))) =', z_tmax
-      CALL ProfileEnd(psy_profile5)
+      CALL profile_psy_data5 % PostEnd
       !$ACC KERNELS
       zht(:, :) = 0.0_wp
       DO jk = 1, jpkm1
         zht(:, :) = zht(:, :) + e3t_b(:, :, jk) * tmask(:, :, jk)
       END DO
       !$ACC END KERNELS
-      CALL ProfileStart('dom_vvl_sf_nxt', 'r6', psy_profile6)
+      CALL profile_psy_data6 % PreStart('dom_vvl_sf_nxt', 'r6', 0, 0)
       z_tmax = MAXVAL(tmask(:, :, 1) * tmask_i(:, :) * ABS(ht_0(:, :) + sshb(:, :) - zht(:, :)))
       IF (lk_mpp) CALL mpp_max(z_tmax)
       IF (lwp) WRITE(numout, FMT = *) kt, ' MAXVAL(abs(ht_0+sshb-SUM(e3t_b))) =', z_tmax
@@ -395,12 +408,12 @@ MODULE domvvl
       z_tmax = MAXVAL(tmask(:, :, 1) * ABS(ssha(:, :)))
       IF (lk_mpp) CALL mpp_max(z_tmax)
       IF (lwp) WRITE(numout, FMT = *) kt, ' MAXVAL(abs(ssha))) =', z_tmax
-      CALL ProfileEnd(psy_profile6)
+      CALL profile_psy_data6 % PostEnd
     END IF
-    CALL ProfileStart('dom_vvl_sf_nxt', 'r7', psy_profile7)
+    CALL profile_psy_data7 % PreStart('dom_vvl_sf_nxt', 'r7', 0, 0)
     CALL dom_vvl_interpol(e3t_a(:, :, :), e3u_a(:, :, :), 'U')
     CALL dom_vvl_interpol(e3t_a(:, :, :), e3v_a(:, :, :), 'V')
-    CALL ProfileEnd(psy_profile7)
+    CALL profile_psy_data7 % PostEnd
     !$ACC KERNELS
     hu_a(:, :) = e3u_a(:, :, 1) * umask(:, :, 1)
     hv_a(:, :) = e3v_a(:, :, 1) * vmask(:, :, 1)
@@ -418,14 +431,14 @@ MODULE domvvl
     IF (ln_timing) CALL timing_stop('dom_vvl_sf_nxt')
   END SUBROUTINE dom_vvl_sf_nxt
   SUBROUTINE dom_vvl_sf_swp(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT( IN ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcoef
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    CALL ProfileStart('dom_vvl_sf_swp', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('dom_vvl_sf_swp', 'r0', 0, 0)
     IF (ln_linssh) RETURN
     IF (ln_timing) CALL timing_start('dom_vvl_sf_swp')
     IF (kt == nit000) THEN
@@ -433,7 +446,7 @@ MODULE domvvl
       IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_sf_swp : - time filter and swap of scale factors'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~~~~~~~~   - interpolate scale factors and compute depths for next time step'
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     IF (ln_vvl_ztilde .OR. ln_vvl_layer) THEN
       IF (neuler == 0 .AND. kt == nit000) THEN
@@ -449,7 +462,7 @@ MODULE domvvl
     e3u_n(:, :, :) = e3u_a(:, :, :)
     e3v_n(:, :, :) = e3v_a(:, :, :)
     !$ACC END KERNELS
-    CALL ProfileStart('dom_vvl_sf_swp', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('dom_vvl_sf_swp', 'r1', 0, 0)
     CALL dom_vvl_interpol(e3u_n(:, :, :), e3f_n(:, :, :), 'F')
     CALL dom_vvl_interpol(e3t_n(:, :, :), e3w_n(:, :, :), 'W')
     CALL dom_vvl_interpol(e3u_n(:, :, :), e3uw_n(:, :, :), 'UW')
@@ -457,12 +470,13 @@ MODULE domvvl
     CALL dom_vvl_interpol(e3t_b(:, :, :), e3w_b(:, :, :), 'W')
     CALL dom_vvl_interpol(e3u_b(:, :, :), e3uw_b(:, :, :), 'UW')
     CALL dom_vvl_interpol(e3v_b(:, :, :), e3vw_b(:, :, :), 'VW')
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     !$ACC KERNELS
     gdept_n(:, :, 1) = 0.5_wp * e3w_n(:, :, 1)
     gdepw_n(:, :, 1) = 0.0_wp
     gde3w_n(:, :, 1) = gdept_n(:, :, 1) - sshn(:, :)
     DO jk = 2, jpk
+      !$ACC LOOP INDEPENDENT COLLAPSE(2)
       DO jj = 1, jpj
         DO ji = 1, jpi
           zcoef = (tmask(ji, jj, jk) - wmask(ji, jj, jk))
@@ -481,30 +495,31 @@ MODULE domvvl
       ht_n(:, :) = ht_n(:, :) + e3t_n(:, :, jk) * tmask(:, :, jk)
     END DO
     !$ACC END KERNELS
-    CALL ProfileStart('dom_vvl_sf_swp', 'r2', psy_profile2)
+    CALL profile_psy_data2 % PreStart('dom_vvl_sf_swp', 'r2', 0, 0)
     IF (lrst_oce) CALL dom_vvl_rst(kt, 'WRITE')
     IF (ln_timing) CALL timing_stop('dom_vvl_sf_swp')
-    CALL ProfileEnd(psy_profile2)
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE dom_vvl_sf_swp
   SUBROUTINE dom_vvl_interpol(pe3_in, pe3_out, pout)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN ) :: pe3_in
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(IN) :: pe3_in
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk), INTENT(INOUT) :: pe3_out
-    CHARACTER(LEN = *), INTENT(IN ) :: pout
+    CHARACTER(LEN = *), INTENT(IN) :: pout
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zlnwd
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('dom_vvl_interpol', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dom_vvl_interpol', 'r0', 0, 0)
     IF (ln_wd_il) THEN
       zlnwd = 1.0_wp
     ELSE
       zlnwd = 0.0_wp
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     SELECT CASE (pout)
     CASE ('U')
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             pe3_out(ji, jj, jk) = 0.5_wp * (umask(ji, jj, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2u(ji, jj) * (e1e2t(ji, jj) * (pe3_in(ji, jj, jk) - e3t_0(ji, jj, jk)) + e1e2t(ji + 1, jj) * (pe3_in(ji + 1, jj, jk) - e3t_0(ji + 1, jj, jk)))
@@ -519,6 +534,7 @@ MODULE domvvl
     CASE ('V')
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             pe3_out(ji, jj, jk) = 0.5_wp * (vmask(ji, jj, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2v(ji, jj) * (e1e2t(ji, jj) * (pe3_in(ji, jj, jk) - e3t_0(ji, jj, jk)) + e1e2t(ji, jj + 1) * (pe3_in(ji, jj + 1, jk) - e3t_0(ji, jj + 1, jk)))
@@ -533,6 +549,7 @@ MODULE domvvl
     CASE ('F')
       !$ACC KERNELS
       DO jk = 1, jpk
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 1, jpjm1
           DO ji = 1, jpim1
             pe3_out(ji, jj, jk) = 0.5_wp * (umask(ji, jj, jk) * umask(ji, jj + 1, jk) * (1.0_wp - zlnwd) + zlnwd) * r1_e1e2f(ji, jj) * (e1e2u(ji, jj) * (pe3_in(ji, jj, jk) - e3u_0(ji, jj, jk)) + e1e2u(ji, jj + 1) * (pe3_in(ji, jj + 1, jk) - e3u_0(ji, jj + 1, jk)))
@@ -568,12 +585,23 @@ MODULE domvvl
     END SELECT
   END SUBROUTINE dom_vvl_interpol
   SUBROUTINE dom_vvl_rst(kt, cdrw)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
     INTEGER :: ji, jj, jk
     INTEGER :: id1, id2, id3, id4, id5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data3
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data4
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data5
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data6
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data7
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data8
     IF (TRIM(cdrw) == 'READ') THEN
       IF (ln_rstart) THEN
+        CALL profile_psy_data0 % PreStart('dom_vvl_rst', 'r0', 0, 0)
         CALL rst_read_open
         CALL iom_get(numror, jpdom_autoglo, 'sshn', sshn, ldxios = lrxios)
         id1 = iom_varid(numror, 'e3t_b', ldstop = .FALSE.)
@@ -581,10 +609,13 @@ MODULE domvvl
         id3 = iom_varid(numror, 'tilde_e3t_b', ldstop = .FALSE.)
         id4 = iom_varid(numror, 'tilde_e3t_n', ldstop = .FALSE.)
         id5 = iom_varid(numror, 'hdiv_lf', ldstop = .FALSE.)
+        CALL profile_psy_data0 % PostEnd
         IF (MIN(id1, id2) > 0) THEN
+          CALL profile_psy_data1 % PreStart('dom_vvl_rst', 'r1', 0, 0)
           CALL iom_get(numror, jpdom_autoglo, 'e3t_b', e3t_b(:, :, :), ldxios = lrxios)
           CALL iom_get(numror, jpdom_autoglo, 'e3t_n', e3t_n(:, :, :), ldxios = lrxios)
           IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_rst : e3t_b and e3t_n found in restart files'
+          CALL profile_psy_data1 % PostEnd
           !$ACC KERNELS
           WHERE (tmask(:, :, :) == 0.0_wp)
             e3t_n(:, :, :) = e3t_0(:, :, :)
@@ -595,27 +626,33 @@ MODULE domvvl
           END IF
           !$ACC END KERNELS
         ELSE IF (id1 > 0) THEN
+          CALL profile_psy_data2 % PreStart('dom_vvl_rst', 'r2', 0, 0)
           IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_rst WARNING : e3t_n not found in restart files'
           IF (lwp) WRITE(numout, FMT = *) 'e3t_n set equal to e3t_b.'
           IF (lwp) WRITE(numout, FMT = *) 'neuler is forced to 0'
           CALL iom_get(numror, jpdom_autoglo, 'e3t_b', e3t_b(:, :, :), ldxios = lrxios)
+          CALL profile_psy_data2 % PostEnd
           !$ACC KERNELS
           e3t_n(:, :, :) = e3t_b(:, :, :)
           neuler = 0
           !$ACC END KERNELS
         ELSE IF (id2 > 0) THEN
+          CALL profile_psy_data3 % PreStart('dom_vvl_rst', 'r3', 0, 0)
           IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_rst WARNING : e3t_b not found in restart files'
           IF (lwp) WRITE(numout, FMT = *) 'e3t_b set equal to e3t_n.'
           IF (lwp) WRITE(numout, FMT = *) 'neuler is forced to 0'
           CALL iom_get(numror, jpdom_autoglo, 'e3t_n', e3t_n(:, :, :), ldxios = lrxios)
+          CALL profile_psy_data3 % PostEnd
           !$ACC KERNELS
           e3t_b(:, :, :) = e3t_n(:, :, :)
           neuler = 0
           !$ACC END KERNELS
         ELSE
+          CALL profile_psy_data4 % PreStart('dom_vvl_rst', 'r4', 0, 0)
           IF (lwp) WRITE(numout, FMT = *) 'dom_vvl_rst WARNING : e3t_n not found in restart file'
           IF (lwp) WRITE(numout, FMT = *) 'Compute scale factor from sshn'
           IF (lwp) WRITE(numout, FMT = *) 'neuler is forced to 0'
+          CALL profile_psy_data4 % PostEnd
           !$ACC KERNELS
           DO jk = 1, jpk
             e3t_n(:, :, jk) = e3t_0(:, :, jk) * (ht_0(:, :) + sshn(:, :)) / (ht_0(:, :) + 1._wp - ssmask(:, :)) * tmask(:, :, jk) + e3t_0(:, :, jk) * (1._wp - tmask(:, :, jk))
@@ -625,13 +662,17 @@ MODULE domvvl
           !$ACC END KERNELS
         END IF
         IF (ln_vvl_zstar) THEN
+          CALL profile_psy_data5 % PreStart('dom_vvl_rst', 'r5', 0, 0)
           IF (MIN(id3, id4) > 0) THEN
             CALL ctl_stop('dom_vvl_rst: z_star cannot restart from a z_tilde or layer run')
           END IF
+          CALL profile_psy_data5 % PostEnd
         ELSE
           IF (MIN(id3, id4) > 0) THEN
+            CALL profile_psy_data6 % PreStart('dom_vvl_rst', 'r6', 0, 0)
             CALL iom_get(numror, jpdom_autoglo, 'tilde_e3t_b', tilde_e3t_b(:, :, :), ldxios = lrxios)
             CALL iom_get(numror, jpdom_autoglo, 'tilde_e3t_n', tilde_e3t_n(:, :, :), ldxios = lrxios)
+            CALL profile_psy_data6 % PostEnd
           ELSE
             !$ACC KERNELS
             tilde_e3t_b(:, :, :) = 0.0_wp
@@ -662,6 +703,7 @@ MODULE domvvl
             !$ACC KERNELS
             sshn(:, :) = - ssh_ref
             sshb(:, :) = - ssh_ref
+            !$ACC LOOP INDEPENDENT COLLAPSE(2)
             DO jj = 1, jpj
               DO ji = 1, jpi
                 IF (ht_0(ji, jj) - ssh_ref < rn_wdmin1) THEN
@@ -679,6 +721,7 @@ MODULE domvvl
           END DO
           e3t_b(:, :, :) = e3t_n(:, :, :)
           !$ACC END KERNELS
+          CALL profile_psy_data7 % PreStart('dom_vvl_rst', 'r7', 0, 0)
           DO ji = 1, jpi
             DO jj = 1, jpj
               IF (ht_0(ji, jj) .LE. 0.0 .AND. NINT(ssmask(ji, jj)) .EQ. 1) THEN
@@ -686,6 +729,7 @@ MODULE domvvl
               END IF
             END DO
           END DO
+          CALL profile_psy_data7 % PostEnd
         ELSE
           !$ACC KERNELS
           sshn(:, :) = 0._wp
@@ -702,6 +746,7 @@ MODULE domvvl
         !$ACC END KERNELS
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
+      CALL profile_psy_data8 % PreStart('dom_vvl_rst', 'r8', 0, 0)
       IF (lwp) WRITE(numout, FMT = *) '---- dom_vvl_rst ----'
       IF (lwxios) CALL iom_swap(cwxios_context)
       CALL iom_rstput(kt, nitrst, numrow, 'e3t_b', e3t_b(:, :, :), ldxios = lwxios)
@@ -714,14 +759,15 @@ MODULE domvvl
         CALL iom_rstput(kt, nitrst, numrow, 'hdiv_lf', hdiv_lf(:, :, :), ldxios = lwxios)
       END IF
       IF (lwxios) CALL iom_swap(cxios_context)
+      CALL profile_psy_data8 % PostEnd
     END IF
   END SUBROUTINE dom_vvl_rst
   SUBROUTINE dom_vvl_ctl
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ioptio, ios
     NAMELIST /nam_vvl/ ln_vvl_zstar, ln_vvl_ztilde, ln_vvl_layer, ln_vvl_ztilde_as_zstar, ln_vvl_zstar_at_eqtor, rn_ahe3, rn_rst_e3t, rn_lf_cutoff, rn_zdef_max, ln_vvl_dbg
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('dom_vvl_ctl', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('dom_vvl_ctl', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, nam_vvl, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'nam_vvl in reference namelist', lwp)
@@ -769,6 +815,6 @@ MODULE domvvl
       IF (ln_vvl_layer) WRITE(numout, FMT = *) '      ==>>>   layer vertical coordinate is used'
       IF (ln_vvl_ztilde_as_zstar) WRITE(numout, FMT = *) '      ==>>>   to emulate a zstar coordinate'
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE dom_vvl_ctl
 END MODULE domvvl

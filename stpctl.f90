@@ -15,8 +15,8 @@ MODULE stpctl
   INTEGER :: idrun, idtime, idssh, idu, ids1, ids2, istatus
   CONTAINS
   SUBROUTINE stp_ctl(kt, kindic)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT(IN ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     INTEGER, INTENT(INOUT) :: kindic
     INTEGER :: ji, jj, jk
     INTEGER :: iih, ijh
@@ -26,11 +26,10 @@ MODULE stpctl
     REAL(KIND = wp) :: zzz
     INTEGER, DIMENSION(3) :: ilocu, ilocs1, ilocs2
     INTEGER, DIMENSION(2) :: iloch
-    !REAL(KIND = wp), DIMENSION(5) :: zmax
-    REAL(KIND = wp), ALLOCATABLE, DIMENSION(:) :: zmax
+    REAL(KIND = wp), DIMENSION(5) :: zmax
     CHARACTER(LEN = 20) :: clname
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('stp_ctl', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('stp_ctl', 'r0', 0, 0)
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'stp_ctl : time-stepping control'
@@ -53,22 +52,15 @@ MODULE stpctl
       WRITE(numstp, FMT = '(1x, i8)') kt
       REWIND(UNIT = numstp)
     END IF
-    allocate(zmax(5))
     IF (ll_wd) THEN
-    !$ACC KERNELS
       zmax(1) = MAXVAL(ABS(sshn(:, :) + ssh_ref * tmask(:, :, 1)))
-      !$ACC END KERNELS
     ELSE
-    !$ACC KERNELS
       zmax(1) = MAXVAL(ABS(sshn(:, :)))
-      !$ACC END KERNELS
     END IF
-    !$ACC KERNELS
     zmax(2) = MAXVAL(ABS(un(:, :, :)))
     zmax(3) = MAXVAL(- tsn(:, :, :, jp_sal), mask = tmask(:, :, :) == 1._wp)
     zmax(4) = MAXVAL(tsn(:, :, :, jp_sal), mask = tmask(:, :, :) == 1._wp)
     zmax(5) = REAL(nstop, wp)
-    !$ACC END KERNELS
     IF (lk_mpp) THEN
       CALL mpp_max_multiple(zmax(:), 5)
       nstop = NINT(zmax(5))
@@ -128,6 +120,6 @@ MODULE stpctl
       IF (kt == nitend) istatus = NF90_CLOSE(idrun)
     END IF
 9500 FORMAT(' it :', I8, '    |ssh|_max: ', D23.16, ' |U|_max: ', D23.16, ' S_min: ', D23.16, ' S_max: ', D23.16)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE stp_ctl
 END MODULE stpctl

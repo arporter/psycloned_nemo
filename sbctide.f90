@@ -15,14 +15,14 @@ MODULE sbctide
   REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: amp_load, phi_load
   CONTAINS
   SUBROUTINE sbc_tide(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
-    INTEGER, INTENT( IN ) :: kt
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
+    INTEGER, INTENT(IN) :: kt
     INTEGER :: jk
     INTEGER :: nsec_day_orig
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (nsec_day == NINT(0.5_wp * rdt) .OR. kt == nit000) THEN
-      CALL ProfileStart('sbc_tide', 'r0', psy_profile0)
+      CALL profile_psy_data0 % PreStart('sbc_tide', 'r0', 0, 0)
       IF (kt == nit000) THEN
         ALLOCATE(amp_pot(jpi, jpj, nb_harmo), phi_pot(jpi, jpj, nb_harmo), pot_astro(jpi, jpj))
         IF (ln_read_load) THEN
@@ -30,7 +30,7 @@ MODULE sbctide
           CALL tide_init_load
         END IF
       END IF
-      CALL ProfileEnd(psy_profile0)
+      CALL profile_psy_data0 % PostEnd
       IF (ln_read_load) THEN
         !$ACC KERNELS
         amp_pot(:, :, :) = amp_load(:, :, :)
@@ -46,7 +46,7 @@ MODULE sbctide
       pot_astro(:, :) = 0._wp
       nsec_day_orig = nsec_day
       !$ACC END KERNELS
-      CALL ProfileStart('sbc_tide', 'r1', psy_profile1)
+      CALL profile_psy_data1 % PreStart('sbc_tide', 'r1', 0, 0)
       IF (nsec_day /= NINT(0.5_wp * rdt)) THEN
         kt_tide = kt - (nsec_day - 0.5_wp * rdt) / rdt
         nsec_day = NINT(0.5_wp * rdt)
@@ -64,12 +64,15 @@ MODULE sbctide
       END IF
       IF (ln_tide_pot) CALL tide_init_potential
       nsec_day = nsec_day_orig
-      CALL ProfileEnd(psy_profile1)
+      CALL profile_psy_data1 % PostEnd
     END IF
   END SUBROUTINE sbc_tide
   SUBROUTINE tide_init_potential
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: zcons, ztmp1, ztmp2, zlat, zlon, ztmp, zamp, zcs
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('tide_init_potential', 'r0', 0, 0)
     DO jk = 1, nb_harmo
       zcons = 0.7_wp * Wave(ntide(jk)) % equitide * ftide(jk)
       DO ji = 1, jpi
@@ -94,11 +97,15 @@ MODULE sbctide
         END DO
       END DO
     END DO
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tide_init_potential
   SUBROUTINE tide_init_load
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: inum
     INTEGER :: ji, jj, itide
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: ztr, zti
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('tide_init_load', 'r0', 0, 0)
     IF (lwp) THEN
       WRITE(numout, FMT = *)
       WRITE(numout, FMT = *) 'tide_init_load : Initialization of load potential from file'
@@ -116,5 +123,6 @@ MODULE sbctide
       END DO
     END DO
     CALL iom_close(inum)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tide_init_load
 END MODULE sbctide

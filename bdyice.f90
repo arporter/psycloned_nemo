@@ -21,11 +21,11 @@ MODULE bdyice
   PUBLIC :: bdy_ice_dyn
   CONTAINS
   SUBROUTINE bdy_ice(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: jbdy
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('bdy_ice', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('bdy_ice', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('bdy_ice_thd')
     CALL ice_var_glo2eqv
     DO jbdy = 1, nb_bdy
@@ -42,10 +42,10 @@ MODULE bdyice
     CALL ice_var_agg(1)
     IF (ln_icectl) CALL ice_prt(kt, iiceprt, jiceprt, 1, ' - ice thermo bdy - ')
     IF (ln_timing) CALL timing_stop('bdy_ice_thd')
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE bdy_ice
   SUBROUTINE bdy_ice_frs(idx, dta, kt, jbdy)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     TYPE(OBC_INDEX), INTENT(IN) :: idx
     TYPE(OBC_DATA), INTENT(IN) :: dta
     INTEGER, INTENT(IN) :: kt
@@ -55,10 +55,10 @@ MODULE bdyice
     INTEGER :: ji, jj, jk, jl, ib, jb
     REAL(KIND = wp) :: zwgt, zwgt1
     REAL(KIND = wp) :: ztmelts, zdh
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    TYPE(ProfileData), SAVE :: psy_profile2
-    CALL ProfileStart('bdy_ice_frs', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
+    CALL profile_psy_data0 % PreStart('bdy_ice_frs', 'r0', 0, 0)
     jgrd = 1
     DO jl = 1, jpl
       DO i_bdy = 1, idx % nblenrim(jgrd)
@@ -77,10 +77,10 @@ MODULE bdyice
     CALL lbc_bdy_lnk(a_i(:, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(h_i(:, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(h_s(:, :, :), 'T', 1., jbdy)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     DO jl = 1, jpl
       DO i_bdy = 1, idx % nblenrim(jgrd)
-        CALL ProfileStart('bdy_ice_frs', 'r1', psy_profile1)
+        CALL profile_psy_data1 % PreStart('bdy_ice_frs', 'r1', 0, 0)
         ji = idx % nbi(i_bdy, jgrd)
         jj = idx % nbj(i_bdy, jgrd)
         jpbound = 0
@@ -99,7 +99,7 @@ MODULE bdyice
         ib = ji
         jb = jj - 1
         IF (nn_ice_dta(jbdy) == 0) jpbound = 0
-        CALL ProfileEnd(psy_profile1)
+        CALL profile_psy_data1 % PostEnd
         !$ACC KERNELS
         ib = ji
         jb = jj
@@ -170,7 +170,7 @@ MODULE bdyice
         !$ACC END KERNELS
       END DO
     END DO
-    CALL ProfileStart('bdy_ice_frs', 'r2', psy_profile2)
+    CALL profile_psy_data2 % PreStart('bdy_ice_frs', 'r2', 0, 0)
     CALL lbc_bdy_lnk(a_i(:, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(h_i(:, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(h_s(:, :, :), 'T', 1., jbdy)
@@ -186,17 +186,17 @@ MODULE bdyice
     CALL lbc_bdy_lnk(e_s(:, :, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(t_i(:, :, :, :), 'T', 1., jbdy)
     CALL lbc_bdy_lnk(e_i(:, :, :, :), 'T', 1., jbdy)
-    CALL ProfileEnd(psy_profile2)
+    CALL profile_psy_data2 % PostEnd
   END SUBROUTINE bdy_ice_frs
   SUBROUTINE bdy_ice_dyn(cd_type)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = 1), INTENT(IN) :: cd_type
     INTEGER :: i_bdy, jgrd
     INTEGER :: ji, jj
     INTEGER :: jbdy
     REAL(KIND = wp) :: zmsk1, zmsk2, zflag
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('bdy_ice_dyn', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('bdy_ice_dyn', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('bdy_ice_dyn')
     DO jbdy = 1, nb_bdy
       SELECT CASE (cn_ice(jbdy))
@@ -241,6 +241,6 @@ MODULE bdyice
       END SELECT
     END DO
     IF (ln_timing) CALL timing_stop('bdy_ice_dyn')
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE bdy_ice_dyn
 END MODULE bdyice

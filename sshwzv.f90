@@ -21,14 +21,14 @@ MODULE sshwzv
   PUBLIC :: ssh_swp
   CONTAINS
   SUBROUTINE ssh_nxt(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: jk
     REAL(KIND = wp) :: z2dt, zcoef
     REAL(KIND = wp), DIMENSION(jpi, jpj) :: zhdiv
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('ssh_nxt', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('ssh_nxt', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('ssh_nxt')
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
@@ -42,7 +42,7 @@ MODULE sshwzv
       CALL wad_lmt(sshb, zcoef * (emp_b(:, :) + emp(:, :)), z2dt)
     END IF
     CALL div_hor(kt)
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     !$ACC KERNELS
     zhdiv(:, :) = 0._wp
     DO jk = 1, jpkm1
@@ -50,7 +50,7 @@ MODULE sshwzv
     END DO
     ssha(:, :) = (sshb(:, :) - z2dt * (zcoef * (emp_b(:, :) + emp(:, :)) + zhdiv(:, :))) * ssmask(:, :)
     !$ACC END KERNELS
-    CALL ProfileStart('ssh_nxt', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('ssh_nxt', 'r1', 0, 0)
     IF (.NOT. ln_dynspg_ts) THEN
       IF (ln_bdy) THEN
         CALL lbc_lnk(ssha, 'T', 1.)
@@ -59,35 +59,36 @@ MODULE sshwzv
     END IF
     IF (ln_ctl) CALL prt_ctl(tab2d_1 = ssha, clinfo1 = ' ssha  - : ', mask1 = tmask)
     IF (ln_timing) CALL timing_stop('ssh_nxt')
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE ssh_nxt
   SUBROUTINE wzv(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk
     REAL(KIND = wp) :: z1_2dt
     REAL(KIND = wp), ALLOCATABLE, DIMENSION(:, :, :) :: zhdiv
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_timing) CALL timing_start('wzv')
     IF (kt == nit000) THEN
-      CALL ProfileStart('wzv', 'r0', psy_profile0)
+      CALL profile_psy_data0 % PreStart('wzv', 'r0', 0, 0)
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'wzv : now vertical velocity '
       IF (lwp) WRITE(numout, FMT = *) '~~~~~ '
-      CALL ProfileEnd(psy_profile0)
+      CALL profile_psy_data0 % PostEnd
       !$ACC KERNELS
       wn(:, :, jpk) = 0._wp
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('wzv', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('wzv', 'r1', 0, 0)
     z1_2dt = 1. / (2. * rdt)
     IF (neuler == 0 .AND. kt == nit000) z1_2dt = 1. / rdt
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
     IF (ln_vvl_ztilde .OR. ln_vvl_layer) THEN
       ALLOCATE(zhdiv(jpi, jpj, jpk))
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             zhdiv(ji, jj, jk) = r1_e1e2t(ji, jj) * (un_td(ji, jj, jk) - un_td(ji - 1, jj, jk) + vn_td(ji, jj, jk) - vn_td(ji, jj - 1, jk))
@@ -119,19 +120,19 @@ MODULE sshwzv
     IF (ln_timing) CALL timing_stop('wzv')
   END SUBROUTINE wzv
   SUBROUTINE ssh_swp(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp) :: zcoef
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
-    CALL ProfileStart('ssh_swp', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    CALL profile_psy_data0 % PreStart('ssh_swp', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('ssh_swp')
     IF (kt == nit000) THEN
       IF (lwp) WRITE(numout, FMT = *)
       IF (lwp) WRITE(numout, FMT = *) 'ssh_swp : Asselin time filter and swap of sea surface height'
       IF (lwp) WRITE(numout, FMT = *) '~~~~~~~ '
     END IF
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
     IF (neuler == 0 .AND. kt == nit000) THEN
       !$ACC KERNELS
       sshn(:, :) = ssha(:, :)
@@ -150,9 +151,9 @@ MODULE sshwzv
       sshn(:, :) = ssha(:, :)
       !$ACC END KERNELS
     END IF
-    CALL ProfileStart('ssh_swp', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('ssh_swp', 'r1', 0, 0)
     IF (ln_ctl) CALL prt_ctl(tab2d_1 = sshb, clinfo1 = ' sshb  - : ', mask1 = tmask)
     IF (ln_timing) CALL timing_stop('ssh_swp')
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE ssh_swp
 END MODULE sshwzv

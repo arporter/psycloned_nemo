@@ -28,13 +28,13 @@ MODULE tradmp
     IF (tra_dmp_alloc > 0) CALL ctl_warn('tra_dmp_alloc: allocation of arrays failed')
   END FUNCTION tra_dmp_alloc
   SUBROUTINE tra_dmp(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     INTEGER :: ji, jj, jk, jn
     REAL(KIND = wp), DIMENSION(jpi, jpj, jpk, jpts) :: zts_dta
     REAL(KIND = wp), DIMENSION(:, :, :, :), ALLOCATABLE :: ztrdts
-    TYPE(ProfileData), SAVE :: psy_profile0
-    TYPE(ProfileData), SAVE :: psy_profile1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
     IF (ln_timing) CALL timing_start('tra_dmp')
     IF (l_trdtra) THEN
       ALLOCATE(ztrdts(jpi, jpj, jpk, jpts))
@@ -48,6 +48,7 @@ MODULE tradmp
       DO jn = 1, jpts
         !$ACC KERNELS
         DO jk = 1, jpkm1
+          !$ACC LOOP INDEPENDENT COLLAPSE(2)
           DO jj = 2, jpjm1
             DO ji = 2, jpim1
               tsa(ji, jj, jk, jn) = tsa(ji, jj, jk, jn) + resto(ji, jj, jk) * (zts_dta(ji, jj, jk, jn) - tsb(ji, jj, jk, jn))
@@ -59,6 +60,7 @@ MODULE tradmp
     CASE (1)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (avt(ji, jj, jk) <= 5.E-4_wp) THEN
@@ -72,6 +74,7 @@ MODULE tradmp
     CASE (2)
       !$ACC KERNELS
       DO jk = 1, jpkm1
+        !$ACC LOOP INDEPENDENT COLLAPSE(2)
         DO jj = 2, jpjm1
           DO ji = 2, jpim1
             IF (gdept_n(ji, jj, jk) >= hmlp(ji, jj)) THEN
@@ -87,20 +90,23 @@ MODULE tradmp
       !$ACC KERNELS
       ztrdts(:, :, :, :) = tsa(:, :, :, :) - ztrdts(:, :, :, :)
       !$ACC END KERNELS
-      CALL ProfileStart('tra_dmp', 'r0', psy_profile0)
+      CALL profile_psy_data0 % PreStart('tra_dmp', 'r0', 0, 0)
       CALL trd_tra(kt, 'TRA', jp_tem, jptra_dmp, ztrdts(:, :, :, jp_tem))
       CALL trd_tra(kt, 'TRA', jp_sal, jptra_dmp, ztrdts(:, :, :, jp_sal))
       DEALLOCATE(ztrdts)
-      CALL ProfileEnd(psy_profile0)
+      CALL profile_psy_data0 % PostEnd
     END IF
-    CALL ProfileStart('tra_dmp', 'r1', psy_profile1)
+    CALL profile_psy_data1 % PreStart('tra_dmp', 'r1', 0, 0)
     IF (ln_ctl) CALL prt_ctl(tab3d_1 = tsa(:, :, :, jp_tem), clinfo1 = ' dmp  - Ta: ', mask1 = tmask, tab3d_2 = tsa(:, :, :, jp_sal), clinfo2 = ' Sa: ', mask2 = tmask, clinfo3 = 'tra')
     IF (ln_timing) CALL timing_stop('tra_dmp')
-    CALL ProfileEnd(psy_profile1)
+    CALL profile_psy_data1 % PostEnd
   END SUBROUTINE tra_dmp
   SUBROUTINE tra_dmp_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios, imask
     NAMELIST /namtra_dmp/ ln_tradmp, nn_zdmp, cn_resto
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('tra_dmp_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ref)
     READ(numnam_ref, namtra_dmp, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namtra_dmp in reference namelist', lwp)
@@ -139,5 +145,6 @@ MODULE tradmp
       CALL iom_get(imask, jpdom_autoglo, 'resto', resto)
       CALL iom_close(imask)
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE tra_dmp_init
 END MODULE tradmp

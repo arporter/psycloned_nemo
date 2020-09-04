@@ -23,15 +23,15 @@ MODULE icedia
     IF (ice_dia_alloc /= 0) CALL ctl_warn('ice_dia_alloc: failed to allocate arrays')
   END FUNCTION ice_dia_alloc
   SUBROUTINE ice_dia(kt)
-    USE profile_mod, ONLY: ProfileData, ProfileStart, ProfileEnd
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER, INTENT(IN) :: kt
     REAL(KIND = wp) :: zbg_ivol, zbg_item, zbg_area, zbg_isal
     REAL(KIND = wp) :: zbg_svol, zbg_stem
     REAL(KIND = wp) :: z_frc_voltop, z_frc_temtop, z_frc_sal
     REAL(KIND = wp) :: z_frc_volbot, z_frc_tembot
     REAL(KIND = wp) :: zdiff_vol, zdiff_sal, zdiff_tem
-    TYPE(ProfileData), SAVE :: psy_profile0
-    CALL ProfileStart('ice_dia', 'r0', psy_profile0)
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_dia', 'r0', 0, 0)
     IF (ln_timing) CALL timing_start('ice_dia')
     IF (kt == nit000 .AND. lwp) THEN
       WRITE(numout, FMT = *)
@@ -79,11 +79,14 @@ MODULE icedia
     IF (iom_use('sbgheat_tot')) CALL iom_put('sbgheat_tot', zbg_stem)
     IF (lrst_ice) CALL ice_dia_rst('WRITE', kt_ice)
     IF (ln_timing) CALL timing_stop('ice_dia')
-    CALL ProfileEnd(psy_profile0)
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_dia
   SUBROUTINE ice_dia_init
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     INTEGER :: ios, ierror
     NAMELIST /namdia/ ln_icediachk, ln_icediahsb, ln_icectl, iiceprt, jiceprt
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    CALL profile_psy_data0 % PreStart('ice_dia_init', 'r0', 0, 0)
     REWIND(UNIT = numnam_ice_ref)
     READ(numnam_ice_ref, namdia, IOSTAT = ios, ERR = 901)
 901 IF (ios /= 0) CALL ctl_nam(ios, 'namdia in reference namelist', lwp)
@@ -105,14 +108,20 @@ MODULE icedia
       IF (ice_dia_alloc() /= 0) CALL ctl_stop('STOP', 'ice_dia_init : unable to allocate arrays')
       CALL ice_dia_rst('READ')
     END IF
+    CALL profile_psy_data0 % PostEnd
   END SUBROUTINE ice_dia_init
   SUBROUTINE ice_dia_rst(cdrw, kt)
+    USE profile_psy_data_mod, ONLY: profile_PSyDataType
     CHARACTER(LEN = *), INTENT(IN) :: cdrw
     INTEGER, OPTIONAL, INTENT(IN) :: kt
     INTEGER :: iter
     REAL(KIND = wp) :: ziter
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data0
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data1
+    TYPE(profile_PSyDataType), TARGET, SAVE :: profile_psy_data2
     IF (TRIM(cdrw) == 'READ') THEN
       IF (ln_rstart) THEN
+        CALL profile_psy_data0 % PreStart('ice_dia_rst', 'r0', 0, 0)
         CALL iom_get(numrir, 'kt_ice', ziter)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) 'ice_dia_rst read at time step = ', ziter
@@ -125,10 +134,13 @@ MODULE icedia
         CALL iom_get(numrir, jpdom_autoglo, 'vol_loc_ini', vol_loc_ini)
         CALL iom_get(numrir, jpdom_autoglo, 'tem_loc_ini', tem_loc_ini)
         CALL iom_get(numrir, jpdom_autoglo, 'sal_loc_ini', sal_loc_ini)
+        CALL profile_psy_data0 % PostEnd
       ELSE
+        CALL profile_psy_data1 % PreStart('ice_dia_rst', 'r1', 0, 0)
         IF (lwp) WRITE(numout, FMT = *)
         IF (lwp) WRITE(numout, FMT = *) ' ice_dia at initial state '
         IF (lwp) WRITE(numout, FMT = *) '~~~~~~~'
+        CALL profile_psy_data1 % PostEnd
         !$ACC KERNELS
         frc_voltop = 0._wp
         frc_volbot = 0._wp
@@ -141,6 +153,7 @@ MODULE icedia
         !$ACC END KERNELS
       END IF
     ELSE IF (TRIM(cdrw) == 'WRITE') THEN
+      CALL profile_psy_data2 % PreStart('ice_dia_rst', 'r2', 0, 0)
       iter = kt + nn_fsbc - 1
       IF (iter == nitrst) THEN
         IF (lwp) WRITE(numout, FMT = *)
@@ -155,6 +168,7 @@ MODULE icedia
       CALL iom_rstput(iter, nitrst, numriw, 'vol_loc_ini', vol_loc_ini)
       CALL iom_rstput(iter, nitrst, numriw, 'tem_loc_ini', tem_loc_ini)
       CALL iom_rstput(iter, nitrst, numriw, 'sal_loc_ini', sal_loc_ini)
+      CALL profile_psy_data2 % PostEnd
     END IF
   END SUBROUTINE ice_dia_rst
 END MODULE icedia
