@@ -1,14 +1,27 @@
-module purge; module load pgi-llvm pgi/dev openmpi/3.1.3/pgi/20XX-dev netcdf/4.6.2/openmpi-3.1.3/pgi/20XX-dev cuda cuda/9.2.113/toolkit
+module purge; module load ncompilers/20.7 openmpi/3.1.5/nv/2020 netcdf/4.7.3/openmpi-3.1.5/nv/2020
 # ./makenemo -n ORCA1_SI3_GO8 clean_config
 
 # My changes
-./makenemo -n ORCA1_SI3_GO8 -r SPITZ12 -m linux_pgf90_acc -e /home/wgaudin/psycloned_nemo -j4 del_key 'key_iomput key_mpp_mpi'
-cd cfgs/ORCA1_SI3_GO8/EXP00/
+
+git checkout oce_si3_4_0_2_mpi
+./makenemo -n ORCA1_SI3_GO8_mpi_4_0_2 -r SPITZ12 -m linux_pgf90_acc -e /home/wgaudin/psycloned_nemo -j4 del_key 'key_iomput key_mpp_mpi'
+cd cfgs/ORCA1_SI3_GO8_mpi_4_0_2/EXP00/
 ./nemo
 vi ocean.output
 cat run.stat
 
-git checkout oce_si3_4_0_2_mpi
 git checkout oce_si3_mpi_4_0_2
+./makenemo -n ORCA1_SI3_GO8_4_0_2 -r SPITZ12 -m linux_pgf90_acc -e /home/wgaudin/psycloned_nemo -j4 del_key 'key_iomput key_mpp_mpi'
+cd cfgs/ORCA1_SI3_GO8_4_0_2/EXP00/
+./nemo
+vi ocean.output
+cat run.stat
+
 git checkout wayne_optimisation_branch
+./makenemo -n ORCA1_SI3_GO8_wayne -r SPITZ12 -m linux_pgf90_acc -e /home/wgaudin/psycloned_nemo -j4 del_key 'key_iomput key_mpp_mpi'
+cd cfgs/ORCA1_SI3_GO8_wayne/EXP00/
+./nemo
+vi ocean.output
+cat run.stat
+
 
