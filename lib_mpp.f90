@@ -536,6 +536,8 @@ MODULE lib_mpp
         ELSE
           !$ACC KERNELS      
           IF (.NOT. cd_nat(jf) == 'F') ptab(jf) % pt2d(:, 1 : nn_hls) = zland
+          !$ACC END KERNELS
+          !$ACC KERNELS
           ptab(jf) % pt2d(:, nlcj - nn_hls + 1 : jpj) = zland
           !$ACC END KERNELS
         END IF
@@ -545,32 +547,42 @@ MODULE lib_mpp
     IF (nbondi == 0) ALLOCATE(zt3ew(jpj, nn_hls, ipk, ipl, ipf, 2), zt3we(jpj, nn_hls, ipk, ipl, ipf, 2))
     SELECT CASE (nbondi)
     CASE (- 1)
+      !$ACC KERNELS
       iihom = nlci - nreci
+      !$ACC LOOP GANG VECTOR COLLAPSE(5)
       DO jf = 1, ipf
         DO jl = 1, ipl
-        !$ACC KERNELS
           DO jk = 1, ipk
             DO jh = 1, nn_hls
-              zt3we(:, jh, jk, jl, jf, 1) = ptab(jf) % pt2d(iihom + jh, :)
+              DO jj = 1, jpj
+                zt3we(jj, jh, jk, jl, jf, 1) = ptab(jf) % pt2d(iihom + jh, jj)
+              END DO
             END DO
           END DO
-          !$ACC END KERNELS  
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (0)
+      !$ACC KERNELS
       iihom = nlci - nreci
-      DO jf = 1, ipf
-        DO jl = 1, ipl
-          !$ACC KERNELS
-          DO jk = 1, ipk
-            DO jh = 1, nn_hls
-              zt3ew(:, jh, jk, jl, jf, 1) = ptab(jf) % pt2d(nn_hls + jh, :)
-              zt3we(:, jh, jk, jl, jf, 1) = ptab(jf) % pt2d(iihom + jh, :)
+      !$ACC LOOP SEQ
+      DO jf = 1, ipf ! 2-8
+        !$ACC LOOP SEQ
+        DO jl = 1, ipl ! 1
+          !$ACC LOOP SEQ
+          DO jk = 1, ipk ! 1
+            !$ACC LOOP SEQ
+            DO jh = 1, nn_hls ! 1
+              !$ACC LOOP GANG VECTOR
+              DO jj = 1, jpj
+                zt3ew(jj, jh, jk, jl, jf, 1) = ptab(jf) % pt2d(nn_hls + jh, jj)
+                zt3we(jj, jh, jk, jl, jf, 1) = ptab(jf) % pt2d(iihom + jh, jj)
+              END DO
             END DO
           END DO
-          !$ACC END KERNELS
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (1)
       iihom = nlci - nreci
       DO jf = 1, ipf
@@ -620,18 +632,25 @@ MODULE lib_mpp
         END DO
       END DO
     CASE (0)
+      !$ACC KERNELS
+      !$ACC LOOP SEQ
       DO jf = 1, ipf
+        !$ACC LOOP SEQ
         DO jl = 1, ipl
-          !$ACC KERNELS
+          !$ACC LOOP SEQ
           DO jk = 1, ipk
+            !$ACC LOOP SEQ
             DO jh = 1, nn_hls
-              ptab(jf) % pt2d(jh, :) = zt3we(:, jh, jk, jl, jf, 2)
-              ptab(jf) % pt2d(iihom + jh, :) = zt3ew(:, jh, jk, jl, jf, 2)
+              !$ACC LOOP GANG VECTOR INDEPENDENT
+              DO jj = 1, jpj
+                ptab(jf) % pt2d(jh, jj) = zt3we(jj, jh, jk, jl, jf, 2)
+                ptab(jf) % pt2d(iihom + jh, jj) = zt3ew(jj, jh, jk, jl, jf, 2)
+              END DO
             END DO
           END DO
-          !$ACC END KERNELS
         END DO
       END DO
+      !$ACC END KERNELS
     CASE (1)
       DO jf = 1, ipf
         DO jl = 1, ipl
@@ -1105,8 +1124,11 @@ MODULE lib_mpp
           !$ACC KERNELS
           DO jk = 1, ipk
             DO jh = 1, nn_hls
-              zt3ew(:, jh, jk, jl, jf, 1) = ptab(jf) % pt3d(nn_hls + jh, :, jk)
-              zt3we(:, jh, jk, jl, jf, 1) = ptab(jf) % pt3d(iihom + jh, :, jk)
+              !$ACC LOOP VECTOR
+              DO jj = 1, jpj
+                zt3ew(jj, jh, jk, jl, jf, 1) = ptab(jf) % pt3d(nn_hls + jh, jj, jk) ! Invoked ? Gang vector? Or collapse all loops with explicit syntax
+                zt3we(jj, jh, jk, jl, jf, 1) = ptab(jf) % pt3d(iihom + jh, jj, jk)  ! Invoked ! But bad read stride
+              END DO
             END DO
           END DO
           !$ACC END KERNELS
@@ -1164,10 +1186,18 @@ MODULE lib_mpp
       DO jf = 1, ipf
         DO jl = 1, ipl
           !$ACC KERNELS
+          !$ACC LOOP GANG INDEPENDENT
           DO jk = 1, ipk
+          !$ACC LOOP SEQ
             DO jh = 1, nn_hls
-              ptab(jf) % pt3d(jh, :, jk) = zt3we(:, jh, jk, jl, jf, 2)
-              ptab(jf) % pt3d(iihom + jh, :, jk) = zt3ew(:, jh, jk, jl, jf, 2)
+              !$ACC LOOP VECTOR INDEPENDENT
+              DO jj = 1, jpj
+                ptab(jf) % pt3d(jh, jj, jk) = zt3we(jj, jh, jk, jl, jf, 2)
+              END DO
+              !$ACC LOOP VECTOR INDEPENDENT
+              DO jj = 1, jpj
+                ptab(jf) % pt3d(iihom + jh, jj, jk) = zt3ew(jj, jh, jk, jl, jf, 2)
+              END DO
             END DO
           END DO
           !$ACC END KERNELS
